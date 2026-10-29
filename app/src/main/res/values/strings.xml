@@ -910,7 +910,6 @@
     <string name="engine_module_management_title">引擎模块管理</string>
     <string name="engine_module_management_refresh">刷新模块列表</string>
     <string name="engine_module_management_empty">未发现模块</string>
-    <string name="engine_module_management_empty_hint">安装包名以 com.tyranor.runtime. 开头、声明 com.tyranor.runtime.action.LAUNCH 的模块，并可选提供 res/raw/tyranor_runtime.json 扫描描述；完成后点右上角刷新</string>
     <string name="engine_module_management_summary">%1$s · %2$s · 协议 %3$d · %4$s · %5$d 个游戏</string>
     <string name="engine_module_management_scan_supported">支持扫描</string>
     <string name="engine_module_management_scan_unsupported">未声明扫描特征</string>

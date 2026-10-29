@@ -910,7 +910,6 @@
     <string name="engine_module_management_title">Engine modules</string>
     <string name="engine_module_management_refresh">Refresh module list</string>
     <string name="engine_module_management_empty">No modules found</string>
-    <string name="engine_module_management_empty_hint">Install a module whose package name starts with com.tyranor.runtime. and declares com.tyranor.runtime.action.LAUNCH, optionally with res/raw/tyranor_runtime.json for scan metadata, then tap refresh in the top right</string>
     <string name="engine_module_management_summary">%1$s · %2$s · Protocol %3$d · %4$s · %5$d games</string>
     <string name="engine_module_management_scan_supported">Scan supported</string>
     <string name="engine_module_management_scan_unsupported">No scan signature declared</string>

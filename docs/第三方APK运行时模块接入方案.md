@@ -528,14 +528,14 @@ detectEngineWithRuntime(dir):
 
 - Activity：`EngineModuleManagementActivity : AppScreenActivity`，Manifest 中 `android:exported="false"`。
 - 页面结构：`MiuixSettingsTheme` + `MiuixScaffold(containerColor = Color.Transparent, contentWindowInsets = WindowInsets(0.dp), topBar = AppTopBar(...))`；顶栏透明，正文整体垫在顶栏下方。
-- 顶栏右侧 `TopBarIcon(ic_refresh, "刷新模块列表")`，只刷新模块发现结果，不触发游戏库扫描。
+- 顶栏右侧 `TopBarIcon(ic_game_scan, "刷新模块列表")`，只刷新模块发现结果，不触发游戏库扫描。
 - 正文用 `LazyColumn`，每个模块一张 `MiuixCard`（`glassShadow` + `glassBorder`，`AppComponentCornerRadius`），内部 `SwitchPreference`：
   - `title`：模块 label（缺失时用包名）。
   - `summary`：包名 · versionName/versionCode · protocol · 是否声明扫描特征 · 当前绑定游戏数量。
   - `checked`：是否启用，**默认 false**。
   - `onCheckedChange`：启用/禁用，见 8.3。
 - 列表只展示已发现模块；未安装的模块直接不出现，不设“孤立游戏”分组。
-- 空态：说明包名前缀、action、`res/raw` 描述文件要求，提示安装后点右上角刷新；不提供下载链接。
+- 空态：仅在页面水平居中显示「未发现模块」标题，不显示描述、协议说明或下载链接。
 - 页面 `ON_RESUME` 刷新一次发现结果，安装/卸载模块后返回即可看到变化。
 - 页面不提供任何手动添加、选择目录、选择模块或绑定入口。
 

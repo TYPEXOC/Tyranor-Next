@@ -910,7 +910,6 @@
     <string name="engine_module_management_title">エンジンモジュール管理</string>
     <string name="engine_module_management_refresh">モジュール一覧を更新</string>
     <string name="engine_module_management_empty">モジュールが見つかりません</string>
-    <string name="engine_module_management_empty_hint">パッケージ名が com.tyranor.runtime. で始まり、com.tyranor.runtime.action.LAUNCH を宣言するモジュールをインストールし、必要に応じて res/raw/tyranor_runtime.json のスキャン記述を追加した後、右上の更新をタップしてください</string>
     <string name="engine_module_management_summary">%1$s · %2$s · プロトコル %3$d · %4$s · %5$d 件のゲーム</string>
     <string name="engine_module_management_scan_supported">スキャン対応</string>
     <string name="engine_module_management_scan_unsupported">スキャン特徴が未宣言</string>

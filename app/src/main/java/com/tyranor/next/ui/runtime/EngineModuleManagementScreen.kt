@@ -216,7 +216,7 @@ internal fun EngineModuleManagementScreen() {
                     contentColor = MiuixTheme.colorScheme.onBackground,
                     trailing = {
                         TopBarIcon(
-                            painterResource(R.drawable.ic_refresh),
+                            painterResource(R.drawable.ic_game_scan),
                             stringResource(R.string.engine_module_management_refresh),
                             MiuixTheme.colorScheme.primary,
                         ) {
@@ -266,29 +266,24 @@ internal fun EngineModuleManagementScreen() {
 
                 if (!refreshing && snapshot.modules.isEmpty() && lastError == null) {
                     item(key = "empty") {
-                        Column(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 32.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
+                        Box(
+                            modifier = Modifier.fillParentMaxHeight().fillMaxWidth().padding(horizontal = 24.dp),
+                            contentAlignment = Alignment.Center,
                         ) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_module),
-                                contentDescription = null,
-                                tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                                modifier = Modifier.size(40.dp),
-                            )
-                            Text(
-                                stringResource(R.string.engine_module_management_empty),
-                                style = MaterialTheme.typography.titleMedium,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.padding(top = 12.dp),
-                            )
-                            Text(
-                                stringResource(R.string.engine_module_management_empty_hint),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.padding(top = 6.dp),
-                            )
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_module),
+                                    contentDescription = null,
+                                    tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                                    modifier = Modifier.size(40.dp),
+                                )
+                                Text(
+                                    stringResource(R.string.engine_module_management_empty),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                                )
+                            }
                         }
                     }
                 }
