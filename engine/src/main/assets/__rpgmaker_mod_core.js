@@ -254,104 +254,6 @@
   function listVariables(query, offset, limit) { return namedSystemList("variable", query, offset, limit); }
   function setVariable(id, value) { $gameVariables.setValue(integer(id), value); return $gameVariables.value(integer(id)); }
 
-  // ===== 开关/变量用途分析：扫描全部地图事件 + 公共事件，找引用该开关/变量的指令 =====
-  var VAR_OP_NAMES = ["赋值", "加", "减", "乘", "除", "取余"];
-  var CMP_OP_NAMES = ["=", "≥", "≤", ">", "<", "≠"];
-  var mapSourceCache = null;
-  function loadAllMaps() {
-    if (mapSourceCache && mapSourceCache.data) return Promise.resolve(mapSourceCache.data);
-    if (mapSourceCache && mapSourceCache.loading) return mapSourceCache.loading;
-    var infos = window.$dataMapInfos || [];
-    var ids = [];
-    for (var i = 1; i < infos.length; i++) if (infos[i]) ids.push(infos[i].id);
-    var chain = Promise.resolve();
-    var collected = [];
-    for (var start = 0; start < ids.length; start += 25) {
-      (function (chunk) {
-        chain = chain.then(function () {
-          return Promise.all(chunk.map(function (mapId) {
-            return fetch("data/Map" + ("00" + mapId).slice(-3) + ".json")
-              .then(function (r) { return r.json(); })
-              .then(function (json) {
-                var info = infos[mapId] || {};
-                collected.push({ id: mapId, name: info.name || ("地图 " + mapId), events: json.events || [] });
-              })
-              .catch(function () {});
-          }));
-        });
-      })(ids.slice(start, start + 25));
-    }
-    var done = chain.then(function () {
-      var data = {};
-      collected.forEach(function (entry) { data[entry.id] = entry; });
-      mapSourceCache = { loading: null, data: data };
-      return data;
-    });
-    mapSourceCache = { loading: done, data: null };
-    return done;
-  }
-  function collapseCounts(refs) {
-    var seen = {};
-    refs.forEach(function (text) { seen[text] = (seen[text] || 0) + 1; });
-    return Object.keys(seen).map(function (text) { return seen[text] > 1 ? text + "×" + seen[text] : text; });
-  }
-  function collectRefs(list, kind, id) {
-    var refs = [];
-    for (var i = 0; i < list.length; i++) {
-      var cmd = list[i]; if (!cmd) continue;
-      var p = cmd.parameters || [];
-      if (kind === "switch") {
-        if (cmd.code === 121 && p[0] <= id && id <= p[1]) refs.push(p[2] === 0 ? "置 ON" : "置 OFF");
-        else if (cmd.code === 111 && p[0] === 0 && p[1] === id) refs.push(p[2] === 0 ? "条件分支 ON 时" : "条件分支 OFF 时");
-      } else {
-        if (cmd.code === 122 && p[0] <= id && id <= p[1]) {
-          var operand = p[3] === 1 ? "变量 #" + p[4] : p[3] === 2 ? "随机 " + p[4] + "~" + p[5] : p[3] === 0 ? String(p[4]) : "游戏数据";
-          refs.push((VAR_OP_NAMES[p[2]] || "?") + " " + operand);
-        } else if (cmd.code === 111 && p[0] === 1 && p[1] === id) {
-          var target = p[4] === 1 ? "变量 #" + p[2] : String(p[2]);
-          refs.push("条件分支 " + (CMP_OP_NAMES[p[3]] || "?") + " " + target);
-        }
-      }
-    }
-    return collapseCounts(refs);
-  }
-  function usageSummary(kind, id) {
-    if (!window.$dataSystem) return Promise.reject(new Error("游戏尚未就绪"));
-    id = integer(id);
-    return loadAllMaps().catch(function () { return null; }).then(function (maps) {
-      var lines = [];
-      function pushRefs(label, lists) {
-        var refs = [];
-        lists.forEach(function (list) { refs = refs.concat(collectRefs(list || [], kind, id)); });
-        if (refs.length) lines.push(label + "：" + refs.join("、"));
-      }
-      (window.$dataCommonEvents || []).forEach(function (ce) {
-        if (ce && ce.list) pushRefs("公共事件「" + (ce.name || ("#" + ce.id)) + "」", [ce.list]);
-      });
-      var sources = [];
-      if (maps && Object.keys(maps).length) {
-        sources = Object.keys(maps).map(function (key) { return maps[key]; });
-      } else if (window.$dataMap && window.$gameMap) {
-        // 全量地图加载失败时退回当前地图
-        var info = (window.$dataMapInfos || [])[$gameMap.mapId()] || {};
-        sources.push({ name: info.name || ("地图 " + $gameMap.mapId()), events: $dataMap.events || [] });
-      }
-      var truncated = false;
-      for (var m = 0; m < sources.length && !truncated; m++) {
-        var map = sources[m];
-        var events = map.events || [];
-        for (var e = 0; e < events.length; e++) {
-          var ev = events[e];
-          if (!ev || !ev.pages) continue;
-          pushRefs((map.name || "地图") + " EV" + ev.id + (ev.name ? "「" + ev.name + "」" : ""), ev.pages.map(function (page) { return page && page.list; }));
-          if (lines.length >= 12) { truncated = true; break; }
-        }
-      }
-      if (truncated) lines.push("…引用很多，已截断显示");
-      return lines;
-    });
-  }
-
   function mapDepth(entry) {
     var depth = 0, id = entry.parentId, guard = 0;
     var infos = window.$dataMapInfos || [];
@@ -456,7 +358,7 @@
   function onReady(callback) { if (isReady()) callback(); else readyListeners.push(callback); }
   loadState();
   window.TyranorMod = {
-    version: "1.4.2", isReady: isReady, onReady: onReady, installHooks: installHooks,
+    version: "1.4.3", isReady: isReady, onReady: onReady, installHooks: installHooks,
     getState: getState, setFlag: setFlag, toggleFlag: toggleFlag, reapplyPersistent: reapplyPersistent,
     getGold: getGold, setGold: setGold, listDatabase: listDatabase, itemCount: itemCount, setItemCount: setItemCount, clearItems: clearItems,
     listActors: listActors, setActorStat: setActorStat, recoverActor: recoverActor, recoverParty: recoverParty,
@@ -464,7 +366,6 @@
     actorStates: actorStates, addState: addState, removeState: removeState,
     actorEquips: actorEquips, listEquipCandidates: listEquipCandidates, changeEquip: changeEquip,
     listSwitches: listSwitches, setSwitch: setSwitch, listVariables: listVariables, setVariable: setVariable,
-    usageSummary: usageSummary,
     listMaps: listMaps, currentPosition: currentPosition, teleport: teleport, minimapData: minimapData,
     listEvents: listEvents, eventDetail: eventDetail, setEventSelfSwitches: setEventSelfSwitches,
     battleSnapshot: battleSnapshot, setEnemyHp: setEnemyHp, killAllEnemies: killAllEnemies, forceVictory: forceVictory, forceEscape: forceEscape,

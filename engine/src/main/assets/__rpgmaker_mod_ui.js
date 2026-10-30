@@ -111,25 +111,8 @@
     var result = context.systemKind === "switch" ? mod.listSwitches(inputValue("tm-system-query"), 0, 200) : mod.listVariables(inputValue("tm-system-query"), 0, 200);
     root.querySelector("#tm-system-list").innerHTML = result.values.map(function (item) {
       var control = context.systemKind === "switch" ? '<input class="tm-switch" id="tm-system-' + item.id + '" type="checkbox" ' + (item.value ? "checked" : "") + '>' : textInput("tm-system-" + item.id, typeof item.value === "object" ? JSON.stringify(item.value) : item.value, "text");
-      return '<div class="tm-item"><span class="tm-name">#' + item.id + ' ' + escapeHtml(item.name) + '</span>' + control + button("用途", "usage", "", 'data-kind="' + context.systemKind + '" data-id="' + item.id + '"') + button("设置", "set-system", "", 'data-id="' + item.id + '"') + '</div>';
+      return '<div class="tm-item"><span class="tm-name">#' + item.id + ' ' + escapeHtml(item.name) + '</span>' + control + button("设置", "set-system", "", 'data-id="' + item.id + '"') + '</div>';
     }).join("") || '<div class="tm-note">没有匹配项目</div>';
-  }
-  function toggleUsage(node) {
-    var kind = node.dataset.kind, id = Number(node.dataset.id);
-    var key = "tm-usage-" + kind + "-" + id;
-    var old = root.querySelector('[data-usage-key="' + key + '"]');
-    if (old) { old.remove(); return; }
-    var item = node.closest(".tm-item");
-    var box = document.createElement("div");
-    box.className = "tm-usage";
-    box.dataset.usageKey = key;
-    box.innerHTML = '<div class="tm-note">正在扫描全部地图事件与公共事件的引用…</div>';
-    if (item && item.parentNode) item.parentNode.insertBefore(box, item.nextSibling);
-    run(function () { return mod.usageSummary(kind, id); }, function (lines) {
-      box.innerHTML = lines.length
-        ? lines.map(function (line) { return '<div class="tm-usage-line">' + escapeHtml(line) + '</div>'; }).join("")
-        : '<div class="tm-note">没有发现引用（可能只被脚本或其他插件使用）</div>';
-    });
   }
   function renderMap(content) {
     var pos = mod.currentPosition();
@@ -314,7 +297,6 @@
     if (action === "add-state" || action === "remove-state") return run(function () { return action === "add-state" ? mod.addState(context.actorId, inputValue("tm-state-id")) : mod.removeState(context.actorId, inputValue("tm-state-id")); }, renderActorBody);
     if (action === "change-equip") return run(function () { mod.changeEquip(context.actorId, inputValue("tm-equip-slot"), inputValue("tm-equip-kind"), inputValue("tm-equip-id")); }, function () { toast("装备已更换"); renderActorBody(); });
     if (action === "system-kind" || action === "render-system") return loadSystem();
-    if (action === "usage") return toggleUsage(node);
     if (action === "set-system") return run(function () { var id = node.dataset.id; if (context.systemKind === "switch") mod.setSwitch(id, checked("tm-system-" + id)); else { var raw = inputValue("tm-system-" + id); var value; try { value = JSON.parse(raw); } catch (_) { value = raw; } mod.setVariable(id, value); } }, function () { toast("系统值已修改"); loadSystem(); });
     if (action === "map-mode") { context.mapMode = node.value; return loadBrowse(); }
     if (action === "render-browse") return loadBrowse();
