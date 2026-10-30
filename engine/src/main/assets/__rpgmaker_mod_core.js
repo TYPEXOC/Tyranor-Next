@@ -398,7 +398,20 @@
     if (!window.$gameMap || !$gameMap.event) throw new Error("当前不在地图场景");
     var live = $gameMap.event(integer(eventId));
     if (!live) throw new Error("事件不存在或未激活（需在当前地图）");
-    live._through = !!value;
+    // 引擎里玩家与事件的碰撞只看事件优先级（priorityType===1 才阻挡）；
+    // 事件自身的 _through 只影响事件自己穿墙。开启穿透 = 压到「下方」层级
+    // （玩家可直接穿过）并标记 _through，关闭时恢复原优先级。
+    if (value) {
+      if (live._tmPriority == null) live._tmPriority = live._priorityType;
+      live._through = true;
+      live._priorityType = 0;
+    } else {
+      live._through = false;
+      if (live._tmPriority != null) {
+        live._priorityType = live._tmPriority;
+        live._tmPriority = null;
+      }
+    }
     return !!value;
   }
   function setEventSelfSwitches(eventId, on) {
@@ -450,7 +463,7 @@
   function onReady(callback) { if (isReady()) callback(); else readyListeners.push(callback); }
   loadState();
   window.TyranorMod = {
-    version: "1.3.1", isReady: isReady, onReady: onReady, installHooks: installHooks,
+    version: "1.3.2", isReady: isReady, onReady: onReady, installHooks: installHooks,
     getState: getState, setFlag: setFlag, toggleFlag: toggleFlag, reapplyPersistent: reapplyPersistent,
     getGold: getGold, setGold: setGold, listDatabase: listDatabase, itemCount: itemCount, setItemCount: setItemCount, clearItems: clearItems,
     listActors: listActors, setActorStat: setActorStat, recoverActor: recoverActor, recoverParty: recoverParty,
