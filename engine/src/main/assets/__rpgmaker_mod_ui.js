@@ -156,9 +156,10 @@
       var indent = m.depth ? ' style="padding-left:' + (m.depth * 14) + 'px"' : "";
       var paddedId = ("0000" + m.id).slice(-4);
       var name = (m.depth ? "└ " : "") + "#" + paddedId + ": " + escapeHtml(m.name);
-      return '<div class="tm-item' + (here || picked ? " tm-active" : "") + '"><span class="tm-name"' + indent + '>' + name + '</span>' + (here ? '<span class="tm-badge tm-on">你在这里</span>' : '') + button("选择", "pick-map", "", 'data-id="' + m.id + '"') + '</div>';
+      return '<div class="tm-item' + (picked ? " tm-active" : "") + '"><span class="tm-name"' + indent + '>' + name + '</span>' + (here ? '<span class="tm-badge tm-on">你在这里</span>' : '') + button("选择", "pick-map", "", 'data-id="' + m.id + '"') + '</div>';
     }).join("") || '<div class="tm-note">没有匹配地图</div>';
-    var active = list.querySelector(".tm-item.tm-active");
+    var target = list.querySelector(".tm-item .tm-badge.tm-on");
+    var active = target ? target.closest(".tm-item") : list.querySelector(".tm-item.tm-active");
     if (active && active.scrollIntoView) { try { active.scrollIntoView({ block: "center" }); } catch (_) { try { active.scrollIntoView(); } catch (_) {} } }
   }
   function renderEventList() {
