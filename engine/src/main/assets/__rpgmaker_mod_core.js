@@ -392,27 +392,7 @@
     ["A", "B", "C", "D"].forEach(function (k) {
       selfSwitches[k] = window.$gameSelfSwitches ? $gameSelfSwitches.value([$gameMap.mapId(), ev.id, k]) : false;
     });
-    return { id: ev.id, name: ev.name || ("EV" + ev.id), x: ev.x, y: ev.y, pages: (ev.pages || []).length, firstPageLength: ev.pages && ev.pages.length ? (ev.pages[0].list || []).length : 0, through: !!(live && live._through), selfSwitches: selfSwitches };
-  }
-  function setEventThrough(eventId, value) {
-    if (!window.$gameMap || !$gameMap.event) throw new Error("当前不在地图场景");
-    var live = $gameMap.event(integer(eventId));
-    if (!live) throw new Error("事件不存在或未激活（需在当前地图）");
-    // 引擎里玩家与事件的碰撞只看事件优先级（priorityType===1 才阻挡）；
-    // 事件自身的 _through 只影响事件自己穿墙。开启穿透 = 压到「下方」层级
-    // （玩家可直接穿过）并标记 _through，关闭时恢复原优先级。
-    if (value) {
-      if (live._tmPriority == null) live._tmPriority = live._priorityType;
-      live._through = true;
-      live._priorityType = 0;
-    } else {
-      live._through = false;
-      if (live._tmPriority != null) {
-        live._priorityType = live._tmPriority;
-        live._tmPriority = null;
-      }
-    }
-    return !!value;
+    return { id: ev.id, name: ev.name || ("EV" + ev.id), x: ev.x, y: ev.y, pages: (ev.pages || []).length, firstPageLength: ev.pages && ev.pages.length ? (ev.pages[0].list || []).length : 0, selfSwitches: selfSwitches };
   }
   function setEventSelfSwitches(eventId, on) {
     if (!window.$gameSelfSwitches) throw new Error("游戏尚未就绪");
@@ -463,7 +443,7 @@
   function onReady(callback) { if (isReady()) callback(); else readyListeners.push(callback); }
   loadState();
   window.TyranorMod = {
-    version: "1.3.2", isReady: isReady, onReady: onReady, installHooks: installHooks,
+    version: "1.4.0", isReady: isReady, onReady: onReady, installHooks: installHooks,
     getState: getState, setFlag: setFlag, toggleFlag: toggleFlag, reapplyPersistent: reapplyPersistent,
     getGold: getGold, setGold: setGold, listDatabase: listDatabase, itemCount: itemCount, setItemCount: setItemCount, clearItems: clearItems,
     listActors: listActors, setActorStat: setActorStat, recoverActor: recoverActor, recoverParty: recoverParty,
@@ -473,7 +453,7 @@
     listSwitches: listSwitches, setSwitch: setSwitch, listVariables: listVariables, setVariable: setVariable,
     usageSummary: usageSummary,
     listMaps: listMaps, currentPosition: currentPosition, teleport: teleport,
-    listEvents: listEvents, eventDetail: eventDetail, setEventThrough: setEventThrough, setEventSelfSwitches: setEventSelfSwitches,
+    listEvents: listEvents, eventDetail: eventDetail, setEventSelfSwitches: setEventSelfSwitches,
     battleSnapshot: battleSnapshot, setEnemyHp: setEnemyHp, killAllEnemies: killAllEnemies, forceVictory: forceVictory, forceEscape: forceEscape,
     listSaveSlots: listSaveSlots, saveGame: saveGame, loadGame: loadGame, deleteSave: deleteSave, getMaxSaveSlots: maxSaveSlots
   };
