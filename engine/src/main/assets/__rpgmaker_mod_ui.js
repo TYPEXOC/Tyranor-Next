@@ -116,10 +116,129 @@
   }
   function renderMap(content) {
     var pos = mod.currentPosition();
-    var current = pos ? '地图 #' + pos.mapId + '，坐标 (' + pos.x + ', ' + pos.y + ')' : '当前不在地图';
-    var form = row("当前位置", '<span class="tm-badge">' + current + '</span>') + '<div class="tm-row">' + textInput("tm-map-id", pos && pos.mapId, "number", 'placeholder="地图 ID"') + textInput("tm-map-x", pos && pos.x, "number", 'placeholder="X"') + textInput("tm-map-y", pos && pos.y, "number", 'placeholder="Y"') + button("传送", "teleport", "primary") + '</div>';
-    var maps = mod.listMaps("", 0, 200).values.map(function (map) { return '<div class="tm-item"><span class="tm-name">#' + map.id + ' ' + escapeHtml(map.name) + '</span>' + button("选择", "pick-map", "", 'data-id="' + map.id + '"') + '</div>'; }).join("");
-    content.innerHTML = '<div class="tm-grid tm-map-grid">' + card("传送", form) + card("地图列表", '<div class="tm-list">' + maps + '</div>') + '</div>';
+    var teleportForm = '<div class="tm-row">' + textInput("tm-map-id", pos && pos.mapId, "number", 'placeholder="地图 ID"') + textInput("tm-map-x", pos && pos.x, "number", 'placeholder="X"') + textInput("tm-map-y", pos && pos.y, "number", 'placeholder="Y"') + button("传送", "teleport", "primary") + '</div>';
+    var events = [];
+    try { events = mod.listEvents().values; } catch (_) { events = []; }
+    context.eventAll = events;
+    var eventItems = filteredEvents().map(function (ev) {
+      return '<div class="tm-item' + (String(context.eventId) === String(ev.id) ? " tm-active" : "") + '"><span class="tm-name">#' + ev.id + ' ' + escapeHtml(ev.name) + '</span><span class="tm-badge">' + ev.x + ',' + ev.y + '</span>' + button("选择", "pick-event", "", 'data-id="' + ev.id + '"') + '</div>';
+    }).join("") || '<div class="tm-note">当前地图没有事件（进入地图场景后打开）</div>';
+    var searchRow = '<div class="tm-row">' + textInput("tm-event-query", "", "search", 'placeholder="搜索 ID / 名称"') + button("搜索", "render-events", "primary") + '</div>';
+    var panel = eventPanelHtml();
+    content.innerHTML = '<div class="tm-grid tm-map-grid">'
+      + card("事件列表", searchRow + '<div class="tm-list" id="tm-event-list">' + eventItems + '</div>')
+      + card("事件操作", '<div class="tm-card-body" id="tm-event-panel">' + panel + '</div><div class="tm-sep"></div>' + teleportForm)
+      + '</div>';
+  }
+  function filteredEvents() {
+    var query = String(inputValue("tm-event-query") || "").toLowerCase();
+    if (!query) return context.eventAll || [];
+    return (context.eventAll || []).filter(function (ev) {
+      return String(ev.name).toLowerCase().indexOf(query) >= 0 || String(ev.id).indexOf(query) >= 0;
+    });
+  }
+  function eventPanelHtml() {
+    if (!context.eventId) return '<div class="tm-note">在左侧选择事件查看详情</div>';
+    var detail;
+    try { detail = mod.eventDetail(context.eventId); } catch (e) { return '<div class="tm-note">' + escapeHtml(String(e && e.message || e)) + '</div>'; }
+    var selfSwitches = ["A", "B", "C", "D"].map(function (k) {
+      return '<span class="tm-badge' + (detail.selfSwitches[k] ? " tm-on" : "") + '">' + k + (detail.selfSwitches[k] ? ":开" : ":关") + '</span>';
+    }).join(" ");
+    return '<div class="tm-row">' + button("迷你地图", "show-minimap", "", 'data-id="' + detail.id + '"') + button(detail.through ? "穿透:开" : "穿透:关", "toggle-through", detail.through ? "primary" : "", 'data-id="' + detail.id + '"') + '</div>'
+      + '<div class="tm-row"><small>Pos:</small><span class="tm-badge">' + detail.x + ',' + detail.y + '</span></div>'
+      + '<div class="tm-row"><small>名称:</small><span class="tm-name">' + escapeHtml(detail.name) + '</span></div>'
+      + '<div class="tm-row"><small>Page 0:</small><span class="tm-badge">页数 ' + detail.pages + '</span><span class="tm-badge">长度 ' + detail.firstPageLength + '</span>' + button("事件指令", "show-commands", "", 'data-id="' + detail.id + '"') + '</div>'
+      + '<div class="tm-row"><small>独立开关:</small>' + selfSwitches + '</div>'
+      + '<div class="tm-row">' + button("独立开关全开", "selfswitch-on", "primary", 'data-id="' + detail.id + '"') + button("独立开关全关", "selfswitch-off", "danger", 'data-id="' + detail.id + '"') + '</div>'
+      + '<div id="tm-event-commands" data-event-id=""></div>'
+      + '<div id="tm-minimap"></div>';
+  }
+  function renderEventPanel() {
+    var panel = root.querySelector("#tm-event-panel");
+    if (panel) panel.innerHTML = eventPanelHtml();
+  }
+  var EVENT_COMMAND_NAMES = {
+    101: "显示文本", 401: "文本数据", 102: "显示选择项", 402: "选择项", 403: "否则时",
+    111: "条件分支", 411: "否则", 412: "分支结束", 108: "注释", 408: "注释续",
+    121: "开关操作", 122: "变量操作", 123: "独立开关操作", 126: "增减物品", 127: "增减武器",
+    128: "增减防具", 230: "等待", 250: "播放 SE", 132: "播放 BGM", 241: "更改 BGM",
+    201: "移动位置", 205: "设置移动路线", 206: "获取移动路线", 212: "动画", 213: "气泡图标",
+    216: "更改透明状态", 217: "队伍成员", 223: "画面色调", 224: "闪烁画面", 225: "画面摇晃",
+    117: "调用公共事件", 118: "定义标签", 119: "跳转到标签", 120: "循环", 413: "重复以上",
+    355: "脚本", 655: "脚本续", 320: "更改名称", 322: "更改头像"
+  };
+  function toggleEventCommands(eventId) {
+    var box = root.querySelector("#tm-event-commands");
+    if (!box) return;
+    if (box.dataset.eventId === String(eventId) && box.innerHTML) { box.innerHTML = ""; box.dataset.eventId = ""; return; }
+    var html = "";
+    try {
+      var ev = window.$dataMap && $dataMap.events[Number(eventId)];
+      var list = ev && ev.pages && ev.pages.length ? (ev.pages[0].list || []) : [];
+      html = list.filter(function (cmd) { return cmd && cmd.code !== 0; }).map(function (cmd) {
+        var name = EVENT_COMMAND_NAMES[cmd.code] || ("指令 " + cmd.code);
+        var params = "";
+        try { params = JSON.stringify(cmd.parameters || []); } catch (_) { params = ""; }
+        if (params.length > 90) params = params.slice(0, 90) + "…";
+        return '<div class="tm-cmd"><span class="tm-name">' + cmd.code + ": " + escapeHtml(name) + '</span><small>' + escapeHtml(params) + '</small></div>';
+      }).join("");
+    } catch (_) { html = '<div class="tm-note">指令数据不可用</div>'; }
+    box.dataset.eventId = String(eventId);
+    box.innerHTML = '<div class="tm-list">' + (html || '<div class="tm-note">Page 0 没有指令</div>') + '</div>';
+  }
+  function renderEventList() {
+    var list = root.querySelector("#tm-event-list");
+    if (list) list.innerHTML = filteredEvents().map(function (ev) {
+      return '<div class="tm-item' + (String(context.eventId) === String(ev.id) ? " tm-active" : "") + '"><span class="tm-name">#' + ev.id + ' ' + escapeHtml(ev.name) + '</span><span class="tm-badge">' + ev.x + ',' + ev.y + '</span>' + button("选择", "pick-event", "", 'data-id="' + ev.id + '"') + '</div>';
+    }).join("") || '<div class="tm-note">没有匹配事件</div>';
+  }
+  function renderMinimap(container) {
+    if (!window.$dataMap || !window.$gamePlayer) { container.innerHTML = '<div class="tm-note">当前不在地图场景</div>'; return; }
+    var w = $dataMap.width, h = $dataMap.height;
+    if (!w || !h) { container.innerHTML = '<div class="tm-note">地图数据不可用</div>'; return; }
+    var events = context.eventAll || [];
+    var cell = Math.max(3, Math.floor(300 / Math.max(w, h)));
+    var canvas = document.createElement("canvas");
+    canvas.width = w * cell; canvas.height = h * cell;
+    var ctx = canvas.getContext("2d");
+    var off = document.createElement("canvas");
+    off.width = w; off.height = h;
+    var octx = off.getContext("2d");
+    var img = octx.createImageData(w, h);
+    for (var y = 0; y < h; y++) {
+      for (var x = 0; x < w; x++) {
+        var pass = false;
+        try { pass = $gameMap.isPassable(x, y, 2); } catch (_) { pass = false; }
+        var i = (y * w + x) * 4;
+        img.data[i] = pass ? 126 : 39; img.data[i + 1] = pass ? 170 : 52; img.data[i + 2] = pass ? 153 : 62; img.data[i + 3] = 255;
+      }
+    }
+    octx.putImageData(img, 0, 0);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(off, 0, 0, canvas.width, canvas.height);
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = "bold " + Math.max(8, cell) + "px system-ui";
+    events.forEach(function (ev) {
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(ev.x * cell + cell / 2 - cell * 0.45, ev.y * cell + cell / 2 - cell * 0.45, cell * 0.9, cell * 0.9);
+      ctx.fillStyle = "#1d5fa5";
+      ctx.fillText(String(ev.id), ev.x * cell + cell / 2, ev.y * cell + cell / 2);
+    });
+    ctx.strokeStyle = "#3ddc6f";
+    ctx.lineWidth = Math.max(2, cell / 4);
+    ctx.strokeRect($gamePlayer.x * cell + cell / 2 - cell * 0.6, $gamePlayer.y * cell + cell / 2 - cell * 0.6, cell * 1.2, cell * 1.2);
+    canvas.className = "tm-minimap";
+    canvas.addEventListener("click", function (e) {
+      var rect = canvas.getBoundingClientRect();
+      var gx = Math.floor((e.clientX - rect.left) / cell);
+      var gy = Math.floor((e.clientY - rect.top) / cell);
+      var hit = null;
+      (context.eventAll || []).forEach(function (ev) { if (!hit && ev.x === gx && ev.y === gy) hit = ev; });
+      if (hit) { context.eventId = hit.id; renderEventList(); renderEventPanel(); }
+    });
+    container.innerHTML = "";
+    container.appendChild(canvas);
   }
   function renderBattle(content) {
     var snapshot = mod.battleSnapshot();
@@ -169,6 +288,13 @@
     if (action === "system-kind" || action === "render-system") return loadSystem();
     if (action === "set-system") return run(function () { var id = node.dataset.id; if (context.systemKind === "switch") mod.setSwitch(id, checked("tm-system-" + id)); else { var raw = inputValue("tm-system-" + id); var value; try { value = JSON.parse(raw); } catch (_) { value = raw; } mod.setVariable(id, value); } }, function () { toast("系统值已修改"); loadSystem(); });
     if (action === "pick-map") { root.querySelector("#tm-map-id").value = node.dataset.id; return; }
+    if (action === "pick-event") { context.eventId = Number(node.dataset.id); renderEventList(); renderEventPanel(); return; }
+    if (action === "render-events") return renderEventList();
+    if (action === "toggle-through") return run(function () { var detail = mod.eventDetail(node.dataset.id); return mod.setEventThrough(node.dataset.id, !detail.through); }, function () { toast("穿透已切换"); renderEventPanel(); });
+    if (action === "selfswitch-on") return run(function () { return mod.setEventSelfSwitches(node.dataset.id, true); }, function () { toast("独立开关已全开"); renderEventPanel(); });
+    if (action === "selfswitch-off") return run(function () { return mod.setEventSelfSwitches(node.dataset.id, false); }, function () { toast("独立开关已全关"); renderEventPanel(); });
+    if (action === "show-minimap") { var box = root.querySelector("#tm-minimap"); if (box) renderMinimap(box); return; }
+    if (action === "show-commands") return toggleEventCommands(node.dataset.id);
     if (action === "teleport") return run(function () { return mod.teleport(inputValue("tm-map-id"), inputValue("tm-map-x"), inputValue("tm-map-y"), 2, 0); }, function () { toast("已预约传送"); close(); });
     if (action === "set-enemy") return run(function () { mod.setEnemyHp(node.dataset.index, inputValue("tm-enemy-" + node.dataset.index)); }, render);
     if (action === "kill-enemies") return run(mod.killAllEnemies, render);
