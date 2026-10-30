@@ -254,7 +254,7 @@
       return;
     }
     if (action === "pick-event") { context.eventId = Number(node.dataset.id); renderEventList(); renderEventPanel(); return; }
-    if (action === "toggle-through") return run(function () { var detail = mod.eventDetail(node.dataset.id); return mod.setEventThrough(node.dataset.id, !detail.through); }, function () { toast("穿透已切换"); renderEventPanel(); });
+    if (action === "toggle-through") return run(function () { var detail = mod.eventDetail(node.dataset.id); return mod.setEventThrough(node.dataset.id, !detail.through); }, function (value) { toast(value ? "穿透已开启：现在可以直接穿过该事件" : "穿透已关闭，事件恢复阻挡"); renderEventPanel(); });
     if (action === "selfswitch-on") return run(function () { return mod.setEventSelfSwitches(node.dataset.id, true); }, function () { toast("独立开关已全开"); renderEventPanel(); });
     if (action === "selfswitch-off") return run(function () { return mod.setEventSelfSwitches(node.dataset.id, false); }, function () { toast("独立开关已全关"); renderEventPanel(); });
     if (action === "show-minimap") return showMinimapDialog();
