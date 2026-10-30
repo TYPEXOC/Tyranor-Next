@@ -8,7 +8,7 @@
 .tm-content{flex:1;overflow:auto;padding:12px;background:#f3f5f3}.tm-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px}.tm-card{background:#fff;border:1px solid #e0e5e2;border-radius:14px;padding:12px}.tm-card h3{margin:0 0 10px;font-size:16px}.tm-row{display:flex;align-items:center;gap:8px;margin:7px 0}.tm-row>label,.tm-grow{flex:1;min-width:0}.tm-row small{color:#748079}.tm-btn{border:0;border-radius:10px;background:#e6efeb;color:#165f51;padding:9px 12px;font-weight:650}.tm-btn.primary{background:var(--tm-primary,#237765);color:var(--tm-on-primary,#fff)}.tm-btn.danger{background:#fee9e7;color:#b3261e}.tm-btn:disabled{opacity:.45}.tm-input,.tm-select{min-width:0;width:100%;border:1px solid #cbd5cf;border-radius:9px;background:#fff;color:#17211d;padding:9px;font:inherit}.tm-switch{width:22px;height:22px;accent-color:var(--tm-primary,#237765)}.tm-list{display:flex;flex-direction:column;gap:7px}.tm-item{display:flex;align-items:center;gap:8px;padding:8px;border-radius:10px;background:#f6f8f6}.tm-item .tm-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.tm-badge{padding:3px 7px;border-radius:8px;background:#e4ebe7;color:#53605a;font-size:12px}.tm-note{color:#66736c;padding:10px;text-align:center}.tm-toast{position:absolute;left:50%;bottom:24px;transform:translateX(-50%);max-width:85%;padding:10px 14px;border-radius:10px;background:#17211d;color:#fff;box-shadow:0 4px 20px #0008}
 @media(prefers-color-scheme:dark){#tyranor-mod-root{color:#eef3f0}.tm-panel,.tm-content{background:#171a18}.tm-head,.tm-tabs,.tm-card{background:#202522;border-color:#343c37}.tm-tab{color:#aab4ae}.tm-close,.tm-btn{background:#334039;color:#b9eadc}.tm-btn.primary{background:var(--tm-primary,#4fb59a);color:var(--tm-on-primary,#071d17)}.tm-input,.tm-select{background:#171b19;color:#eef3f0;border-color:#4a554f}.tm-item{background:#292f2b}.tm-badge{background:#39433d;color:#c9d2cc}.tm-note,.tm-row small{color:#aab4ae}}
 /* 地图页：左列浏览卡（事件/地图下拉切换）跨两行，右列传送卡固定顶部 + 事件操作卡 */
-.tm-map-grid{height:100%;grid-template-columns:minmax(230px,300px) minmax(0,1fr);grid-template-rows:auto minmax(0,1fr)}
+.tm-map-grid{height:100%;grid-template-columns:minmax(260px,44%) minmax(0,1fr);grid-template-rows:auto minmax(0,1fr)}
 .tm-map-grid>.tm-browse-card{grid-row:1/3}
 .tm-map-grid>.tm-card{display:flex;flex-direction:column;min-height:0}
 .tm-map-grid>.tm-card h3{flex:0 0 auto}
@@ -23,10 +23,7 @@
 .tm-badge.tm-on{background:var(--tm-primary,#237765);color:#fff}
 .tm-map-grid .tm-sep{height:1px;background:#e0e5e2;margin:10px 0;flex:0 0 auto}
 .tm-minimap{width:100%;image-rendering:pixelated;border:1px solid #e0e5e2;border-radius:10px;touch-action:manipulation}
-.tm-cmd{display:flex;gap:8px;align-items:baseline;padding:4px 6px;border-bottom:1px dashed #e0e5e2}
-.tm-cmd .tm-name{flex:0 0 auto}
-.tm-cmd small{color:#748079;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-@media(prefers-color-scheme:dark){.tm-map-grid .tm-sep{background:#343c37}.tm-minimap{border-color:#343c37}.tm-cmd{border-color:#343c37}.tm-cmd small{color:#aab4ae}}
+@media(prefers-color-scheme:dark){.tm-map-grid .tm-sep{background:#343c37}.tm-minimap{border-color:#343c37}}
 /* 迷你地图对话框：独立覆盖层 + 图例，点遮罩或 × 关闭 */
 .tm-modal{position:absolute;inset:0;z-index:20;background:#0009;display:flex;align-items:center;justify-content:center;padding:16px}
 .tm-modal-box{width:min(92vw,560px);max-height:88%;display:flex;flex-direction:column;background:#fff;border-radius:16px;padding:12px;box-shadow:0 10px 36px #000b}
