@@ -186,7 +186,9 @@
     var selfSwitches = ["A", "B", "C", "D"].map(function (k) {
       return '<span class="tm-badge' + (detail.selfSwitches[k] ? " tm-on" : "") + '">' + k + (detail.selfSwitches[k] ? ":开" : ":关") + '</span>';
     }).join(" ");
-    return '<div class="tm-row">' + button("迷你地图", "show-minimap", "", 'data-id="' + detail.id + '"') + button(detail.through ? "穿透:开" : "穿透:关", "toggle-through", detail.through ? "primary" : "", 'data-id="' + detail.id + '"') + '</div>'
+    var state = mod.getState();
+    return '<div class="tm-row"><small>穿墙:</small><input class="tm-switch" type="checkbox" data-action="flag" data-flag="noclip" ' + (state.noclip ? "checked" : "") + '><small>同快捷页，全地图通行</small></div>'
+      + '<div class="tm-row">' + button("迷你地图", "show-minimap", "", 'data-id="' + detail.id + '"') + '</div>'
       + '<div class="tm-row"><small>Pos:</small><span class="tm-badge">' + detail.x + ',' + detail.y + '</span></div>'
       + '<div class="tm-row"><small>名称:</small><span class="tm-name">' + escapeHtml(detail.name) + '</span></div>'
       + '<div class="tm-row"><small>独立开关:</small>' + selfSwitches + '</div>'
@@ -254,7 +256,6 @@
       return;
     }
     if (action === "pick-event") { context.eventId = Number(node.dataset.id); renderEventList(); renderEventPanel(); return; }
-    if (action === "toggle-through") return run(function () { var detail = mod.eventDetail(node.dataset.id); return mod.setEventThrough(node.dataset.id, !detail.through); }, function (value) { toast(value ? "穿透已开启：现在可以直接穿过该事件" : "穿透已关闭，事件恢复阻挡"); renderEventPanel(); });
     if (action === "selfswitch-on") return run(function () { return mod.setEventSelfSwitches(node.dataset.id, true); }, function () { toast("独立开关已全开"); renderEventPanel(); });
     if (action === "selfswitch-off") return run(function () { return mod.setEventSelfSwitches(node.dataset.id, false); }, function () { toast("独立开关已全关"); renderEventPanel(); });
     if (action === "show-minimap") return showMinimapDialog();
