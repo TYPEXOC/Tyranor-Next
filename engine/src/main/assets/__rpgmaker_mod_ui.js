@@ -33,7 +33,7 @@
       return Promise.resolve(operation()).then(function (value) { if (success) success(value); return value; }).catch(function (error) { console.error(error); toast(error.message || String(error), true); });
     } catch (error) { console.error(error); toast(error.message || String(error), true); return Promise.resolve(); }
   }
-  function card(title, body) { return '<section class="tm-card"><h3>' + escapeHtml(title) + '</h3>' + body + '</section>'; }
+  function card(title, body, cls) { return '<section class="tm-card' + (cls ? " " + cls : "") + '"><h3>' + escapeHtml(title) + '</h3>' + body + '</section>'; }
   function row(label, control) { return '<div class="tm-row"><label>' + escapeHtml(label) + '</label>' + control + '</div>'; }
   function button(text, action, extra, data) { return '<button class="tm-btn ' + (extra || "") + '" data-action="' + action + '" ' + (data || "") + '>' + escapeHtml(text) + '</button>'; }
   function textInput(id, value, type, attrs) { return '<input class="tm-input" id="' + id + '" type="' + (type || "text") + '" value="' + escapeHtml(value == null ? "" : value) + '" ' + (attrs || "") + '>'; }
@@ -64,7 +64,7 @@
   function renderItems(content) {
     var kinds = '<select class="tm-select" id="tm-item-kind" data-action="item-kind"><option value="item">物品</option><option value="weapon">武器</option><option value="armor">护甲</option></select>';
     var tools = '<div class="tm-row">' + kinds + textInput("tm-item-query", "", "search", 'placeholder="搜索名称"') + button("搜索", "render-items", "primary") + '</div>';
-    content.innerHTML = card("物品数据库", tools + '<div id="tm-item-list" class="tm-list"><div class="tm-note">加载中…</div></div>');
+    content.innerHTML = card("物品数据库", tools + '<div id="tm-item-list" class="tm-list"><div class="tm-note">加载中…</div></div>', "tm-fill-card");
     root.querySelector("#tm-item-kind").value = context.itemKind;
     loadItems();
   }
@@ -103,7 +103,7 @@
   }
   function renderSystem(content) {
     var kind = '<select class="tm-select" id="tm-system-kind" data-action="system-kind"><option value="switch">开关</option><option value="variable">变量</option></select>';
-    content.innerHTML = card("开关与变量", '<div class="tm-row">' + kind + textInput("tm-system-query", "", "search", 'placeholder="名称或 ID"') + button("搜索", "render-system", "primary") + '</div><div id="tm-system-list" class="tm-list"></div>');
+    content.innerHTML = card("开关与变量", '<div class="tm-row">' + kind + textInput("tm-system-query", "", "search", 'placeholder="名称或 ID"') + button("搜索", "render-system", "primary") + '</div><div id="tm-system-list" class="tm-list"></div>', "tm-fill-card");
     root.querySelector("#tm-system-kind").value = context.systemKind; loadSystem();
   }
   function loadSystem() {
@@ -119,7 +119,7 @@
     var current = pos ? '地图 #' + pos.mapId + '，坐标 (' + pos.x + ', ' + pos.y + ')' : '当前不在地图';
     var form = row("当前位置", '<span class="tm-badge">' + current + '</span>') + '<div class="tm-row">' + textInput("tm-map-id", pos && pos.mapId, "number", 'placeholder="地图 ID"') + textInput("tm-map-x", pos && pos.x, "number", 'placeholder="X"') + textInput("tm-map-y", pos && pos.y, "number", 'placeholder="Y"') + button("传送", "teleport", "primary") + '</div>';
     var maps = mod.listMaps("", 0, 200).values.map(function (map) { return '<div class="tm-item"><span class="tm-name">#' + map.id + ' ' + escapeHtml(map.name) + '</span>' + button("选择", "pick-map", "", 'data-id="' + map.id + '"') + '</div>'; }).join("");
-    content.innerHTML = '<div class="tm-grid">' + card("传送", form) + card("地图列表", '<div class="tm-list">' + maps + '</div>') + '</div>';
+    content.innerHTML = '<div class="tm-grid tm-map-grid">' + card("传送", form) + card("地图列表", '<div class="tm-list">' + maps + '</div>') + '</div>';
   }
   function renderBattle(content) {
     var snapshot = mod.battleSnapshot();
