@@ -41,6 +41,7 @@ internal object GameOverridePartitions {
     const val KEY_ART_ANIME4K_ENABLED = "art_anime4k_enabled"
     const val KEY_ART_ANIME4K_MODE = "art_anime4k_mode"
     const val KEY_RPG_MAKER_MOD_ENABLED = "rpg_maker_mod_enabled"
+    const val KEY_TRANSLATION_LANGUAGE = "translation_language"
     const val KEY_RPG_LEGACY_RENDERER = "rpg_legacy_renderer"
     const val KEY_RPG_SAVE_INTEROP = "rpg_save_interop"
     const val KEY_RPG_MV_VERSION = "rpg_mv_engine_version"
@@ -155,6 +156,7 @@ internal object GameOverridePartitions {
         KEY_WINLATOR_GRAPHICS_DRIVER, KEY_WINLATOR_DXWRAPPER, KEY_WINLATOR_SCREEN_SIZE,
         KEY_WINLATOR_LC_ALL, KEY_WINLATOR_TZ, KEY_WINLATOR_BOX64_PRESET, KEY_WINLATOR_SAVE,
         KEY_RPG_MAKER_MOD_ENABLED, KEY_RPG_SAVE_INTEROP,
+        KEY_TRANSLATION_LANGUAGE,
         KEY_RPG_LEGACY_RENDERER, KEY_RPG_MV_VERSION, KEY_RPG_MZ_VERSION,
         KEY_INPUT_PAD_ENABLED, KEY_INPUT_GAMEPAD_ENABLED, KEY_INPUT_PROFILE_ID,
         KEY_INPUT_LEGACY_MIGRATED,

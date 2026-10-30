@@ -21,6 +21,7 @@ import com.core.engine.EnginePrefs
 import com.core.engine.EngineSessionRegistry
 import com.core.engine.KrkrStartupDialogPolicy
 import com.core.engine.LaunchContract
+import com.core.engine.MtoolTranslation
 import com.tyranor.next.core.i18n.AppLocaleController
 import com.tyranor.next.core.engine.external.EmulatorLaunchStyle
 import com.tyranor.next.core.engine.external.EmulatorTarget as ExternalEmulatorTarget
@@ -1862,6 +1863,10 @@ object EngineLauncher {
             scopedSaveRoot?.let { putExtra(LaunchContract.SCOPED_SAVE_ROOT, it) }
             putExtra(LaunchContract.RPG_MAKER_MOD_ENABLED, rpgMakerModEnabled)
             putExtra(LaunchContract.RPG_MAKER_MOD_GAME_ID, game.uri)
+            // 译表「语言」选择（游戏属性，per-game only）：null 不传=不注入译表（保持原文）
+            PerGameSettingsStore.getStr(context, game.uri, PerGameSettingsStore.F_TRANSLATION_LANGUAGE)
+                ?.takeIf(String::isNotBlank)
+                ?.let { putExtra(LaunchContract.RPG_TRANSLATION_FILE, it) }
             if (useRpgMakerRuntime) {
                 rpgMakerVersion?.let { putExtra(LaunchContract.RPG_MAKER_VERSION, it) }
                 putExtra(LaunchContract.RPG_LEGACY_RENDERER, rpgLegacyRenderer)
@@ -2359,8 +2364,20 @@ object EngineLauncher {
         }
     }
 
-    /** 候选目录枚举：真实路径优先；File 直读不可用（null 或空）时回退 SAF（SD 卡常见）。 */
-    private fun readLaunchFileEntries(
+    /** 「语言」对话框数据源：该游戏可用的译文文件（私有 translations/ 目录 + 游戏目录根兜底）。 */
+    internal fun availableTranslationFiles(context: Context, game: ScanGame): List<File> =
+        MtoolTranslation.availableTranslationFiles(context, game.uri, resolveGameDirectory(context, game))
+
+    /** 当前选中的译表文件名；null=未选择（不翻译，保持原文）。 */
+    internal fun selectedTranslationLanguage(context: Context, game: ScanGame): String? =
+        PerGameSettingsStore.getStr(context, game.uri, PerGameSettingsStore.F_TRANSLATION_LANGUAGE)
+
+    /** 保存译表语言选择；null=清除选择（不翻译，保持原文）。 */
+    internal fun setTranslationLanguage(context: Context, game: ScanGame, fileName: String?) {
+        PerGameSettingsStore.setStr(context, game.uri, PerGameSettingsStore.F_TRANSLATION_LANGUAGE, fileName)
+    }
+
+    /** 候选目录枚举：真实路径优先；File 直读不可用（null 或空）时回退 SAF（SD 卡常见）。 */    private fun readLaunchFileEntries(
         context: Context,
         game: ScanGame,
         path: String?,
