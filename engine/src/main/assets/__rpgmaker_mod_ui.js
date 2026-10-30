@@ -116,19 +116,42 @@
   }
   function renderMap(content) {
     var pos = mod.currentPosition();
-    var teleportForm = '<div class="tm-row">' + textInput("tm-map-id", pos && pos.mapId, "number", 'placeholder="地图 ID"') + textInput("tm-map-x", pos && pos.x, "number", 'placeholder="X"') + textInput("tm-map-y", pos && pos.y, "number", 'placeholder="Y"') + button("传送", "teleport", "primary") + '</div>';
-    var events = [];
-    try { events = mod.listEvents().values; } catch (_) { events = []; }
-    context.eventAll = events;
-    var eventItems = filteredEvents().map(function (ev) {
-      return '<div class="tm-item' + (String(context.eventId) === String(ev.id) ? " tm-active" : "") + '"><span class="tm-name">#' + ev.id + ' ' + escapeHtml(ev.name) + '</span><span class="tm-badge">' + ev.x + ',' + ev.y + '</span>' + button("选择", "pick-event", "", 'data-id="' + ev.id + '"') + '</div>';
-    }).join("") || '<div class="tm-note">当前地图没有事件（进入地图场景后打开）</div>';
-    var searchRow = '<div class="tm-row">' + textInput("tm-event-query", "", "search", 'placeholder="搜索 ID / 名称"') + button("搜索", "render-events", "primary") + '</div>';
-    var panel = eventPanelHtml();
+    context.mapMode = context.mapMode || "events";
+    var modeSelect = '<select class="tm-select" id="tm-map-mode" data-action="map-mode" style="flex:0 0 108px"><option value="events">事件</option><option value="maps">地图</option></select>';
+    var browseRow = '<div class="tm-row">' + modeSelect + textInput("tm-browse-query", "", "search", 'placeholder="搜索"') + button("搜索", "render-browse", "primary") + '</div>';
+    var teleportCard = card("传送", '<div class="tm-row">' + textInput("tm-map-id", pos && pos.mapId, "number", 'placeholder="地图 ID"') + textInput("tm-map-x", pos && pos.x, "number", 'placeholder="X"') + textInput("tm-map-y", pos && pos.y, "number", 'placeholder="Y"') + button("传送", "teleport", "primary") + '</div>');
+    var eventCard = card("事件操作", '<div class="tm-card-body" id="tm-event-panel">' + eventPanelHtml() + '</div>');
     content.innerHTML = '<div class="tm-grid tm-map-grid">'
-      + card("事件列表", searchRow + '<div class="tm-list" id="tm-event-list">' + eventItems + '</div>')
-      + card("事件操作", '<div class="tm-card-body" id="tm-event-panel">' + panel + '</div><div class="tm-sep"></div>' + teleportForm)
-      + '</div>';
+      + '<section class="tm-card tm-browse-card"><h3>浏览</h3>' + browseRow + '<div class="tm-list" id="tm-browse-list"></div></section>'
+      + teleportCard + eventCard + '</div>';
+    root.querySelector("#tm-map-mode").value = context.mapMode;
+    context.eventAll = [];
+    try { context.eventAll = mod.listEvents().values; } catch (_) { context.eventAll = []; }
+    loadBrowse();
+  }
+  function loadBrowse() {
+    context.mapMode = inputValue("tm-map-mode") || context.mapMode || "events";
+    var queryInput = root.querySelector("#tm-browse-query");
+    if (queryInput) queryInput.placeholder = context.mapMode === "maps" ? "搜索地图名称 / ID" : "搜索 ID / 名称";
+    if (context.mapMode === "maps") renderMapList(); else renderEventList();
+  }
+  function renderMapList() {
+    var list = root.querySelector("#tm-browse-list");
+    if (!list) return;
+    var pos = null;
+    try { pos = mod.currentPosition(); } catch (_) { pos = null; }
+    var maps = [];
+    try { maps = mod.listMaps(inputValue("tm-browse-query"), 0, 300).values; } catch (e) {
+      list.innerHTML = '<div class="tm-note">' + escapeHtml(String(e && e.message || e)) + '</div>'; return;
+    }
+    list.innerHTML = maps.map(function (m) {
+      var here = pos && Number(pos.mapId) === Number(m.id);
+      var picked = Number(context.pickedMapId) === Number(m.id);
+      var indent = m.depth ? ' style="padding-left:' + (m.depth * 14) + 'px"' : "";
+      var paddedId = ("0000" + m.id).slice(-4);
+      var name = (m.depth ? "└ " : "") + "#" + paddedId + ": " + escapeHtml(m.name);
+      return '<div class="tm-item' + (here || picked ? " tm-active" : "") + '"><span class="tm-name"' + indent + '>' + name + '</span>' + (here ? '<span class="tm-badge tm-on">你在这里</span>' : '') + button("选择", "pick-map", "", 'data-id="' + m.id + '"') + '</div>';
+    }).join("") || '<div class="tm-note">没有匹配地图</div>';
   }
   function filteredEvents() {
     var query = String(inputValue("tm-event-query") || "").toLowerCase();
@@ -150,8 +173,7 @@
       + '<div class="tm-row"><small>Page 0:</small><span class="tm-badge">页数 ' + detail.pages + '</span><span class="tm-badge">长度 ' + detail.firstPageLength + '</span>' + button("事件指令", "show-commands", "", 'data-id="' + detail.id + '"') + '</div>'
       + '<div class="tm-row"><small>独立开关:</small>' + selfSwitches + '</div>'
       + '<div class="tm-row">' + button("独立开关全开", "selfswitch-on", "primary", 'data-id="' + detail.id + '"') + button("独立开关全关", "selfswitch-off", "danger", 'data-id="' + detail.id + '"') + '</div>'
-      + '<div id="tm-event-commands" data-event-id=""></div>'
-      + '<div id="tm-minimap"></div>';
+      + '<div id="tm-event-commands" data-event-id=""></div>';
   }
   function renderEventPanel() {
     var panel = root.querySelector("#tm-event-panel");
@@ -187,10 +209,30 @@
     box.innerHTML = '<div class="tm-list">' + (html || '<div class="tm-note">Page 0 没有指令</div>') + '</div>';
   }
   function renderEventList() {
-    var list = root.querySelector("#tm-event-list");
-    if (list) list.innerHTML = filteredEvents().map(function (ev) {
+    if (context.mapMode === "maps") return;
+    var list = root.querySelector("#tm-browse-list");
+    if (!list) return;
+    var events = filteredEvents();
+    list.innerHTML = events.map(function (ev) {
       return '<div class="tm-item' + (String(context.eventId) === String(ev.id) ? " tm-active" : "") + '"><span class="tm-name">#' + ev.id + ' ' + escapeHtml(ev.name) + '</span><span class="tm-badge">' + ev.x + ',' + ev.y + '</span>' + button("选择", "pick-event", "", 'data-id="' + ev.id + '"') + '</div>';
-    }).join("") || '<div class="tm-note">没有匹配事件</div>';
+    }).join("") || '<div class="tm-note">' + (context.eventAll.length ? "没有匹配事件" : "当前地图没有事件（进入地图场景后打开）") + '</div>';
+  }
+  function showMinimapDialog() {
+    if (!root) return;
+    var old = root.querySelector(".tm-modal"); if (old) old.remove();
+    var dlg = document.createElement("div"); dlg.className = "tm-modal";
+    dlg.innerHTML = '<div class="tm-modal-box"><div class="tm-modal-head"><strong>迷你地图</strong><button class="tm-close" data-action="close-minimap" aria-label="关闭">×</button></div>'
+      + '<div class="tm-legend">'
+      + '<span class="tm-lg"><i class="tm-sw" style="background:#27343e"></i>无法通行</span>'
+      + '<span class="tm-lg"><i class="tm-sw" style="background:#7eaa99"></i>可通行</span>'
+      + '<span class="tm-lg"><i class="tm-sw" style="background:#fff;border:1px solid #cbd5cf"></i>事件（数字=事件 ID）</span>'
+      + '<span class="tm-lg"><i class="tm-sw" style="background:transparent;border:2px solid #3ddc6f"></i>你</span>'
+      + '</div>'
+      + '<div class="tm-modal-body" id="tm-minimap-body"><div class="tm-note">绘制中…</div></div>'
+      + '<small class="tm-modal-hint">点击地图上的事件块可选中该事件；绿框是你的当前位置。</small></div>';
+    root.appendChild(dlg);
+    dlg.addEventListener("click", function (event) { if (event.target === dlg) dlg.remove(); });
+    renderMinimap(dlg.querySelector("#tm-minimap-body"));
   }
   function renderMinimap(container) {
     if (!window.$dataMap || !window.$gamePlayer) { container.innerHTML = '<div class="tm-note">当前不在地图场景</div>'; return; }
@@ -287,13 +329,21 @@
     if (action === "change-equip") return run(function () { mod.changeEquip(context.actorId, inputValue("tm-equip-slot"), inputValue("tm-equip-kind"), inputValue("tm-equip-id")); }, function () { toast("装备已更换"); renderActorBody(); });
     if (action === "system-kind" || action === "render-system") return loadSystem();
     if (action === "set-system") return run(function () { var id = node.dataset.id; if (context.systemKind === "switch") mod.setSwitch(id, checked("tm-system-" + id)); else { var raw = inputValue("tm-system-" + id); var value; try { value = JSON.parse(raw); } catch (_) { value = raw; } mod.setVariable(id, value); } }, function () { toast("系统值已修改"); loadSystem(); });
-    if (action === "pick-map") { root.querySelector("#tm-map-id").value = node.dataset.id; return; }
+    if (action === "map-mode") { context.mapMode = node.value; return loadBrowse(); }
+    if (action === "render-browse") return loadBrowse();
+    if (action === "pick-map") {
+      var mapInput = root.querySelector("#tm-map-id");
+      if (mapInput) mapInput.value = node.dataset.id;
+      context.pickedMapId = Number(node.dataset.id);
+      if (context.mapMode === "maps") renderMapList();
+      return;
+    }
     if (action === "pick-event") { context.eventId = Number(node.dataset.id); renderEventList(); renderEventPanel(); return; }
-    if (action === "render-events") return renderEventList();
     if (action === "toggle-through") return run(function () { var detail = mod.eventDetail(node.dataset.id); return mod.setEventThrough(node.dataset.id, !detail.through); }, function () { toast("穿透已切换"); renderEventPanel(); });
     if (action === "selfswitch-on") return run(function () { return mod.setEventSelfSwitches(node.dataset.id, true); }, function () { toast("独立开关已全开"); renderEventPanel(); });
     if (action === "selfswitch-off") return run(function () { return mod.setEventSelfSwitches(node.dataset.id, false); }, function () { toast("独立开关已全关"); renderEventPanel(); });
-    if (action === "show-minimap") { var box = root.querySelector("#tm-minimap"); if (box) renderMinimap(box); return; }
+    if (action === "show-minimap") return showMinimapDialog();
+    if (action === "close-minimap") { var modal = root.querySelector(".tm-modal"); if (modal) modal.remove(); return; }
     if (action === "show-commands") return toggleEventCommands(node.dataset.id);
     if (action === "teleport") return run(function () { return mod.teleport(inputValue("tm-map-id"), inputValue("tm-map-x"), inputValue("tm-map-y"), 2, 0); }, function () { toast("已预约传送"); close(); });
     if (action === "set-enemy") return run(function () { mod.setEnemyHp(node.dataset.index, inputValue("tm-enemy-" + node.dataset.index)); }, render);

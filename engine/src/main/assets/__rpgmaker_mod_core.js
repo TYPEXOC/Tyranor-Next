@@ -254,11 +254,21 @@
   function listVariables(query, offset, limit) { return namedSystemList("variable", query, offset, limit); }
   function setVariable(id, value) { $gameVariables.setValue(integer(id), value); return $gameVariables.value(integer(id)); }
 
+  function mapDepth(entry) {
+    var depth = 0, id = entry.parentId, guard = 0;
+    var infos = window.$dataMapInfos || [];
+    while (id > 0 && guard++ < 32) {
+      var parent = infos[id];
+      if (!parent || parent.id === entry.id) break;
+      id = parent.parentId; depth++;
+    }
+    return depth;
+  }
   function listMaps(query, offset, limit) {
     query = String(query || "").toLowerCase();
-    var values = (window.$dataMapInfos || []).filter(function (entry) { return entry && (!query || String(entry.name || "").toLowerCase().indexOf(query) >= 0); });
+    var values = (window.$dataMapInfos || []).filter(function (entry) { return entry && (!query || String(entry.name || "").toLowerCase().indexOf(query) >= 0 || String(entry.id).indexOf(query) >= 0); });
     offset = Math.max(0, integer(offset)); limit = clamp(integer(limit, 100), 1, 300);
-    return { total: values.length, values: values.slice(offset, offset + limit).map(function (entry) { return { id: entry.id, name: entry.name || ("地图 " + entry.id) }; }) };
+    return { total: values.length, values: values.slice(offset, offset + limit).map(function (entry) { return { id: entry.id, name: entry.name || ("地图 " + entry.id), depth: mapDepth(entry) }; }) };
   }
   function currentPosition() { return window.$gamePlayer ? { mapId: $gameMap.mapId(), x: $gamePlayer.x, y: $gamePlayer.y, direction: $gamePlayer.direction() } : null; }
   function teleport(mapId, x, y, direction, fade) {
@@ -342,7 +352,7 @@
   function onReady(callback) { if (isReady()) callback(); else readyListeners.push(callback); }
   loadState();
   window.TyranorMod = {
-    version: "1.1.0", isReady: isReady, onReady: onReady, installHooks: installHooks,
+    version: "1.2.0", isReady: isReady, onReady: onReady, installHooks: installHooks,
     getState: getState, setFlag: setFlag, toggleFlag: toggleFlag, reapplyPersistent: reapplyPersistent,
     getGold: getGold, setGold: setGold, listDatabase: listDatabase, itemCount: itemCount, setItemCount: setItemCount, clearItems: clearItems,
     listActors: listActors, setActorStat: setActorStat, recoverActor: recoverActor, recoverParty: recoverParty,
