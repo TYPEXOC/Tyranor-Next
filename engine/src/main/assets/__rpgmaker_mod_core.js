@@ -267,6 +267,38 @@
     if (window.SceneManager && SceneManager._scene && SceneManager._scene.constructor && String(SceneManager._scene.constructor.name).indexOf("Scene_Map") >= 0 && $gamePlayer.performTransfer) $gamePlayer.performTransfer();
     return true;
   }
+  function listEvents() {
+    if (!window.$dataMap) throw new Error("当前不在地图场景");
+    var values = ($dataMap.events || []).filter(function (ev) { return ev; }).map(function (ev) {
+      var pages = ev.pages || [];
+      return { id: ev.id, name: ev.name || ("EV" + ev.id), x: ev.x, y: ev.y, pages: pages.length, firstPageLength: pages.length ? (pages[0].list || []).length : 0 };
+    });
+    return { total: values.length, values: values };
+  }
+  function eventDetail(eventId) {
+    if (!window.$dataMap) throw new Error("当前不在地图场景");
+    var ev = $dataMap.events[integer(eventId)];
+    if (!ev) throw new Error("事件不存在");
+    var live = window.$gameMap && $gameMap.event ? $gameMap.event(integer(eventId)) : null;
+    var selfSwitches = {};
+    ["A", "B", "C", "D"].forEach(function (k) {
+      selfSwitches[k] = window.$gameSelfSwitches ? $gameSelfSwitches.value([$gameMap.mapId(), ev.id, k]) : false;
+    });
+    return { id: ev.id, name: ev.name || ("EV" + ev.id), x: ev.x, y: ev.y, pages: (ev.pages || []).length, firstPageLength: ev.pages && ev.pages.length ? (ev.pages[0].list || []).length : 0, through: !!(live && live._through), selfSwitches: selfSwitches };
+  }
+  function setEventThrough(eventId, value) {
+    if (!window.$gameMap || !$gameMap.event) throw new Error("当前不在地图场景");
+    var live = $gameMap.event(integer(eventId));
+    if (!live) throw new Error("事件不存在或未激活（需在当前地图）");
+    live._through = !!value;
+    return !!value;
+  }
+  function setEventSelfSwitches(eventId, on) {
+    if (!window.$gameSelfSwitches) throw new Error("游戏尚未就绪");
+    var mapId = $gameMap.mapId();
+    ["A", "B", "C", "D"].forEach(function (k) { $gameSelfSwitches.setValue([mapId, integer(eventId), k], !!on); });
+    return true;
+  }
   function battleSnapshot() {
     if (!inBattle()) return { inBattle: false, actors: [], enemies: [] };
     function battler(value, index) { return { index: index, name: value.name(), hp: value.hp, mhp: value.mhp, mp: value.mp, mmp: value.mmp, dead: value.isDead() }; }
@@ -310,7 +342,7 @@
   function onReady(callback) { if (isReady()) callback(); else readyListeners.push(callback); }
   loadState();
   window.TyranorMod = {
-    version: "1.0.0", isReady: isReady, onReady: onReady, installHooks: installHooks,
+    version: "1.1.0", isReady: isReady, onReady: onReady, installHooks: installHooks,
     getState: getState, setFlag: setFlag, toggleFlag: toggleFlag, reapplyPersistent: reapplyPersistent,
     getGold: getGold, setGold: setGold, listDatabase: listDatabase, itemCount: itemCount, setItemCount: setItemCount, clearItems: clearItems,
     listActors: listActors, setActorStat: setActorStat, recoverActor: recoverActor, recoverParty: recoverParty,
@@ -319,6 +351,7 @@
     actorEquips: actorEquips, listEquipCandidates: listEquipCandidates, changeEquip: changeEquip,
     listSwitches: listSwitches, setSwitch: setSwitch, listVariables: listVariables, setVariable: setVariable,
     listMaps: listMaps, currentPosition: currentPosition, teleport: teleport,
+    listEvents: listEvents, eventDetail: eventDetail, setEventThrough: setEventThrough, setEventSelfSwitches: setEventSelfSwitches,
     battleSnapshot: battleSnapshot, setEnemyHp: setEnemyHp, killAllEnemies: killAllEnemies, forceVictory: forceVictory, forceEscape: forceEscape,
     listSaveSlots: listSaveSlots, saveGame: saveGame, loadGame: loadGame, deleteSave: deleteSave, getMaxSaveSlots: maxSaveSlots
   };
