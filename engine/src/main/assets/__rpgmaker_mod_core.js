@@ -369,6 +369,19 @@
     return { total: values.length, values: values.slice(offset, offset + limit).map(function (entry) { return { id: entry.id, name: entry.name || ("地图 " + entry.id), depth: mapDepth(entry) }; }) };
   }
   function currentPosition() { return window.$gamePlayer ? { mapId: $gameMap.mapId(), x: $gamePlayer.x, y: $gamePlayer.y, direction: $gamePlayer.direction() } : null; }
+  function minimapData() {
+    if (!window.$gameMap || !$gameMap.mapId) throw new Error("当前不在地图场景");
+    var w = $gameMap.width(), h = $gameMap.height();
+    var rows = new Array(h);
+    for (var y = 0; y < h; y++) {
+      var row = "";
+      for (var x = 0; x < w; x++) row += $gameMap.isPassable(x, y, 2) ? "1" : "0";
+      rows[y] = row;
+    }
+    var events = ($gameMap.events() || []).filter(Boolean).map(function (ev) { return { id: ev.eventId(), x: ev.x, y: ev.y }; });
+    var player = window.$gamePlayer ? { x: $gamePlayer.x, y: $gamePlayer.y } : null;
+    return { mapId: $gameMap.mapId(), width: w, height: h, rows: rows, events: events, player: player };
+  }
   function teleport(mapId, x, y, direction, fade) {
     if (!window.$gamePlayer) throw new Error("当前不在地图场景");
     $gamePlayer.reserveTransfer(integer(mapId), Math.max(0, integer(x)), Math.max(0, integer(y)), integer(direction, 2), integer(fade, 0));
@@ -443,7 +456,7 @@
   function onReady(callback) { if (isReady()) callback(); else readyListeners.push(callback); }
   loadState();
   window.TyranorMod = {
-    version: "1.4.1", isReady: isReady, onReady: onReady, installHooks: installHooks,
+    version: "1.4.2", isReady: isReady, onReady: onReady, installHooks: installHooks,
     getState: getState, setFlag: setFlag, toggleFlag: toggleFlag, reapplyPersistent: reapplyPersistent,
     getGold: getGold, setGold: setGold, listDatabase: listDatabase, itemCount: itemCount, setItemCount: setItemCount, clearItems: clearItems,
     listActors: listActors, setActorStat: setActorStat, recoverActor: recoverActor, recoverParty: recoverParty,
@@ -452,7 +465,7 @@
     actorEquips: actorEquips, listEquipCandidates: listEquipCandidates, changeEquip: changeEquip,
     listSwitches: listSwitches, setSwitch: setSwitch, listVariables: listVariables, setVariable: setVariable,
     usageSummary: usageSummary,
-    listMaps: listMaps, currentPosition: currentPosition, teleport: teleport,
+    listMaps: listMaps, currentPosition: currentPosition, teleport: teleport, minimapData: minimapData,
     listEvents: listEvents, eventDetail: eventDetail, setEventSelfSwitches: setEventSelfSwitches,
     battleSnapshot: battleSnapshot, setEnemyHp: setEnemyHp, killAllEnemies: killAllEnemies, forceVictory: forceVictory, forceEscape: forceEscape,
     listSaveSlots: listSaveSlots, saveGame: saveGame, loadGame: loadGame, deleteSave: deleteSave, getMaxSaveSlots: maxSaveSlots
