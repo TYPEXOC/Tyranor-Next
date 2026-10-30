@@ -116,8 +116,8 @@
   }
   function renderMap(content) {
     var pos = mod.currentPosition();
-    context.mapMode = context.mapMode || "events";
-    var modeSelect = '<select class="tm-select" id="tm-map-mode" data-action="map-mode" style="flex:0 0 108px"><option value="events">事件</option><option value="maps">地图</option></select>';
+    context.mapMode = context.mapMode || "maps";
+    var modeSelect = '<select class="tm-select" id="tm-map-mode" data-action="map-mode" style="flex:0 0 108px"><option value="maps">地图</option><option value="events">事件</option></select>';
     var browseRow = '<div class="tm-row">' + modeSelect + textInput("tm-browse-query", "", "search", 'placeholder="搜索"') + button("搜索", "render-browse", "primary") + '</div>';
     var teleportCard = card("传送", '<div class="tm-row">' + textInput("tm-map-id", pos && pos.mapId, "number", 'placeholder="地图 ID"') + textInput("tm-map-x", pos && pos.x, "number", 'placeholder="X"') + textInput("tm-map-y", pos && pos.y, "number", 'placeholder="Y"') + button("传送", "teleport", "primary") + '</div>');
     var eventCard = card("事件操作", '<div class="tm-card-body" id="tm-event-panel">' + eventPanelHtml() + '</div>');
@@ -129,8 +129,14 @@
     try { context.eventAll = mod.listEvents().values; } catch (_) { context.eventAll = []; }
     loadBrowse();
   }
+  function fillTeleport(mapId, x, y) {
+    var mi = root.querySelector("#tm-map-id"), xi = root.querySelector("#tm-map-x"), yi = root.querySelector("#tm-map-y");
+    if (mi && mapId != null) mi.value = mapId;
+    if (xi && x != null) xi.value = x;
+    if (yi && y != null) yi.value = y;
+  }
   function loadBrowse() {
-    context.mapMode = inputValue("tm-map-mode") || context.mapMode || "events";
+    context.mapMode = inputValue("tm-map-mode") || context.mapMode || "maps";
     var queryInput = root.querySelector("#tm-browse-query");
     if (queryInput) queryInput.placeholder = context.mapMode === "maps" ? "搜索地图名称 / ID" : "搜索 ID / 名称";
     if (context.mapMode === "maps") renderMapList(); else renderEventList();
@@ -178,12 +184,9 @@
     }).join(" ");
     var allOn = ["A", "B", "C", "D"].every(function (k) { return detail.selfSwitches[k]; });
     var state = mod.getState();
-    return '<div class="tm-row"><small>穿墙:</small><input class="tm-switch" type="checkbox" data-action="flag" data-flag="noclip" ' + (state.noclip ? "checked" : "") + '><small>同快捷页，全地图通行</small></div>'
-      + '<div class="tm-row">' + button("迷你地图", "show-minimap", "", 'data-id="' + detail.id + '"') + '</div>'
-      + '<div class="tm-row"><small>Pos:</small><span class="tm-badge">' + detail.x + ',' + detail.y + '</span></div>'
-      + '<div class="tm-row"><small>名称:</small><span class="tm-name">' + escapeHtml(detail.name) + '</span></div>'
-      + '<div class="tm-row"><small>独立开关:</small>' + selfSwitches + '</div>'
-      + '<div class="tm-row"><small>全部:</small><input class="tm-switch" type="checkbox" data-action="selfswitch-toggle" data-id="' + detail.id + '" ' + (allOn ? "checked" : "") + '><small>A–D 一起切换</small></div>';
+    return '<div class="tm-row">' + button(state.noclip ? "穿墙:开" : "穿墙:关", "flag", state.noclip ? "primary" : "", 'data-flag="noclip"') + button("迷你地图", "show-minimap", "", 'data-id="' + detail.id + '"') + '</div>'
+      + '<div class="tm-row"><small>Pos:</small><span class="tm-badge">' + detail.x + ',' + detail.y + '</span><small>名称:</small><span class="tm-name">' + escapeHtml(detail.name) + '</span></div>'
+      + '<div class="tm-row"><small>独立开关:</small>' + selfSwitches + button(allOn ? "全开" : "全关", "selfswitch-toggle", allOn ? "primary" : "danger", 'data-id="' + detail.id + '"') + '</div>';
   }
   function renderEventPanel() {
     var panel = root.querySelector("#tm-event-panel");
@@ -284,7 +287,7 @@
   function handleAction(action, node) {
     if (action === "close") return close();
     if (action === "render") return render();
-    if (action === "flag") return run(function () { mod.setFlag(node.dataset.flag, node.checked); }, function () { toast("设置已保存"); });
+    if (action === "flag") return run(function () { var on = node.type === "checkbox" ? node.checked : !mod.getState()[node.dataset.flag]; mod.setFlag(node.dataset.flag, on); }, function () { toast("设置已保存"); renderEventPanel(); });
     if (action === "set-gold") return run(function () { mod.setGold(inputValue("tm-gold")); }, function () { toast("金币已修改"); render(); });
     if (action === "max-gold") return run(function () { mod.setGold(99999999); }, function () { toast("金币已拉满"); render(); });
     if (action === "recover-party") return run(mod.recoverParty, function () { toast("队伍已恢复"); render(); });
@@ -300,15 +303,18 @@
     if (action === "set-system") return run(function () { var id = node.dataset.id; if (context.systemKind === "switch") mod.setSwitch(id, checked("tm-system-" + id)); else { var raw = inputValue("tm-system-" + id); var value; try { value = JSON.parse(raw); } catch (_) { value = raw; } mod.setVariable(id, value); } }, function () { toast("系统值已修改"); loadSystem(); });
     if (action === "map-mode") { context.mapMode = node.value; return loadBrowse(); }
     if (action === "render-browse") return loadBrowse();
-    if (action === "pick-map") {
-      var mapInput = root.querySelector("#tm-map-id");
-      if (mapInput) mapInput.value = node.dataset.id;
-      context.pickedMapId = Number(node.dataset.id);
-      if (context.mapMode === "maps") renderMapList();
-      return;
+    if (action === "pick-map") { fillTeleport(node.dataset.id, 0, 0); context.pickedMapId = Number(node.dataset.id); if (context.mapMode === "maps") renderMapList(); return; }
+    if (action === "pick-event") {
+      context.eventId = Number(node.dataset.id);
+      var ev = (context.eventAll || []).filter(function (e2) { return String(e2.id) === node.dataset.id; })[0];
+      var pos2 = null; try { pos2 = mod.currentPosition(); } catch (_) {}
+      if (ev) fillTeleport(pos2 && pos2.mapId, ev.x, ev.y);
+      renderEventList(); renderEventPanel(); return;
     }
-    if (action === "pick-event") { context.eventId = Number(node.dataset.id); renderEventList(); renderEventPanel(); return; }
-    if (action === "selfswitch-toggle") { var on = node.checked; return run(function () { return mod.setEventSelfSwitches(node.dataset.id, on); }, function () { toast(on ? "独立开关 A–D 已全开" : "独立开关 A–D 已全关"); renderEventPanel(); }); }
+    if (action === "selfswitch-toggle") {
+      var sid = node.dataset.id;
+      return run(function () { var cur = mod.eventDetail(sid).selfSwitches; var on = !["A", "B", "C", "D"].every(function (k) { return cur[k]; }); mod.setEventSelfSwitches(sid, on); return on; }, function (on) { toast(on ? "独立开关 A–D 已全开" : "独立开关 A–D 已全关"); renderEventPanel(); });
+    }
     if (action === "show-minimap") return showMinimapDialog();
     if (action === "close-minimap") { var modal = root.querySelector(".tm-modal"); if (modal) modal.remove(); return; }
     if (action === "teleport") return run(function () { return mod.teleport(inputValue("tm-map-id"), inputValue("tm-map-x"), inputValue("tm-map-y"), 2, 0); }, function () { toast("已预约传送"); close(); });
