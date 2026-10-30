@@ -87,13 +87,7 @@ object MtoolTranslation {
         val root = File(gameDir)
         if (!root.isDirectory) return emptyList()
         return root.listFiles { f -> f.isFile && f.name.lowercase().endsWith(".json") }
-            ?.filter { f ->
-                if (f.name == TRANSLATION_FILE_NAME) {
-                    f.isFile
-                } else {
-                    looksLikeTranslationJson(f)
-                }
-            }
+            ?.filter { looksLikeTranslationJson(it) }
             ?.sortedWith(compareBy({ it.name != TRANSLATION_FILE_NAME }, { it.name.lowercase() }))
             ?: emptyList()
     }
