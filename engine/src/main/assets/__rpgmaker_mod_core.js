@@ -358,7 +358,7 @@
   function onReady(callback) { if (isReady()) callback(); else readyListeners.push(callback); }
   loadState();
   window.TyranorMod = {
-    version: "1.4.3", isReady: isReady, onReady: onReady, installHooks: installHooks,
+    version: "1.5.0", isReady: isReady, onReady: onReady, installHooks: installHooks,
     getState: getState, setFlag: setFlag, toggleFlag: toggleFlag, reapplyPersistent: reapplyPersistent,
     getGold: getGold, setGold: setGold, listDatabase: listDatabase, itemCount: itemCount, setItemCount: setItemCount, clearItems: clearItems,
     listActors: listActors, setActorStat: setActorStat, recoverActor: recoverActor, recoverParty: recoverParty,
