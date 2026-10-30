@@ -172,8 +172,15 @@
     var active = list.querySelector(".tm-item.tm-active");
     if (active && active.scrollIntoView) { try { active.scrollIntoView({ block: "center" }); } catch (_) { try { active.scrollIntoView(); } catch (_) {} } }
   }
+  function renderEventList() {
+    var list = root.querySelector("#tm-browse-list");
+    if (!list) return;
+    list.innerHTML = filteredEvents().map(function (ev) {
+      return '<div class="tm-item' + (String(context.eventId) === String(ev.id) ? " tm-active" : "") + '"><span class="tm-name">#' + ev.id + ' ' + escapeHtml(ev.name) + '</span><span class="tm-badge">' + ev.x + ',' + ev.y + '</span>' + button("选择", "pick-event", "", 'data-id="' + ev.id + '"') + '</div>';
+    }).join("") || '<div class="tm-note">当前地图没有事件（进入地图场景后打开）</div>';
+  }
   function filteredEvents() {
-    var query = String(inputValue("tm-event-query") || "").toLowerCase();
+    var query = String(inputValue("tm-browse-query") || "").toLowerCase();
     if (!query) return context.eventAll || [];
     return (context.eventAll || []).filter(function (ev) {
       return String(ev.name).toLowerCase().indexOf(query) >= 0 || String(ev.id).indexOf(query) >= 0;
@@ -198,6 +205,68 @@
   function renderEventPanel() {
     var panel = root.querySelector("#tm-event-panel");
     if (panel) panel.innerHTML = eventPanelHtml();
+  }
+  function showMinimapDialog() {
+    var data;
+    try { data = mod.minimapData(); } catch (e) { toast(String(e && e.message || e)); return; }
+    var lg = '<span class="tm-lg"><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#3a4640"></span>无法通行</span>'
+      + '<span class="tm-lg"><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#cfe8d6"></span>可通行</span>'
+      + '<span class="tm-lg"><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#fff;border:1px solid #cfd6d2"></span>事件</span>'
+      + '<span class="tm-lg"><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#69f0ae"></span>你</span>';
+    var modal = document.createElement("div");
+    modal.className = "tm-modal";
+    modal.innerHTML = '<div class="tm-modal-box">'
+      + '<div class="tm-modal-head"><strong>迷你地图 #' + data.mapId + '</strong>' + lg + button("×", "close-minimap", "") + '</div>'
+      + '<div class="tm-modal-body"><canvas class="tm-minimap" id="tm-minimap-canvas"></canvas></div>'
+      + '<div class="tm-modal-hint">点击事件块选中该事件；点外部区域或 × 关闭</div>'
+      + '</div>';
+    modal.addEventListener("click", function (e) { if (e.target === modal) { modal.remove(); renderEventPanel(); } });
+    root.appendChild(modal);
+    var canvas = modal.querySelector("#tm-minimap-canvas");
+    var cssW = canvas.parentElement.clientWidth || 480;
+    var tile = Math.max(3, Math.floor(cssW / data.width));
+    var cssH = tile * data.height;
+    var dpr = window.devicePixelRatio || 1;
+    canvas.style.width = cssW + "px";
+    canvas.style.height = cssH + "px";
+    canvas.width = Math.round(cssW * dpr);
+    canvas.height = Math.round(cssH * dpr);
+    var ctx = canvas.getContext("2d");
+    ctx.scale(dpr, dpr);
+    for (var y = 0; y < data.height; y++) {
+      for (var x = 0; x < data.width; x++) {
+        ctx.fillStyle = data.rows[y].charAt(x) === "1" ? "#cfe8d6" : "#3a4640";
+        ctx.fillRect(x * tile, y * tile, tile, tile);
+      }
+    }
+    data.events.forEach(function (ev) {
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(ev.x * tile, ev.y * tile, tile, tile);
+      if (tile >= 6) {
+        ctx.fillStyle = "#202522";
+        ctx.font = Math.floor(tile * 0.72) + "px sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(String(ev.id), ev.x * tile + tile / 2, ev.y * tile + tile / 2 + 1);
+      }
+    });
+    if (data.player) {
+      ctx.strokeStyle = "#22c55e";
+      ctx.lineWidth = Math.max(1.5, tile / 4);
+      ctx.strokeRect(data.player.x * tile + 1, data.player.y * tile + 1, tile - 2, tile - 2);
+    }
+    canvas.addEventListener("click", function (e) {
+      var rect = canvas.getBoundingClientRect();
+      var tx = Math.floor((e.clientX - rect.left) / tile);
+      var ty = Math.floor((e.clientY - rect.top) / tile);
+      var hit = data.events.filter(function (ev) { return ev.x === tx && ev.y === ty; })[0];
+      if (!hit) return;
+      context.eventId = hit.id;
+      modal.remove();
+      renderEventList();
+      renderEventPanel();
+      toast("已选中事件 #" + hit.id);
+    });
   }
   function renderBattle(content) {
     var snapshot = mod.battleSnapshot();
