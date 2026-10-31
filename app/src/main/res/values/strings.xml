@@ -232,7 +232,6 @@
     <string name="game_search_cover">搜索封面</string>
     <string name="game_edit_cover">修改封面</string>
     <string name="game_rename">名称修改</string>
-    <string name="game_properties">属性</string>
     <string name="game_translation">加载翻译</string>
     <string name="game_translation_default">（默认）</string>
     <string name="game_translation_empty">未找到翻译文件（把 MTool 导出格式的 JSON 放入游戏目录或 translations 目录）</string>

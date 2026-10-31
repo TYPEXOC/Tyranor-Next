@@ -232,7 +232,6 @@
     <string name="game_search_cover">カバー画像を検索</string>
     <string name="game_edit_cover">カバー画像を変更</string>
     <string name="game_rename">名前を変更</string>
-    <string name="game_properties">プロパティ</string>
     <string name="game_translation">翻訳を読み込む</string>
     <string name="game_translation_default">（デフォルト）</string>
     <string name="game_translation_empty">翻訳ファイルが見つかりません（MTool エクスポート形式の JSON をゲームディレクトリまたは translations ディレクトリに配置してください）</string>
