@@ -1596,14 +1596,6 @@ private fun CoverSearchDialog(
                                         )
                                     }
                                 }
-                                if (searching || loadingCovers) {
-                                    Text(
-                                        stringResource(if (searching) R.string.game_cover_searching else R.string.common_loading),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.padding(top = 8.dp),
-                                    )
-                                }
                                 if (drillDown != null) {
                                     // 归属要求：封面数据来自未萌 NextMoe（鲲 Galgame 论坛）
                                     Text(
@@ -1663,6 +1655,20 @@ private fun CoverSearchDialog(
                                                 caption = if (drillDown != null) candidate.detail else null,
                                             )
                                         }
+                                    }
+                                } else if (searching || loadingCovers) {
+                                    // 加载提示居中于结果区：与大图卡片同位，搜索/二级加载共用
+                                    Column(
+                                        modifier = Modifier.align(Alignment.Center),
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                    ) {
+                                        CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
+                                        Text(
+                                            stringResource(if (searching) R.string.game_cover_searching else R.string.common_loading),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.padding(top = 8.dp),
+                                        )
                                     }
                                 }
                             }
