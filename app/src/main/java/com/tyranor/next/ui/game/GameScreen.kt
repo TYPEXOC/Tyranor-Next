@@ -94,8 +94,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import top.yukonga.miuix.kmp.basic.RadioButton
-import top.yukonga.miuix.kmp.basic.DropdownDefaults
-import top.yukonga.miuix.kmp.basic.DropdownImpl
+import top.yukonga.miuix.kmp.preference.OverlayDropdownPreference
 import com.tyranor.next.R
 import com.tyranor.next.core.cover.CoverErrorCode
 import com.tyranor.next.core.cover.CoverImageCache
@@ -660,8 +659,8 @@ internal fun GameActionsSheet(
     var coverBindError by rememberSaveable(game.uri) { mutableStateOf<String?>(null) }
     var showDeleteConfirm by rememberSaveable(game.uri) { mutableStateOf(false) }
     var showLaunchFilePicker by rememberSaveable(game.uri) { mutableStateOf(false) }
+    var showPropertiesDialog by rememberSaveable(game.uri) { mutableStateOf(false) }
     var showRenameDialog by rememberSaveable(game.uri) { mutableStateOf(false) }
-    var showTranslationDialog by rememberSaveable(game.uri) { mutableStateOf(false) }
     // 选中的翻译文件名（仅 RPG MV/MZ 提供选择）：null=未选择（不翻译，保持原文）
     var translationFile by remember(game.uri) {
         mutableStateOf(EngineLauncher.selectedTranslationLanguage(context, game))
@@ -696,8 +695,7 @@ internal fun GameActionsSheet(
     val drawerDesktopShortcutTitle = stringResource(R.string.game_add_desktop_shortcut)
     val drawerSearchCoverTitle = stringResource(R.string.game_search_cover)
     val drawerEditCoverTitle = stringResource(R.string.game_edit_cover)
-    val drawerTranslationTitle = stringResource(R.string.game_translation)
-    val drawerTranslationDefault = stringResource(R.string.game_translation_default)
+    val drawerPropertiesTitle = stringResource(R.string.game_properties)
     val drawerSaveManagementTitle = stringResource(R.string.game_save_management)
     val drawerOnlinePatchTitle = stringResource(R.string.game_online_patch)
     val drawerEngineSettingsTitle = stringResource(R.string.settings_engine_settings)
@@ -953,25 +951,12 @@ internal fun GameActionsSheet(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             item {
-                Box(modifier = Modifier.fillMaxWidth()) {
-                    Text(
-                        game.title,
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            .padding(horizontal = 40.dp, vertical = 8.dp),
-                    )
-                    // 标题旁编辑按钮：打开改名对话框（名称编辑独立入口，不占菜单项）
-                    Box(modifier = Modifier.align(Alignment.CenterEnd)) {
-                        TopBarIcon(
-                            painter = painterResource(R.drawable.ic_sheet_rename),
-                            contentDescription = stringResource(R.string.game_rename),
-                            tint = drawerPrimaryColor,
-                            onClick = { showRenameDialog = true },
-                        )
-                    }
-                }
+                Text(
+                    game.title,
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp),
+                )
             }
 
             item {
@@ -1047,21 +1032,16 @@ internal fun GameActionsSheet(
                         onClick = { if (!isBatchScrapingActive()) imagePicker.launch("image/*") },
                     ),
                 )
-                // 加载翻译（仅 RPG MV/MZ）：点击弹出单选对话框
-                if (isMvMz) {
-                    add(
-                        DrawerAction(
-                            key = "load_translation",
-                            title = drawerTranslationTitle,
-                            icon = R.drawable.ic_sheet_language,
-                            iconTint = drawerPrimaryColor,
-                            summary = translationFile?.takeIf(String::isNotBlank)
-                                ?.removeSuffix(".json")
-                                ?: drawerTranslationDefault,
-                            onClick = { showTranslationDialog = true },
-                        ),
-                    )
-                }
+                // 属性：名称修改 +（RPG MV/MZ）加载翻译
+                add(
+                    DrawerAction(
+                        key = "game_properties",
+                        title = drawerPropertiesTitle,
+                        icon = R.drawable.ic_sheet_rename,
+                        iconTint = drawerPrimaryColor,
+                        onClick = { showPropertiesDialog = true },
+                    ),
+                )
                 if (shouldShowSaveManagement(game)) {
                     add(
                         DrawerAction(
@@ -1234,6 +1214,21 @@ internal fun GameActionsSheet(
         )
     }
 
+    if (showPropertiesDialog) {
+        GamePropertiesDialog(
+            game = game,
+            showLanguageRow = isMvMz,
+            translationFile = translationFile?.takeIf(String::isNotBlank),
+            translationFiles = translationFiles,
+            onRenameClick = { showRenameDialog = true },
+            onTranslationSelect = { name ->
+                translationFile = name
+                EngineLauncher.setTranslationLanguage(context, game, name)
+            },
+            onDismiss = { showPropertiesDialog = false },
+        )
+    }
+
     if (showRenameDialog) {
         RenameGameDialog(
             game = game,
@@ -1242,18 +1237,6 @@ internal fun GameActionsSheet(
                 showRenameDialog = false
                 onGameUpdated(game.copy(title = title))
             },
-        )
-    }
-
-    if (showTranslationDialog) {
-        TranslationSelectDialog(
-            files = translationFiles,
-            selected = translationFile,
-            onSelect = { name ->
-                translationFile = name
-                EngineLauncher.setTranslationLanguage(context, game, name)
-            },
-            onDismiss = { showTranslationDialog = false },
         )
     }
 
@@ -1302,6 +1285,76 @@ internal fun GameActionsSheet(
     }
 }
 
+/** 「属性」对话框：名称修改、加载翻译（仅 RPG MV/MZ）两个选项入口。 */
+@Composable
+private fun GamePropertiesDialog(
+    game: ScanGame,
+    showLanguageRow: Boolean,
+    translationFile: String?,
+    translationFiles: List<File>?,
+    onRenameClick: () -> Unit,
+    onTranslationSelect: (String?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AppAlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.game_properties), style = MaterialTheme.typography.titleMedium) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                // 名称修改：点击打开改名对话框
+                AppNavItem(
+                    title = stringResource(R.string.game_rename),
+                    leadingIcon = R.drawable.ic_sheet_rename,
+                    containerColor = DialogItemSurface,
+                    showArrow = false,
+                    leadingIconTint = MaterialTheme.colorScheme.primary,
+                    onClick = onRenameClick,
+                )
+                // 仅 RPG MV/MZ 显示；首项「（默认）」=不注入译表，选定才翻译。
+                if (showLanguageRow) {
+                    val files = translationFiles
+                    when {
+                        files == null -> AppNavItem(
+                            title = stringResource(R.string.game_translation),
+                            summary = translationFile?.removeSuffix(".json")
+                                ?: stringResource(R.string.game_translation_default),
+                            leadingIcon = R.drawable.ic_sheet_language,
+                            containerColor = DialogItemSurface,
+                            showArrow = false,
+                            indication = null,
+                        ) { }
+                        files.isEmpty() -> AppNavItem(
+                            title = stringResource(R.string.game_translation),
+                            summary = stringResource(R.string.game_translation_empty),
+                            leadingIcon = R.drawable.ic_sheet_language,
+                            containerColor = DialogItemSurface,
+                            showArrow = false,
+                            indication = null,
+                        ) { }
+                        else -> {
+                            val options = buildList {
+                                add(null to stringResource(R.string.game_translation_default))
+                                files.forEach { add(it.name to it.name.removeSuffix(".json")) }
+                            }
+                            val selectedIndex = options.indexOfFirst { it.first == translationFile }
+                                .let { if (it < 0) 0 else it }
+                            OverlayDropdownPreference(
+                                title = stringResource(R.string.game_translation),
+                                items = options.map { it.second },
+                                selectedIndex = selectedIndex,
+                                onSelectedIndexChange = { index ->
+                                    options.getOrNull(index)?.let { onTranslationSelect(it.first) }
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = { DialogTextButton(text = stringResource(R.string.common_cancel), onClick = onDismiss) },
+    )
+}
+
 @Composable
 private fun RenameGameDialog(
     game: ScanGame,
@@ -1336,54 +1389,6 @@ private fun RenameGameDialog(
         dismissButton = {
             DialogTextButton(onClick = onDismiss, text = stringResource(R.string.common_cancel))
         },
-    )
-}
-
-/** 「加载翻译」单选对话框：选项行用 Miuix 对话框模式下拉（选中高亮+勾选）；[files] null=扫描中。 */
-@Composable
-private fun TranslationSelectDialog(
-    files: List<File>?,
-    selected: String?,
-    onSelect: (String?) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    val current = selected?.takeIf(String::isNotBlank)
-    val options = buildList {
-        add(null to stringResource(R.string.game_translation_default))
-        files.orEmpty().forEach { add(it.name to it.name.removeSuffix(".json")) }
-    }
-    AppAlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.game_translation), style = MaterialTheme.typography.titleMedium) },
-        text = {
-            if (files != null && files.isEmpty()) {
-                Text(
-                    stringResource(R.string.game_translation_empty),
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    lazyItems(options, key = { it.first ?: "" }) { (value, label) ->
-                        DropdownImpl(
-                            text = label,
-                            optionSize = options.size,
-                            isSelected = value == current,
-                            index = options.indexOfFirst { it.first == value },
-                            dropdownColors = DropdownDefaults.dialogDropdownColors(),
-                            dialogMode = true,
-                            onSelectedIndexChange = { i ->
-                                options.getOrNull(i)?.let { onSelect(it.first) }
-                                onDismiss()
-                            },
-                        )
-                    }
-                }
-            }
-        },
-        confirmButton = { DialogTextButton(text = stringResource(R.string.common_cancel), onClick = onDismiss) },
     )
 }
 
