@@ -230,6 +230,8 @@
     <string name="game_desktop_shortcut_crop_image_failed">无法读取所选图片</string>
     <string name="game_desktop_shortcut_crop_failed">裁切图片失败，请重试</string>
     <string name="game_search_cover">搜索封面</string>
+    <string name="game_cover_settings">封面设置</string>
+    <string name="game_cover_source_all">全部来源</string>
     <string name="game_edit_cover">修改封面</string>
     <string name="game_rename">名称修改</string>
     <string name="game_settings">属性设置</string>
@@ -239,7 +241,6 @@
     <string name="game_online_patch">在线补丁</string>
     <string name="game_delete_title">删除游戏</string>
     <string name="game_delete_message">将移除「%1$s」的应用内记录、设置与缓存，不会删除游戏文件。</string>
-    <string name="game_select_cover_source">选择封面来源</string>
     <string name="game_cover_download_failed">封面下载失败</string>
     <string name="game_cover_no_match">未找到匹配结果</string>
     <string name="game_cover_search_title">搜索 %1$s 封面</string>
@@ -250,14 +251,6 @@
     <string name="game_no_preview">无预览</string>
     <string name="game_votes">票数 %1$d</string>
     <string name="game_use">使用</string>
-    <string name="game_cover_source_disabled">已在封面刮削设置中关闭</string>
-    <string name="game_cover_source_requires_login">需要先在封面刮削设置中登录</string>
-    <string name="game_cover_source_hikarinagi_summary">使用已授权账号搜索 Hikarinagi 封面</string>
-    <string name="game_cover_source_bangumi_summary">搜索 Bangumi 条目封面</string>
-    <string name="game_cover_source_steam_summary">搜索 Steam 商店竖版封面</string>
-    <string name="game_cover_source_vndb_summary">搜索 VNDB 封面</string>
-    <string name="game_cover_source_nextmoe_summary">搜索 未萌NextMoe 封面</string>
-    <string name="game_cover_source_generic_summary">搜索此来源</string>
     <string name="game_launch_file_empty">目录中未找到 xp3 或 exe 文件</string>
 
     <string name="home_recent_empty">暂无最近打开的游戏</string>
