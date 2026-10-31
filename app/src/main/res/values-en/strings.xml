@@ -231,7 +231,6 @@
     <string name="game_desktop_shortcut_crop_failed">Could not crop the image. Please try again.</string>
     <string name="game_search_cover">Search cover</string>
     <string name="game_cover_settings">Cover settings</string>
-    <string name="game_search_cover_summary">Search all enabled cover sources</string>
     <string name="game_cover_source_all">All sources</string>
     <string name="game_edit_cover">Change cover</string>
     <string name="game_rename">Rename</string>

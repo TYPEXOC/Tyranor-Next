@@ -56,6 +56,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -131,6 +132,7 @@ import com.tyranor.next.theme.GlassBorder
 import com.tyranor.next.theme.GlassPanel
 import com.tyranor.next.theme.GlassPanelSolid
 import com.tyranor.next.theme.GlassSurfaceSolid
+import com.tyranor.next.theme.LocalAppDialogContent
 import com.tyranor.next.theme.MiuixSettingsTheme
 import com.tyranor.next.theme.NavWhite
 import com.tyranor.next.theme.TextColor
@@ -682,7 +684,6 @@ internal fun GameActionsSheet(
     else stringResource(R.string.game_add_quick_launch)
     val drawerDesktopShortcutTitle = stringResource(R.string.game_add_desktop_shortcut)
     val drawerCoverSettingsTitle = stringResource(R.string.game_cover_settings)
-    val drawerEditCoverTitle = stringResource(R.string.game_edit_cover)
     val drawerRenameTitle = stringResource(R.string.game_rename)
     val drawerSaveManagementTitle = stringResource(R.string.game_save_management)
     val drawerOnlinePatchTitle = stringResource(R.string.game_online_patch)
@@ -1006,18 +1007,9 @@ internal fun GameActionsSheet(
                     DrawerAction(
                         key = "cover_settings",
                         title = drawerCoverSettingsTitle,
-                        icon = R.drawable.ic_sheet_search_cover,
+                        icon = R.drawable.ic_sheet_cover_settings,
                         iconTint = drawerPrimaryColor,
                         onClick = { if (!isBatchScrapingActive()) showCoverSettingsDialog = true },
-                    ),
-                )
-                add(
-                    DrawerAction(
-                        key = "edit_cover",
-                        title = drawerEditCoverTitle,
-                        icon = R.drawable.ic_sheet_edit_cover,
-                        iconTint = drawerPrimaryColor,
-                        onClick = { if (!isBatchScrapingActive()) imagePicker.launch("image/*") },
                     ),
                 )
                 add(
@@ -1310,7 +1302,6 @@ private fun CoverSettingsDialog(
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 AppNavItem(
                     title = stringResource(R.string.game_search_cover),
-                    summary = stringResource(R.string.game_search_cover_summary),
                     onClick = onSearchCover,
                     leadingIcon = R.drawable.ic_sheet_search_cover,
                     containerColor = DialogItemSurface,
@@ -1485,201 +1476,205 @@ private fun CoverSearchDialog(
     ) {
         // Dialog 是独立窗口：返回键必须在窗口内注册，才能「二级先回一级」而不是直接关掉弹窗
         BackHandler(enabled = drillDownWork != null) { leaveDrillDown() }
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                // 高级玻璃面板为较高不透明度的灰玻璃膜，遮罩略加深即可
-                .background(Color.Black.copy(alpha = if (AppThemeColors.isAdvancedGlass) 0.6f else 0.5f)),
-        ) {
+        // 与 AppAlertDialog 同一弹窗上下文：SlidingTabRow 指示器等公共组件据此切换
+        // 「弹窗灰块」取色，否则指示器取 NavWhite 与本面板同色不可见
+        CompositionLocalProvider(LocalAppDialogContent provides true) {
             Box(
-                Modifier
-                    .fillMaxSize()
-                    .pointerInput(Unit) { detectTapGestures { onDismiss() } },
-            )
-            BoxWithConstraints(
                 modifier = Modifier
                     .fillMaxSize()
-                    .statusBarsPadding()
-                    .then(if (imeVisible) Modifier.imePadding() else Modifier.navigationBarsPadding())
-                    .padding(horizontal = 12.dp, vertical = 12.dp),
-                contentAlignment = Alignment.Center,
+                    // 高级玻璃面板为较高不透明度的灰玻璃膜，遮罩略加深即可
+                    .background(Color.Black.copy(alpha = if (AppThemeColors.isAdvancedGlass) 0.6f else 0.5f)),
             ) {
-                val dialogHeightModifier = if (imeVisible || maxHeight < CoverSearchDialogMaxHeight) {
-                    Modifier.fillMaxHeight()
-                } else {
-                    Modifier.height(CoverSearchDialogMaxHeight)
-                }
-                val canSearch = keyword.trim().isNotEmpty() && !searching && !binding
-                val drillDown = drillDownWork
-                val visibleCandidates = if (drillDown != null) workCovers else candidates
-                val infoMessage: String? = when {
-                    // 两级各自的提示严格分离：离开二级时已清空二级状态，这里的判定只作双保险
-                    drillDown == null && noMatch -> coverNoMatchMessage
-                    drillDown == null && errorCode != null -> errorCode?.coverErrorMessage(context)
-                    drillDown != null && coversErrorCode != null -> coversErrorCode?.coverErrorMessage(context)
-                    // 二级已加载完仍无封面：与一级同一条「未找到匹配结果」
-                    drillDown != null && !loadingCovers && visibleCandidates.isEmpty() -> coverNoMatchMessage
-                    else -> null
-                }
-
                 Box(
+                    Modifier
+                        .fillMaxSize()
+                        .pointerInput(Unit) { detectTapGestures { onDismiss() } },
+                )
+                BoxWithConstraints(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .widthIn(max = CoverSearchDialogMaxWidth)
-                        .then(dialogHeightModifier)
-                        .glassShadow()
-                        .clip(AppComponentShape)
-                        // 高级玻璃用页面背景取色渐变，其余玻璃档用高不透明度玻璃面板
-                        .then(
-                            if (advancedPanelSurface != null) {
-                                Modifier.background(advancedPanelSurface.brush)
-                            } else {
-                                Modifier.background(if (AppThemeColors.isGlass) GlassPanel else NavWhite)
-                            },
-                        )
-                        .glassBorder()
-                        .pointerInput(Unit) { detectTapGestures { } },
+                        .fillMaxSize()
+                        .statusBarsPadding()
+                        .then(if (imeVisible) Modifier.imePadding() else Modifier.navigationBarsPadding())
+                        .padding(horizontal = 12.dp, vertical = 12.dp),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    Column(Modifier.fillMaxSize()) {
-                        val allSourcesLabel = stringResource(R.string.game_cover_source_all)
-                        val sourceTabs = buildList {
-                            add(allSourcesLabel)
-                            availableSources.forEach { add(coverSourceTitle(it)) }
-                        }
-                        Box(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 16.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(
-                                drillDown?.let { stringResource(R.string.cover_multi_cover_title, it.title) }
-                                    ?: stringResource(
-                                        R.string.game_cover_search_title,
-                                        effectiveSource?.let { coverSourceTitle(it) } ?: allSourcesLabel,
-                                    ),
-                                style = MaterialTheme.typography.titleMedium,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
-                                textAlign = TextAlign.Center,
+                    val dialogHeightModifier = if (imeVisible || maxHeight < CoverSearchDialogMaxHeight) {
+                        Modifier.fillMaxHeight()
+                    } else {
+                        Modifier.height(CoverSearchDialogMaxHeight)
+                    }
+                    val canSearch = keyword.trim().isNotEmpty() && !searching && !binding
+                    val drillDown = drillDownWork
+                    val visibleCandidates = if (drillDown != null) workCovers else candidates
+                    val infoMessage: String? = when {
+                        // 两级各自的提示严格分离：离开二级时已清空二级状态，这里的判定只作双保险
+                        drillDown == null && noMatch -> coverNoMatchMessage
+                        drillDown == null && errorCode != null -> errorCode?.coverErrorMessage(context)
+                        drillDown != null && coversErrorCode != null -> coversErrorCode?.coverErrorMessage(context)
+                        // 二级已加载完仍无封面：与一级同一条「未找到匹配结果」
+                        drillDown != null && !loadingCovers && visibleCandidates.isEmpty() -> coverNoMatchMessage
+                        else -> null
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .widthIn(max = CoverSearchDialogMaxWidth)
+                            .then(dialogHeightModifier)
+                            .glassShadow()
+                            .clip(AppComponentShape)
+                            // 高级玻璃用页面背景取色渐变，其余玻璃档用高不透明度玻璃面板
+                            .then(
+                                if (advancedPanelSurface != null) {
+                                    Modifier.background(advancedPanelSurface.brush)
+                                } else {
+                                    Modifier.background(if (AppThemeColors.isGlass) GlassPanel else NavWhite)
+                                },
                             )
-                        }
-                        Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp)) {
-                            // 二级沿用一级关键词，不再展示输入框
-                            if (drillDown == null) {
-                                AppSearchField(
-                                    query = keyword,
-                                    onQueryChange = { keyword = it },
-                                    onSearch = { search() },
-                                    textStyle = MaterialTheme.typography.bodyMedium,
+                            .glassBorder()
+                            .pointerInput(Unit) { detectTapGestures { } },
+                    ) {
+                        Column(Modifier.fillMaxSize()) {
+                            val allSourcesLabel = stringResource(R.string.game_cover_source_all)
+                            val sourceTabs = buildList {
+                                add(allSourcesLabel)
+                                availableSources.forEach { add(coverSourceTitle(it)) }
+                            }
+                            Box(
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 16.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(
+                                    drillDown?.let { stringResource(R.string.cover_multi_cover_title, it.title) }
+                                        ?: stringResource(
+                                            R.string.game_cover_search_title,
+                                            effectiveSource?.let { coverSourceTitle(it) } ?: allSourcesLabel,
+                                        ),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
+                                    textAlign = TextAlign.Center,
                                 )
-                                // 来源切换（分类栏场景）：ALL 聚合全部启用来源，或锁定单源；切源清空上一轮结果
-                                if (sourceTabs.size > 1) {
-                                    SlidingTabRow(
-                                        tabs = sourceTabs,
-                                        selectedIndex = effectiveSource?.let { availableSources.indexOf(it) + 1 }
-                                            ?.takeIf { it > 0 } ?: 0,
-                                        onTabSelected = { index ->
-                                            selectedSource = if (index == 0) null else availableSources.getOrNull(index - 1)
-                                            candidates = emptyList()
-                                            noMatch = false
-                                            errorCode = null
-                                        },
-                                        modifier = Modifier.padding(top = 8.dp),
-                                        scrollable = true,
+                            }
+                            Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp)) {
+                                // 二级沿用一级关键词，不再展示输入框
+                                if (drillDown == null) {
+                                    AppSearchField(
+                                        query = keyword,
+                                        onQueryChange = { keyword = it },
+                                        onSearch = { search() },
+                                        textStyle = MaterialTheme.typography.bodyMedium,
                                     )
-                                }
-                            }
-                            if (searching || loadingCovers) {
-                                Text(
-                                    stringResource(if (searching) R.string.game_cover_searching else R.string.common_loading),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(top = 8.dp),
-                                )
-                            }
-                            if (drillDown != null) {
-                                // 归属要求：封面数据来自未萌 NextMoe（鲲 Galgame 论坛）
-                                Text(
-                                    stringResource(R.string.cover_nextmoe_attribution),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(top = 8.dp),
-                                )
-                            }
-                            if (binding) {
-                                Text(
-                                    stringResource(R.string.game_cover_binding),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(top = 8.dp),
-                                )
-                            }
-                            bindError?.let {
-                                Text(
-                                    it,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.error,
-                                    modifier = Modifier.padding(top = 8.dp),
-                                )
-                            }
-                            infoMessage?.let {
-                                Text(
-                                    it,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.error,
-                                    modifier = Modifier.padding(top = 8.dp),
-                                )
-                            }
-                        }
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f)
-                                .padding(horizontal = 18.dp, vertical = 12.dp),
-                        ) {
-                            if (visibleCandidates.isNotEmpty()) {
-                                LazyVerticalGrid(
-                                    columns = GridCells.Adaptive(CoverSearchCandidateMinWidth),
-                                    modifier = Modifier.fillMaxSize(),
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                                ) {
-                                    gridItems(
-                                        items = visibleCandidates,
-                                        key = { "${it.source}:${it.id}:${it.coverUrl}" },
-                                        contentType = { "cover_candidate" },
-                                    ) { candidate ->
-                                        CoverCandidateCard(
-                                            candidate = candidate,
-                                            onClick = { onCandidateClick(candidate) },
-                                            // 二级：标注封面类型 / 尺寸 / 分级，便于区分同一作品的多张封面
-                                            caption = if (drillDown != null) candidate.detail else null,
+                                    // 来源切换（分类栏场景）：ALL 聚合全部启用来源，或锁定单源；切源清空上一轮结果
+                                    if (sourceTabs.size > 1) {
+                                        SlidingTabRow(
+                                            tabs = sourceTabs,
+                                            selectedIndex = effectiveSource?.let { availableSources.indexOf(it) + 1 }
+                                                ?.takeIf { it > 0 } ?: 0,
+                                            onTabSelected = { index ->
+                                                selectedSource = if (index == 0) null else availableSources.getOrNull(index - 1)
+                                                candidates = emptyList()
+                                                noMatch = false
+                                                errorCode = null
+                                            },
+                                            modifier = Modifier.padding(top = 8.dp),
+                                            scrollable = true,
                                         )
                                     }
                                 }
+                                if (searching || loadingCovers) {
+                                    Text(
+                                        stringResource(if (searching) R.string.game_cover_searching else R.string.common_loading),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(top = 8.dp),
+                                    )
+                                }
+                                if (drillDown != null) {
+                                    // 归属要求：封面数据来自未萌 NextMoe（鲲 Galgame 论坛）
+                                    Text(
+                                        stringResource(R.string.cover_nextmoe_attribution),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(top = 8.dp),
+                                    )
+                                }
+                                if (binding) {
+                                    Text(
+                                        stringResource(R.string.game_cover_binding),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(top = 8.dp),
+                                    )
+                                }
+                                bindError?.let {
+                                    Text(
+                                        it,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.padding(top = 8.dp),
+                                    )
+                                }
+                                infoMessage?.let {
+                                    Text(
+                                        it,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.padding(top = 8.dp),
+                                    )
+                                }
                             }
-                        }
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
-                            horizontalArrangement = if (drillDown != null) {
-                                Arrangement.SpaceBetween
-                            } else {
-                                Arrangement.spacedBy(8.dp, Alignment.End)
-                            },
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            if (drillDown != null) {
-                                DialogTextButton(
-                                    text = stringResource(R.string.common_back),
-                                    onClick = { leaveDrillDown() },
-                                )
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f)
+                                    .padding(horizontal = 18.dp, vertical = 12.dp),
+                            ) {
+                                if (visibleCandidates.isNotEmpty()) {
+                                    LazyVerticalGrid(
+                                        columns = GridCells.Adaptive(CoverSearchCandidateMinWidth),
+                                        modifier = Modifier.fillMaxSize(),
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                                    ) {
+                                        gridItems(
+                                            items = visibleCandidates,
+                                            key = { "${it.source}:${it.id}:${it.coverUrl}" },
+                                            contentType = { "cover_candidate" },
+                                        ) { candidate ->
+                                            CoverCandidateCard(
+                                                candidate = candidate,
+                                                onClick = { onCandidateClick(candidate) },
+                                                // 二级：标注封面类型 / 尺寸 / 分级，便于区分同一作品的多张封面
+                                                caption = if (drillDown != null) candidate.detail else null,
+                                            )
+                                        }
+                                    }
+                                }
                             }
-                            DialogTextButton(text = stringResource(R.string.common_close), onClick = onDismiss)
-                            if (drillDown == null) {
-                                DialogTextButton(
-                                    text = if (searching) stringResource(R.string.game_searching) else stringResource(R.string.game_search),
-                                    enabled = canSearch,
-                                    onClick = { search() },
-                                )
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+                                horizontalArrangement = if (drillDown != null) {
+                                    Arrangement.SpaceBetween
+                                } else {
+                                    Arrangement.spacedBy(8.dp, Alignment.End)
+                                },
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                if (drillDown != null) {
+                                    DialogTextButton(
+                                        text = stringResource(R.string.common_back),
+                                        onClick = { leaveDrillDown() },
+                                    )
+                                }
+                                DialogTextButton(text = stringResource(R.string.common_close), onClick = onDismiss)
+                                if (drillDown == null) {
+                                    DialogTextButton(
+                                        text = if (searching) stringResource(R.string.game_searching) else stringResource(R.string.game_search),
+                                        enabled = canSearch,
+                                        onClick = { search() },
+                                    )
+                                }
                             }
                         }
                     }

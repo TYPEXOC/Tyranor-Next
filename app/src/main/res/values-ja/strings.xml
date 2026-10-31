@@ -231,7 +231,6 @@
     <string name="game_desktop_shortcut_crop_failed">画像をトリミングできません。もう一度お試しください。</string>
     <string name="game_search_cover">カバー画像を検索</string>
     <string name="game_cover_settings">カバー設定</string>
-    <string name="game_search_cover_summary">有効なすべてのソースでカバーを検索</string>
     <string name="game_cover_source_all">すべてのソース</string>
     <string name="game_edit_cover">カバー画像を変更</string>
     <string name="game_rename">名前を変更</string>
