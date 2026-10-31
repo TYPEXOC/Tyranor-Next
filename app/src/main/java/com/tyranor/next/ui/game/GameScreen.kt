@@ -1020,7 +1020,7 @@ internal fun GameActionsSheet(
                             DrawerAction(
                                 key = "cover_settings",
                                 title = drawerCoverSettingsTitle,
-                                icon = R.drawable.ic_sheet_search_cover,
+                                icon = R.drawable.ic_sheet_cover_settings,
                                 iconTint = drawerPrimaryColor,
                                 onClick = { if (!isBatchScrapingActive()) showCoverSettingsDialog = true },
                             ),
