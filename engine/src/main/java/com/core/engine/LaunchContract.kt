@@ -97,7 +97,7 @@ object LaunchContract {
     const val RPG_MAKER_VERSION = "rpgMakerVersion"
     const val RPG_LEGACY_RENDERER = "rpgLegacyRenderer"
     /**
-     * MTool 格式译表注入恒开启（无开关）：宿主检测到译表文件（App 私有 translations/
+     * MTool 导出格式译表注入恒开启（无开关）：宿主检测到译表文件（App 私有 translations/
      * 或游戏目录根符合格式的 JSON）时注入翻译运行时，见 engine `MtoolTranslation`。
      * 译表管理收敛在「游戏属性 → 翻译文件」（原引擎设置开关已移除）。
      */
