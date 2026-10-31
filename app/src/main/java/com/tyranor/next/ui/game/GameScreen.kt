@@ -1364,18 +1364,35 @@ private fun TranslationSelectDialog(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 lazyItems(options, key = { it.first ?: "" }) { (value, label) ->
-                    val isSelected = value == current
-                    AppNavItem(
-                        title = label,
-                        leadingIcon = R.drawable.ic_sheet_language,
-                        containerColor = DialogItemSurface,
-                        indication = null,
-                        titleColor = if (isSelected) MaterialTheme.colorScheme.primary else null,
-                        onClick = {
-                            onSelect(value)
-                            onDismiss()
-                        },
-                    )
+                    // 「启动文件」弹窗同款单选行：整行选择、右侧 RadioButton 对勾标识
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(AppComponentShape)
+                            .background(DialogItemSurface)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                            ) {
+                                onSelect(value)
+                                onDismiss()
+                            }
+                            .padding(horizontal = 12.dp, vertical = 9.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            label,
+                            style = MaterialTheme.typography.bodyMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f),
+                        )
+                        // onClick = null 只负责显示（选择由整行处理，无任何点击/按压效果）
+                        RadioButton(
+                            selected = value == current,
+                            onClick = null,
+                        )
+                    }
                 }
             }
         },
