@@ -665,7 +665,7 @@ internal fun GameActionsSheet(
     var translationFile by remember(game.uri) {
         mutableStateOf(EngineLauncher.selectedTranslationLanguage(context, game))
     }
-    // 可用译表文件后台枚举（文件 IO 含译表格式校验，避免阻塞组合）；null=扫描中
+    // 可用译表文件后台枚举（文件 IO 含译表格式校验，避免阻塞组合）；抽屉打开时扫描一次
     var translationFiles by remember(game.uri) { mutableStateOf<List<File>?>(null) }
     val isMvMz = game.engine == EngineType.RPG_MV || game.engine == EngineType.RPG_MZ
     LaunchedEffect(game.uri) {
@@ -1296,6 +1296,11 @@ private fun GamePropertiesDialog(
     onTranslationSelect: (String?) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val options = buildList {
+        add(null to stringResource(R.string.game_translation_default))
+        translationFiles.orEmpty().forEach { add(it.name to it.name.removeSuffix(".json")) }
+    }
+
     AppAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.game_properties), style = MaterialTheme.typography.titleMedium) },
@@ -1312,42 +1317,16 @@ private fun GamePropertiesDialog(
                 )
                 // 仅 RPG MV/MZ 显示；首项「（默认）」=不注入译表，选定才翻译。
                 if (showLanguageRow) {
-                    val files = translationFiles
-                    when {
-                        files == null -> AppNavItem(
-                            title = stringResource(R.string.game_translation),
-                            summary = translationFile?.removeSuffix(".json")
-                                ?: stringResource(R.string.game_translation_default),
-                            leadingIcon = R.drawable.ic_sheet_language,
-                            containerColor = DialogItemSurface,
-                            showArrow = false,
-                            indication = null,
-                        ) { }
-                        files.isEmpty() -> AppNavItem(
-                            title = stringResource(R.string.game_translation),
-                            summary = stringResource(R.string.game_translation_empty),
-                            leadingIcon = R.drawable.ic_sheet_language,
-                            containerColor = DialogItemSurface,
-                            showArrow = false,
-                            indication = null,
-                        ) { }
-                        else -> {
-                            val options = buildList {
-                                add(null to stringResource(R.string.game_translation_default))
-                                files.forEach { add(it.name to it.name.removeSuffix(".json")) }
-                            }
-                            val selectedIndex = options.indexOfFirst { it.first == translationFile }
-                                .let { if (it < 0) 0 else it }
-                            OverlayDropdownPreference(
-                                title = stringResource(R.string.game_translation),
-                                items = options.map { it.second },
-                                selectedIndex = selectedIndex,
-                                onSelectedIndexChange = { index ->
-                                    options.getOrNull(index)?.let { onTranslationSelect(it.first) }
-                                },
-                            )
-                        }
-                    }
+                    val selectedIndex = options.indexOfFirst { it.first == translationFile }
+                        .let { if (it < 0) 0 else it }
+                    OverlayDropdownPreference(
+                        title = stringResource(R.string.game_translation),
+                        items = options.map { it.second },
+                        selectedIndex = selectedIndex,
+                        onSelectedIndexChange = { index ->
+                            options.getOrNull(index)?.let { onTranslationSelect(it.first) }
+                        },
+                    )
                 }
             }
         },
