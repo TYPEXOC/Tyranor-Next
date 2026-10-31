@@ -99,12 +99,11 @@ object LaunchContract {
     /**
      * MTool 导出格式译表注入恒开启（无开关）：宿主检测到译表文件（App 私有 translations/
      * 或游戏目录根符合格式的 JSON）时注入翻译运行时，见 engine `MtoolTranslation`。
-     * 译表管理收敛在「游戏属性 → 翻译文件」（原引擎设置开关已移除）。
      */
 
     /**
-     * 用户选择的译表文件名（string，缺省不传=不注入译表，保持原文）。对应「游戏属性 → 翻译文件」
-     * 单选对话框：App 私有 translations/&lt;sha256(gameId)&gt;/ 或游戏目录根下同名查找，
+     * 用户选择的译表文件名（string，缺省不传=不注入译表，保持原文）。对应「游戏属性 → 加载翻译」
+     * 选择：App 私有 translations/&lt;sha256(gameId)&gt;/ 或游戏目录根下同名查找，
      * 见 engine `MtoolTranslation.resolveTranslationFile`。
      */
     const val RPG_TRANSLATION_FILE = "rpgTranslationFile"
