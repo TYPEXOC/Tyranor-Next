@@ -1209,7 +1209,6 @@ internal fun GameActionsSheet(
             showLanguageRow = game.engine == EngineType.RPG_MV || game.engine == EngineType.RPG_MZ,
             translationFile = translationFile?.takeIf(String::isNotBlank),
             onTranslationSelect = { name ->
-                // 选中即生效（与应用设置下拉一致），不关闭游戏属性对话框
                 translationFile = name
                 EngineLauncher.setTranslationLanguage(context, game, name)
             },
@@ -1293,7 +1292,7 @@ private fun GamePropertiesDialog(
         title = { Text(stringResource(R.string.game_properties), style = MaterialTheme.typography.titleMedium) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                // 名称编辑：统一 Miuix 风格输入框（AppSearchField）；键盘“搜索/完成”动作直接保存（内容有效时）
+                // 键盘“搜索/完成”动作直接保存（内容有效时）
                 AppSearchField(
                     query = title,
                     onQueryChange = { title = it },
@@ -1302,13 +1301,10 @@ private fun GamePropertiesDialog(
                     iconContentDescription = stringResource(R.string.game_rename),
                     textStyle = MaterialTheme.typography.bodyMedium,
                 )
-                // 加载翻译（仅 RPG MV/MZ 显示）：与应用设置同款单选下拉——点击展开
-                // 覆盖式选项浮层，选中即回填；首项「（默认）」=清除选择（不注入译表）。
-                // 默认即关闭——自动识别的文件仅作为候选列出，用户主动选定才翻译。
+                // 仅 RPG MV/MZ 显示；首项「（默认）」=不注入译表，选定才翻译。
                 if (showLanguageRow) {
                     val files = translationFiles
                     when {
-                        // 扫描中：普通行显示当前选择，暂不可选
                         files == null -> AppNavItem(
                             title = stringResource(R.string.game_translation),
                             summary = translationFile?.removeSuffix(".json")
@@ -1317,7 +1313,6 @@ private fun GamePropertiesDialog(
                             containerColor = DialogItemSurface,
                             indication = null,
                         ) { }
-                        // 空态：无可用译表文件，行内直接说明放置位置
                         files.isEmpty() -> AppNavItem(
                             title = stringResource(R.string.game_translation),
                             summary = stringResource(R.string.game_translation_empty),
@@ -1325,7 +1320,6 @@ private fun GamePropertiesDialog(
                             containerColor = DialogItemSurface,
                             indication = null,
                         ) { }
-                        // 就绪：单选下拉（含「（默认）」首项），选中即生效
                         else -> {
                             val options = buildList {
                                 add(null to stringResource(R.string.game_translation_default))

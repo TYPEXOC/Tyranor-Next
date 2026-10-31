@@ -2377,7 +2377,8 @@ object EngineLauncher {
         PerGameSettingsStore.setStr(context, game.uri, PerGameSettingsStore.F_TRANSLATION_LANGUAGE, fileName)
     }
 
-    /** 候选目录枚举：真实路径优先；File 直读不可用（null 或空）时回退 SAF（SD 卡常见）。 */    private fun readLaunchFileEntries(
+    /** 候选目录枚举：真实路径优先；File 直读不可用（null 或空）时回退 SAF（SD 卡常见）。 */
+    private fun readLaunchFileEntries(
         context: Context,
         game: ScanGame,
         path: String?,
