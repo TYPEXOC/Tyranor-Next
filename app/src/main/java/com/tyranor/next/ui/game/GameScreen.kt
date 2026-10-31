@@ -1233,6 +1233,8 @@ internal fun GameActionsSheet(
             onSelect = { name ->
                 translationFile = name
                 EngineLauncher.setTranslationLanguage(context, game, name)
+                // 子项完成即收口：连属性设置一起关闭，直接回抽屉（取消才回属性设置）
+                showPropertiesDialog = false
             },
             onDismiss = { showTranslationDialog = false },
         )
@@ -1244,6 +1246,7 @@ internal fun GameActionsSheet(
             onDismiss = { showRenameDialog = false },
             onConfirm = { title ->
                 showRenameDialog = false
+                showPropertiesDialog = false
                 onGameUpdated(game.copy(title = title))
             },
         )
