@@ -233,8 +233,7 @@
     <string name="game_edit_cover">カバー画像を変更</string>
     <string name="game_rename">名前を変更</string>
     <string name="game_properties">ゲーム情報</string>
-    <string name="game_translation">翻訳ファイル</string>
-    <string name="game_translation_select">翻訳ファイルを選択</string>
+    <string name="game_translation">翻訳を読み込む</string>
     <string name="game_translation_default">（デフォルト）</string>
     <string name="game_translation_empty">翻訳ファイルが見つかりません（MTool エクスポート形式の JSON をゲームディレクトリまたは translations ディレクトリに配置してください）</string>
     <string name="game_save_management">セーブ管理</string>

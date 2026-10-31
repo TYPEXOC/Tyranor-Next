@@ -94,6 +94,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import top.yukonga.miuix.kmp.basic.RadioButton
+import top.yukonga.miuix.kmp.preference.OverlayDropdownPreference
 import com.tyranor.next.R
 import com.tyranor.next.core.cover.CoverErrorCode
 import com.tyranor.next.core.cover.CoverImageCache
@@ -663,7 +664,6 @@ internal fun GameActionsSheet(
     var translationFile by remember(game.uri) {
         mutableStateOf(EngineLauncher.selectedTranslationLanguage(context, game))
     }
-    var showLanguageDialog by rememberSaveable(game.uri) { mutableStateOf(false) }
     var showPatchConfirm by rememberSaveable(game.uri) { mutableStateOf(false) }
     // MV/MZ 存档格式转化确认：待转化检测结果 + 已选定的 Artemis 补丁策略（两弹窗串联时保留）
     var rpgSaveDetection by remember(game.uri) { mutableStateOf<RpgSaveFormat.Detection?>(null) }
@@ -1207,31 +1207,17 @@ internal fun GameActionsSheet(
         GamePropertiesDialog(
             game = game,
             showLanguageRow = game.engine == EngineType.RPG_MV || game.engine == EngineType.RPG_MZ,
-            languageValue = translationFile?.takeIf(String::isNotBlank)
-                ?.removeSuffix(".json")
-                ?: stringResource(R.string.game_translation_default),
-            onEditLanguage = {
-                showPropertiesDialog = false
-                showLanguageDialog = true
+            translationFile = translationFile?.takeIf(String::isNotBlank),
+            onTranslationSelect = { name ->
+                // 选中即生效（与应用设置下拉一致），不关闭游戏属性对话框
+                translationFile = name
+                EngineLauncher.setTranslationLanguage(context, game, name)
             },
             onDismiss = { showPropertiesDialog = false },
             onConfirm = { title ->
                 showPropertiesDialog = false
                 onGameUpdated(game.copy(title = title))
             },
-        )
-    }
-
-    if (showLanguageDialog) {
-        GameTranslationDialog(
-            game = game,
-            selected = translationFile?.takeIf(String::isNotBlank),
-            onSelect = { name ->
-                translationFile = name
-                EngineLauncher.setTranslationLanguage(context, game, name)
-                showLanguageDialog = false
-            },
-            onDismiss = { showLanguageDialog = false },
         )
     }
 
@@ -1283,16 +1269,24 @@ internal fun GameActionsSheet(
 @Composable
 private fun GamePropertiesDialog(
     game: ScanGame,
-    // 翻译行（仅 RPG MV/MZ 显示）：当前值为文件名（去 .json）或「（默认）」
+    // 翻译行（仅 RPG MV/MZ 显示）：translationFile=null 未选定（不翻译，保持原文）
     showLanguageRow: Boolean,
-    languageValue: String,
-    onEditLanguage: () -> Unit,
+    translationFile: String?,
+    onTranslationSelect: (String?) -> Unit,
     onDismiss: () -> Unit,
     onConfirm: (String) -> Unit,
 ) {
+    val context = LocalContext.current
     var title by rememberSaveable(game.uri, game.title) { mutableStateOf(game.title) }
     val normalizedTitle = title.trim()
     val canConfirm = normalizedTitle.isNotEmpty() && normalizedTitle != game.title
+    // 可用译表文件后台枚举（文件 IO 含译表格式校验，避免阻塞组合）；null=扫描中
+    var translationFiles by remember(game.uri) { mutableStateOf<List<File>?>(null) }
+    LaunchedEffect(game.uri) {
+        translationFiles = withContext(Dispatchers.IO) {
+            EngineLauncher.availableTranslationFiles(context, game)
+        }
+    }
 
     AppAlertDialog(
         onDismissRequest = onDismiss,
@@ -1308,16 +1302,47 @@ private fun GamePropertiesDialog(
                     iconContentDescription = stringResource(R.string.game_rename),
                     textStyle = MaterialTheme.typography.bodyMedium,
                 )
-                // 翻译文件（仅 RPG MV/MZ 显示）：弹窗标准卡片 AppNavItem——大点击区，
-                // 标题「翻译文件」+ 摘要显当前选择（文件名或「（默认）」），点击开单选对话框
+                // 加载翻译（仅 RPG MV/MZ 显示）：与应用设置同款单选下拉——点击展开
+                // 覆盖式选项浮层，选中即回填；首项「（默认）」=清除选择（不注入译表）。
+                // 默认即关闭——自动识别的文件仅作为候选列出，用户主动选定才翻译。
                 if (showLanguageRow) {
-                    AppNavItem(
-                        title = stringResource(R.string.game_translation),
-                        summary = languageValue,
-                        leadingIcon = R.drawable.ic_sheet_language,
-                        containerColor = DialogItemSurface,
-                        indication = null,
-                    ) { onEditLanguage() }
+                    val files = translationFiles
+                    when {
+                        // 扫描中：普通行显示当前选择，暂不可选
+                        files == null -> AppNavItem(
+                            title = stringResource(R.string.game_translation),
+                            summary = translationFile?.removeSuffix(".json")
+                                ?: stringResource(R.string.game_translation_default),
+                            leadingIcon = R.drawable.ic_sheet_language,
+                            containerColor = DialogItemSurface,
+                            indication = null,
+                        ) { }
+                        // 空态：无可用译表文件，行内直接说明放置位置
+                        files.isEmpty() -> AppNavItem(
+                            title = stringResource(R.string.game_translation),
+                            summary = stringResource(R.string.game_translation_empty),
+                            leadingIcon = R.drawable.ic_sheet_language,
+                            containerColor = DialogItemSurface,
+                            indication = null,
+                        ) { }
+                        // 就绪：单选下拉（含「（默认）」首项），选中即生效
+                        else -> {
+                            val options = buildList {
+                                add(null to stringResource(R.string.game_translation_default))
+                                files.forEach { add(it.name to it.name.removeSuffix(".json")) }
+                            }
+                            val selectedIndex = options.indexOfFirst { it.first == translationFile }
+                                .let { if (it < 0) 0 else it }
+                            OverlayDropdownPreference(
+                                title = stringResource(R.string.game_translation),
+                                items = options.map { it.second },
+                                selectedIndex = selectedIndex,
+                                onSelectedIndexChange = { index ->
+                                    options.getOrNull(index)?.let { onTranslationSelect(it.first) }
+                                },
+                            )
+                        }
+                    }
                 }
             }
         },
@@ -1332,89 +1357,6 @@ private fun GamePropertiesDialog(
             DialogTextButton(onClick = onDismiss, text = stringResource(R.string.common_cancel))
         },
     )
-}
-
-/**
- * 翻译文件选择对话框（如实列出译表文件而非语言）：
- * 单选列出可用翻译文件，顶部固定「（默认）」=清除选择（不注入译表，保持游戏原文）。
- * 默认即关闭——自动识别的文件仅作为候选列出，用户主动选定才翻译。
- * 文件名由用户自定（建议以语言命名），应用不解析其语言身份。选择保存到单游戏覆盖。
- */
-@Composable
-private fun GameTranslationDialog(
-    game: ScanGame,
-    selected: String?,
-    onSelect: (String?) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    val context = LocalContext.current
-    // 译文文件列表后台枚举（文件 IO 避免阻塞组合）；游戏删除/未授权等场景为空列表
-    var files by remember(game.uri) { mutableStateOf<List<File>>(emptyList()) }
-    LaunchedEffect(game.uri) {
-        files = withContext(Dispatchers.IO) {
-            EngineLauncher.availableTranslationFiles(context, game)
-        }
-    }
-    AppAlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.game_translation_select), style = MaterialTheme.typography.titleMedium) },
-        text = {
-            if (files.isEmpty()) {
-                Text(
-                    text = stringResource(R.string.game_translation_empty),
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
-                )
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxWidth().heightIn(max = 320.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    item(key = "default") {
-                        LanguageOptionRow(
-                            // 首项「（默认）」：清除选择 = 不注入译表，保持游戏原文
-                            label = stringResource(R.string.game_translation_default),
-                            selected = selected == null,
-                            onClick = { onSelect(null) },
-                        )
-                    }
-                    lazyItems(files, key = { it.absolutePath }, contentType = { "translation_file" }) { file ->
-                        LanguageOptionRow(
-                            label = file.name.removeSuffix(".json"),
-                            selected = selected == file.name,
-                            onClick = { onSelect(file.name) },
-                        )
-                    }
-                }
-            }
-        },
-        confirmButton = { DialogTextButton(text = stringResource(R.string.common_cancel), onClick = onDismiss) },
-    )
-}
-
-@Composable
-private fun LanguageOptionRow(
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(MaterialTheme.shapes.small)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 4.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        RadioButton(selected = selected, onClick = null)
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
 }
 
 @Composable
