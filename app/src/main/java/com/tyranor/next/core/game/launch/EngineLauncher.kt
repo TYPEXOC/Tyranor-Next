@@ -2377,6 +2377,10 @@ object EngineLauncher {
         PerGameSettingsStore.setStr(context, game.uri, PerGameSettingsStore.F_TRANSLATION_LANGUAGE, fileName)
     }
 
+    /** 选定译表文件当前是否实际存在（私有目录/游戏根同名查找，与启动解析同一条路径）。 */
+    internal fun hasTranslationFile(context: Context, game: ScanGame, fileName: String): Boolean =
+        TranslationTable.resolveTranslationFile(context, game.uri, resolveGameDirectory(context, game), fileName) != null
+
     /** 候选目录枚举：真实路径优先；File 直读不可用（null 或空）时回退 SAF（SD 卡常见）。 */
     private fun readLaunchFileEntries(
         context: Context,

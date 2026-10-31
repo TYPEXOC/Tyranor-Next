@@ -671,6 +671,12 @@ internal fun GameActionsSheet(
     val isMvMz = game.engine == EngineType.RPG_MV || game.engine == EngineType.RPG_MZ
     LaunchedEffect(game.uri) {
         if (!isMvMz) return@LaunchedEffect
+        // 选定译表文件已被删除时清掉失效引用：直接验证文件存在性，不依赖下方扫描结果（扫描为空可能是权限问题）
+        val selected = translationFile
+        if (selected != null && withContext(Dispatchers.IO) { !EngineLauncher.hasTranslationFile(context, game, selected) }) {
+            translationFile = null
+            EngineLauncher.setTranslationLanguage(context, game, null)
+        }
         translationFiles = withContext(Dispatchers.IO) {
             EngineLauncher.availableTranslationFiles(context, game)
         }
