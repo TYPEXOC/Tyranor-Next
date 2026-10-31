@@ -1338,7 +1338,7 @@ private fun CoverSearchDialog(
     var candidates by rememberSaveable(game.uri, stateSaver = CoverSearchCandidatesSaver) {
         mutableStateOf(emptyList<CoverSearchCandidate>())
     }
-    // 当前搜索来源（像搜索引擎的来源切换）：null = ALL，聚合全部启用来源；切换后需重新搜索
+    // 当前搜索来源：null = 全部来源（聚合全部启用来源）
     var selectedSource by rememberSaveable { mutableStateOf<String?>(null) }
     // 二级（未萌 NextMoe）：作品 → 该作品可获取的封面；其它来源恒为 null
     var drillDownWork by remember(game.uri) { mutableStateOf<CoverSearchCandidate?>(null) }
@@ -1563,7 +1563,6 @@ private fun CoverSearchDialog(
                                         onSearch = { search() },
                                         textStyle = MaterialTheme.typography.bodyMedium,
                                     )
-                                    // 来源切换（分类栏场景）：ALL 聚合全部启用来源，或锁定单源；切源清空上一轮结果
                                     if (sourceTabs.size > 1) {
                                         SlidingTabRow(
                                             tabs = sourceTabs,
@@ -1641,7 +1640,6 @@ private fun CoverSearchDialog(
                                         }
                                     }
                                 } else if (searching || loadingCovers) {
-                                    // 加载提示居中于结果区：与大图卡片同位，搜索/二级加载共用
                                     Column(
                                         modifier = Modifier.align(Alignment.Center),
                                         horizontalAlignment = Alignment.CenterHorizontally,
