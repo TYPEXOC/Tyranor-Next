@@ -1863,7 +1863,7 @@ object EngineLauncher {
             scopedSaveRoot?.let { putExtra(LaunchContract.SCOPED_SAVE_ROOT, it) }
             putExtra(LaunchContract.RPG_MAKER_MOD_ENABLED, rpgMakerModEnabled)
             putExtra(LaunchContract.RPG_MAKER_MOD_GAME_ID, game.uri)
-            // 译表「语言」选择（游戏属性，per-game only）：null 不传=不注入译表（保持原文）
+            // 译表文件选择（属性，per-game only）：null 不传=不注入译表（保持原文）
             PerGameSettingsStore.getStr(context, game.uri, PerGameSettingsStore.F_TRANSLATION_LANGUAGE)
                 ?.takeIf(String::isNotBlank)
                 ?.let { putExtra(LaunchContract.RPG_TRANSLATION_FILE, it) }
