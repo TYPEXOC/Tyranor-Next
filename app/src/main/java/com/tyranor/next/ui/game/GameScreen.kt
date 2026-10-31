@@ -94,7 +94,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import top.yukonga.miuix.kmp.basic.RadioButton
-import top.yukonga.miuix.kmp.preference.OverlayDropdownPreference
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.Icon
 import com.tyranor.next.R
 import com.tyranor.next.core.cover.CoverErrorCode
 import com.tyranor.next.core.cover.CoverImageCache
@@ -661,6 +664,7 @@ internal fun GameActionsSheet(
     var showLaunchFilePicker by rememberSaveable(game.uri) { mutableStateOf(false) }
     var showPropertiesDialog by rememberSaveable(game.uri) { mutableStateOf(false) }
     var showRenameDialog by rememberSaveable(game.uri) { mutableStateOf(false) }
+    var showTranslationDialog by rememberSaveable(game.uri) { mutableStateOf(false) }
     // 选中的翻译文件名（仅 RPG MV/MZ 提供选择）：null=未选择（不翻译，保持原文）
     var translationFile by remember(game.uri) {
         mutableStateOf(EngineLauncher.selectedTranslationLanguage(context, game))
@@ -1216,16 +1220,23 @@ internal fun GameActionsSheet(
 
     if (showPropertiesDialog) {
         GamePropertiesDialog(
-            game = game,
             showLanguageRow = isMvMz,
             translationFile = translationFile?.takeIf(String::isNotBlank),
-            translationFiles = translationFiles,
             onRenameClick = { showRenameDialog = true },
-            onTranslationSelect = { name ->
+            onTranslationClick = { showTranslationDialog = true },
+            onDismiss = { showPropertiesDialog = false },
+        )
+    }
+
+    if (showTranslationDialog) {
+        TranslationSelectDialog(
+            files = translationFiles,
+            selected = translationFile,
+            onSelect = { name ->
                 translationFile = name
                 EngineLauncher.setTranslationLanguage(context, game, name)
             },
-            onDismiss = { showPropertiesDialog = false },
+            onDismiss = { showTranslationDialog = false },
         )
     }
 
@@ -1285,48 +1296,133 @@ internal fun GameActionsSheet(
     }
 }
 
-/** 「属性」对话框：名称修改、加载翻译（仅 RPG MV/MZ）两个选项入口。 */
+/** 「属性」对话框：名称修改、加载翻译（仅 RPG MV/MZ）两个选项入口，点击各自弹出下级对话框。 */
 @Composable
 private fun GamePropertiesDialog(
-    game: ScanGame,
     showLanguageRow: Boolean,
     translationFile: String?,
-    translationFiles: List<File>?,
     onRenameClick: () -> Unit,
-    onTranslationSelect: (String?) -> Unit,
+    onTranslationClick: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val options = buildList {
-        add(null to stringResource(R.string.game_translation_default))
-        translationFiles.orEmpty().forEach { add(it.name to it.name.removeSuffix(".json")) }
-    }
-
     AppAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.game_properties), style = MaterialTheme.typography.titleMedium) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 // 名称修改：点击打开改名对话框
-                AppNavItem(
+                PropertyOptionRow(
                     title = stringResource(R.string.game_rename),
-                    leadingIcon = R.drawable.ic_sheet_rename,
-                    containerColor = DialogItemSurface,
-                    showArrow = false,
-                    leadingIconTint = MaterialTheme.colorScheme.primary,
                     onClick = onRenameClick,
                 )
-                // 仅 RPG MV/MZ 显示；首项「（默认）」=不注入译表，选定才翻译。
+                // 仅 RPG MV/MZ 显示；「（默认）」=不注入译表，选定才翻译。
                 if (showLanguageRow) {
-                    val selectedIndex = options.indexOfFirst { it.first == translationFile }
-                        .let { if (it < 0) 0 else it }
-                    OverlayDropdownPreference(
+                    PropertyOptionRow(
                         title = stringResource(R.string.game_translation),
-                        items = options.map { it.second },
-                        selectedIndex = selectedIndex,
-                        onSelectedIndexChange = { index ->
-                            options.getOrNull(index)?.let { onTranslationSelect(it.first) }
-                        },
+                        value = translationFile?.removeSuffix(".json")
+                            ?: stringResource(R.string.game_translation_default),
+                        onClick = onTranslationClick,
                     )
+                }
+            }
+        },
+        confirmButton = { DialogTextButton(text = stringResource(R.string.common_cancel), onClick = onDismiss) },
+    )
+}
+
+/** 属性对话框的选项行：左标题、右当前值 + 箭头，与设置选项条目同观感。 */
+@Composable
+private fun PropertyOptionRow(
+    title: String,
+    value: String? = null,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(AppComponentShape)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            title,
+            style = MaterialTheme.typography.bodyMedium,
+            color = TextColor,
+            modifier = Modifier.weight(1f),
+        )
+        if (value != null) {
+            Text(
+                value,
+                style = MaterialTheme.typography.bodyMedium,
+                color = TextColor.copy(alpha = 0.55f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            modifier = Modifier.padding(start = 6.dp),
+            tint = TextColor.copy(alpha = 0.4f),
+        )
+    }
+}
+
+/** 「加载翻译」单选对话框：选项行用应用统一圆角卡片（选中主题色高亮+勾选）；[files] null=扫描中。 */
+@Composable
+private fun TranslationSelectDialog(
+    files: List<File>?,
+    selected: String?,
+    onSelect: (String?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val current = selected?.takeIf(String::isNotBlank)
+    val options = buildList {
+        add(null to stringResource(R.string.game_translation_default))
+        files.orEmpty().forEach { add(it.name to it.name.removeSuffix(".json")) }
+    }
+    val selectedColor = MaterialTheme.colorScheme.primary
+    AppAlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.game_translation), style = MaterialTheme.typography.titleMedium) },
+        text = {
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                lazyItems(options, key = { it.first ?: "" }) { (value, label) ->
+                    val isSelected = value == current
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(AppComponentShape)
+                            .clickable {
+                                onSelect(value)
+                                onDismiss()
+                            }
+                            .background(
+                                if (isSelected) selectedColor.copy(alpha = 0.12f) else DialogItemSurface,
+                            )
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            label,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = if (isSelected) selectedColor else TextColor,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f),
+                        )
+                        if (isSelected) {
+                            Icon(
+                                imageVector = Icons.Filled.Check,
+                                contentDescription = null,
+                                tint = selectedColor,
+                            )
+                        }
+                    }
                 }
             }
         },
