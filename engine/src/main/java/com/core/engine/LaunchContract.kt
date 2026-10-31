@@ -102,7 +102,7 @@ object LaunchContract {
      */
 
     /**
-     * 用户选择的译表文件名（string，缺省不传=不注入译表，保持原文）。对应「属性 → 加载翻译」
+     * 用户选择的译表文件名（string，缺省不传=不注入译表，保持原文）。对应游戏抽屉「加载翻译」
      * 选择：App 私有 translations/&lt;sha256(gameId)&gt;/ 或游戏目录根下同名查找，
      * 见 engine `TranslationTable.resolveTranslationFile`。
      */

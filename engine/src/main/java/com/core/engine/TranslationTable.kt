@@ -20,7 +20,7 @@ private const val TAG = "TranslationTable"
  * `window.__TRS_SET_TRANSLATIONS__`；Kotlin 侧只负责「找到译表文件 → 原文灌入页面」
  * 与热更新监听，不做任何文案映射（AGENTS.md 错误协议：宿主不产出本地化文案）。
  *
- * 译表来源（[resolveTranslationFile]）：仅使用用户在「属性 → 加载翻译」中**主动选定**
+ * 译表来源（[resolveTranslationFile]）：仅使用用户在游戏抽屉「加载翻译」中**主动选定**
  * 的文件——App 私有目录 `<externalFilesDir>/translations/<sha256(gameId)>/<选定文件>.json`
  * （可写、热更新友好，原游戏目录在 SAF 下只读）优先，其次游戏目录根同名文件（只读兜底）。
  * 默认（未选定或选定文件不存在）**不翻译、保持原文**；自动识别
