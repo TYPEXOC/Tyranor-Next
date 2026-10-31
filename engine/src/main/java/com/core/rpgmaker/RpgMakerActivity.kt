@@ -29,7 +29,7 @@ import com.core.engine.EnginePrefs
 import com.core.engine.EngineSessionRegistry
 import com.core.engine.EngineThemeColors
 import com.core.engine.LaunchContract
-import com.core.engine.MtoolTranslationController
+import com.core.engine.TranslationTableController
 import com.core.engine.R
 import com.core.input.InputRemapController
 import java.io.ByteArrayInputStream
@@ -76,7 +76,7 @@ class RpgMakerActivity : Activity() {
     private var rpgMakerModGameId = ""
     private var rpgMakerVersion: String? = null
     private var translationFile: String? = null
-    private var translation: MtoolTranslationController? = null
+    private var translation: TranslationTableController? = null
 
     /** v1/v2 兼容会话（NW.js polyfill、加密资源回退等）；版本缺失的兜底会话按 v0 资源策略。 */
     @Volatile
@@ -371,7 +371,7 @@ class RpgMakerActivity : Activity() {
             }
         }
         // 译表注入（恒开启；未检测到译表文件时控制器空转，行为与未集成前一致）
-        translation = MtoolTranslationController(
+        translation = TranslationTableController(
             this, rpgMakerModGameId, gameDir, translationFile,
         ) { js, callback ->
             webView?.let { v -> runCatching { v.evaluateJavascript(js, callback) } }

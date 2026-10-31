@@ -1,4 +1,4 @@
-// 译表运行时回归（engine/src/main/assets/__mtool_translator.js）。
+// 译表运行时回归（engine/src/main/assets/__translation_runtime.js）。
 //
 // 用 Node 仿真页面全局，跑**真实资产 JS**：4 个场景覆盖 hook 挂载点、
 // 延迟数据表、标题菜单重绘、消息块拆行；另加资产健全性与重复注入幂等用例。
@@ -9,7 +9,7 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
-const assetPath = path.join(__dirname, '..', '..', 'main', 'assets', '__mtool_translator.js');
+const assetPath = path.join(__dirname, '..', '..', 'main', 'assets', '__translation_runtime.js');
 
 let pass = 0;
 let fail = 0;
@@ -37,7 +37,7 @@ function runScenario(name, assetSource, setup, run) {
   console.log(`\n[${name}]`);
   const ctx = makeContext();
   if (setup) vm.runInContext(`(${setup.toString()})(this);`, ctx);
-  vm.runInContext(assetSource, ctx, { filename: '__mtool_translator.js' });
+  vm.runInContext(assetSource, ctx, { filename: '__translation_runtime.js' });
   vm.runInContext(`(${run.toString()})(this);`, ctx, { filename: `${name}.js` });
 }
 
@@ -46,10 +46,10 @@ function runScenario(name, assetSource, setup, run) {
   console.log('\n[asset sanity]');
   const source = fs.readFileSync(assetPath, 'utf8');
   check('资产存在且非空', source.length > 10000, true);
-  check('含幂等门闩', source.includes('__MTOOL_RUNTIME_TRANSLATOR__'), true);
-  check('含灌表接口', source.includes('__MTOOL_SET_TRANSLATIONS__'), true);
-  check('含写回开关前导', source.includes('__MTOOL_WRITEBACK__'), true);
-  check('含状态接口', source.includes('__MTOOL_STATUS__'), true);
+  check('含幂等门闩', source.includes('__TRS_RUNTIME__'), true);
+  check('含灌表接口', source.includes('__TRS_SET_TRANSLATIONS__'), true);
+  check('含写回开关前导', source.includes('__TRS_WRITEBACK__'), true);
+  check('含状态接口', source.includes('__TRS_STATUS__'), true);
 
   // 重复注入（onPageStarted 早注入 + onPageFinished 补注入）不抛错且行为正常
   const ctx = makeContext();
@@ -62,9 +62,9 @@ function runScenario(name, assetSource, setup, run) {
   })(this);`, ctx);
   vm.runInContext(source, ctx);
   const status = vm.runInContext(
-    'window.__MTOOL_SET_TRANSLATIONS__({ Attack: "攻击" }); new window.Window_Base().constructor;', ctx);
+    'window.__TRS_SET_TRANSLATIONS__({ Attack: "攻击" }); new window.Window_Base().constructor;', ctx);
   const drawn = vm.runInContext('var w = new window.Bitmap(); w.drawText("Attack");', ctx);
-  check('三次注入后仍可翻译', vm.runInContext('window.__MTOOL_STATUS__().pairs', ctx), 1);
+  check('三次注入后仍可翻译', vm.runInContext('window.__TRS_STATUS__().pairs', ctx), 1);
   check('幂等注入不抛错', drawn, '攻击');
   void status;
 }
@@ -110,7 +110,7 @@ runScenario('hook sites', fs.readFileSync(assetPath, 'utf8'),
   },
   function run(g) {
     const map = { Attack: '攻击', Potion: '药水', Hero: '英雄', 'Restores HP': '恢复生命', Fight: '战斗', 'Test Game': '测试游戏', '\\C[2]Attack': '攻击2', 'Hello there\nHow are you': '你好\n你好吗' };
-    const status = g.window.__MTOOL_SET_TRANSLATIONS__(map);
+    const status = g.window.__TRS_SET_TRANSLATIONS__(map);
 
     check('prepareWordWrapEscapeCharacters', new g.Window_Base().prepareWordWrapEscapeCharacters('Attack'), 'W[攻击]');
     check('sliceText 首参', new g.Window_Base().sliceText('Attack', 100)[0], '攻击');
@@ -142,8 +142,8 @@ runScenario('hook sites', fs.readFileSync(assetPath, 'utf8'),
     lineMsg._texts = ['Attack', 'unknown line'];
     check('逐行回退匹配', lineMsg.allText(), '攻击\nunknown line');
 
-    // 热更新（Kotlin 侧 FileObserver 重推 __MTOOL_SET_TRANSLATIONS__ 的等价场景）
-    g.window.__MTOOL_SET_TRANSLATIONS__({ Hero: '勇者', Attack: '攻击力' });
+    // 热更新（Kotlin 侧 FileObserver 重推 __TRS_SET_TRANSLATIONS__ 的等价场景）
+    g.window.__TRS_SET_TRANSLATIONS__({ Hero: '勇者', Attack: '攻击力' });
     check('热更新重算数据表', g.$dataActors[1].name, '勇者');
     check('热更新恢复未译文', g.$dataSystem.gameTitle, 'Test Game');
     check('热更新后绘制层生效', new g.Window_Base().prepareWordWrapEscapeCharacters('Attack'), 'W[攻击力]');
@@ -175,7 +175,7 @@ runScenario('late data', fs.readFileSync(assetPath, 'utf8'),
   function run(g) {
     g.$dataActors = [null, { name: 'Hero' }];
     g.$dataSystem = { gameTitle: 'Test Game', terms: { commands: ['New Game', 'Continue'] } };
-    const status = g.window.__MTOOL_SET_TRANSLATIONS__({ Hero: '英雄', 'New Game': '开始游戏', Continue: '继续游戏' });
+    const status = g.window.__TRS_SET_TRANSLATIONS__({ Hero: '英雄', 'New Game': '开始游戏', Continue: '继续游戏' });
 
     check('延迟出现的数据表被重新收集', g.$dataActors[1].name, '英雄');
     check('延迟出现的 terms 被写回', g.$dataSystem.terms.commands[0], '开始游戏');
@@ -236,7 +236,7 @@ runScenario('title menu', fs.readFileSync(assetPath, 'utf8'),
     g.SceneManager = { _scene: { children: [titleWindow, pluginWindow] } };
     titleWindow.refresh();
 
-    const status = g.window.__MTOOL_SET_TRANSLATIONS__({
+    const status = g.window.__TRS_SET_TRANSLATIONS__({
       'New Game': '新建游戏', Continue: '继续游戏', Options: '设置', Attack: '攻击',
     });
 
@@ -261,7 +261,7 @@ runScenario('title menu', fs.readFileSync(assetPath, 'utf8'),
     // 场景切换 + 重推译表（热更新）后新窗口仍重绘
     const lateWindow = new Window_TitleCommand();
     g.SceneManager._scene = { children: [lateWindow] };
-    g.window.__MTOOL_SET_TRANSLATIONS__({ 'New Game': '新的游戏', Continue: '继续', Options: '选项' });
+    g.window.__TRS_SET_TRANSLATIONS__({ 'New Game': '新的游戏', Continue: '继续', Options: '选项' });
     check('换场景后重新绘制', lateWindow.contents.drawn, ['新的游戏', '继续', '选项']);
   });
 
@@ -282,7 +282,7 @@ runScenario('block slice', fs.readFileSync(assetPath, 'utf8'),
   function run(g) {
     // 整个消息框是一个键；其单行故意不在表里（合并提取器的产出形态）
     const box = 'Hello there\nHow are you?\nI am fine.';
-    g.window.__MTOOL_SET_TRANSLATIONS__({
+    g.window.__TRS_SET_TRANSLATIONS__({
       [box]: '你好\n你好吗？\n我很好。',
       'Single line': '单独一行',
       'Untranslated': 'Untranslated',

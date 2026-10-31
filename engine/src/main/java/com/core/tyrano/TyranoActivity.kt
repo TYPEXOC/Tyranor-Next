@@ -35,7 +35,7 @@ import com.core.engine.EnginePrefs
 import com.core.engine.EngineSessionRegistry
 import com.core.engine.EngineThemeColors
 import com.core.engine.LaunchContract
-import com.core.engine.MtoolTranslationController
+import com.core.engine.TranslationTableController
 import com.core.engine.R
 import com.core.input.InputRemapController
 import java.io.ByteArrayInputStream
@@ -68,7 +68,7 @@ class TyranoActivity : Activity() {
     private var rpgMakerModEnabled = false
     private var rpgMakerModGameId = ""
     private var translationFile: String? = null
-    private var translation: MtoolTranslationController? = null
+    private var translation: TranslationTableController? = null
     private val processExitScheduled = AtomicBoolean(false)
 
     override fun attachBaseContext(newBase: Context) {
@@ -251,7 +251,7 @@ class TyranoActivity : Activity() {
         configureWebView(browser)
         // 译表注入：全 Web 类型可用（运行时 JS 自带 Tyrano 与 MV/MZ 挂载点）；
         // 恒开启，未检测到译表文件时控制器空转，行为与未集成前一致
-        translation = MtoolTranslationController(
+        translation = TranslationTableController(
             this, rpgMakerModGameId, gameDir, translationFile,
         ) { js, callback ->
             webView?.let { v -> runCatching { v.evaluateJavascript(js, callback) } }

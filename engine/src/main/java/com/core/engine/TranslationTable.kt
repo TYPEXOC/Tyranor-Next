@@ -10,14 +10,14 @@ import java.io.File
 import java.security.MessageDigest
 import org.json.JSONObject
 
-private const val TAG = "MtoolTranslation"
+private const val TAG = "TranslationTable"
 
 /**
  * MTool 导出格式译表注入（MV/MZ/Tyrano Web 宿主共享）。
  *
  * 译表来自 PC 端提取工具产出的 `ManualTransFile.json`（键=原文、值=译文），运行时
- * JS（`__mtool_translator.js`，engine assets）在页面内自装挂载点并暴露
- * `window.__MTOOL_SET_TRANSLATIONS__`；Kotlin 侧只负责「找到译表文件 → 原文灌入页面」
+ * JS（`__translation_runtime.js`，engine assets）在页面内自装挂载点并暴露
+ * `window.__TRS_SET_TRANSLATIONS__`；Kotlin 侧只负责「找到译表文件 → 原文灌入页面」
  * 与热更新监听，不做任何文案映射（AGENTS.md 错误协议：宿主不产出本地化文案）。
  *
  * 译表来源（[resolveTranslationFile]）：仅使用用户在「游戏属性 → 加载翻译」中**主动选定**
@@ -26,10 +26,10 @@ private const val TAG = "MtoolTranslation"
  * 默认（未选定或选定文件不存在）**不翻译、保持原文**；自动识别
  * （[gameRootTranslationFiles]）只用于列出候选，不参与默认解析。
  */
-object MtoolTranslation {
+object TranslationTable {
 
     /** 翻译运行时 JS（engine assets 根；幂等，可重复注入）。 */
-    const val RUNTIME_ASSET = "__mtool_translator.js"
+    const val RUNTIME_ASSET = "__translation_runtime.js"
 
     /** 译表惯例文件名（PC 端常见导出工具的默认产出名；自动识别时不作硬性要求）。 */
     const val TRANSLATION_FILE_NAME = "ManualTransFile.json"
@@ -158,8 +158,8 @@ object MtoolTranslation {
 
     /** 组装受守卫的灌表表达式：运行时未装好时静默跳过（onPageFinished 会再推一次）。 */
     fun buildSetterJs(mapText: String): String =
-        "(function(){if(!window.__MTOOL_SET_TRANSLATIONS__)return null;" +
-            "try{return window.__MTOOL_SET_TRANSLATIONS__(" + mapText + ");}" +
+        "(function(){if(!window.__TRS_SET_TRANSLATIONS__)return null;" +
+            "try{return window.__TRS_SET_TRANSLATIONS__(" + mapText + ");}" +
             "catch(e){return {error:String(e)};}})()"
 }
 
@@ -172,7 +172,7 @@ object MtoolTranslation {
  *
  * @param evaluateJs 宿主提供的执行通道（注入脚本, 结果回调）；回调线程为主线程。
  */
-class MtoolTranslationController(
+class TranslationTableController(
     private val context: Context,
     private val gameId: String,
     private val gameDir: String?,
@@ -190,18 +190,18 @@ class MtoolTranslationController(
     /** 运行时 JS 资产懒加载；缺失时注入侧静默降级（不影响游戏启动）。 */
     private val runtimeJs: String? by lazy {
         runCatching {
-            context.assets.open(MtoolTranslation.RUNTIME_ASSET).buffered().use {
+            context.assets.open(TranslationTable.RUNTIME_ASSET).buffered().use {
                 it.readBytes().toString(Charsets.UTF_8)
             }
-        }.onFailure { Log.w(TAG, "runtime asset missing: ${MtoolTranslation.RUNTIME_ASSET}", it) }
+        }.onFailure { Log.w(TAG, "runtime asset missing: ${TranslationTable.RUNTIME_ASSET}", it) }
             .getOrNull()
     }
 
     /** 会话启动：后台读译表 + 启动热更新监听（宿主在 WebView 就绪后调用）。 */
     fun attach() {
         Thread {
-            val file = MtoolTranslation.resolveTranslationFile(context, gameId, gameDir, selectedLanguage)
-            val text = file?.let { MtoolTranslation.readMapText(it) }
+            val file = TranslationTable.resolveTranslationFile(context, gameId, gameDir, selectedLanguage)
+            val text = file?.let { TranslationTable.readMapText(it) }
             if (file != null && text == null) {
                 Log.w(TAG, "translation file unreadable: ${file.absolutePath}")
             }
@@ -210,7 +210,7 @@ class MtoolTranslationController(
             if (file != null) startObserver(file)
             mainHandler.post { pushTranslations("attach") }
         }.apply {
-            name = "MtoolTranslationLoader"
+            name = "TranslationTableLoader"
             isDaemon = true
             start()
         }
@@ -244,7 +244,7 @@ class MtoolTranslationController(
         val callback = ValueCallback<String> { result ->
             Log.i(TAG, "applied($reason): ${result?.take(300) ?: "null"}")
         }
-        evaluateJs(MtoolTranslation.buildSetterJs(text), callback)
+        evaluateJs(TranslationTable.buildSetterJs(text), callback)
     }
 
     /**
@@ -270,8 +270,8 @@ class MtoolTranslationController(
     }
 
     private fun reloadTranslations() {
-        val file = MtoolTranslation.resolveTranslationFile(context, gameId, gameDir, selectedLanguage) ?: return
-        val text = MtoolTranslation.readMapText(file)
+        val file = TranslationTable.resolveTranslationFile(context, gameId, gameDir, selectedLanguage) ?: return
+        val text = TranslationTable.readMapText(file)
         if (text == null) {
             Log.w(TAG, "hot reload ignored (unreadable): ${file.absolutePath}")
             return
