@@ -1219,8 +1219,15 @@ internal fun GameActionsSheet(
         GamePropertiesDialog(
             showLanguageRow = isMvMz,
             translationFile = translationFile?.takeIf(String::isNotBlank),
-            onRenameClick = { showRenameDialog = true },
-            onTranslationClick = { showTranslationDialog = true },
+            // 替换式两级弹窗（同 Web 首页地址选择）：打开子弹窗前先关属性设置，子级取消/完成都直接回抽屉
+            onRenameClick = {
+                showPropertiesDialog = false
+                showRenameDialog = true
+            },
+            onTranslationClick = {
+                showPropertiesDialog = false
+                showTranslationDialog = true
+            },
             onDismiss = { showPropertiesDialog = false },
         )
     }
@@ -1233,8 +1240,6 @@ internal fun GameActionsSheet(
             onSelect = { name ->
                 translationFile = name
                 EngineLauncher.setTranslationLanguage(context, game, name)
-                // 子项完成即收口：连属性设置一起关闭，直接回抽屉（取消才回属性设置）
-                showPropertiesDialog = false
             },
             onDismiss = { showTranslationDialog = false },
         )
@@ -1246,7 +1251,6 @@ internal fun GameActionsSheet(
             onDismiss = { showRenameDialog = false },
             onConfirm = { title ->
                 showRenameDialog = false
-                showPropertiesDialog = false
                 onGameUpdated(game.copy(title = title))
             },
         )
