@@ -1034,7 +1034,6 @@ internal fun GameActionsSheet(
                         onClick = { if (!isBatchScrapingActive()) imagePicker.launch("image/*") },
                     ),
                 )
-                // 属性：名称修改 +（RPG MV/MZ）加载翻译
                 add(
                     DrawerAction(
                         key = "game_settings",
@@ -1309,7 +1308,6 @@ private fun GamePropertiesDialog(
         title = { Text(stringResource(R.string.game_settings), style = MaterialTheme.typography.titleMedium) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                // 名称修改：点击打开改名对话框
                 AppNavItem(
                     title = stringResource(R.string.game_rename),
                     leadingIcon = R.drawable.ic_sheet_rename,
@@ -1335,7 +1333,7 @@ private fun GamePropertiesDialog(
     )
 }
 
-/** 「加载翻译」单选对话框：每次打开重新扫描可用译表（授权/新增文件即时生效）；「启动文件」弹窗同款单选行 + 两步确认（点行只选中，底部「确定」提交）。 */
+/** 「加载翻译」单选对话框：每次打开重新扫描可用译表（授权/新增文件即时生效）。 */
 @Composable
 private fun TranslationSelectDialog(
     game: ScanGame,
@@ -1368,7 +1366,6 @@ private fun TranslationSelectDialog(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 lazyItemsIndexed(options, key = { _, it -> it.first ?: "" }) { index, (value, label) ->
-                    // 「启动文件」弹窗同款单选行：整行选择、右侧 RadioButton 对勾标识；点行只选中不提交
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
