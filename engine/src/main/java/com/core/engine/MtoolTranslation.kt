@@ -13,7 +13,7 @@ import org.json.JSONObject
 private const val TAG = "MtoolTranslation"
 
 /**
- * MTool 格式译表注入（MV/MZ/Tyrano Web 宿主共享）。
+ * MTool 导出格式译表注入（MV/MZ/Tyrano Web 宿主共享）。
  *
  * 译表来自 PC 端提取工具产出的 `ManualTransFile.json`（键=原文、值=译文），运行时
  * JS（`__mtool_translator.js`，engine assets）在页面内自装挂载点并暴露
@@ -58,7 +58,7 @@ object MtoolTranslation {
     /**
      * 列出该游戏可用的译文文件（「翻译文件」选择对话框数据源）：
      * App 私有目录下全部 *.json（按名称排序），外加游戏目录根的自动识别结果
-     * （[gameRootTranslationFiles]，任意 MTool 格式 JSON，不限文件名）。
+     * （[gameRootTranslationFiles]，任意 MTool 导出格式 JSON，不限文件名）。
      * 同名时私有目录优先（与 [resolveTranslationFile] 一致）。
      */
     fun availableTranslationFiles(context: Context, gameId: String, gameDir: String?): List<File> {
@@ -78,7 +78,7 @@ object MtoolTranslation {
 
     /**
      * 自动识别游戏目录根的翻译格式 JSON（不限 `ManualTransFile.json` 文件名）：
-     * 仅扫描根目录一层 *.json，内容须为 MTool 格式（[looksLikeTranslationJson]），
+     * 仅扫描根目录一层 *.json，内容须为 MTool 导出格式（[looksLikeTranslationJson]），
      * 按文件名排序。惯例名排最前。结果仅作为「翻译文件」对话框的候选列表，
      * 不参与默认解析（默认不翻译，用户主动选定才生效）。
      */
@@ -93,7 +93,7 @@ object MtoolTranslation {
     }
 
     /**
-     * MTool 翻译格式识别：JSON 顶层对象、值均为基本类型（字符串/数字/布尔/null，
+     * MTool 导出格式识别：JSON 顶层对象、值均为基本类型（字符串/数字/布尔/null，
      * 不含嵌套数组/对象——这是与游戏数据 JSON 的天然区分）、至少一条「字符串→字符串」
      * 条目。容忍 UTF-8 BOM（Windows 编辑器保存 UTF-8 常带 BOM）。用于在游戏根目录
      * 自动发现译文文件。

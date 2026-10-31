@@ -1,4 +1,4 @@
-// __mtool_translator.js — MTool-format translation runtime for Tyranor-Next web hosts.
+// __mtool_translator.js — MTool-export-format translation runtime for Tyranor-Next web hosts.
 // Provenance: exported from MTOOL 多引擎独立工具 cdp_runtime.BOOTSTRAP (writeback=true).
 // Idempotent (window.__MTOOL_RUNTIME_TRANSLATOR__ latch); installs lookup hooks on a
 // 500ms interval and exposes window.__MTOOL_SET_TRANSLATIONS__ / __MTOOL_STATUS__.
