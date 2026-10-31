@@ -21,7 +21,7 @@ import com.core.engine.EnginePrefs
 import com.core.engine.EngineSessionRegistry
 import com.core.engine.KrkrStartupDialogPolicy
 import com.core.engine.LaunchContract
-import com.core.engine.MtoolTranslation
+import com.core.engine.TranslationTable
 import com.tyranor.next.core.i18n.AppLocaleController
 import com.tyranor.next.core.engine.external.EmulatorLaunchStyle
 import com.tyranor.next.core.engine.external.EmulatorTarget as ExternalEmulatorTarget
@@ -2366,7 +2366,7 @@ object EngineLauncher {
 
     /** 「语言」对话框数据源：该游戏可用的译文文件（私有 translations/ 目录 + 游戏目录根兜底）。 */
     internal fun availableTranslationFiles(context: Context, game: ScanGame): List<File> =
-        MtoolTranslation.availableTranslationFiles(context, game.uri, resolveGameDirectory(context, game))
+        TranslationTable.availableTranslationFiles(context, game.uri, resolveGameDirectory(context, game))
 
     /** 当前选中的译表文件名；null=未选择（不翻译，保持原文）。 */
     internal fun selectedTranslationLanguage(context: Context, game: ScanGame): String? =

@@ -1,12 +1,12 @@
-// __mtool_translator.js — MTool-export-format translation runtime for Tyranor-Next web hosts.
-// Idempotent (window.__MTOOL_RUNTIME_TRANSLATOR__ latch); installs lookup hooks on a
-// 500ms interval and exposes window.__MTOOL_SET_TRANSLATIONS__ / __MTOOL_STATUS__.
-window.__MTOOL_WRITEBACK__ = true;
+// __translation_runtime.js — MTool-export-format translation runtime for Tyranor-Next web hosts.
+// Idempotent (window.__TRS_RUNTIME__ latch); installs lookup hooks on a
+// 500ms interval and exposes window.__TRS_SET_TRANSLATIONS__ / __TRS_STATUS__.
+window.__TRS_WRITEBACK__ = true;
 
 (function () {
   var root = window;
-  if (root.__MTOOL_RUNTIME_TRANSLATOR__) return;
-  if (typeof root.__MTOOL_WRITEBACK__ === 'undefined') root.__MTOOL_WRITEBACK__ = true;
+  if (root.__TRS_RUNTIME__) return;
+  if (typeof root.__TRS_WRITEBACK__ === 'undefined') root.__TRS_WRITEBACK__ = true;
   var originalNodes = [];
   var originalValues = [];
   var patched = [];
@@ -75,8 +75,8 @@ window.__MTOOL_WRITEBACK__ = true;
     if (hasOwn(seen, key)) return;
     seen[key] = true;
     try {
-      if (typeof root.__mtoolRecordCandidate === 'function') {
-        root.__mtoolRecordCandidate(JSON.stringify({original: value, site: site}));
+      if (typeof root.__trsRecordCandidate === 'function') {
+        root.__trsRecordCandidate(JSON.stringify({original: value, site: site}));
       }
     } catch (_) {}
   }
@@ -170,7 +170,7 @@ window.__MTOOL_WRITEBACK__ = true;
       return original.apply(this, args);
     };
     try {
-      Object.defineProperty(wrapped, '__mtoolOriginal', {value: original});
+      Object.defineProperty(wrapped, '__trsOriginal', {value: original});
       proto[name] = wrapped;
       patched.push(wrapped);
       stats.installed++;
@@ -204,7 +204,7 @@ window.__MTOOL_WRITEBACK__ = true;
       return original.apply(this, arguments);
     };
     try {
-      Object.defineProperty(wrapped, '__mtoolOriginal', {value: original});
+      Object.defineProperty(wrapped, '__trsOriginal', {value: original});
       owner[name] = wrapped;
       patched.push(wrapped);
       stats.installed++;
@@ -227,7 +227,7 @@ window.__MTOOL_WRITEBACK__ = true;
       return typeof value === 'string' ? tr(value, site) : value;
     };
     try {
-      Object.defineProperty(wrapped, '__mtoolOriginal', {value: original});
+      Object.defineProperty(wrapped, '__trsOriginal', {value: original});
       owner[name] = wrapped;
       patched.push(wrapped);
       stats.installed++;
@@ -252,7 +252,7 @@ window.__MTOOL_WRITEBACK__ = true;
       var descriptor;
       try { descriptor = Object.getOwnPropertyDescriptor(manager, name); } catch (_) { continue; }
       if (!descriptor || typeof descriptor.get !== 'function' || !descriptor.configurable) continue;
-      if (descriptor.get.__mtoolWrapped) continue;
+      if (descriptor.get.__trsWrapped) continue;
       var getter = descriptor.get;
       var wrapped = (function (label, source) {
         return function () {
@@ -261,7 +261,7 @@ window.__MTOOL_WRITEBACK__ = true;
         };
       })(name, getter);
       try {
-        Object.defineProperty(wrapped, '__mtoolWrapped', {value: true});
+        Object.defineProperty(wrapped, '__trsWrapped', {value: true});
         Object.defineProperty(manager, name, {
           configurable: true,
           enumerable: descriptor.enumerable,
@@ -295,7 +295,7 @@ window.__MTOOL_WRITEBACK__ = true;
       return original.apply(this, arguments);
     };
     try {
-      Object.defineProperty(wrapped, '__mtoolOriginal', {value: original});
+      Object.defineProperty(wrapped, '__trsOriginal', {value: original});
       proto.updateText = wrapped;
       patched.push(wrapped);
       stats.installed++;
@@ -449,7 +449,7 @@ window.__MTOOL_WRITEBACK__ = true;
   }
 
   function installDataWriteback() {
-    if (root.__MTOOL_WRITEBACK__ === false) return 0;
+    if (root.__TRS_WRITEBACK__ === false) return 0;
     // $dataSystem / $dataActors are still undefined when the bootstrap runs at
     // document start, so an empty collection has to be retried. Caching [] here
     // would silently disable writeback for the whole session.
@@ -507,14 +507,14 @@ window.__MTOOL_WRITEBACK__ = true;
     }
     var pixiText = root.PIXI && root.PIXI.Text;
     var descriptor = pixiText && Object.getOwnPropertyDescriptor(pixiText.prototype, 'text');
-    if (descriptor && descriptor.configurable && descriptor.set && !descriptor.set.__mtoolWrapped) {
+    if (descriptor && descriptor.configurable && descriptor.set && !descriptor.set.__trsWrapped) {
       var setter = descriptor.set;
       var wrappedSetter = function (value) { return setter.call(this, tr(value)); };
       var wrappedDescriptor = {configurable: descriptor.configurable, enumerable: descriptor.enumerable};
       if (descriptor.get) wrappedDescriptor.get = descriptor.get;
       wrappedDescriptor.set = wrappedSetter;
       try {
-        Object.defineProperty(wrappedSetter, '__mtoolWrapped', {value: true});
+        Object.defineProperty(wrappedSetter, '__trsWrapped', {value: true});
         Object.defineProperty(pixiText.prototype, 'text', wrappedDescriptor);
         stats.installed++;
       } catch (_) {}
@@ -523,14 +523,14 @@ window.__MTOOL_WRITEBACK__ = true;
 
   function patchRpgMakerMessages() {
     var proto = root.Game_Message && root.Game_Message.prototype;
-    if (!proto || typeof proto.allText !== 'function' || proto.allText.__mtoolWrapped) return;
+    if (!proto || typeof proto.allText !== 'function' || proto.allText.__trsWrapped) return;
     var original = proto.allText;
     var wrapped = function () {
       return translateMessageBlock(original.apply(this, arguments), 'rpg-message');
     };
     try {
-      Object.defineProperty(wrapped, '__mtoolWrapped', {value: true});
-      Object.defineProperty(wrapped, '__mtoolOriginal', {value: original});
+      Object.defineProperty(wrapped, '__trsWrapped', {value: true});
+      Object.defineProperty(wrapped, '__trsOriginal', {value: original});
       proto.allText = wrapped;
       patched.push(wrapped);
       stats.installed++;
@@ -541,7 +541,7 @@ window.__MTOOL_WRITEBACK__ = true;
     var message = root.$gameMessage;
     var proto = root.Game_Message && root.Game_Message.prototype;
     var wrappedAllText = proto && proto.allText;
-    var originalAllText = wrappedAllText && wrappedAllText.__mtoolOriginal;
+    var originalAllText = wrappedAllText && wrappedAllText.__trsOriginal;
     var scene = root.SceneManager && root.SceneManager._scene;
     var messageWindow = scene && scene._messageWindow;
     if (!message || !originalAllText || !messageWindow || !messageWindow._textState || typeof messageWindow.startMessage !== 'function') return false;
@@ -568,10 +568,10 @@ window.__MTOOL_WRITEBACK__ = true;
   }
 
   function wrapTyranoTag(tag) {
-    if (!tag || !tag.start || tag.start.__mtoolWrapped) return;
+    if (!tag || !tag.start || tag.start.__trsWrapped) return;
     var original = tag.start;
     var wrapped = function (pm) { return original.call(this, translateArgs(pm, 0)); };
-    Object.defineProperty(wrapped, '__mtoolWrapped', {value: true});
+    Object.defineProperty(wrapped, '__trsWrapped', {value: true});
     tag.start = wrapped;
     stats.installed++;
   }
@@ -605,7 +605,7 @@ window.__MTOOL_WRITEBACK__ = true;
     for (i = 0; i < attrs.length; i++) {
       attr = attrs[i];
       if (!node.hasAttribute(attr)) continue;
-      key = '__mtool_original_' + attr;
+      key = '__trs_original_' + attr;
       if (!node.hasAttribute(key)) node.setAttribute(key, node.getAttribute(attr));
       translatedAttr = tr(node.getAttribute(key), 'dom-attribute:' + attr);
       if (node.getAttribute(attr) !== translatedAttr) node.setAttribute(attr, translatedAttr);
@@ -677,7 +677,7 @@ window.__MTOOL_WRITEBACK__ = true;
     };
   }
 
-  root.__MTOOL_SET_TRANSLATIONS__ = function (next) {
+  root.__TRS_SET_TRANSLATIONS__ = function (next) {
     var source;
     var target;
     map = {};
@@ -699,11 +699,11 @@ window.__MTOOL_WRITEBACK__ = true;
     var writebackApplied = stats.writeback || 0;
     var refreshed = refreshCurrentRpgMessage();
     var messageProto = root.Game_Message && root.Game_Message.prototype;
-    var rpgMessageHook = !!(messageProto && messageProto.allText && messageProto.allText.__mtoolWrapped);
+    var rpgMessageHook = !!(messageProto && messageProto.allText && messageProto.allText.__trsWrapped);
     return {pairs: Object.keys(map).length, hooks: stats.installed, replacements: stats.replacements, rpgMessageHook: rpgMessageHook, currentMessageRefreshed: refreshed, hookSites: HOOK_SITES.length, writebackSlots: dataSlots ? dataSlots.length : 0, writebackApplied: writebackApplied, refreshedWindows: stats.refreshed || 0, runtime: describeRuntime()};
   };
-  root.__MTOOL_RUNTIME_TRANSLATOR__ = true;
-  root.__MTOOL_STATUS__ = function () {
+  root.__TRS_RUNTIME__ = true;
+  root.__TRS_STATUS__ = function () {
     return {
       replacements: stats.replacements,
       hooks: stats.installed,
