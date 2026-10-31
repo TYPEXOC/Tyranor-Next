@@ -94,10 +94,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import top.yukonga.miuix.kmp.basic.RadioButton
-import androidx.compose.material3.Icon
-import top.yukonga.miuix.kmp.basic.DropdownEntry
-import top.yukonga.miuix.kmp.basic.DropdownItem
-import top.yukonga.miuix.kmp.menu.OverlayDropdownMenu
+import top.yukonga.miuix.kmp.basic.DropdownDefaults
+import top.yukonga.miuix.kmp.basic.DropdownImpl
 import com.tyranor.next.R
 import com.tyranor.next.core.cover.CoverErrorCode
 import com.tyranor.next.core.cover.CoverImageCache
@@ -663,6 +661,7 @@ internal fun GameActionsSheet(
     var showDeleteConfirm by rememberSaveable(game.uri) { mutableStateOf(false) }
     var showLaunchFilePicker by rememberSaveable(game.uri) { mutableStateOf(false) }
     var showRenameDialog by rememberSaveable(game.uri) { mutableStateOf(false) }
+    var showTranslationDialog by rememberSaveable(game.uri) { mutableStateOf(false) }
     // 选中的翻译文件名（仅 RPG MV/MZ 提供选择）：null=未选择（不翻译，保持原文）
     var translationFile by remember(game.uri) {
         mutableStateOf(EngineLauncher.selectedTranslationLanguage(context, game))
@@ -1047,7 +1046,7 @@ internal fun GameActionsSheet(
                         onClick = { if (!isBatchScrapingActive()) imagePicker.launch("image/*") },
                     ),
                 )
-                // 加载翻译（仅 RPG MV/MZ）：抽屉内直接渲染为单选下拉行
+                // 加载翻译（仅 RPG MV/MZ）：点击弹出单选对话框
                 if (isMvMz) {
                     add(
                         DrawerAction(
@@ -1055,7 +1054,10 @@ internal fun GameActionsSheet(
                             title = drawerTranslationTitle,
                             icon = R.drawable.ic_sheet_language,
                             iconTint = drawerPrimaryColor,
-                            onClick = {},
+                            summary = translationFile?.takeIf(String::isNotBlank)
+                                ?.removeSuffix(".json")
+                                ?: stringResource(R.string.game_translation_default),
+                            onClick = { showTranslationDialog = true },
                         ),
                     )
                 }
@@ -1120,32 +1122,18 @@ internal fun GameActionsSheet(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
                         rowActions.forEach { action ->
-                            if (action.key == "load_translation") {
-                                TranslationDropdownTile(
-                                    files = translationFiles,
-                                    selected = translationFile,
-                                    onSelect = { name ->
-                                        translationFile = name
-                                        EngineLauncher.setTranslationLanguage(context, game, name)
-                                    },
-                                    surfaceColor = drawerItemSurface,
-                                    iconTint = drawerPrimaryColor,
-                                    modifier = Modifier.weight(1f),
-                                )
-                            } else {
-                                AppNavItem(
-                                    title = action.title,
-                                    summary = action.summary,
-                                    modifier = Modifier.weight(1f),
-                                    leadingIcon = action.icon,
-                                    containerColor = drawerItemSurface,
-                                    verticalPadding = 17.dp,
-                                    showArrow = action.showArrow,
-                                    leadingIconTint = action.iconTint,
-                                    titleColor = action.titleColor,
-                                    onClick = action.onClick,
-                                )
-                            }
+                            AppNavItem(
+                                title = action.title,
+                                summary = action.summary,
+                                modifier = Modifier.weight(1f),
+                                leadingIcon = action.icon,
+                                containerColor = drawerItemSurface,
+                                verticalPadding = 17.dp,
+                                showArrow = action.showArrow,
+                                leadingIconTint = action.iconTint,
+                                titleColor = action.titleColor,
+                                onClick = action.onClick,
+                            )
                         }
                         if (rowActions.size == 1) {
                             Spacer(Modifier.weight(1f))
@@ -1256,6 +1244,18 @@ internal fun GameActionsSheet(
         )
     }
 
+    if (showTranslationDialog) {
+        TranslationSelectDialog(
+            files = translationFiles,
+            selected = translationFile,
+            onSelect = { name ->
+                translationFile = name
+                EngineLauncher.setTranslationLanguage(context, game, name)
+            },
+            onDismiss = { showTranslationDialog = false },
+        )
+    }
+
     if (showLaunchFilePicker) {
         LaunchFileDialog(
             game = game,
@@ -1338,55 +1338,52 @@ private fun RenameGameDialog(
     )
 }
 
-/** 抽屉内「加载翻译」行：覆盖式单选下拉；[files] null=扫描中、空列表=无可用译表（行禁用）。 */
+/** 「加载翻译」单选对话框：选项行用 Miuix 对话框模式下拉（选中高亮+勾选）；[files] null=扫描中。 */
 @Composable
-private fun TranslationDropdownTile(
+private fun TranslationSelectDialog(
     files: List<File>?,
     selected: String?,
     onSelect: (String?) -> Unit,
-    surfaceColor: Color,
-    iconTint: Color,
-    modifier: Modifier = Modifier,
+    onDismiss: () -> Unit,
 ) {
     val current = selected?.takeIf(String::isNotBlank)
     val options = buildList {
         add(null to stringResource(R.string.game_translation_default))
         files.orEmpty().forEach { add(it.name to it.name.removeSuffix(".json")) }
     }
-    // 容器与 AppNavItem 卡片同款（底色 + 圆角 + 玻璃描边），内部 Miuix 组件本身透明
-    Box(
-        modifier = modifier
-            .clip(AppComponentShape)
-            .background(surfaceColor)
-            .glassBorder(),
-    ) {
-        OverlayDropdownMenu(
-            entry = DropdownEntry(
-                items = options.map { (value, label) ->
-                    DropdownItem(
-                        text = label,
-                        selected = value == current,
-                        onClick = { onSelect(value) },
-                    )
-                },
-                enabled = files != null && files.isNotEmpty(),
-            ),
-            title = stringResource(R.string.game_translation),
-            summary = when {
-                files != null && files.isEmpty() -> stringResource(R.string.game_translation_empty)
-                else -> current?.removeSuffix(".json") ?: stringResource(R.string.game_translation_default)
-            },
-            startAction = {
-                Icon(
-                    painter = painterResource(R.drawable.ic_sheet_language),
-                    contentDescription = null,
-                    tint = iconTint,
+    AppAlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.game_translation), style = MaterialTheme.typography.titleMedium) },
+        text = {
+            if (files != null && files.isEmpty()) {
+                Text(
+                    stringResource(R.string.game_translation_empty),
+                    style = MaterialTheme.typography.bodySmall,
                 )
-            },
-            insideMargin = PaddingValues(horizontal = 16.dp, vertical = 17.dp),
-            modifier = Modifier.fillMaxWidth(),
-        )
-    }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    lazyItems(options, key = { it.first ?: "" }) { (value, label) ->
+                        DropdownImpl(
+                            text = label,
+                            optionSize = options.size,
+                            isSelected = value == current,
+                            index = options.indexOfFirst { it.first == value },
+                            dropdownColors = DropdownDefaults.dialogDropdownColors(),
+                            dialogMode = true,
+                            onSelectedIndexChange = { i ->
+                                options.getOrNull(i)?.let { onSelect(it.first) }
+                                onDismiss()
+                            },
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = { DialogTextButton(text = stringResource(R.string.common_cancel), onClick = onDismiss) },
+    )
 }
 
 @Composable
