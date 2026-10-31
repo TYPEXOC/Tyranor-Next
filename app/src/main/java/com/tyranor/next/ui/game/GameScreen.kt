@@ -43,6 +43,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items as lazyItems
+import androidx.compose.foundation.lazy.itemsIndexed as lazyItemsIndexed
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -60,6 +61,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -1333,7 +1335,7 @@ private fun GamePropertiesDialog(
     )
 }
 
-/** 「加载翻译」单选对话框：每次打开重新扫描可用译表（授权/新增文件即时生效）；选项行用应用统一圆角卡片（选中主题色高亮+勾选）。 */
+/** 「加载翻译」单选对话框：每次打开重新扫描可用译表（授权/新增文件即时生效）；「启动文件」弹窗同款单选行 + 两步确认（点行只选中，底部「确定」提交）。 */
 @Composable
 private fun TranslationSelectDialog(
     game: ScanGame,
@@ -1355,16 +1357,18 @@ private fun TranslationSelectDialog(
         add(null to stringResource(R.string.game_translation_default))
         scanned.orEmpty().forEach { add(it.name to it.name.removeSuffix(".json")) }
     }
+    // 「（默认）」本身即合法选项，故初始必落在某一项上；扫描回填后仍以默认/已选为起点
+    var pickedIndex by remember { mutableIntStateOf(options.indexOfFirst { it.first == current }.coerceAtLeast(0)) }
     AppAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.game_translation), style = MaterialTheme.typography.titleMedium) },
         text = {
             LazyColumn(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().heightIn(max = 320.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                lazyItems(options, key = { it.first ?: "" }) { (value, label) ->
-                    // 「启动文件」弹窗同款单选行：整行选择、右侧 RadioButton 对勾标识
+                lazyItemsIndexed(options, key = { _, it -> it.first ?: "" }) { index, (value, label) ->
+                    // 「启动文件」弹窗同款单选行：整行选择、右侧 RadioButton 对勾标识；点行只选中不提交
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1373,10 +1377,7 @@ private fun TranslationSelectDialog(
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null,
-                            ) {
-                                onSelect(value)
-                                onDismiss()
-                            }
+                            ) { pickedIndex = index }
                             .padding(horizontal = 12.dp, vertical = 9.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -1389,14 +1390,23 @@ private fun TranslationSelectDialog(
                         )
                         // onClick = null 只负责显示（选择由整行处理，无任何点击/按压效果）
                         RadioButton(
-                            selected = value == current,
+                            selected = index == pickedIndex,
                             onClick = null,
                         )
                     }
                 }
             }
         },
-        confirmButton = { DialogTextButton(text = stringResource(R.string.common_cancel), onClick = onDismiss) },
+        confirmButton = {
+            DialogTextButton(
+                text = stringResource(R.string.common_confirm),
+                onClick = {
+                    onSelect(options[pickedIndex].first)
+                    onDismiss()
+                },
+            )
+        },
+        dismissButton = { DialogTextButton(text = stringResource(R.string.common_cancel), onClick = onDismiss) },
     )
 }
 
