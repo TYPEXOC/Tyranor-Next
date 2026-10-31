@@ -1219,7 +1219,6 @@ internal fun GameActionsSheet(
         GamePropertiesDialog(
             showLanguageRow = isMvMz,
             translationFile = translationFile?.takeIf(String::isNotBlank),
-            // 替换式两级弹窗（同 Web 首页地址选择）：打开子弹窗前先关属性设置，子级取消/完成都直接回抽屉
             onRenameClick = {
                 showPropertiesDialog = false
                 showRenameDialog = true
