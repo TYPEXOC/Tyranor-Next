@@ -703,7 +703,6 @@ internal fun GameActionsSheet(
     val drawerEditCoverTitle = stringResource(R.string.game_edit_cover)
     val drawerRenameTitle = stringResource(R.string.game_rename)
     val drawerTranslationTitle = stringResource(R.string.game_translation)
-    val drawerTranslationDefault = stringResource(R.string.game_translation_default)
     val drawerSaveManagementTitle = stringResource(R.string.game_save_management)
     val drawerOnlinePatchTitle = stringResource(R.string.game_online_patch)
     val drawerEngineSettingsTitle = stringResource(R.string.settings_engine_settings)
@@ -1054,7 +1053,6 @@ internal fun GameActionsSheet(
                         DrawerAction(
                             key = "translation",
                             title = drawerTranslationTitle,
-                            summary = translationFile?.removeSuffix(".json") ?: drawerTranslationDefault,
                             icon = R.drawable.ic_sheet_language,
                             iconTint = drawerPrimaryColor,
                             onClick = { showTranslationDialog = true },
@@ -1302,7 +1300,7 @@ internal fun GameActionsSheet(
     }
 }
 
-/** 「加载翻译」单选对话框：每次打开重新扫描可用译表（授权/新增文件即时生效）。 */
+/** 「翻译设置」单选对话框：每次打开重新扫描可用译表（授权/新增文件即时生效）。 */
 @Composable
 private fun TranslationSelectDialog(
     game: ScanGame,

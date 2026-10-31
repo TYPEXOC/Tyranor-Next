@@ -20,7 +20,7 @@ private const val TAG = "TranslationTable"
  * `window.__TRS_SET_TRANSLATIONS__`；Kotlin 侧只负责「找到译表文件 → 原文灌入页面」
  * 与热更新监听，不做任何文案映射（AGENTS.md 错误协议：宿主不产出本地化文案）。
  *
- * 译表来源（[resolveTranslationFile]）：仅使用用户在游戏抽屉「加载翻译」中**主动选定**
+ * 译表来源（[resolveTranslationFile]）：仅使用用户在游戏抽屉「翻译设置」中**主动选定**
  * 的文件——App 私有目录 `<externalFilesDir>/translations/<sha256(gameId)>/<选定文件>.json`
  * （可写、热更新友好，原游戏目录在 SAF 下只读）优先，其次游戏目录根同名文件（只读兜底）。
  * 默认（未选定或选定文件不存在）**不翻译、保持原文**；自动识别
@@ -56,7 +56,7 @@ object TranslationTable {
         privateTranslationFile(context, gameId, null)?.parentFile
 
     /**
-     * 列出该游戏可用的译文文件（「加载翻译」下拉数据源）：
+     * 列出该游戏可用的译文文件（「翻译设置」下拉数据源）：
      * App 私有目录下全部 *.json（按名称排序），外加游戏目录根的自动识别结果
      * （[gameRootTranslationFiles]，任意 MTool 导出格式 JSON，不限文件名）。
      * 同名时私有目录优先（与 [resolveTranslationFile] 一致）。
@@ -79,7 +79,7 @@ object TranslationTable {
     /**
      * 自动识别游戏目录根的翻译格式 JSON（不限 `ManualTransFile.json` 文件名）：
      * 仅扫描根目录一层 *.json，内容须为 MTool 导出格式（[looksLikeTranslationJson]），
-     * 按文件名排序。惯例名排最前。结果仅作为「加载翻译」的候选列表，
+     * 按文件名排序。惯例名排最前。结果仅作为「翻译设置」的候选列表，
      * 不参与默认解析（默认不翻译，用户主动选定才生效）。
      */
     fun gameRootTranslationFiles(gameDir: String?): List<File> {
@@ -124,7 +124,7 @@ object TranslationTable {
     }
 
     /**
-     * 解析生效译表（带用户选择）：[selectedLanguage] 为用户在「加载翻译」中**主动选定**
+     * 解析生效译表（带用户选择）：[selectedLanguage] 为用户在「翻译设置」中**主动选定**
      * 的文件名（私有目录/游戏目录根同名查找）。默认（未选定）或选定文件不存在时返回
      * null=不翻译、保持原文——自动识别只用于列出候选，不参与默认解析（无回退）。
      */
@@ -176,7 +176,7 @@ class TranslationTableController(
     private val context: Context,
     private val gameId: String,
     private val gameDir: String?,
-    /** 用户选择的译表文件名（「加载翻译」）；null/空 = 不翻译、保持原文。 */
+    /** 用户选择的译表文件名（「翻译设置」）；null/空 = 不翻译、保持原文。 */
     private val selectedLanguage: String? = null,
     private val evaluateJs: (String, ValueCallback<String>?) -> Unit,
 ) {
