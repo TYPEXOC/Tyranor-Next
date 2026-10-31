@@ -1230,6 +1230,7 @@ internal fun GameActionsSheet(
 
     if (showTranslationDialog) {
         TranslationSelectDialog(
+            game = game,
             files = translationFiles,
             selected = translationFile,
             onSelect = { name ->
@@ -1369,18 +1370,27 @@ private fun PropertyOptionRow(
     }
 }
 
-/** 「加载翻译」单选对话框：选项行用应用统一圆角卡片（选中主题色高亮+勾选）；[files] null=扫描中。 */
+/** 「加载翻译」单选对话框：每次打开重新扫描可用译表（授权/新增文件即时生效）；选项行用应用统一圆角卡片（选中主题色高亮+勾选）。 */
 @Composable
 private fun TranslationSelectDialog(
+    game: ScanGame,
     files: List<File>?,
     selected: String?,
     onSelect: (String?) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val context = LocalContext.current
+    // 打开对话框即重扫：以抽屉层结果作初始显示，扫描完成后覆盖更新
+    var scanned by remember { mutableStateOf(files) }
+    LaunchedEffect(game.uri) {
+        scanned = withContext(Dispatchers.IO) {
+            EngineLauncher.availableTranslationFiles(context, game)
+        }
+    }
     val current = selected?.takeIf(String::isNotBlank)
     val options = buildList {
         add(null to stringResource(R.string.game_translation_default))
-        files.orEmpty().forEach { add(it.name to it.name.removeSuffix(".json")) }
+        scanned.orEmpty().forEach { add(it.name to it.name.removeSuffix(".json")) }
     }
     val selectedColor = MaterialTheme.colorScheme.primary
     AppAlertDialog(
