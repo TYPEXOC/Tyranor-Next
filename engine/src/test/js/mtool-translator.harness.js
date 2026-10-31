@@ -1,8 +1,7 @@
-// MTool 译表运行时回归（engine/src/main/assets/__mtool_translator.js）。
+// 译表运行时回归（engine/src/main/assets/__mtool_translator.js）。
 //
-// 用 Node 仿真页面全局，跑**真实资产 JS**（非源工具副本），移植自 MTOOL
-// 多引擎独立工具 tests/ 的 4 个场景：hook 挂载点、延迟数据表、标题菜单重绘、
-// 消息块拆行；另加资产健全性与重复注入幂等用例。
+// 用 Node 仿真页面全局，跑**真实资产 JS**：4 个场景覆盖 hook 挂载点、
+// 延迟数据表、标题菜单重绘、消息块拆行；另加资产健全性与重复注入幂等用例。
 // 接入 Gradle jsHarness 生命周期（engine/build.gradle），防止随演进静默失效。
 'use strict';
 
@@ -70,7 +69,7 @@ function runScenario(name, assetSource, setup, run) {
   void status;
 }
 
-// ---- 场景 1：MTool 挂载点 + 数据写回 + 热更新（移植 hook_test.js）----
+// ---- 场景 1：挂载点 + 数据写回 + 热更新 ----
 runScenario('hook sites', fs.readFileSync(assetPath, 'utf8'),
   function setup(g) {
     class Window_Base {
@@ -300,5 +299,5 @@ runScenario('block slice', fs.readFileSync(assetPath, 'utf8'),
   });
 
 console.log('');
-console.log(fail === 0 ? `MTOOL TRANSLATOR HARNESS: all ${pass} checks passed` : `MTOOL TRANSLATOR HARNESS: ${fail} / ${pass + fail} FAILED`);
+console.log(fail === 0 ? `TRANSLATION RUNTIME HARNESS: all ${pass} checks passed` : `TRANSLATION RUNTIME HARNESS: ${fail} / ${pass + fail} FAILED`);
 process.exit(fail === 0 ? 0 : 1);

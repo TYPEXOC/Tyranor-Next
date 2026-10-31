@@ -249,7 +249,7 @@ class TyranoActivity : Activity() {
         ) { js -> webView?.let { v -> runCatching { v.evaluateJavascript(js, null) } } }
 
         configureWebView(browser)
-        // MTool 译表注入：全 Web 类型可用（运行时 JS 自带 Tyrano 与 MV/MZ 挂载点）；
+        // 译表注入：全 Web 类型可用（运行时 JS 自带 Tyrano 与 MV/MZ 挂载点）；
         // 恒开启，未检测到译表文件时控制器空转，行为与未集成前一致
         translation = MtoolTranslationController(
             this, rpgMakerModGameId, gameDir, translationFile,

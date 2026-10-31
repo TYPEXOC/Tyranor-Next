@@ -59,7 +59,7 @@ object PerGameSettingsStore {
 
     // RPG Maker MV/MZ
     const val F_RPG_MAKER_MOD_ENABLED = "rpg_maker_mod_enabled"
-    // MTool 译表「语言」选择：值为私有 translations/ 目录或游戏目录根下的译表文件名；null=未选定（不翻译，保持原文）
+    // 译表文件选择：值为私有 translations/ 目录或游戏目录根下的译表文件名；null=未选定（不翻译，保持原文）
     const val F_TRANSLATION_LANGUAGE = "translation_language"
     const val F_RPG_LEGACY_RENDERER = "rpg_legacy_renderer"
     const val F_RPG_SAVE_INTEROP = "rpg_save_interop"

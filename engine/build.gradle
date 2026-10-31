@@ -102,7 +102,7 @@ tasks.register('jsHarness', Exec) {
 }
 
 tasks.register('jsHarnessMtool', Exec) {
-    description = 'Runs the MTool translation-runtime JS harness (requires Node.js).'
+    description = 'Runs the translation-runtime JS harness (requires Node.js).'
     group = 'verification'
     workingDir = layout.projectDirectory.dir('src/test/js')
     commandLine 'node', 'mtool-translator.harness.js'
