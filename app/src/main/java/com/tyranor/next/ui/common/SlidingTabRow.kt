@@ -177,24 +177,35 @@ private fun ScrollableSlidingTabRow(
         Box(Modifier.fillMaxWidth().horizontalScroll(scrollState)) {
             // 内容坐标系：指示器与标签行同为一个 Box 的子节点，坐标原点一致
             Box(Modifier.height(SlidingTabHeight)) {
-                geometry[selectedIndex]?.let { target ->
-                    val targetX = with(density) { target.x.toDp() }
-                    val targetWidth = with(density) { target.width.toDp() }
-                    val animatedX by animateDpAsState(
-                        targetValue = targetX,
-                        animationSpec = tween(durationMillis = IndicatorDurationMillis, easing = LinearEasing),
-                        label = "slidingTabIndicatorX",
-                    )
-                    val animatedWidth by animateDpAsState(
-                        targetValue = targetWidth,
-                        animationSpec = tween(durationMillis = IndicatorDurationMillis, easing = LinearEasing),
-                        label = "slidingTabIndicatorWidth",
-                    )
-                    TabIndicator(
-                        modifier = Modifier.offset(x = animatedX).width(animatedWidth),
-                        shape = shape,
-                    )
+                // 指示器恒渲染：测量回填前按视口均分估算位置/宽度（含零宽退化值视同
+                // 未回填），保证弹窗等场景首帧即有选中块；几何回填后 200ms 收敛到精确值。
+                // viewportSize 是可观察状态，首次布局后必然触发重组，估算值不依赖
+                // onGloballyPositioned 的失效路径。
+                val measured = geometry[selectedIndex]?.takeIf { it.width > 0f }
+                val fallbackX = with(density) {
+                    var x = ScrollableTabContentPadding.toPx()
+                    for (i in 0 until selectedIndex) {
+                        x += (geometry[i]?.width ?: 0f) + ScrollableTabSpacing.toPx()
+                    }
+                    x
                 }
+                val fallbackWidth = with(density) {
+                    (scrollState.viewportSize.toFloat() / tabs.size).coerceAtLeast(0f)
+                }
+                val animatedX by animateDpAsState(
+                    targetValue = with(density) { (measured?.x ?: fallbackX).toDp() },
+                    animationSpec = tween(durationMillis = IndicatorDurationMillis, easing = LinearEasing),
+                    label = "slidingTabIndicatorX",
+                )
+                val animatedWidth by animateDpAsState(
+                    targetValue = with(density) { (measured?.width ?: fallbackWidth).toDp() },
+                    animationSpec = tween(durationMillis = IndicatorDurationMillis, easing = LinearEasing),
+                    label = "slidingTabIndicatorWidth",
+                )
+                TabIndicator(
+                    modifier = Modifier.offset(x = animatedX).width(animatedWidth),
+                    shape = shape,
+                )
                 Row(
                     modifier = Modifier.fillMaxHeight(),
                     horizontalArrangement = Arrangement.spacedBy(ScrollableTabSpacing),
