@@ -94,10 +94,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import top.yukonga.miuix.kmp.basic.RadioButton
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material3.Icon
 import com.tyranor.next.R
 import com.tyranor.next.core.cover.CoverErrorCode
 import com.tyranor.next.core.cover.CoverImageCache
@@ -1297,7 +1293,7 @@ internal fun GameActionsSheet(
     }
 }
 
-/** 「属性」对话框：名称修改、加载翻译（仅 RPG MV/MZ）两个选项入口，点击各自弹出下级对话框。 */
+/** 「属性」对话框：名称修改、加载翻译（仅 RPG MV/MZ）两个跳转条目，点击各自弹出下级对话框。 */
 @Composable
 private fun GamePropertiesDialog(
     showLanguageRow: Boolean,
@@ -1310,18 +1306,24 @@ private fun GamePropertiesDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.game_properties), style = MaterialTheme.typography.titleMedium) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 // 名称修改：点击打开改名对话框
-                PropertyOptionRow(
+                AppNavItem(
                     title = stringResource(R.string.game_rename),
+                    leadingIcon = R.drawable.ic_sheet_rename,
+                    containerColor = DialogItemSurface,
+                    indication = null,
                     onClick = onRenameClick,
                 )
                 // 仅 RPG MV/MZ 显示；「（默认）」=不注入译表，选定才翻译。
                 if (showLanguageRow) {
-                    PropertyOptionRow(
+                    AppNavItem(
                         title = stringResource(R.string.game_translation),
-                        value = translationFile?.removeSuffix(".json")
+                        summary = translationFile?.removeSuffix(".json")
                             ?: stringResource(R.string.game_translation_default),
+                        leadingIcon = R.drawable.ic_sheet_language,
+                        containerColor = DialogItemSurface,
+                        indication = null,
                         onClick = onTranslationClick,
                     )
                 }
@@ -1329,45 +1331,6 @@ private fun GamePropertiesDialog(
         },
         confirmButton = { DialogTextButton(text = stringResource(R.string.common_cancel), onClick = onDismiss) },
     )
-}
-
-/** 属性对话框的选项行：左标题、右当前值 + 箭头，与设置选项条目同观感。 */
-@Composable
-private fun PropertyOptionRow(
-    title: String,
-    value: String? = null,
-    onClick: () -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(AppComponentShape)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            title,
-            style = MaterialTheme.typography.bodyMedium,
-            color = TextColor,
-            modifier = Modifier.weight(1f),
-        )
-        if (value != null) {
-            Text(
-                value,
-                style = MaterialTheme.typography.bodyMedium,
-                color = TextColor.copy(alpha = 0.55f),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-        Icon(
-            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-            contentDescription = null,
-            modifier = Modifier.padding(start = 6.dp),
-            tint = TextColor.copy(alpha = 0.4f),
-        )
-    }
 }
 
 /** 「加载翻译」单选对话框：每次打开重新扫描可用译表（授权/新增文件即时生效）；选项行用应用统一圆角卡片（选中主题色高亮+勾选）。 */
@@ -1392,7 +1355,6 @@ private fun TranslationSelectDialog(
         add(null to stringResource(R.string.game_translation_default))
         scanned.orEmpty().forEach { add(it.name to it.name.removeSuffix(".json")) }
     }
-    val selectedColor = MaterialTheme.colorScheme.primary
     AppAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.game_translation), style = MaterialTheme.typography.titleMedium) },
@@ -1403,36 +1365,17 @@ private fun TranslationSelectDialog(
             ) {
                 lazyItems(options, key = { it.first ?: "" }) { (value, label) ->
                     val isSelected = value == current
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(AppComponentShape)
-                            .clickable {
-                                onSelect(value)
-                                onDismiss()
-                            }
-                            .background(
-                                if (isSelected) selectedColor.copy(alpha = 0.12f) else DialogItemSurface,
-                            )
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            label,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = if (isSelected) selectedColor else TextColor,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f),
-                        )
-                        if (isSelected) {
-                            Icon(
-                                imageVector = Icons.Filled.Check,
-                                contentDescription = null,
-                                tint = selectedColor,
-                            )
-                        }
-                    }
+                    AppNavItem(
+                        title = label,
+                        leadingIcon = R.drawable.ic_sheet_language,
+                        containerColor = DialogItemSurface,
+                        indication = null,
+                        titleColor = if (isSelected) MaterialTheme.colorScheme.primary else null,
+                        onClick = {
+                            onSelect(value)
+                            onDismiss()
+                        },
+                    )
                 }
             }
         },
