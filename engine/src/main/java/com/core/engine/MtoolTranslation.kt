@@ -31,7 +31,7 @@ object MtoolTranslation {
     /** 翻译运行时 JS（engine assets 根；幂等，可重复注入）。 */
     const val RUNTIME_ASSET = "__mtool_translator.js"
 
-    /** 译表惯例文件名（PC 端 MTool 提取工具的产出名；自动识别时不作硬性要求）。 */
+    /** 译表惯例文件名（PC 端常见导出工具的默认产出名；自动识别时不作硬性要求）。 */
     const val TRANSLATION_FILE_NAME = "ManualTransFile.json"
 
     /** 自动识别扫描的单文件体积上限：超过则跳过（不读入内存做格式校验）。 */

@@ -370,7 +370,7 @@ class RpgMakerActivity : Activity() {
                 browser.addJavascriptInterface(it.Bridge(), InputRemapController.BRIDGE_NAME)
             }
         }
-        // MTool 译表注入（恒开启；未检测到译表文件时控制器空转，行为与未集成前一致）
+        // 译表注入（恒开启；未检测到译表文件时控制器空转，行为与未集成前一致）
         translation = MtoolTranslationController(
             this, rpgMakerModGameId, gameDir, translationFile,
         ) { js, callback ->

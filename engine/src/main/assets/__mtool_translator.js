@@ -1,8 +1,6 @@
 // __mtool_translator.js — MTool-export-format translation runtime for Tyranor-Next web hosts.
-// Provenance: exported from MTOOL 多引擎独立工具 cdp_runtime.BOOTSTRAP (writeback=true).
 // Idempotent (window.__MTOOL_RUNTIME_TRANSLATOR__ latch); installs lookup hooks on a
 // 500ms interval and exposes window.__MTOOL_SET_TRANSLATIONS__ / __MTOOL_STATUS__.
-// Regenerate with the same export path when the source tool changes.
 window.__MTOOL_WRITEBACK__ = true;
 
 (function () {
@@ -189,9 +187,8 @@ window.__MTOOL_WRITEBACK__ = true;
 
   var HOOK_SITES = [];
 
-  // MTool's MV/MZ loader replaces the first argument of a method with the
-  // looked-up translation and then calls the original. This mirrors the
-  // `arguments[0] = wch.fixInStrToTrsNR(arguments[0])` template.
+  // Arg0 wrapping: replace the first argument of a method with the
+  // looked-up translation and then call the original.
   function wrapArg0(owner, name, site) {
     if (!owner || typeof owner[name] !== 'function') return false;
     var original = owner[name];
@@ -323,9 +320,9 @@ window.__MTOOL_WRITEBACK__ = true;
     }
   }
 
-  // Points 1-23, the engine/plugin level lookup points that the MTool loader
-  // installs on MV and MZ. Missing plugins and missing methods are skipped so
-  // the same set works on a bare project and on a heavily patched one.
+  // Engine/plugin level lookup points installed on MV and MZ. Missing
+  // plugins and missing methods are skipped so the same set works on a bare
+  // project and on a heavily patched one.
   function patchRpgMakerDeep() {
     var windowBase = root.Window_Base && root.Window_Base.prototype;
     if (windowBase) {
@@ -388,7 +385,7 @@ window.__MTOOL_WRITEBACK__ = true;
     patchPixiUpdateText();
   }
 
-  // MTool also writes translations back into $dataXxx so menus, item names and
+  // Translations are also written back into $dataXxx so menus, item names and
   // the database-derived windows change without a per-window hook. Originals
   // are kept so a reloaded map can be re-applied instead of compounding.
   var DATA_FIELDS = ['name', 'nickname', 'description', 'profile', 'message1', 'message2', 'message3', 'message4'];
