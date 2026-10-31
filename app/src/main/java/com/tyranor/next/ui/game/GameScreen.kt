@@ -61,7 +61,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -1361,8 +1360,10 @@ private fun TranslationSelectDialog(
         add(null to stringResource(R.string.game_translation_default))
         scanned.orEmpty().forEach { add(it.name to it.name.removeSuffix(".json")) }
     }
-    // 「（默认）」本身即合法选项，故初始必落在某一项上；扫描回填后仍以默认/已选为起点
-    var pickedIndex by remember { mutableIntStateOf(options.indexOfFirst { it.first == current }.coerceAtLeast(0)) }
+    // null=用户尚未点选：勾选实时跟随当前选中值推导（扫描回填后自动对位）；点选后锁定
+    var pickedIndex by remember { mutableStateOf<Int?>(null) }
+    val effectiveIndex = pickedIndex
+        ?: options.indexOfFirst { it.first == current }.coerceAtLeast(0)
     AppAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.game_translation), style = MaterialTheme.typography.titleMedium) },
@@ -1393,7 +1394,7 @@ private fun TranslationSelectDialog(
                         )
                         // onClick = null 只负责显示（选择由整行处理，无任何点击/按压效果）
                         RadioButton(
-                            selected = index == pickedIndex,
+                            selected = index == effectiveIndex,
                             onClick = null,
                         )
                     }
@@ -1404,7 +1405,7 @@ private fun TranslationSelectDialog(
             DialogTextButton(
                 text = stringResource(R.string.common_confirm),
                 onClick = {
-                    onSelect(options[pickedIndex].first)
+                    onSelect(options[effectiveIndex].first)
                     onDismiss()
                 },
             )
