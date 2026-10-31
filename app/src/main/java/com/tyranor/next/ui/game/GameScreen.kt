@@ -695,7 +695,7 @@ internal fun GameActionsSheet(
     val drawerDesktopShortcutTitle = stringResource(R.string.game_add_desktop_shortcut)
     val drawerSearchCoverTitle = stringResource(R.string.game_search_cover)
     val drawerEditCoverTitle = stringResource(R.string.game_edit_cover)
-    val drawerPropertiesTitle = stringResource(R.string.game_properties)
+    val drawerSettingsTitle = stringResource(R.string.game_settings)
     val drawerSaveManagementTitle = stringResource(R.string.game_save_management)
     val drawerOnlinePatchTitle = stringResource(R.string.game_online_patch)
     val drawerEngineSettingsTitle = stringResource(R.string.settings_engine_settings)
@@ -1035,8 +1035,8 @@ internal fun GameActionsSheet(
                 // 属性：名称修改 +（RPG MV/MZ）加载翻译
                 add(
                     DrawerAction(
-                        key = "game_properties",
-                        title = drawerPropertiesTitle,
+                        key = "game_settings",
+                        title = drawerSettingsTitle,
                         icon = R.drawable.ic_sheet_rename,
                         iconTint = drawerPrimaryColor,
                         onClick = { showPropertiesDialog = true },
@@ -1304,7 +1304,7 @@ private fun GamePropertiesDialog(
 ) {
     AppAlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.game_properties), style = MaterialTheme.typography.titleMedium) },
+        title = { Text(stringResource(R.string.game_settings), style = MaterialTheme.typography.titleMedium) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 // 名称修改：点击打开改名对话框
