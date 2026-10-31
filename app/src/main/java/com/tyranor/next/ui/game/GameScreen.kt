@@ -659,7 +659,6 @@ internal fun GameActionsSheet(
     var coverBindError by rememberSaveable(game.uri) { mutableStateOf<String?>(null) }
     var showDeleteConfirm by rememberSaveable(game.uri) { mutableStateOf(false) }
     var showLaunchFilePicker by rememberSaveable(game.uri) { mutableStateOf(false) }
-    var showPropertiesDialog by rememberSaveable(game.uri) { mutableStateOf(false) }
     var showRenameDialog by rememberSaveable(game.uri) { mutableStateOf(false) }
     var showTranslationDialog by rememberSaveable(game.uri) { mutableStateOf(false) }
     // 选中的翻译文件名（仅 RPG MV/MZ 提供选择）：null=未选择（不翻译，保持原文）
@@ -702,7 +701,9 @@ internal fun GameActionsSheet(
     val drawerDesktopShortcutTitle = stringResource(R.string.game_add_desktop_shortcut)
     val drawerSearchCoverTitle = stringResource(R.string.game_search_cover)
     val drawerEditCoverTitle = stringResource(R.string.game_edit_cover)
-    val drawerSettingsTitle = stringResource(R.string.game_settings)
+    val drawerRenameTitle = stringResource(R.string.game_rename)
+    val drawerTranslationTitle = stringResource(R.string.game_translation)
+    val drawerTranslationDefault = stringResource(R.string.game_translation_default)
     val drawerSaveManagementTitle = stringResource(R.string.game_save_management)
     val drawerOnlinePatchTitle = stringResource(R.string.game_online_patch)
     val drawerEngineSettingsTitle = stringResource(R.string.settings_engine_settings)
@@ -1041,13 +1042,25 @@ internal fun GameActionsSheet(
                 )
                 add(
                     DrawerAction(
-                        key = "game_settings",
-                        title = drawerSettingsTitle,
+                        key = "rename",
+                        title = drawerRenameTitle,
                         icon = R.drawable.ic_sheet_rename,
                         iconTint = drawerPrimaryColor,
-                        onClick = { showPropertiesDialog = true },
+                        onClick = { showRenameDialog = true },
                     ),
                 )
+                if (isMvMz) {
+                    add(
+                        DrawerAction(
+                            key = "translation",
+                            title = drawerTranslationTitle,
+                            summary = translationFile?.removeSuffix(".json") ?: drawerTranslationDefault,
+                            icon = R.drawable.ic_sheet_language,
+                            iconTint = drawerPrimaryColor,
+                            onClick = { showTranslationDialog = true },
+                        ),
+                    )
+                }
                 if (shouldShowSaveManagement(game)) {
                     add(
                         DrawerAction(
@@ -1220,22 +1233,6 @@ internal fun GameActionsSheet(
         )
     }
 
-    if (showPropertiesDialog) {
-        GamePropertiesDialog(
-            showLanguageRow = isMvMz,
-            translationFile = translationFile?.takeIf(String::isNotBlank),
-            onRenameClick = {
-                showPropertiesDialog = false
-                showRenameDialog = true
-            },
-            onTranslationClick = {
-                showPropertiesDialog = false
-                showTranslationDialog = true
-            },
-            onDismiss = { showPropertiesDialog = false },
-        )
-    }
-
     if (showTranslationDialog) {
         TranslationSelectDialog(
             game = game,
@@ -1303,45 +1300,6 @@ internal fun GameActionsSheet(
             },
         )
     }
-}
-
-/** 「属性」对话框：名称修改、加载翻译（仅 RPG MV/MZ）两个跳转条目，点击各自弹出下级对话框。 */
-@Composable
-private fun GamePropertiesDialog(
-    showLanguageRow: Boolean,
-    translationFile: String?,
-    onRenameClick: () -> Unit,
-    onTranslationClick: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    AppAlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.game_settings), style = MaterialTheme.typography.titleMedium) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                AppNavItem(
-                    title = stringResource(R.string.game_rename),
-                    leadingIcon = R.drawable.ic_sheet_rename,
-                    containerColor = DialogItemSurface,
-                    indication = null,
-                    onClick = onRenameClick,
-                )
-                // 仅 RPG MV/MZ 显示；「（默认）」=不注入译表，选定才翻译。
-                if (showLanguageRow) {
-                    AppNavItem(
-                        title = stringResource(R.string.game_translation),
-                        summary = translationFile?.removeSuffix(".json")
-                            ?: stringResource(R.string.game_translation_default),
-                        leadingIcon = R.drawable.ic_sheet_language,
-                        containerColor = DialogItemSurface,
-                        indication = null,
-                        onClick = onTranslationClick,
-                    )
-                }
-            }
-        },
-        confirmButton = { DialogTextButton(text = stringResource(R.string.common_cancel), onClick = onDismiss) },
-    )
 }
 
 /** 「加载翻译」单选对话框：每次打开重新扫描可用译表（授权/新增文件即时生效）。 */

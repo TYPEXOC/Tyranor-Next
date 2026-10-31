@@ -232,7 +232,6 @@
     <string name="game_search_cover">Search cover</string>
     <string name="game_edit_cover">Change cover</string>
     <string name="game_rename">Rename</string>
-    <string name="game_settings">Properties</string>
     <string name="game_translation">Load translation</string>
     <string name="game_translation_default">(Default)</string>
     <string name="game_save_management">Save management</string>
