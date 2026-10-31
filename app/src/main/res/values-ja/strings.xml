@@ -232,7 +232,7 @@
     <string name="game_search_cover">カバー画像を検索</string>
     <string name="game_edit_cover">カバー画像を変更</string>
     <string name="game_rename">名前を変更</string>
-    <string name="game_settings">ゲーム設定</string>
+    <string name="game_settings">プロパティ設定</string>
     <string name="game_translation">翻訳を読み込む</string>
     <string name="game_translation_default">（デフォルト）</string>
     <string name="game_save_management">セーブ管理</string>
