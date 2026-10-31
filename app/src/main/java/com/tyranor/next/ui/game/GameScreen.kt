@@ -1128,6 +1128,7 @@ internal fun GameActionsSheet(
                                         translationFile = name
                                         EngineLauncher.setTranslationLanguage(context, game, name)
                                     },
+                                    surfaceColor = drawerItemSurface,
                                     iconTint = drawerPrimaryColor,
                                     modifier = Modifier.weight(1f),
                                 )
@@ -1343,6 +1344,7 @@ private fun TranslationDropdownTile(
     files: List<File>?,
     selected: String?,
     onSelect: (String?) -> Unit,
+    surfaceColor: Color,
     iconTint: Color,
     modifier: Modifier = Modifier,
 ) {
@@ -1351,31 +1353,40 @@ private fun TranslationDropdownTile(
         add(null to stringResource(R.string.game_translation_default))
         files.orEmpty().forEach { add(it.name to it.name.removeSuffix(".json")) }
     }
-    OverlayDropdownMenu(
-        entry = DropdownEntry(
-            items = options.map { (value, label) ->
-                DropdownItem(
-                    text = label,
-                    selected = value == current,
-                    onClick = { onSelect(value) },
+    // 容器与 AppNavItem 卡片同款（底色 + 圆角 + 玻璃描边），内部 Miuix 组件本身透明
+    Box(
+        modifier = modifier
+            .clip(AppComponentShape)
+            .background(surfaceColor)
+            .glassBorder(),
+    ) {
+        OverlayDropdownMenu(
+            entry = DropdownEntry(
+                items = options.map { (value, label) ->
+                    DropdownItem(
+                        text = label,
+                        selected = value == current,
+                        onClick = { onSelect(value) },
+                    )
+                },
+                enabled = files != null && files.isNotEmpty(),
+            ),
+            title = stringResource(R.string.game_translation),
+            summary = when {
+                files != null && files.isEmpty() -> stringResource(R.string.game_translation_empty)
+                else -> current?.removeSuffix(".json") ?: stringResource(R.string.game_translation_default)
+            },
+            startAction = {
+                Icon(
+                    painter = painterResource(R.drawable.ic_sheet_language),
+                    contentDescription = null,
+                    tint = iconTint,
                 )
             },
-            enabled = files != null && files.isNotEmpty(),
-        ),
-        title = stringResource(R.string.game_translation),
-        summary = when {
-            files != null && files.isEmpty() -> stringResource(R.string.game_translation_empty)
-            else -> current?.removeSuffix(".json") ?: stringResource(R.string.game_translation_default)
-        },
-        startAction = {
-            Icon(
-                painter = painterResource(R.drawable.ic_sheet_language),
-                contentDescription = null,
-                tint = iconTint,
-            )
-        },
-        modifier = modifier,
-    )
+            insideMargin = PaddingValues(horizontal = 16.dp, vertical = 17.dp),
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
 }
 
 @Composable
