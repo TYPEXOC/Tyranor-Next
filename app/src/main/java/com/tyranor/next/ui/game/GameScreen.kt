@@ -697,6 +697,7 @@ internal fun GameActionsSheet(
     val drawerSearchCoverTitle = stringResource(R.string.game_search_cover)
     val drawerEditCoverTitle = stringResource(R.string.game_edit_cover)
     val drawerTranslationTitle = stringResource(R.string.game_translation)
+    val drawerTranslationDefault = stringResource(R.string.game_translation_default)
     val drawerSaveManagementTitle = stringResource(R.string.game_save_management)
     val drawerOnlinePatchTitle = stringResource(R.string.game_online_patch)
     val drawerEngineSettingsTitle = stringResource(R.string.settings_engine_settings)
@@ -1056,7 +1057,7 @@ internal fun GameActionsSheet(
                             iconTint = drawerPrimaryColor,
                             summary = translationFile?.takeIf(String::isNotBlank)
                                 ?.removeSuffix(".json")
-                                ?: stringResource(R.string.game_translation_default),
+                                ?: drawerTranslationDefault,
                             onClick = { showTranslationDialog = true },
                         ),
                     )
