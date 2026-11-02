@@ -233,6 +233,8 @@
     <string name="game_rename">名前を変更</string>
     <string name="game_translation">翻訳設定</string>
     <string name="game_translation_default">（デフォルト）</string>
+    <string name="game_translation_status_default">翻訳ファイル未選択。ゲームは原文で起動します</string>
+    <string name="game_translation_status_selected">翻訳ファイルを選択済み。ゲーム起動時に読み込みを試みます</string>
     <string name="game_save_management">セーブ管理</string>
     <string name="game_online_patch">オンラインパッチ</string>
     <string name="game_delete_title">ゲームを削除</string>

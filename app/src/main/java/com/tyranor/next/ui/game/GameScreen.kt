@@ -142,6 +142,7 @@ import com.tyranor.next.theme.NavWhite
 import com.tyranor.next.theme.NavWhiteOverlay
 import com.tyranor.next.theme.PageSecondaryTextColor
 import com.tyranor.next.theme.TextColor
+import com.tyranor.next.theme.UnselectedGrey
 import com.tyranor.next.theme.glassBorder
 import com.tyranor.next.theme.AppComponentShape
 import com.tyranor.next.theme.CoverBadgeText
@@ -651,10 +652,11 @@ private data class DrawerAction(
     val key: String,
     val title: String,
     val icon: Int,
-    val summary: String? = null,
     val showArrow: Boolean = false,
     val iconTint: Color? = null,
     val titleColor: Color? = null,
+    val statusIndicatorColor: Color? = null,
+    val statusIndicatorDescription: String? = null,
     val onClick: () -> Unit,
 )
 
@@ -687,6 +689,7 @@ internal fun GameActionsSheet(
     // 可用译表文件后台枚举（文件 IO 含译表格式校验，避免阻塞组合）；抽屉打开时扫描一次
     var translationFiles by remember(game.uri) { mutableStateOf<List<File>?>(null) }
     val isMvMz = game.engine == EngineType.RPG_MV || game.engine == EngineType.RPG_MZ
+    val translationFileSelected = !translationFile.isNullOrBlank()
     LaunchedEffect(game.uri) {
         if (!isMvMz) return@LaunchedEffect
         // 选定译表文件已被删除时清掉失效引用：直接验证文件存在性，不依赖下方扫描结果（扫描为空可能是权限问题）
@@ -722,6 +725,15 @@ internal fun GameActionsSheet(
     val drawerEditCoverTitle = stringResource(R.string.game_edit_cover)
     val drawerRenameTitle = stringResource(R.string.game_rename)
     val drawerTranslationTitle = stringResource(R.string.game_translation)
+    val drawerTranslationStatusColor = if (translationFileSelected) {
+        MaterialTheme.colorScheme.secondary
+    } else {
+        UnselectedGrey
+    }
+    val drawerTranslationStatusDescription = stringResource(
+        if (translationFileSelected) R.string.game_translation_status_selected
+        else R.string.game_translation_status_default,
+    )
     val drawerSaveManagementTitle = stringResource(R.string.game_save_management)
     val drawerOnlinePatchTitle = stringResource(R.string.game_online_patch)
     val drawerEngineSettingsTitle = stringResource(R.string.settings_engine_settings)
@@ -1069,6 +1081,8 @@ internal fun GameActionsSheet(
                                     title = drawerTranslationTitle,
                                     icon = R.drawable.ic_sheet_language,
                                     iconTint = drawerPrimaryColor,
+                                    statusIndicatorColor = drawerTranslationStatusColor,
+                                    statusIndicatorDescription = drawerTranslationStatusDescription,
                                     onClick = { showTranslationDialog = true },
                                 ),
                             )
@@ -1136,7 +1150,6 @@ internal fun GameActionsSheet(
                                 rowActions.forEach { action ->
                                     AppNavItem(
                                         title = action.title,
-                                        summary = action.summary,
                                         modifier = Modifier.weight(1f),
                                         leadingIcon = action.icon,
                                         containerColor = drawerItemSurface,
@@ -1144,6 +1157,8 @@ internal fun GameActionsSheet(
                                         showArrow = action.showArrow,
                                         leadingIconTint = action.iconTint,
                                         titleColor = action.titleColor,
+                                        statusIndicatorColor = action.statusIndicatorColor,
+                                        statusIndicatorDescription = action.statusIndicatorDescription,
                                         onClick = action.onClick,
                                     )
                                 }

@@ -233,6 +233,8 @@
     <string name="game_rename">名称修改</string>
     <string name="game_translation">翻译设置</string>
     <string name="game_translation_default">（默认）</string>
+    <string name="game_translation_status_default">未选择译表，启动游戏时使用原文</string>
+    <string name="game_translation_status_selected">已选择译表，启动游戏时尝试加载</string>
     <string name="game_save_management">存档管理</string>
     <string name="game_online_patch">在线补丁</string>
     <string name="game_delete_title">删除游戏</string>
