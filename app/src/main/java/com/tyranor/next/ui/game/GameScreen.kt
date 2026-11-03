@@ -1331,7 +1331,7 @@ internal fun GameActionsSheet(
     }
 }
 
-/** 「翻译设置」单选对话框：每次打开重新扫描可用译表（授权/新增文件即时生效）。 */
+/** 「翻译文件」单选对话框：每次打开重新扫描可用译表（授权/新增文件即时生效）。 */
 @Composable
 private fun TranslationSelectDialog(
     game: ScanGame,
