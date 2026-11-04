@@ -35,6 +35,7 @@ import com.core.engine.EnginePrefs
 import com.core.engine.EngineSessionRegistry
 import com.core.engine.EngineThemeColors
 import com.core.engine.LaunchContract
+import com.core.engine.TranslationTableController
 import com.core.engine.R
 import com.core.input.InputRemapController
 import java.io.ByteArrayInputStream
@@ -66,6 +67,8 @@ class TyranoActivity : Activity() {
     private var allowExternalNetwork = false
     private var rpgMakerModEnabled = false
     private var rpgMakerModGameId = ""
+    private var translationFile: String? = null
+    private var translation: TranslationTableController? = null
     private val processExitScheduled = AtomicBoolean(false)
 
     override fun attachBaseContext(newBase: Context) {
@@ -92,6 +95,7 @@ class TyranoActivity : Activity() {
         intent.getBooleanExtra(LaunchContract.SCOPED_SAVE_DIR, false).toString(),
         intent.getStringExtra(LaunchContract.SCOPED_SAVE_ROOT),
         intent.getBooleanExtra(LaunchContract.RPG_MAKER_MOD_ENABLED, true).toString(),
+        intent.getStringExtra(LaunchContract.RPG_TRANSLATION_FILE),
         intent.getStringExtra(LaunchContract.RPG_MAKER_MOD_GAME_ID),
         intent.getIntExtra(LaunchContract.WEB_SHELL_PORT, 0).toString(),
     ).joinToString("\u0000")
@@ -148,6 +152,7 @@ class TyranoActivity : Activity() {
         rpgMakerModGameId = intent.getStringExtra(LaunchContract.RPG_MAKER_MOD_GAME_ID)
             ?.takeIf(String::isNotBlank)
             ?: resolvedGameDir
+        translationFile = intent.getStringExtra(LaunchContract.RPG_TRANSLATION_FILE)?.takeIf(String::isNotBlank)
         Log.i(TAG, "entry mode=${if (gameUsesAsar) "asar" else "dir"} type=${webGameType.intentValue} asar=$asarPath contentRoot=${contentRoot.absolutePath}")
         val needsSaveBridge = webGameType == WebGameType.TYRANO ||
             webGameType == WebGameType.RPG_MV || webGameType == WebGameType.RPG_MZ
@@ -244,6 +249,13 @@ class TyranoActivity : Activity() {
         ) { js -> webView?.let { v -> runCatching { v.evaluateJavascript(js, null) } } }
 
         configureWebView(browser)
+        // 译表注入：全 Web 类型可用（运行时 JS 自带 Tyrano 与 MV/MZ 挂载点）；
+        // 恒开启，未检测到译表文件时控制器空转，行为与未集成前一致
+        translation = TranslationTableController(
+            this, rpgMakerModGameId, gameDir, translationFile,
+        ) { js, callback ->
+            webView?.let { v -> runCatching { v.evaluateJavascript(js, callback) } }
+        }.also { it.attach() }
         when (webGameType) {
             WebGameType.RPG_MV, WebGameType.RPG_MZ -> {
                 browser.addJavascriptInterface(RpgMakerSaveBridge(saves), RPG_MAKER_SAVE_BRIDGE_NAME)
@@ -347,6 +359,8 @@ class TyranoActivity : Activity() {
                 // 尽早注入输入接收器：页面脚本开始执行前若未就绪，加载期的手柄/按键输入会被静默丢弃。
                 // evaluateJavascript 在 DOM 未就绪时安全失败，onPageFinished 会再注入一次（接收器自带幂等守卫）
                 view?.let { v -> runCatching { v.evaluateJavascript(inputJs, null) } }
+                // 译表运行时尽早注入（幂等）；onPageFinished 会再补一次
+                translation?.onPageStarted()
             }
 
             override fun onPageFinished(view: WebView?, url: String?) {
@@ -360,6 +374,7 @@ class TyranoActivity : Activity() {
                     }
                     runCatching { view.evaluateJavascript(inputJs, null) }
                 }
+                translation?.onPageFinished()
             }
 
             override fun onReceivedError(
@@ -666,6 +681,8 @@ class TyranoActivity : Activity() {
     override fun onDestroy() {
         EngineSessionRegistry.clear(this, EngineSessionRegistry.HOST_TYRANO)
         DoubleBackExit.clear(this)
+        runCatching { translation?.destroy() }
+        translation = null
         runCatching { inputRemap?.onDestroy() }
         inputRemap = null
         runCatching {
