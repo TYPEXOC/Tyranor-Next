@@ -1318,7 +1318,6 @@ private fun CoverSettingsDialog(
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 AppNavItem(
                     title = stringResource(R.string.game_search_cover),
-                    summary = stringResource(R.string.game_search_cover_summary),
                     onClick = onSearchCover,
                     leadingIcon = R.drawable.ic_sheet_search_cover,
                     containerColor = DialogItemSurface,

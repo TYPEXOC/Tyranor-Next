@@ -229,7 +229,6 @@
     <string name="game_desktop_shortcut_crop_image_failed">无法读取所选图片</string>
     <string name="game_desktop_shortcut_crop_failed">裁切图片失败，请重试</string>
     <string name="game_search_cover">搜索封面</string>
-    <string name="game_search_cover_summary">聚合搜索所有已启用的来源</string>
     <string name="game_cover_settings">封面设置</string>
     <string name="game_cover_source_all">全部来源</string>
     <string name="game_edit_cover">修改封面</string>
