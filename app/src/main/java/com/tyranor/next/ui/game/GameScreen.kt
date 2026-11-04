@@ -136,6 +136,7 @@ import com.tyranor.next.theme.GlassBorder
 import com.tyranor.next.theme.GlassPanel
 import com.tyranor.next.theme.GlassPanelSolid
 import com.tyranor.next.theme.GlassSurfaceSolid
+import com.tyranor.next.theme.LocalAppDialogContent
 import com.tyranor.next.theme.MilkGlassPanelBackground
 import com.tyranor.next.theme.MiuixSettingsTheme
 import com.tyranor.next.theme.NavWhite
@@ -151,6 +152,7 @@ import com.tyranor.next.theme.AppSheetTopShape
 import com.tyranor.next.ui.common.AppAlertDialog
 import com.tyranor.next.ui.common.AppDialogMaxWidth
 import com.tyranor.next.ui.common.AppNavItem
+import com.tyranor.next.ui.common.SlidingTabRow
 import com.tyranor.next.ui.common.AppSearchField
 import com.tyranor.next.ui.common.AppTopBar
 import com.tyranor.next.ui.common.DialogTextButton
@@ -172,6 +174,9 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -674,8 +679,8 @@ internal fun GameActionsSheet(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var launchError by remember(game.uri) { mutableStateOf<LaunchErrorState?>(null) }
-    var showCoverSourcePicker by rememberSaveable(game.uri) { mutableStateOf(false) }
-    var coverSearchSource by rememberSaveable(game.uri) { mutableStateOf<String?>(null) }
+    var showCoverSettingsDialog by rememberSaveable(game.uri) { mutableStateOf(false) }
+    var showCoverSearchDialog by rememberSaveable(game.uri) { mutableStateOf(false) }
     var coverBinding by remember { mutableStateOf(false) }
     var coverBindError by rememberSaveable(game.uri) { mutableStateOf<String?>(null) }
     var showDeleteConfirm by rememberSaveable(game.uri) { mutableStateOf(false) }
@@ -721,8 +726,7 @@ internal fun GameActionsSheet(
     val drawerQuickLaunchTitle = if (quickLaunched) stringResource(R.string.game_remove_quick_launch)
     else stringResource(R.string.game_add_quick_launch)
     val drawerDesktopShortcutTitle = stringResource(R.string.game_add_desktop_shortcut)
-    val drawerSearchCoverTitle = stringResource(R.string.game_search_cover)
-    val drawerEditCoverTitle = stringResource(R.string.game_edit_cover)
+    val drawerCoverSettingsTitle = stringResource(R.string.game_cover_settings)
     val drawerRenameTitle = stringResource(R.string.game_rename)
     val drawerTranslationTitle = stringResource(R.string.game_translation)
     val drawerTranslationStatusColor = if (translationFileSelected) {
@@ -1049,20 +1053,11 @@ internal fun GameActionsSheet(
                         )
                         add(
                             DrawerAction(
-                                key = "search_cover",
-                                title = drawerSearchCoverTitle,
-                                icon = R.drawable.ic_sheet_search_cover,
+                                key = "cover_settings",
+                                title = drawerCoverSettingsTitle,
+                                icon = R.drawable.ic_sheet_cover_settings,
                                 iconTint = drawerPrimaryColor,
-                                onClick = { if (!isBatchScrapingActive()) showCoverSourcePicker = true },
-                            ),
-                        )
-                        add(
-                            DrawerAction(
-                                key = "edit_cover",
-                                title = drawerEditCoverTitle,
-                                icon = R.drawable.ic_sheet_edit_cover,
-                                iconTint = drawerPrimaryColor,
-                                onClick = { if (!isBatchScrapingActive()) imagePicker.launch("image/*") },
+                                onClick = { if (!isBatchScrapingActive()) showCoverSettingsDialog = true },
                             ),
                         )
                         add(
@@ -1214,26 +1209,29 @@ internal fun GameActionsSheet(
         )
     }
 
-    if (showCoverSourcePicker) {
-        CoverSourcePickerDialog(
-            onDismiss = { showCoverSourcePicker = false },
-            onSelect = { source ->
+    if (showCoverSettingsDialog) {
+        CoverSettingsDialog(
+            onDismiss = { showCoverSettingsDialog = false },
+            onSearchCover = {
                 if (!isBatchScrapingActive()) {
-                    showCoverSourcePicker = false
+                    showCoverSettingsDialog = false
                     coverBindError = null
-                    coverSearchSource = source
+                    showCoverSearchDialog = true
                 }
+            },
+            onChangeCover = {
+                showCoverSettingsDialog = false
+                if (!isBatchScrapingActive()) imagePicker.launch("image/*")
             },
         )
     }
 
-    coverSearchSource?.let { source ->
+    if (showCoverSearchDialog) {
         CoverSearchDialog(
             game = game,
-            source = source,
             binding = coverBinding,
             bindError = coverBindError,
-            onDismiss = { coverSearchSource = null },
+            onDismiss = { showCoverSearchDialog = false },
             onBind = { candidate ->
                 if (!coverBinding && !isBatchScrapingActive()) {
                     coverBinding = true
@@ -1251,7 +1249,7 @@ internal fun GameActionsSheet(
                         coverBinding = false
                         if (updated != null) {
                             onGameUpdated(updated)
-                            coverSearchSource = null
+                            showCoverSearchDialog = false
                             onDismiss()
                         } else {
                             coverBindError = coverDownloadFailedMessage
@@ -1445,40 +1443,33 @@ private fun RenameGameDialog(
     )
 }
 
+/** 封面设置（一级）：搜索封面（聚合全部启用来源）与更换封面（本地图片）二级入口。 */
 @Composable
-private fun CoverSourcePickerDialog(    onDismiss: () -> Unit,
-    onSelect: (String) -> Unit,
+private fun CoverSettingsDialog(
+    onDismiss: () -> Unit,
+    onSearchCover: () -> Unit,
+    onChangeCover: () -> Unit,
 ) {
-    val context = LocalContext.current
-    val authVersion by HikarinagiAuthStore.statusVersion.collectAsState()
-    val scraperSettingsVersion by AppSettingsStore.coverScraperSettingsVersion.collectAsState()
-    val sources = remember(scraperSettingsVersion) {
-        AppSettingsStore.getCoverScraperSourceOrder(context)
-    }
-    val authStatus = remember(authVersion) { HikarinagiAuthStore.getStatus(context) }
-
     AppAlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.game_select_cover_source), style = MaterialTheme.typography.titleMedium) },
+        title = { Text(stringResource(R.string.game_cover_settings), style = MaterialTheme.typography.titleMedium) },
         text = {
-            LazyColumn(
-                modifier = Modifier.fillMaxWidth().heightIn(max = 320.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                lazyItems(sources, key = { it }, contentType = { "cover_source" }) { source ->
-                    val enabled = AppSettingsStore.isCoverScraperSourceEnabled(context, source)
-                    val needsHikarinagiLogin = source == AppSettingsStore.COVER_SOURCE_HIKARINAGI &&
-                        (!authStatus.authorized || authStatus.needsReauth)
-                    val selectable = enabled && !needsHikarinagiLogin
-                    AppNavItem(
-                        title = coverSourceTitle(source),
-                        summary = coverSourcePickerSummary(source, enabled, needsHikarinagiLogin),
-                        onClick = if (selectable) ({ onSelect(source) }) else null,
-                        leadingIcon = R.drawable.ic_cover_source,
-                        // 弹窗内条目必须与亮面板形成反差（AGENTS.md 弹窗条目约定）
-                        containerColor = DialogItemSurface,
-                    )
-                }
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                AppNavItem(
+                    title = stringResource(R.string.game_search_cover),
+                    onClick = onSearchCover,
+                    leadingIcon = R.drawable.ic_sheet_search_cover,
+                    containerColor = DialogItemSurface,
+                    indication = null,
+                )
+                AppNavItem(
+                    title = stringResource(R.string.game_edit_cover),
+                    onClick = onChangeCover,
+                    leadingIcon = R.drawable.ic_sheet_edit_cover,
+                    containerColor = DialogItemSurface,
+                    indication = null,
+                    showArrow = false,
+                )
             }
         },
         confirmButton = { DialogTextButton(text = stringResource(R.string.common_cancel), onClick = onDismiss) },
@@ -1488,7 +1479,6 @@ private fun CoverSourcePickerDialog(    onDismiss: () -> Unit,
 @Composable
 private fun CoverSearchDialog(
     game: ScanGame,
-    source: String,
     binding: Boolean,
     bindError: String?,
     onDismiss: () -> Unit,
@@ -1496,22 +1486,38 @@ private fun CoverSearchDialog(
 ) {
     val context = LocalContext.current
     val coverNoMatchMessage = stringResource(R.string.game_cover_no_match)
-    var keyword by rememberSaveable(source, game.uri) { mutableStateOf(game.title) }
+    var keyword by rememberSaveable(game.uri) { mutableStateOf(game.title) }
     var searching by remember { mutableStateOf(false) }
-    var noMatch by rememberSaveable(source, game.uri) { mutableStateOf(false) }
-    var errorCode by rememberSaveable(source, game.uri) { mutableStateOf<CoverErrorCode?>(null) }
-    var candidates by rememberSaveable(source, game.uri, stateSaver = CoverSearchCandidatesSaver) {
+    var noMatch by rememberSaveable(game.uri) { mutableStateOf(false) }
+    var errorCode by rememberSaveable(game.uri) { mutableStateOf<CoverErrorCode?>(null) }
+    var candidates by rememberSaveable(game.uri, stateSaver = CoverSearchCandidatesSaver) {
         mutableStateOf(emptyList<CoverSearchCandidate>())
     }
+    // 当前搜索来源：null = 全部来源（聚合全部启用来源）
+    var selectedSource by rememberSaveable { mutableStateOf<String?>(null) }
     // 二级（未萌 NextMoe）：作品 → 该作品可获取的封面；其它来源恒为 null
-    var drillDownWork by remember(source, game.uri) { mutableStateOf<CoverSearchCandidate?>(null) }
-    var workCovers by remember(source, game.uri) { mutableStateOf(emptyList<CoverSearchCandidate>()) }
-    var loadingCovers by remember(source, game.uri) { mutableStateOf(false) }
-    var coversErrorCode by remember(source, game.uri) { mutableStateOf<CoverErrorCode?>(null) }
-    var coversJob by remember(source, game.uri) { mutableStateOf<Job?>(null) }
+    var drillDownWork by remember(game.uri) { mutableStateOf<CoverSearchCandidate?>(null) }
+    var workCovers by remember(game.uri) { mutableStateOf(emptyList<CoverSearchCandidate>()) }
+    var loadingCovers by remember(game.uri) { mutableStateOf(false) }
+    var coversErrorCode by remember(game.uri) { mutableStateOf<CoverErrorCode?>(null) }
+    var coversJob by remember(game.uri) { mutableStateOf<Job?>(null) }
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
     val imeVisible = WindowInsets.ime.getBottom(density) > 0
+
+    // 可搜索来源：按用户设置的顺序，过滤禁用与未登录（Hikarinagi）的来源
+    val authVersion by HikarinagiAuthStore.statusVersion.collectAsState()
+    val scraperSettingsVersion by AppSettingsStore.coverScraperSettingsVersion.collectAsState()
+    val availableSources = remember(scraperSettingsVersion, authVersion) {
+        val authStatus = HikarinagiAuthStore.getStatus(context)
+        AppSettingsStore.getCoverScraperSourceOrder(context).filter { source ->
+            AppSettingsStore.isCoverScraperSourceEnabled(context, source) &&
+                !(source == AppSettingsStore.COVER_SOURCE_HIKARINAGI &&
+                    (!authStatus.authorized || authStatus.needsReauth))
+        }
+    }
+    // 选中来源不可用时回退 ALL（如来源在设置里被禁用）
+    val effectiveSource = selectedSource?.takeIf { it in availableSources }
 
     /** 离开二级：取消在飞请求并清干净二级状态，避免残留状态或迟到写入影响一级。 */
     fun leaveDrillDown() {
@@ -1526,6 +1532,8 @@ private fun CoverSearchDialog(
     fun search() {
         val query = keyword.trim()
         if (query.isEmpty() || searching || binding) return
+        // ALL = 聚合全部启用来源；单源 = 只搜该来源。来源均不可用时无目标。
+        val targets = listOfNotNull(effectiveSource).ifEmpty { availableSources }
         scope.launch {
             searching = true
             errorCode = null
@@ -1533,23 +1541,34 @@ private fun CoverSearchDialog(
             coversErrorCode = null
             candidates = emptyList()
             try {
-                when (val result = withContext(Dispatchers.IO) {
-                    // 关键词未被用户改动（仍等于游戏自身标题）时才按 VNDB id 精确反查，改了关键词就纯关键词搜
-                    CoverScraperService.searchCoverCandidates(
-                        context = context,
-                        source = source,
-                        keyword = query,
-                        limit = 8,
-                        vndbId = game.vndbId?.takeIf { query == game.title.trim() },
-                    )
-                }) {
-                    is CoverSearchResult.Success -> {
-                        candidates = result.candidates.distinctBy { "${it.source}:${it.id}:${it.coverUrl}" }
-                        if (candidates.isEmpty()) noMatch = true
+                val aggregated = mutableListOf<CoverSearchCandidate>()
+                var firstError: CoverErrorCode? = null
+                val results = coroutineScope {
+                    targets.map { source ->
+                        async(Dispatchers.IO) {
+                            // 关键词未被用户改动（仍等于游戏自身标题）时才按 VNDB id 精确反查，改了关键词就纯关键词搜
+                            val result = CoverScraperService.searchCoverCandidates(
+                                context = context,
+                                source = source,
+                                keyword = query,
+                                limit = 8,
+                                vndbId = game.vndbId?.takeIf { query == game.title.trim() },
+                            )
+                            source to result
+                        }
+                    }.awaitAll()
+                }
+                for ((_, result) in results) {
+                    when (result) {
+                        is CoverSearchResult.Success -> aggregated += result.candidates
+                        is CoverSearchResult.Failure -> if (firstError == null) firstError = result.error
                     }
-                    is CoverSearchResult.Failure -> {
-                        errorCode = result.error
-                    }
+                }
+                candidates = aggregated.distinctBy { "${it.source}:${it.id}:${it.coverUrl}" }
+                if (candidates.isEmpty()) {
+                    noMatch = true
+                    // 全部失败时展示首个错误码；部分失败但有结果则静默降级
+                    errorCode = firstError
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -1574,7 +1593,7 @@ private fun CoverSearchDialog(
         coversJob = scope.launch {
             try {
                 when (val result = withContext(Dispatchers.IO) {
-                    CoverScraperService.searchWorkCovers(context, source, work, 100)
+                    CoverScraperService.searchWorkCovers(context, work.source, work, 100)
                 }) {
                     is CoverSearchResult.Success -> {
                         workCovers = result.candidates.distinctBy { "${it.source}:${it.id}:${it.coverUrl}" }
@@ -1666,15 +1685,24 @@ private fun CoverSearchDialog(
                     }
                     // 弹窗是自绘的亮面板，不在 AppAlertDialog 的 contentColor 上下文里；
                     // 显式提供条目正文色，避免白雾面板上继承页面级白字。
-                    CompositionLocalProvider(LocalContentColor provides TextColor) {
+                    CompositionLocalProvider(LocalAppDialogContent provides true) {
+                        CompositionLocalProvider(LocalContentColor provides TextColor) {
                         Column(Modifier.fillMaxSize()) {
+                            val allSourcesLabel = stringResource(R.string.game_cover_source_all)
+                            val sourceTabs = buildList {
+                                add(allSourcesLabel)
+                                availableSources.forEach { add(coverSourceTitle(it)) }
+                            }
                             Box(
                                 modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 16.dp),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Text(
                                     drillDown?.let { stringResource(R.string.cover_multi_cover_title, it.title) }
-                                        ?: stringResource(R.string.game_cover_search_title, coverSourceTitle(source)),
+                                        ?: stringResource(
+                                            R.string.game_cover_search_title,
+                                            effectiveSource?.let { coverSourceTitle(it) } ?: allSourcesLabel,
+                                        ),
                                     style = MaterialTheme.typography.titleMedium,
                                     maxLines = 2,
                                     overflow = TextOverflow.Ellipsis,
@@ -1690,14 +1718,21 @@ private fun CoverSearchDialog(
                                         onSearch = { search() },
                                         textStyle = MaterialTheme.typography.bodyMedium,
                                     )
-                                }
-                                if (searching || loadingCovers) {
-                                    Text(
-                                        stringResource(if (searching) R.string.game_cover_searching else R.string.common_loading),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.padding(top = 8.dp),
-                                    )
+                                    if (sourceTabs.size > 1) {
+                                        SlidingTabRow(
+                                            tabs = sourceTabs,
+                                            selectedIndex = effectiveSource?.let { availableSources.indexOf(it) + 1 }
+                                                ?.takeIf { it > 0 } ?: 0,
+                                            onTabSelected = { index ->
+                                                selectedSource = if (index == 0) null else availableSources.getOrNull(index - 1)
+                                                candidates = emptyList()
+                                                noMatch = false
+                                                errorCode = null
+                                            },
+                                            modifier = Modifier.padding(top = 8.dp),
+                                            scrollable = true,
+                                        )
+                                    }
                                 }
                                 if (drillDown != null) {
                                     // 归属要求：封面数据来自未萌 NextMoe（鲲 Galgame 论坛）
@@ -1759,6 +1794,19 @@ private fun CoverSearchDialog(
                                             )
                                         }
                                     }
+                                } else if (searching || loadingCovers) {
+                                    Column(
+                                        modifier = Modifier.align(Alignment.Center),
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                    ) {
+                                        CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
+                                        Text(
+                                            stringResource(if (searching) R.string.game_cover_searching else R.string.common_loading),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.padding(top = 8.dp),
+                                        )
+                                    }
                                 }
                             }
                             Row(
@@ -1786,6 +1834,7 @@ private fun CoverSearchDialog(
                                 }
                             }
                         }
+                    }
                     }
                 }
             }
@@ -1946,18 +1995,6 @@ private fun CoverCandidateOverlay(candidate: CoverSearchCandidate) {
                 .padding(horizontal = 8.dp, vertical = 3.dp),
         )
     }
-}
-
-@Composable
-private fun coverSourcePickerSummary(source: String, enabled: Boolean, needsHikarinagiLogin: Boolean): String = when {
-    !enabled -> stringResource(R.string.game_cover_source_disabled)
-    needsHikarinagiLogin -> stringResource(R.string.game_cover_source_requires_login)
-    source == AppSettingsStore.COVER_SOURCE_HIKARINAGI -> stringResource(R.string.game_cover_source_hikarinagi_summary)
-    source == AppSettingsStore.COVER_SOURCE_BANGUMI -> stringResource(R.string.game_cover_source_bangumi_summary)
-    source == AppSettingsStore.COVER_SOURCE_STEAM -> stringResource(R.string.game_cover_source_steam_summary)
-    source == AppSettingsStore.COVER_SOURCE_VNDB -> stringResource(R.string.game_cover_source_vndb_summary)
-    source == AppSettingsStore.COVER_SOURCE_NEXTMOE -> stringResource(R.string.game_cover_source_nextmoe_summary)
-    else -> stringResource(R.string.game_cover_source_generic_summary)
 }
 
 /** KRKR 专属：选择游戏启动入口文件（目录内 xp3 / exe）。 */
