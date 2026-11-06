@@ -9,6 +9,7 @@ import androidx.core.content.FileProvider
 import com.core.input.InputConfigStore
 import com.core.engine.TranslationTable
 import com.tyranor.next.core.game.model.ScanGame
+import com.tyranor.next.core.settings.AppSettingsStore
 import com.tyranor.next.core.settings.PerGameSettingsStore
 import com.tyranor.next.core.theme.ThemeColorPayload
 import com.tyranor.next.core.theme.ThemeColorPayloadStore
@@ -60,6 +61,14 @@ object RuntimeModuleLauncher {
         val input = InputConfigStore.resolve(context, game.uri, engineDefaultsEnabled = true)
         val profileUri = if (input.padEnabled) selectedPadProfileUri(context, input.profileId) else null
         val theme = ThemeColorPayloadStore.current ?: ThemeColorPayload.DEFAULT
+        val rubyRuntime = if (module.packageName == RuntimeModuleContract.TYN_RGSS_PACKAGE_NAME) {
+            RgssRubyRuntime.fromWireValue(
+                PerGameSettingsStore.getStr(context, game.uri, PerGameSettingsStore.F_RPG_RUBY_RUNTIME)
+                    ?: AppSettingsStore.getRgssRubyRuntime(context).wireValue,
+            )
+        } else {
+            RgssRubyRuntime.DEFAULT
+        }
 
         val intent = Intent(RuntimeModuleContract.ACTION_LAUNCH).apply {
             component = ComponentName(module.packageName, module.activityName)
@@ -69,6 +78,9 @@ object RuntimeModuleLauncher {
             putExtra(RuntimeModuleContract.EXTRA_PROTOCOL_VERSION, RuntimeModuleContract.PROTOCOL_VERSION)
             putExtra(RuntimeModuleContract.EXTRA_PAD_ENABLED, input.padEnabled)
             putExtra(RuntimeModuleContract.EXTRA_PAD_PROFILE_ID, input.profileId)
+            if (module.packageName == RuntimeModuleContract.TYN_RGSS_PACKAGE_NAME) {
+                putExtra(RuntimeModuleContract.EXTRA_RUBY_RUNTIME, rubyRuntime.wireValue)
+            }
             putExtra(RuntimeModuleContract.EXTRA_THEME_PRIMARY_COLOR, theme.primaryArgb)
             putExtra(RuntimeModuleContract.EXTRA_THEME_ON_PRIMARY_COLOR, theme.onPrimaryArgb)
             translationUri?.let { putExtra(RuntimeModuleContract.EXTRA_TRANSLATION_URI, it.toString()) }

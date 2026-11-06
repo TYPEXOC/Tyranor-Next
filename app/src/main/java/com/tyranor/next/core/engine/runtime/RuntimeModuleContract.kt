@@ -43,6 +43,9 @@ object RuntimeModuleContract {
     /** 可选 extra：当前生效的按键方案 id。 */
     const val EXTRA_PAD_PROFILE_ID = "com.tyranor.runtime.extra.PAD_PROFILE_ID"
 
+    /** 可选 extra：TYN RGSS 模块要加载的 Ruby VM（187 / 193 / 313）。 */
+    const val EXTRA_RUBY_RUNTIME = "com.tyranor.runtime.extra.RUBY_RUNTIME"
+
     /** 可选 extra：TYN 当前主题强调色，用于模块内控件与按键层。 */
     const val EXTRA_THEME_PRIMARY_COLOR = "com.tyranor.runtime.extra.THEME_PRIMARY_COLOR"
 

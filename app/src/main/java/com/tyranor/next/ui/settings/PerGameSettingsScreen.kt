@@ -43,6 +43,8 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.tyranor.next.R
 import androidx.compose.ui.graphics.Color as ComposeColor
 import com.tyranor.next.core.engine.EngineType
+import com.tyranor.next.core.engine.runtime.RgssRubyRuntime
+import com.tyranor.next.core.engine.runtime.RuntimeModuleContract
 import com.tyranor.next.core.engine.external.EmulatorLaunchStyle
 import com.tyranor.next.core.engine.external.ExternalEmulatorRegistry
 import com.tyranor.next.core.game.launch.EngineLauncher
@@ -52,6 +54,7 @@ import com.tyranor.next.core.game.save.GameSaveManager
 import com.tyranor.next.core.settings.GraphicsCapabilities
 import com.tyranor.next.core.settings.GraphicsFamily
 import com.tyranor.next.core.settings.GraphicsOverride
+import com.tyranor.next.core.settings.AppSettingsStore
 import com.tyranor.next.core.input.InputRemapRepository
 import com.tyranor.next.core.settings.EngineSettingsStore
 import com.tyranor.next.core.settings.EffectiveEngineSettings
@@ -200,6 +203,9 @@ fun PerGameSettingsScreen(game: ScanGame) {
     }
     var rpgMvVersion by remember { mutableStateOf(PerGameSettingsStore.getStr(ctx, gid, PerGameSettingsStore.F_RPG_MV_VERSION)) }
     var rpgMzVersion by remember { mutableStateOf(PerGameSettingsStore.getStr(ctx, gid, PerGameSettingsStore.F_RPG_MZ_VERSION)) }
+    var rgssRubyRuntimeOverride by remember(gid) {
+        mutableStateOf(PerGameSettingsStore.getStr(ctx, gid, PerGameSettingsStore.F_RPG_RUBY_RUNTIME))
+    }
     // 输入重映射：虚拟按键 / 手柄映射（null=跟随全局）
     var inputPadEnabled by remember {
         mutableStateOf(PerGameSettingsStore.getBool(ctx, gid, PerGameSettingsStore.F_INPUT_PAD_ENABLED))
@@ -609,6 +615,9 @@ fun PerGameSettingsScreen(game: ScanGame) {
         )
         PerGameSettingsStore.setStr(ctx, gid, PerGameSettingsStore.F_RPG_MV_VERSION, rpgMvVersion)
         PerGameSettingsStore.setStr(ctx, gid, PerGameSettingsStore.F_RPG_MZ_VERSION, rpgMzVersion)
+        if (game.runtimeModulePackage == RuntimeModuleContract.TYN_RGSS_PACKAGE_NAME) {
+            PerGameSettingsStore.setStr(ctx, gid, PerGameSettingsStore.F_RPG_RUBY_RUNTIME, rgssRubyRuntimeOverride)
+        }
         PerGameSettingsStore.setBool(ctx, gid, PerGameSettingsStore.F_INPUT_PAD_ENABLED, inputPadEnabled)
         PerGameSettingsStore.setBool(ctx, gid, PerGameSettingsStore.F_INPUT_GAMEPAD_ENABLED, inputGamepadEnabled)
         // 按键方案覆盖只在用户真的改过这一行时落盘（脏标记）。无条件写会把本页的过期快照
@@ -1222,8 +1231,22 @@ fun PerGameSettingsScreen(game: ScanGame) {
                         }
                     }
                     EngineType.RUNTIME_MODULE -> item {
-                        // 入口对运行时模块隐藏；分支仅为 when 完备性，保留只读说明。
                         SectionCard(game.engine.displayName) {
+                            if (game.runtimeModulePackage == RuntimeModuleContract.TYN_RGSS_PACKAGE_NAME) {
+                                val runtimeIds = RgssRubyRuntime.entries.map { it.wireValue }
+                                val runtimeLabels = listOf(
+                                    stringResource(R.string.engine_settings_tyn_rgss_ruby_187),
+                                    stringResource(R.string.engine_settings_tyn_rgss_ruby_193),
+                                    stringResource(R.string.engine_settings_tyn_rgss_ruby_313),
+                                )
+                                OverrideChoice(
+                                    label = stringResource(R.string.engine_settings_tyn_rgss_ruby_runtime),
+                                    options = runtimeIds.zip(runtimeLabels).toMap(),
+                                    global = AppSettingsStore.getRgssRubyRuntime(ctx).wireValue,
+                                    override = rgssRubyRuntimeOverride,
+                                    onSet = { rgssRubyRuntimeOverride = it },
+                                )
+                            }
                             Text(
                                 stringResource(R.string.engine_settings_runtime_module_hint),
                                 style = MaterialTheme.typography.bodyMedium,

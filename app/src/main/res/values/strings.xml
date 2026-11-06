@@ -672,7 +672,11 @@
     <string name="engine_settings_tyn_rgss_enabled">已安装并启用</string>
     <string name="engine_settings_tyn_rgss_disabled">已安装，尚未启用</string>
     <string name="engine_settings_tyn_rgss_runtime_group">运行环境</string>
-    <string name="engine_settings_tyn_rgss_runtime">使用 Ruby 3.1.0，并为 Ruby 1.8 时代的脚本提供兼容修补；自动识别 RGSS1/2/3。TYN 提供虚拟按键、作弊面板和译表热更新。</string>
+    <string name="engine_settings_tyn_rgss_runtime">模块内含 Ruby 1.8.7、1.9.3、3.1.3 三套运行时。此处设置全局默认版本，单个游戏可覆盖；RGSS1/2/3 引擎版本仍由游戏文件识别。TYN 提供虚拟按键、作弊面板和译表热更新。</string>
+    <string name="engine_settings_tyn_rgss_ruby_runtime">默认 Ruby 运行时</string>
+    <string name="engine_settings_tyn_rgss_ruby_187">Ruby 1.8.7</string>
+    <string name="engine_settings_tyn_rgss_ruby_193">Ruby 1.9.3</string>
+    <string name="engine_settings_tyn_rgss_ruby_313">Ruby 3.1.3</string>
     <string name="engine_settings_tyn_rgss_manage">管理运行时模块</string>
 
     <string name="engine_settings_renpy_card">Ren’Py 模块设置</string>
