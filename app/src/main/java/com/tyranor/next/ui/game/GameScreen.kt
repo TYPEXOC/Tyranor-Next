@@ -159,6 +159,8 @@ import com.tyranor.next.ui.common.SlidingTabRow
 import com.tyranor.next.ui.common.AppSearchField
 import com.tyranor.next.ui.common.AppTopBar
 import com.tyranor.next.ui.common.DialogTextButton
+import com.tyranor.next.ui.common.gameEngineBadgeLabel
+import com.tyranor.next.ui.common.gameEngineDisplayName
 import com.tyranor.next.ui.common.TopBarIcon
 import com.tyranor.next.ui.common.glassNavBottomInset
 import com.tyranor.next.ui.common.isWideScreen
@@ -2164,18 +2166,7 @@ internal fun GameCard(
     val runtimeModuleLabel = runtimeModules.modules
         .firstOrNull { it.packageName == game.runtimeModulePackage }
         ?.label
-    val engineName = when (game.engine) {
-        EngineType.UNKNOWN -> stringResource(R.string.engine_name_unknown)
-        // 无封面占位卡用短名「Switch」，避免「Nintendo Switch」过长
-        EngineType.NINTENDO_SWITCH -> stringResource(R.string.engine_name_switch)
-        EngineType.RUNTIME_MODULE -> runtimeModuleLabel?.takeIf { it.isNotBlank() }
-            ?: if (game.runtimeModulePackage == RuntimeModuleContract.TYN_RGSS_PACKAGE_NAME) {
-                stringResource(R.string.engine_name_tyn_rgss)
-            } else {
-                stringResource(R.string.engine_name_runtime_module)
-            }
-        else -> game.engine.displayName
-    }
+    val engineName = gameEngineDisplayName(game, runtimeModuleLabel)
     val coverBitmap by rememberCoverBitmap(game.coverUri, isScrolling)
     val pressModifier = if (onLongClick != null) {
         Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick)
@@ -2230,9 +2221,7 @@ internal fun GameCard(
                 // 左上角引擎类型角标：开关开启且实际渲染封面的卡片才显示（无封面占位卡不显示）；
                 // 尺寸为标注规格（labelSmall 11sp + 边距减半，AGENTS.md 明文豁免）
                 if (showEngineBadge) Text(
-                    if (game.engine == EngineType.RUNTIME_MODULE &&
-                        game.runtimeModulePackage == RuntimeModuleContract.TYN_RGSS_PACKAGE_NAME
-                    ) stringResource(R.string.engine_badge_tyn_rgss) else game.engine.abbr,
+                    gameEngineBadgeLabel(game),
                     style = MaterialTheme.typography.labelSmall,
                     // 角标样式固定（半透明黑底 + 白字，见 theme/Color.kt），不随主题色变化
                     color = CoverBadgeText,

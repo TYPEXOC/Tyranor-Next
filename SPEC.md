@@ -49,7 +49,7 @@
 | Ethornell / BGI | BGI 特征与资源组合 | 内置实验宿主，见第 10 节 |
 | Tyrano / VN / WebOther | `tyrano/`、`globalData.vndata`、HTML 等 | 内置 Web 壳 |
 | RPG Maker MV / MZ | `rpg_core.js` / `rmmz_core.js`、`www/` 等 | 内置 Web 运行环境，支持适用的 Asar 包 |
-| RPG Maker RGSS | XP/VX/VX Ace 资源 | 启用且扫描命中的 TYN RGSS 运行时模块；未启用或未扫描时提示启用并重新扫描 |
+| RPG Maker RGSS | XP/VX/VX Ace 资源；扫描记录保留对应代际别名 | 启用且扫描命中的 TYN RGSS 运行时模块；游戏卡片按识别结果显示 RPG Maker XP、VX 或 VX Ace；未启用或未扫描时提示启用并重新扫描 |
 | Ren'Py | `.rpa`、`.rpy/.rpyc` 等组合 | 外置 Ren'Py APK；自动或指定 8.5 / 7.7.1 |
 | Ruffle / Flash | 顶层 `.swf`；根 `index.html/index.htm` + 唯一 SWF 的叶子目录 | 外置 Ruffle APK；一 SWF 一条记录 |
 | 第三方运行时模块 | 已安装的 `com.tyranor.runtime.*` APK + 模块 `res/raw` 扫描描述 | 显式组件交棒游戏文件夹，模块自行运行 |

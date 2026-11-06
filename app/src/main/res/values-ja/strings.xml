@@ -190,6 +190,12 @@
     <string name="launch_emulator_unsupported">%1$s のバージョンが古く、外部起動に対応していません。外置起動対応の winlator-cn に更新してください</string>
     <string name="engine_name_unknown">不明なエンジン</string>
     <string name="engine_name_switch">Switch</string>
+    <string name="engine_name_rpgmaker_xp">RPG Maker XP</string>
+    <string name="engine_name_rpgmaker_vx">RPG Maker VX</string>
+    <string name="engine_name_rpgmaker_vx_ace">RPG Maker VX Ace</string>
+    <string name="engine_badge_rpgmaker_xp">XP</string>
+    <string name="engine_badge_rpgmaker_vx">VX</string>
+    <string name="engine_badge_rpgmaker_vx_ace">VX Ace</string>
     <string name="engine_name_runtime_module">Plugin</string>
     <string name="engine_name_tyn_rgss">TYN RGSS</string>
     <string name="engine_badge_tyn_rgss">RGSS</string>
