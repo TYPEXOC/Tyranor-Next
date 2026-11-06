@@ -45,7 +45,6 @@ import androidx.compose.ui.graphics.Color as ComposeColor
 import com.tyranor.next.core.engine.EngineType
 import com.tyranor.next.core.engine.external.EmulatorLaunchStyle
 import com.tyranor.next.core.engine.external.ExternalEmulatorRegistry
-import com.tyranor.next.core.engine.external.RpgMakerRuntimeEnvironment
 import com.tyranor.next.core.game.launch.EngineLauncher
 import com.tyranor.next.core.game.model.GamePathUtils
 import com.tyranor.next.core.game.model.ScanGame
@@ -58,7 +57,6 @@ import com.tyranor.next.core.settings.EngineSettingsStore
 import com.tyranor.next.core.settings.EffectiveEngineSettings
 import com.tyranor.next.core.settings.PerGameSettingsStore
 import com.tyranor.next.core.settings.RenPyOverride
-import com.tyranor.next.core.settings.RpgMakerOverride
 import com.tyranor.next.core.settings.RuffleOverride
 import com.tyranor.next.core.settings.WinlatorOverride
 import com.tyranor.next.theme.PageTextColor
@@ -281,11 +279,6 @@ fun PerGameSettingsScreen(game: ScanGame) {
             saveLocationReady = true
         }
     }
-    var rpgmOverride by remember(gid) {
-        mutableStateOf(PerGameSettingsStore.toRpgMakerOverride(PerGameSettingsStore.load(ctx, gid)))
-    }
-    val rpgm = rpgmOverride ?: RpgMakerOverride()
-
     val scope = rememberCoroutineScope()
     var importingFont by remember(gid) { mutableStateOf(false) }
     val fontLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
@@ -361,21 +354,6 @@ fun PerGameSettingsScreen(game: ScanGame) {
             }
         }
     }
-    // RPGM 外置插件读不到 App 私有目录，自定义字体必须落共享存储（见 RpgMakerRuntimeEnvironment）
-    val rpgFontLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
-        scope.launch {
-            val path = runInterruptible(Dispatchers.IO) { RpgMakerRuntimeEnvironment.importCustomFont(ctx, uri) }
-            if (path != null) rpgmOverride = rpgm.copy(customFont = path)
-            val msg = if (path != null) {
-                R.string.engine_settings_rpgm_custom_font_imported
-            } else {
-                R.string.engine_settings_rpgm_custom_font_import_failed
-            }
-            android.widget.Toast.makeText(ctx, ctx.getString(msg), android.widget.Toast.LENGTH_SHORT).show()
-        }
-    }
-
     val globalKrVersion = EngineSettingsStore.getKrEngineVersion(ctx)
     val globalKrKernel = EngineSettingsStore.getKrKernel(ctx)
     val globalKrScoped = EngineSettingsStore.isKrScopedSaveDir(ctx)
@@ -457,11 +435,6 @@ fun PerGameSettingsScreen(game: ScanGame) {
     val winlatorBox64PresetMap = winlatorBox64PresetOptionsMap()
     val globalRenpy = remember { EngineSettingsStore.loadRenPy(ctx) }
     val globalRuffle = remember { EngineSettingsStore.loadRuffle(ctx) }
-    val globalRpg = remember { EngineSettingsStore.loadRpgMaker(ctx) }
-    val rpgWindowMap = rpgWindowSizeOptionsMap()
-    val rpgSpeedUpMap = rpgSpeedUpOptionsMap()
-    val rpgFontScaleMap = rpgFontScaleOptionsMap()
-    val rpgVerticalAlignMap = rpgVerticalAlignOptionsMap()
     val krVersionMap = krSelectOptionsMap()
     val krKernelMap = krKernelOptionsMap()
     val krPatchOverlayMap = krPatchOverlayOptionsMap()
@@ -644,24 +617,6 @@ fun PerGameSettingsScreen(game: ScanGame) {
             InputRemapRepository.setGameProfileIdOverride(ctx, gid, inputProfileOverride)
             inputProfileDirty = false
         }
-        PerGameSettingsStore.setBool(ctx, gid, PerGameSettingsStore.F_RPG_USE_RUBY18, rpgm.useRuby18)
-        PerGameSettingsStore.setBool(ctx, gid, PerGameSettingsStore.F_RPG_SMOOTH_SCALING, rpgm.smoothScaling)
-        PerGameSettingsStore.setBool(ctx, gid, PerGameSettingsStore.F_RPG_VSYNC, rpgm.vsync)
-        PerGameSettingsStore.setBool(ctx, gid, PerGameSettingsStore.F_RPG_FRAME_SKIP, rpgm.frameSkip)
-        PerGameSettingsStore.setBool(ctx, gid, PerGameSettingsStore.F_RPG_SOLID_FONTS, rpgm.solidFonts)
-        PerGameSettingsStore.setBool(ctx, gid, PerGameSettingsStore.F_RPG_PATH_CACHE, rpgm.pathCache)
-        PerGameSettingsStore.setBool(ctx, gid, PerGameSettingsStore.F_RPG_PREBUILT_PATH_CACHE, rpgm.prebuiltPathCache)
-        PerGameSettingsStore.setBool(ctx, gid, PerGameSettingsStore.F_RPG_FAST_PATH_ENUM, rpgm.fastPathEnum)
-        PerGameSettingsStore.setBool(ctx, gid, PerGameSettingsStore.F_RPG_COPY_TEXT, rpgm.copyText)
-        PerGameSettingsStore.setBool(ctx, gid, PerGameSettingsStore.F_RPG_CHEATS, rpgm.cheats)
-        PerGameSettingsStore.setBool(ctx, gid, PerGameSettingsStore.F_RPG_USE_CJK_FONT, rpgm.useCJKFont)
-        PerGameSettingsStore.setBool(ctx, gid, PerGameSettingsStore.F_RPG_ENABLE_POSTLOAD_SCRIPTS, rpgm.enablePostloadScripts)
-        PerGameSettingsStore.setBool(ctx, gid, PerGameSettingsStore.F_RPG_DEBUG, rpgm.debug)
-        PerGameSettingsStore.setStr(ctx, gid, PerGameSettingsStore.F_RPG_CUSTOM_FONT, rpgm.customFont)
-        PerGameSettingsStore.setStr(ctx, gid, PerGameSettingsStore.F_RPG_VERTICAL_SCREEN_ALIGN, rpgm.verticalScreenAlign)
-        PerGameSettingsStore.setStr(ctx, gid, PerGameSettingsStore.F_RPG_WINDOW_SIZE, rpgm.windowSize)
-        PerGameSettingsStore.setStr(ctx, gid, PerGameSettingsStore.F_RPG_SPEED_UP, rpgm.speedUp)
-        PerGameSettingsStore.setStr(ctx, gid, PerGameSettingsStore.F_RPG_FONT_SCALE, rpgm.fontScale)
         PerGameSettingsStore.setBool(ctx, gid, PerGameSettingsStore.F_RENPY_CHEATS, renpy.cheats)
         PerGameSettingsStore.setBool(ctx, gid, PerGameSettingsStore.F_RENPY_HW_VIDEO, renpy.hwVideo)
         PerGameSettingsStore.setBool(ctx, gid, PerGameSettingsStore.F_RENPY_AUTOSAVE, renpy.autosave)
@@ -1225,99 +1180,6 @@ fun PerGameSettingsScreen(game: ScanGame) {
                                         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
                                     )
                                 }
-                            }
-                        }
-                    }
-                    EngineType.RPGMAKER -> item {
-                        SectionCard("RPG Maker RGSS") {
-                            Text(
-                                stringResource(R.string.engine_settings_rpgmaker_module_description),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
-                            )
-                            OverrideSwitch(stringResource(R.string.engine_settings_rpgm_use_ruby18), globalRpg.useRuby18, rpgm.useRuby18) {
-                                rpgmOverride = rpgm.copy(useRuby18 = it)
-                            }
-                            OverrideSwitch(stringResource(R.string.engine_settings_rpgm_smooth_scaling), globalRpg.smoothScaling, rpgm.smoothScaling) {
-                                rpgmOverride = rpgm.copy(smoothScaling = it)
-                            }
-                            OverrideSwitch(stringResource(R.string.engine_settings_rpgm_vsync), globalRpg.vsync, rpgm.vsync) {
-                                rpgmOverride = rpgm.copy(vsync = it)
-                            }
-                            OverrideSwitch(stringResource(R.string.engine_settings_rpgm_frame_skip), globalRpg.frameSkip, rpgm.frameSkip) {
-                                rpgmOverride = rpgm.copy(frameSkip = it)
-                            }
-                            OverrideSwitch(stringResource(R.string.engine_settings_rpgm_solid_fonts), globalRpg.solidFonts, rpgm.solidFonts) {
-                                rpgmOverride = rpgm.copy(solidFonts = it)
-                            }
-                            OverrideChoice(
-                                stringResource(R.string.engine_settings_rpgm_window_size),
-                                rpgWindowMap,
-                                globalRpg.windowSize,
-                                rpgm.windowSize,
-                            ) { rpgmOverride = rpgm.copy(windowSize = it) }
-                            OverrideChoice(
-                                stringResource(R.string.engine_settings_rpgm_speed_up),
-                                rpgSpeedUpMap,
-                                globalRpg.speedUp,
-                                rpgm.speedUp,
-                            ) { rpgmOverride = rpgm.copy(speedUp = it) }
-                            OverrideChoice(
-                                stringResource(R.string.engine_settings_rpgm_font_scale),
-                                rpgFontScaleMap,
-                                globalRpg.fontScale,
-                                rpgm.fontScale,
-                            ) { rpgmOverride = rpgm.copy(fontScale = it) }
-                            OverrideChoice(
-                                stringResource(R.string.engine_settings_rpgm_vertical_align),
-                                rpgVerticalAlignMap,
-                                globalRpg.verticalScreenAlign,
-                                rpgm.verticalScreenAlign,
-                            ) { rpgmOverride = rpgm.copy(verticalScreenAlign = it) }
-                            // 「跟随全局」必须删除覆盖键（null）；显式空串表示覆盖为默认字体
-                            FontPreference(
-                                label = stringResource(R.string.engine_settings_rpgm_custom_font),
-                                value = rpgm.customFont?.let { path ->
-                                    if (path.isBlank()) {
-                                        stringResource(R.string.engine_settings_rpgm_custom_font_default)
-                                    } else {
-                                        RpgMakerRuntimeEnvironment.customFontFileName(path)
-                                    }
-                                } ?: stringResource(
-                                    R.string.engine_settings_follow_global_font,
-                                    globalRpg.customFont.takeIf { it.isNotBlank() }
-                                        ?.let { RpgMakerRuntimeEnvironment.customFontFileName(it) }
-                                        ?: stringResource(R.string.engine_settings_rpgm_custom_font_default),
-                                ),
-                                followLabel = stringResource(R.string.engine_settings_follow_global),
-                                onFollow = { rpgmOverride = rpgm.copy(customFont = null) },
-                                onPick = { rpgFontLauncher.launch("*/*") },
-                                valueInSummary = true,
-                            )
-                            OverrideSwitch(stringResource(R.string.engine_settings_rpgm_path_cache), globalRpg.pathCache, rpgm.pathCache) {
-                                rpgmOverride = rpgm.copy(pathCache = it)
-                            }
-                            OverrideSwitch(stringResource(R.string.engine_settings_rpgm_prebuilt_path_cache), globalRpg.prebuiltPathCache, rpgm.prebuiltPathCache) {
-                                rpgmOverride = rpgm.copy(prebuiltPathCache = it)
-                            }
-                            OverrideSwitch(stringResource(R.string.engine_settings_rpgm_fast_path_enum), globalRpg.fastPathEnum, rpgm.fastPathEnum) {
-                                rpgmOverride = rpgm.copy(fastPathEnum = it)
-                            }
-                            OverrideSwitch(stringResource(R.string.engine_settings_rpgm_copy_text), globalRpg.copyText, rpgm.copyText) {
-                                rpgmOverride = rpgm.copy(copyText = it)
-                            }
-                            OverrideSwitch(stringResource(R.string.engine_settings_rpgm_cheats), globalRpg.cheats, rpgm.cheats) {
-                                rpgmOverride = rpgm.copy(cheats = it)
-                            }
-                            OverrideSwitch(stringResource(R.string.engine_settings_rpgm_use_cjk_font), globalRpg.useCJKFont, rpgm.useCJKFont) {
-                                rpgmOverride = rpgm.copy(useCJKFont = it)
-                            }
-                            OverrideSwitch(stringResource(R.string.engine_settings_rpgm_postload_scripts), globalRpg.enablePostloadScripts, rpgm.enablePostloadScripts) {
-                                rpgmOverride = rpgm.copy(enablePostloadScripts = it)
-                            }
-                            OverrideSwitch(stringResource(R.string.engine_settings_rpgm_debug), globalRpg.debug, rpgm.debug) {
-                                rpgmOverride = rpgm.copy(debug = it)
                             }
                         }
                     }

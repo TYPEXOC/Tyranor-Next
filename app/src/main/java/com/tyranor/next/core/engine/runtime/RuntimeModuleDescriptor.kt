@@ -1,5 +1,6 @@
 package com.tyranor.next.core.engine.runtime
 
+import com.tyranor.next.core.engine.EngineType
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.Locale
@@ -20,6 +21,7 @@ data class RuntimeModuleDescriptor(
     val scan: RuntimeModuleScanSpec?,
     val enabled: Boolean,
     val capabilities: Set<String> = emptySet(),
+    val overrideEngines: Set<EngineType> = emptySet(),
 ) {
     companion object {
         /** 解析模块描述文件 JSON，只返回描述文件能声明的字段。 */
@@ -48,6 +50,7 @@ data class RuntimeModuleManifest(
     val label: String?,
     val scan: RuntimeModuleScanSpec?,
     val capabilities: Set<String> = emptySet(),
+    val overrideEngines: Set<EngineType> = emptySet(),
 ) {
     companion object {
         fun parse(json: String?): RuntimeModuleManifest? = RuntimeModuleManifestParser.parse(json)
@@ -119,6 +122,7 @@ object RuntimeModuleManifestParser {
             label = (root.opt("label") as? String)?.trim()?.takeIf { it.isNotEmpty() },
             scan = parseScan(root.opt("scan")),
             capabilities = parseCapabilities(root.optJSONArray("capabilities")),
+            overrideEngines = parseOverrideEngines(root.optJSONArray("overrideEngines")),
         )
     }
 
@@ -159,6 +163,19 @@ object RuntimeModuleManifestParser {
         return result
     }
 
+    private fun parseOverrideEngines(array: JSONArray?): Set<EngineType> {
+        if (array == null) return emptySet()
+        val result = LinkedHashSet<EngineType>()
+        for (index in 0 until array.length()) {
+            if (result.size >= RuntimeModulePatterns.MAX_OVERRIDE_ENGINES) break
+            val raw = array.opt(index) as? String ?: continue
+            val engine = EngineType.values().firstOrNull { it.name == raw.trim().uppercase(Locale.ROOT) }
+                ?: continue
+            if (engine in RuntimeModulePatterns.OVERRIDEABLE_ENGINES) result += engine
+        }
+        return result
+    }
+
     private fun parseExtensions(array: JSONArray?): List<String> {
         if (array == null) return emptyList()
         val result = LinkedHashSet<String>()
@@ -192,7 +209,9 @@ internal object RuntimeModulePatterns {
     const val MAX_MARKERS = 64
     const val MAX_MARKER_LENGTH = 256
     const val MAX_CAPABILITIES = 16
+    const val MAX_OVERRIDE_ENGINES = 16
     val CAPABILITY = Regex("^[a-z][a-z0-9._-]{0,47}$")
+    val OVERRIDEABLE_ENGINES = setOf(EngineType.RPGMAKER, EngineType.RENPY, EngineType.RUFFLE)
 
     private val WINDOWS_DRIVE = Regex("^[A-Za-z]:")
 

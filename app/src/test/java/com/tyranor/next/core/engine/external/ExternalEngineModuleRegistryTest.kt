@@ -54,8 +54,8 @@ class ExternalEngineModuleRegistryTest {
         )
         assertSame(RenPyExternalEngineModule, ExternalEngineModuleRegistry.resolveModule(EngineType.RENPY, null))
         assertSame(RenPyExternalEngineModule, ExternalEngineModuleRegistry.resolveModule(EngineType.RENPY, "unknown"))
-        // 其余引擎返回其唯一模块，忽略版本
-        assertSame(RpgMakerExternalEngineModule, ExternalEngineModuleRegistry.resolveModule(EngineType.RPGMAKER, EngineSettingsStore.RENPY_77))
+        // RGSS 已由 TYN 运行时模块承载，不再注册为 JoiPlay 外置模块。
+        assertNull(ExternalEngineModuleRegistry.resolveModule(EngineType.RPGMAKER, EngineSettingsStore.RENPY_77))
         assertNull(ExternalEngineModuleRegistry.resolveModule(EngineType.KIRIKIRI))
     }
 
@@ -83,17 +83,10 @@ class ExternalEngineModuleRegistryTest {
     }
 
     @Test
-    fun resolvesRpgMakerByEngineAndAliases() {
-        assertSame(RpgMakerExternalEngineModule, ExternalEngineModuleRegistry.moduleForEngine(EngineType.RPGMAKER))
-        assertSame(RpgMakerExternalEngineModule, ExternalEngineModuleRegistry.moduleForAlias("internal.rpgmaker"))
-        assertSame(RpgMakerExternalEngineModule, ExternalEngineModuleRegistry.moduleForAlias("internal.rpgmxp"))
-        assertSame(RpgMakerExternalEngineModule, ExternalEngineModuleRegistry.moduleForAlias("internal.rpgmvx"))
-        assertSame(RpgMakerExternalEngineModule, ExternalEngineModuleRegistry.moduleForAlias("internal.rpgmvxace"))
-        assertSame(RpgMakerExternalEngineModule, ExternalEngineModuleRegistry.moduleForAlias("internal.mkxp-z"))
-        assertSame(RpgMakerExternalEngineModule, ExternalEngineModuleRegistry.moduleForAlias(RpgMakerExternalEngineModule.packageName))
-        assertTrue(ExternalEngineModuleRegistry.isExternalEngine(EngineType.RPGMAKER))
-        assertTrue(RpgMakerExternalEngineModule.installUrl.orEmpty().endsWith("/RPGM-Plugin.apk"))
-        assertFalse(RpgMakerExternalEngineModule.launchEntryIsFile)
+    fun rpgMakerRgssIsNotRegisteredAsAnExternalJoiPlayModule() {
+        assertNull(ExternalEngineModuleRegistry.moduleForEngine(EngineType.RPGMAKER))
+        assertNull(ExternalEngineModuleRegistry.moduleForAlias("internal.rpgmxp"))
+        assertFalse(ExternalEngineModuleRegistry.isExternalEngine(EngineType.RPGMAKER))
     }
 
     @Test

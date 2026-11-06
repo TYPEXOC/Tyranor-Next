@@ -460,7 +460,7 @@ object EngineSettingsStore {
     private const val KEY_WINLATOR_LEGACY_CLEANED = "winlator_legacy_clean_version"
     private const val WINLATOR_LEGACY_CLEAN_VERSION = 3
 
-    // RPG Maker RGSS 外置模块取值域（对齐 JoiPlay utilities/f.java；verticalAlign 对齐插件默认）
+    // 旧版 RGSS 外置模块偏好取值域；保留用于读取历史设置，新 TYN RGSS 模块不消费这些字段。
     const val RPG_WINDOW_SIZE_DEFAULT = "640x480"
     const val RPG_SPEED_UP_DEFAULT = "1"
     const val RPG_FONT_SCALE_DEFAULT = "0.75"
@@ -1012,12 +1012,10 @@ object EngineSettingsStore {
         else -> RPG_MZ_V0
     }
 
-    // ---------- RPG Maker RGSS 外置模块 ----------
+    // ---------- 旧版 RPG Maker RGSS 外置模块偏好 ----------
 
     /**
-     * RGSS/mkxp 外置模块的 rpg 配置节。默认值对齐 JoiPlay `SettingsFactory.loadDefault`：
-     * useRuby18/smoothScaling/prebuiltPathCache/cheats 默认开，其余默认关。
-     * 仅保留 RPGM 插件 `MKXPConfigurationParser` 实际解析的键。
+     * 保留历史 RGSS/mkxp 设置以兼容已存配置；TYN RGSS 使用自身运行时默认值，不接收此配置。
      */
     data class RpgMaker(
         var useRuby18: Boolean = true,

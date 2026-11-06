@@ -983,9 +983,8 @@ object EngineScanner {
     }
 
     /**
-     * 第三方运行时模块的弱结果分流：内置强特征（KRKR / ONS / RPGM / Ren'Py 等）不被覆盖，
-     * 只有 [EngineType.UNKNOWN] 与 [EngineType.WEB_OTHER] 才尝试模块声明的扫描特征。
-     * 命中时统一以 [EngineType.RUNTIME_MODULE] + 文件夹路径启动，并记录模块包名。
+     * 运行时模块优先接管未知结果；对强特征引擎，仅尝试模块清单通过 `overrideEngines`
+     * 明确声明的类型。命中后保留内置识别出的子引擎别名，再以模块包名交棒。
      */
     private fun applyRuntimeModules(
         builtIn: Detection,
@@ -994,14 +993,20 @@ object EngineScanner {
         runtimeModules: RuntimeModuleIndex,
     ): Detection {
         if (runtimeModules.modules.isEmpty()) return builtIn
-        if (builtIn.engine != EngineType.UNKNOWN && builtIn.engine != EngineType.WEB_OTHER) return builtIn
+        val weakResult = builtIn.engine == EngineType.UNKNOWN || builtIn.engine == EngineType.WEB_OTHER
         // 主机 ROM / 散装 SWF 目录必须交给 romGamesForSaf/File 逐文件入库，不能被模块扩展名吞掉。
         if (entries.any { !it.isDirectory && romEngineOf(it.name) != null }) return builtIn
-        val module = runtimeModules.match(entries, childrenOf) ?: return builtIn
+        val module = if (weakResult) {
+            runtimeModules.match(entries, childrenOf)
+        } else {
+            runtimeModules.matchOverride(builtIn.engine, entries, childrenOf)
+        } ?: return builtIn
         return Detection(
             engine = EngineType.RUNTIME_MODULE,
             confidence = 80,
             launchTarget = LAUNCH_TARGET_GAME_DIR,
+            externalModuleAlias = builtIn.externalModuleAlias,
+            titleHint = builtIn.titleHint,
             runtimeModulePackage = module.packageName,
         )
     }

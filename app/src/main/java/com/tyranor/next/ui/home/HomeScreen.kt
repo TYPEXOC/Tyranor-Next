@@ -63,6 +63,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.tyranor.next.R
 import com.tyranor.next.core.engine.EngineType
+import com.tyranor.next.core.engine.runtime.RuntimeModuleContract
+import com.tyranor.next.core.engine.runtime.RuntimeModuleRegistry
 import com.tyranor.next.core.game.launch.EngineLauncher
 import com.tyranor.next.core.game.model.ScanGame
 import com.tyranor.next.core.game.save.RpgSaveFormat
@@ -575,11 +577,20 @@ private fun QuickLaunchCard(
             .background(QuickLaunchFallback)
             .glassBorder(),
     ) {
+        val runtimeModules by RuntimeModuleRegistry.state.collectAsState()
+        val runtimeModuleLabel = runtimeModules.modules
+            .firstOrNull { it.packageName == game.runtimeModulePackage }
+            ?.label
         val engineName = when (game.engine) {
             EngineType.UNKNOWN -> stringResource(R.string.engine_name_unknown)
             // 卡片用短名「Switch」，避免「Nintendo Switch」过长
             EngineType.NINTENDO_SWITCH -> stringResource(R.string.engine_name_switch)
-            EngineType.RUNTIME_MODULE -> stringResource(R.string.engine_name_runtime_module)
+            EngineType.RUNTIME_MODULE -> runtimeModuleLabel?.takeIf { it.isNotBlank() }
+                ?: if (game.runtimeModulePackage == RuntimeModuleContract.TYN_RGSS_PACKAGE_NAME) {
+                    stringResource(R.string.engine_name_tyn_rgss)
+                } else {
+                    stringResource(R.string.engine_name_runtime_module)
+                }
             else -> game.engine.displayName
         }
         val cardMaxWidth = maxWidth

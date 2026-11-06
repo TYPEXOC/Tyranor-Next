@@ -13,8 +13,8 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 
 /**
- * 扫描器接入第三方运行时模块：只覆盖 UNKNOWN / WEB_OTHER 弱结果，
- * KRKR 等强特征不被抢走；空索引/未命中保持内置识别结果。
+ * 扫描器接入第三方运行时模块：默认只覆盖 UNKNOWN / WEB_OTHER 弱结果，
+ * 强特征仅允许清单声明的引擎类型被接管；空索引/未命中保持内置识别结果。
  */
 class EngineScannerRuntimeModuleTest {
 

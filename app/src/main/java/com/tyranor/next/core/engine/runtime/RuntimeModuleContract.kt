@@ -13,6 +13,9 @@ object RuntimeModuleContract {
     /** 模块包名命名约定；不是安全边界。 */
     const val PACKAGE_PREFIX = "com.tyranor.runtime."
 
+    /** 当前由 TYN 自行构建的 RGSS 运行时模块包名。 */
+    const val TYN_RGSS_PACKAGE_NAME = "com.tyranor.runtime.rgss"
+
     /** Activity meta-data：指向模块 `res/raw/` 下的扫描描述资源。 */
     const val META_MANIFEST = "com.tyranor.runtime.MANIFEST"
 

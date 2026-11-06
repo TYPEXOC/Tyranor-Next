@@ -49,7 +49,7 @@
 | Ethornell / BGI | BGI 特征与资源组合 | 内置实验宿主，见第 10 节 |
 | Tyrano / VN / WebOther | `tyrano/`、`globalData.vndata`、HTML 等 | 内置 Web 壳 |
 | RPG Maker MV / MZ | `rpg_core.js` / `rmmz_core.js`、`www/` 等 | 内置 Web 运行环境，支持适用的 Asar 包 |
-| RPG Maker RGSS | XP/VX/VX Ace 资源或 mkxp-z 模块选择 | 外置 RPGM APK 模块 |
+| RPG Maker RGSS | XP/VX/VX Ace 资源 | 启用且扫描命中的 TYN RGSS 运行时模块；未启用或未扫描时提示启用并重新扫描 |
 | Ren'Py | `.rpa`、`.rpy/.rpyc` 等组合 | 外置 Ren'Py APK；自动或指定 8.5 / 7.7.1 |
 | Ruffle / Flash | 顶层 `.swf`；根 `index.html/index.htm` + 唯一 SWF 的叶子目录 | 外置 Ruffle APK；一 SWF 一条记录 |
 | 第三方运行时模块 | 已安装的 `com.tyranor.runtime.*` APK + 模块 `res/raw` 扫描描述 | 显式组件交棒游戏文件夹，模块自行运行 |
@@ -76,9 +76,9 @@ Ruffle（SWF / Flash）由外置 Ruffle APK 模块承载，当前扫描与启动
 来源：`core/engine/runtime/`、`ui/runtime/`。
 
 - **发现**：Manifest `<queries>` 声明 `com.tyranor.runtime.action.LAUNCH`（含 `CATEGORY_DEFAULT`），主 App 按 action 查询可见应用并只保留包名前缀 `com.tyranor.runtime.`；不申请 `QUERY_ALL_PACKAGES`，也不校验签名、版本或包内容。一个包只取一个入口 Activity：优先带 `com.tyranor.runtime.MANIFEST` meta-data 的，否则按 Activity 名排序取第一个。
-- **启用默认关**：发现结果只用于侧边栏「妙妙工具 → 引擎模块管理」列表与模块名展示，不写入扫描索引或游戏库；开关默认关闭。游戏库卡片对这类游戏统一显示「Plugin」，不显示模块名。启用只把包名写入 `AppSettingsStore.KEY_RUNTIME_MODULE_ENABLED`（StringSet，默认空集），不触发扫描、不立即写库。同包名更新/重装保留开关；包名变更视为新模块，默认关闭。
-- **扫描描述与模块能力**：模块可选提供 `res/raw/tyranor_runtime.json`，声明扫描特征 `extensions` / `markers` / `match`（`any` 或 `all`），并可用 `capabilities` 声明功能（当前识别 `translation`）。扫描描述是自动扫描的唯一特征来源，主 App 不根据包名、应用名、图标或内置第三方特征库猜测，也不执行模块代码；扩展名只匹配目录直接子文件，marker 支持直接子项与单层路径（如 `data/*.pak`），不递归。描述缺失、读取/解析失败或没有有效扫描模式时只关闭该模块的自动扫描能力，模块仍可被发现、启用和启动。
-- **扫描接入**：扫描开始时快照「已发现 + 已启用 + 有扫描描述」的模块；仅当内置识别结果为 `UNKNOWN` 或 `WEB_OTHER` 时才尝试模块匹配，KRKR / ONS / RPGM / Ren'Py 等强特征结果不被覆盖。多模块命中按「`all` 优先于 `any` → marker 数量多 → 包名」选择；重扫对同一 URI 优先保留旧绑定，扫描深度沿用现有上限。
+- **启用默认关**：发现结果用于侧边栏「妙妙工具 → 引擎模块管理」及模块名展示；开关默认关闭。启用只把包名写入 `AppSettingsStore.KEY_RUNTIME_MODULE_ENABLED`（StringSet，默认空集），不触发扫描、不立即写库；启用后需要重新扫描游戏库。同包名更新/重装保留开关；包名变更视为新模块，默认关闭。模块卡片显示 APK 应用图标，点图标或模块名打开模块自己的说明页；游戏库与首页卡片显示实际模块名，TYN RGSS 的封面引擎角标显示「RGSS」。
+- **扫描描述与模块能力**：模块可选提供 `res/raw/tyranor_runtime.json`，声明扫描特征 `extensions` / `markers` / `match`（`any` 或 `all`），并可用 `capabilities` 声明功能（当前识别 `translation`）。可选 `overrideEngines` 仅允许受支持的外部引擎类型；未声明时扫描描述只接管 `UNKNOWN` / `WEB_OTHER` 弱结果。扫描描述是自动扫描的唯一特征来源，主 App 不根据包名、应用名、图标或第三方库猜测，也不执行模块代码；扩展名只匹配目录直接子文件，marker 支持直接子项与单层路径（如 `data/*.pak`），不递归。描述缺失、读取/解析失败或没有有效扫描模式时只关闭该模块的自动扫描能力，模块仍可被发现、启用和启动。
+- **扫描接入**：扫描开始时快照「已发现 + 已启用 + 有扫描描述」的模块；模块先按特征匹配内置弱结果，只有通过 `overrideEngines` 明确声明的类型才可覆盖强特征。TYN RGSS 声明接管 `RPGMAKER`，因此启用后 XP/VX/VX Ace 游戏在重扫命中其 marker 时走 TYN RGSS；模块未启用或未命中时仍保留 RPG Maker RGSS 识别，但启动会提示启用 TYN RGSS 并重新扫描。其他 KRKR / ONS / Ren'Py 强特征不会被覆盖。多模块命中按「`all` 优先于 `any` → marker 数量多 → 包名」选择；重扫对同一 URI 优先保留旧绑定，扫描深度沿用现有上限。
 - **唯一入库入口**：扫描是第三方运行时游戏唯一入库入口；管理页、添加游戏对话框和游戏页均不提供手动添加、模块选择、目录导入或拖入，也不提供手动绑定/重绑或模块缺失修复页。
 - **绑定与降级**：`ScanGame.runtimeModulePackage`（Room `games.runtime_module_package`，v3）记录「游戏 → 模块包名」；模块卸载、禁用、入口不再可发现或包名为空时，绑定游戏降级为 `EngineType.UNKNOWN`，但保留最后已知包名（用于重扫合并，不作为启动依据），保留标题、封面与最近时间。发现查询失败不降级。重新安装/启用后重新扫描可恢复，不支持自动或手动改绑。
 - **启动交棒**：`EngineType.RUNTIME_MODULE` 由 `RuntimeModuleLauncher` 以显式 `ComponentName` 启动，传当前游戏文件夹绝对路径、标题、游戏标识、协议版本与当前强调色。仅对声明 `translation` 能力且用户已选择翻译文件的模块，附加只读 content URI；若虚拟按键启用，则附加按键方案 content URI 并授予临时读写权限。URI 同时放入 `ClipData` 以确保 Android 跨应用授权生效；未选择翻译或禁用按键时不传对应 URI。仍不传 `game` / `settings` JSON。`Dispatched` 只表示 Intent 已交棒，不保证模块进入游戏或未崩溃；模块缺失、未启用、入口缺失、路径无法解析、安全拒绝与其它异常返回类型化结果。模块缺失或未启用（存在绑定包名时）会触发该游戏降级；路径无法解析时不请求「所有文件访问」，存储权限由模块自行负责。

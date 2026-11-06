@@ -118,6 +118,7 @@ import com.tyranor.next.core.engine.external.EmulatorLaunchStyle
 import com.tyranor.next.core.engine.external.ExternalEmulatorRegistry
 import com.tyranor.next.core.engine.external.ExternalEngineModuleRegistry
 import com.tyranor.next.core.engine.runtime.RuntimeModuleCapabilities
+import com.tyranor.next.core.engine.runtime.RuntimeModuleContract
 import com.tyranor.next.core.engine.runtime.RuntimeModuleRegistry
 import com.tyranor.next.core.game.save.GameSaveManager
 import com.tyranor.next.core.game.save.RpgSaveFormat
@@ -2159,12 +2160,20 @@ internal fun GameCard(
     /** 左上角引擎类型角标（应用设置「卡片引擎角标」，默认关）。 */
     showEngineBadge: Boolean = false,
 ) {
+    val runtimeModules by RuntimeModuleRegistry.state.collectAsState()
+    val runtimeModuleLabel = runtimeModules.modules
+        .firstOrNull { it.packageName == game.runtimeModulePackage }
+        ?.label
     val engineName = when (game.engine) {
         EngineType.UNKNOWN -> stringResource(R.string.engine_name_unknown)
         // 无封面占位卡用短名「Switch」，避免「Nintendo Switch」过长
         EngineType.NINTENDO_SWITCH -> stringResource(R.string.engine_name_switch)
-        // 第三方运行时游戏在游戏库中统一用 Plugin 表示引擎；模块名只在「引擎模块管理」页展示。
-        EngineType.RUNTIME_MODULE -> stringResource(R.string.engine_name_runtime_module)
+        EngineType.RUNTIME_MODULE -> runtimeModuleLabel?.takeIf { it.isNotBlank() }
+            ?: if (game.runtimeModulePackage == RuntimeModuleContract.TYN_RGSS_PACKAGE_NAME) {
+                stringResource(R.string.engine_name_tyn_rgss)
+            } else {
+                stringResource(R.string.engine_name_runtime_module)
+            }
         else -> game.engine.displayName
     }
     val coverBitmap by rememberCoverBitmap(game.coverUri, isScrolling)
@@ -2221,7 +2230,9 @@ internal fun GameCard(
                 // 左上角引擎类型角标：开关开启且实际渲染封面的卡片才显示（无封面占位卡不显示）；
                 // 尺寸为标注规格（labelSmall 11sp + 边距减半，AGENTS.md 明文豁免）
                 if (showEngineBadge) Text(
-                    game.engine.abbr,
+                    if (game.engine == EngineType.RUNTIME_MODULE &&
+                        game.runtimeModulePackage == RuntimeModuleContract.TYN_RGSS_PACKAGE_NAME
+                    ) stringResource(R.string.engine_badge_tyn_rgss) else game.engine.abbr,
                     style = MaterialTheme.typography.labelSmall,
                     // 角标样式固定（半透明黑底 + 白字，见 theme/Color.kt），不随主题色变化
                     color = CoverBadgeText,

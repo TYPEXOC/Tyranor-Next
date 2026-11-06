@@ -90,6 +90,7 @@ object RuntimeModuleDiscovery {
             scan = manifest?.scan,
             enabled = false,
             capabilities = manifest?.capabilities.orEmpty(),
+            overrideEngines = manifest?.overrideEngines.orEmpty(),
         )
     }
 
