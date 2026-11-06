@@ -52,7 +52,11 @@ object RuntimeModuleLauncher {
         if (module.packageName.isBlank() || module.activityName.isBlank()) return RuntimeModuleLaunchResult.EntryMissing
         if (folderPath.isBlank()) return RuntimeModuleLaunchResult.PathUnresolved
 
-        val translationUri = selectedTranslationUri(context, game, folderPath)
+        val translationUri = if (RuntimeModuleCapabilities.TRANSLATION in module.capabilities) {
+            selectedTranslationUri(context, game, folderPath)
+        } else {
+            null
+        }
         val input = InputConfigStore.resolve(context, game.uri, engineDefaultsEnabled = true)
         val profileUri = if (input.padEnabled) selectedPadProfileUri(context, input.profileId) else null
         val theme = ThemeColorPayloadStore.current ?: ThemeColorPayload.DEFAULT

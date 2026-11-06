@@ -117,6 +117,8 @@ import com.tyranor.next.core.engine.EngineType
 import com.tyranor.next.core.engine.external.EmulatorLaunchStyle
 import com.tyranor.next.core.engine.external.ExternalEmulatorRegistry
 import com.tyranor.next.core.engine.external.ExternalEngineModuleRegistry
+import com.tyranor.next.core.engine.runtime.RuntimeModuleCapabilities
+import com.tyranor.next.core.engine.runtime.RuntimeModuleRegistry
 import com.tyranor.next.core.game.save.GameSaveManager
 import com.tyranor.next.core.game.save.RpgSaveFormat
 import com.tyranor.next.core.game.save.sync.SaveSyncService
@@ -678,6 +680,7 @@ internal fun GameActionsSheet(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val runtimeModules by RuntimeModuleRegistry.state.collectAsState()
     var launchError by remember(game.uri) { mutableStateOf<LaunchErrorState?>(null) }
     var showCoverSettingsDialog by rememberSaveable(game.uri) { mutableStateOf(false) }
     var showCoverSearchDialog by rememberSaveable(game.uri) { mutableStateOf(false) }
@@ -687,16 +690,23 @@ internal fun GameActionsSheet(
     var showLaunchFilePicker by rememberSaveable(game.uri) { mutableStateOf(false) }
     var showRenameDialog by rememberSaveable(game.uri) { mutableStateOf(false) }
     var showTranslationDialog by rememberSaveable(game.uri) { mutableStateOf(false) }
-    // 选中的翻译文件名（仅 RPG MV/MZ 提供选择）：null=未选择（不翻译，保持原文）
+    // 选中的翻译文件名：null=未选择（不翻译，保持原文）
     var translationFile by remember(game.uri) {
         mutableStateOf(EngineLauncher.selectedTranslationLanguage(context, game))
     }
     // 可用译表文件后台枚举（文件 IO 含译表格式校验，避免阻塞组合）；抽屉打开时扫描一次
     var translationFiles by remember(game.uri) { mutableStateOf<List<File>?>(null) }
     val isMvMz = game.engine == EngineType.RPG_MV || game.engine == EngineType.RPG_MZ
+    val supportsRuntimeTranslation = game.engine == EngineType.RUNTIME_MODULE &&
+        runtimeModules.modules.any { module ->
+            module.enabled &&
+                module.packageName == game.runtimeModulePackage &&
+                RuntimeModuleCapabilities.TRANSLATION in module.capabilities
+        }
+    val hasTranslationSelector = isMvMz || supportsRuntimeTranslation
     val translationFileSelected = !translationFile.isNullOrBlank()
-    LaunchedEffect(game.uri) {
-        if (!isMvMz) return@LaunchedEffect
+    LaunchedEffect(game.uri, hasTranslationSelector) {
+        if (!hasTranslationSelector) return@LaunchedEffect
         // 选定译表文件已被删除时清掉失效引用：直接验证文件存在性，不依赖下方扫描结果（扫描为空可能是权限问题）
         val selected = translationFile
         if (selected != null && withContext(Dispatchers.IO) { !EngineLauncher.hasTranslationFile(context, game, selected) }) {
@@ -1069,7 +1079,7 @@ internal fun GameActionsSheet(
                                 onClick = { showRenameDialog = true },
                             ),
                         )
-                        if (isMvMz) {
+                        if (hasTranslationSelector) {
                             add(
                                 DrawerAction(
                                     key = "translation",

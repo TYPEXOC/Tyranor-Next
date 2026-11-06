@@ -49,3 +49,8 @@ object RuntimeModuleContract {
     /** 当前主 App 支持的协议版本。 */
     const val PROTOCOL_VERSION = 1
 }
+
+/** 可选运行能力；模块在 `tyranor_runtime.json` 的 `capabilities` 中声明。 */
+object RuntimeModuleCapabilities {
+    const val TRANSLATION = "translation"
+}
