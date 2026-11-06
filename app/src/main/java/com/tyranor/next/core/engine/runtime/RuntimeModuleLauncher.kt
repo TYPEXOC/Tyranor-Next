@@ -1,10 +1,17 @@
 package com.tyranor.next.core.engine.runtime
 
 import android.content.ActivityNotFoundException
+import android.content.ClipData
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import androidx.core.content.FileProvider
+import com.core.input.InputConfigStore
+import com.core.engine.TranslationTable
 import com.tyranor.next.core.game.model.ScanGame
+import com.tyranor.next.core.settings.PerGameSettingsStore
+import com.tyranor.next.core.theme.ThemeColorPayload
+import com.tyranor.next.core.theme.ThemeColorPayloadStore
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
@@ -29,9 +36,9 @@ sealed interface RuntimeModuleLaunchResult {
 }
 
 /**
- * 通过显式组件把游戏文件夹绝对路径交给第三方运行时模块。
+ * 通过显式组件把游戏文件夹和用户主动选择的运行资源交给第三方运行时模块。
  *
- * 只传当前游戏文件夹，不传扫描根、其它游戏或主 App 私有目录；不添加 URI 读写授权 flag（v1 只传路径）。
+ * URI 只指向当前游戏的已选译表和生效按键方案，授权随本次启动交接；不会共享扫描根或其它游戏。
  */
 object RuntimeModuleLauncher {
 
@@ -45,12 +52,33 @@ object RuntimeModuleLauncher {
         if (module.packageName.isBlank() || module.activityName.isBlank()) return RuntimeModuleLaunchResult.EntryMissing
         if (folderPath.isBlank()) return RuntimeModuleLaunchResult.PathUnresolved
 
+        val translationUri = selectedTranslationUri(context, game, folderPath)
+        val input = InputConfigStore.resolve(context, game.uri, engineDefaultsEnabled = true)
+        val profileUri = if (input.padEnabled) selectedPadProfileUri(context, input.profileId) else null
+        val theme = ThemeColorPayloadStore.current ?: ThemeColorPayload.DEFAULT
+
         val intent = Intent(RuntimeModuleContract.ACTION_LAUNCH).apply {
             component = ComponentName(module.packageName, module.activityName)
             putExtra(RuntimeModuleContract.EXTRA_FOLDER_PATH, folderPath)
             putExtra(RuntimeModuleContract.EXTRA_GAME_TITLE, game.title)
+            putExtra(RuntimeModuleContract.EXTRA_GAME_ID, game.uri)
             putExtra(RuntimeModuleContract.EXTRA_PROTOCOL_VERSION, RuntimeModuleContract.PROTOCOL_VERSION)
+            putExtra(RuntimeModuleContract.EXTRA_PAD_ENABLED, input.padEnabled)
+            putExtra(RuntimeModuleContract.EXTRA_PAD_PROFILE_ID, input.profileId)
+            putExtra(RuntimeModuleContract.EXTRA_THEME_PRIMARY_COLOR, theme.primaryArgb)
+            putExtra(RuntimeModuleContract.EXTRA_THEME_ON_PRIMARY_COLOR, theme.onPrimaryArgb)
+            translationUri?.let { putExtra(RuntimeModuleContract.EXTRA_TRANSLATION_URI, it.toString()) }
+            profileUri?.let { putExtra(RuntimeModuleContract.EXTRA_PAD_PROFILE_URI, it.toString()) }
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            if (translationUri != null) addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            if (profileUri != null) {
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+            }
+            val grantedUris = listOfNotNull(translationUri, profileUri)
+            if (grantedUris.isNotEmpty()) {
+                clipData = ClipData.newUri(context.contentResolver, "Tyranor runtime resources", grantedUris.first())
+                grantedUris.drop(1).forEach { clipData?.addItem(ClipData.Item(it)) }
+            }
         }
 
         return try {
@@ -66,4 +94,22 @@ object RuntimeModuleLauncher {
             RuntimeModuleLaunchResult.StartFailed(e.message)
         }
     }
+
+    private fun selectedTranslationUri(context: Context, game: ScanGame, folderPath: String) = runCatching {
+        val fileName = PerGameSettingsStore.getStr(
+            context,
+            game.uri,
+            PerGameSettingsStore.F_TRANSLATION_LANGUAGE,
+        )?.takeIf(String::isNotBlank) ?: return null
+        val file = TranslationTable.resolveTranslationFile(context, game.uri, folderPath, fileName)
+            ?.takeIf { TranslationTable.readMapText(it) != null } ?: return null
+        FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+    }.getOrNull()
+
+    private fun selectedPadProfileUri(context: Context, profileId: String) = runCatching {
+        val profile = InputConfigStore.readProfileOrBuiltin(context, profileId)
+        val file = InputConfigStore.profileFile(context, profile.id)
+        if (!file.isFile && !InputConfigStore.writeProfile(context, profile)) return null
+        FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+    }.getOrNull()
 }

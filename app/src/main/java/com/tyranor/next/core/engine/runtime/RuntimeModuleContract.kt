@@ -25,6 +25,27 @@ object RuntimeModuleContract {
     /** 启动 extra：主 App 协议版本。 */
     const val EXTRA_PROTOCOL_VERSION = "com.tyranor.runtime.extra.PROTOCOL_VERSION"
 
+    /** 可选 extra：稳定游戏标识，供模块隔离单游戏状态。 */
+    const val EXTRA_GAME_ID = "com.tyranor.runtime.extra.GAME_ID"
+
+    /** 可选 extra：已选翻译文件的 content URI；模块获临时读取授权。 */
+    const val EXTRA_TRANSLATION_URI = "com.tyranor.runtime.extra.TRANSLATION_URI"
+
+    /** 可选 extra：虚拟按键是否启用。 */
+    const val EXTRA_PAD_ENABLED = "com.tyranor.runtime.extra.PAD_ENABLED"
+
+    /** 可选 extra：按键方案的 content URI；模块获临时读写授权。 */
+    const val EXTRA_PAD_PROFILE_URI = "com.tyranor.runtime.extra.PAD_PROFILE_URI"
+
+    /** 可选 extra：当前生效的按键方案 id。 */
+    const val EXTRA_PAD_PROFILE_ID = "com.tyranor.runtime.extra.PAD_PROFILE_ID"
+
+    /** 可选 extra：TYN 当前主题强调色，用于模块内控件与按键层。 */
+    const val EXTRA_THEME_PRIMARY_COLOR = "com.tyranor.runtime.extra.THEME_PRIMARY_COLOR"
+
+    /** 可选 extra：主题强调色上的文字颜色。 */
+    const val EXTRA_THEME_ON_PRIMARY_COLOR = "com.tyranor.runtime.extra.THEME_ON_PRIMARY_COLOR"
+
     /** 当前主 App 支持的协议版本。 */
     const val PROTOCOL_VERSION = 1
 }
