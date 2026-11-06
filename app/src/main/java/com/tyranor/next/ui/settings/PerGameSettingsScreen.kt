@@ -727,6 +727,16 @@ fun PerGameSettingsScreen(game: ScanGame) {
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 when (game.engine) {
+                    EngineType.RPGMAKER -> item {
+                        SectionCard(game.engine.displayName) {
+                            Text(
+                                stringResource(R.string.launch_rpgmaker_runtime_required),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                            )
+                        }
+                    }
 	                    EngineType.KIRIKIRI -> {
                         // SD 卡镜像强制接管存档路径：独立存档开关不生效，置灰并显示引导；
                         // 镜像判定加载完成前保持禁用，避免首帧误判为机内存储
