@@ -60,6 +60,7 @@ import com.tyranor.next.core.settings.EngineSettingsStore
 import com.tyranor.next.core.settings.EffectiveEngineSettings
 import com.tyranor.next.core.settings.PerGameSettingsStore
 import com.tyranor.next.core.settings.RenPyOverride
+import com.tyranor.next.core.settings.RpgMakerOverride
 import com.tyranor.next.core.settings.RuffleOverride
 import com.tyranor.next.core.settings.WinlatorOverride
 import com.tyranor.next.theme.PageTextColor
@@ -205,6 +206,13 @@ fun PerGameSettingsScreen(game: ScanGame) {
     var rpgMzVersion by remember { mutableStateOf(PerGameSettingsStore.getStr(ctx, gid, PerGameSettingsStore.F_RPG_MZ_VERSION)) }
     var rgssRubyRuntimeOverride by remember(gid) {
         mutableStateOf(PerGameSettingsStore.getStr(ctx, gid, PerGameSettingsStore.F_RPG_RUBY_RUNTIME))
+    }
+    val globalRgssSettings = remember { EngineSettingsStore.loadRpgMaker(ctx) }
+    var rgssSettingsOverride by remember(gid) {
+        mutableStateOf(
+            PerGameSettingsStore.toRpgMakerOverride(PerGameSettingsStore.load(ctx, gid))
+                ?: RpgMakerOverride(),
+        )
     }
     // 输入重映射：虚拟按键 / 手柄映射（null=跟随全局）
     var inputPadEnabled by remember {
@@ -617,6 +625,13 @@ fun PerGameSettingsScreen(game: ScanGame) {
         PerGameSettingsStore.setStr(ctx, gid, PerGameSettingsStore.F_RPG_MZ_VERSION, rpgMzVersion)
         if (game.runtimeModulePackage == RuntimeModuleContract.TYN_RGSS_PACKAGE_NAME) {
             PerGameSettingsStore.setStr(ctx, gid, PerGameSettingsStore.F_RPG_RUBY_RUNTIME, rgssRubyRuntimeOverride)
+            PerGameSettingsStore.setBool(ctx, gid, PerGameSettingsStore.F_RPG_SMOOTH_SCALING, rgssSettingsOverride.smoothScaling)
+            PerGameSettingsStore.setBool(ctx, gid, PerGameSettingsStore.F_RPG_VSYNC, rgssSettingsOverride.vsync)
+            PerGameSettingsStore.setBool(ctx, gid, PerGameSettingsStore.F_RPG_FRAME_SKIP, rgssSettingsOverride.frameSkip)
+            PerGameSettingsStore.setBool(ctx, gid, PerGameSettingsStore.F_RPG_SOLID_FONTS, rgssSettingsOverride.solidFonts)
+            PerGameSettingsStore.setBool(ctx, gid, PerGameSettingsStore.F_RPG_PATH_CACHE, rgssSettingsOverride.pathCache)
+            PerGameSettingsStore.setStr(ctx, gid, PerGameSettingsStore.F_RPG_WINDOW_SIZE, rgssSettingsOverride.windowSize)
+            PerGameSettingsStore.setBool(ctx, gid, PerGameSettingsStore.F_RPG_CHEATS, rgssSettingsOverride.cheats)
         }
         PerGameSettingsStore.setBool(ctx, gid, PerGameSettingsStore.F_INPUT_PAD_ENABLED, inputPadEnabled)
         PerGameSettingsStore.setBool(ctx, gid, PerGameSettingsStore.F_INPUT_GAMEPAD_ENABLED, inputGamepadEnabled)
@@ -1256,6 +1271,56 @@ fun PerGameSettingsScreen(game: ScanGame) {
                                     override = rgssRubyRuntimeOverride,
                                     onSet = { rgssRubyRuntimeOverride = it },
                                 )
+                                val screenSizeLabels = linkedMapOf(
+                                    "auto" to stringResource(R.string.engine_settings_tyn_rgss_screen_auto),
+                                    "512x384" to "512×384",
+                                    "512x768" to "512×768",
+                                    "544x416" to "544×416",
+                                    "640x480" to "640×480",
+                                    "800x600" to "800×600",
+                                    "1024x768" to "1024×768",
+                                    "1280x720" to "1280×720",
+                                    "1280x960" to "1280×960",
+                                    "1920x1080" to "1920×1080",
+                                )
+                                OverrideSwitch(
+                                    stringResource(R.string.engine_settings_tyn_rgss_smooth_scaling),
+                                    globalRgssSettings.smoothScaling,
+                                    rgssSettingsOverride.smoothScaling,
+                                ) { value -> rgssSettingsOverride = rgssSettingsOverride.copy(smoothScaling = value) }
+                                OverrideSwitch(
+                                    stringResource(R.string.engine_settings_tyn_rgss_vsync),
+                                    globalRgssSettings.vsync,
+                                    rgssSettingsOverride.vsync,
+                                ) { value -> rgssSettingsOverride = rgssSettingsOverride.copy(vsync = value) }
+                                OverrideSwitch(
+                                    stringResource(R.string.engine_settings_tyn_rgss_frame_skip),
+                                    globalRgssSettings.frameSkip,
+                                    rgssSettingsOverride.frameSkip,
+                                ) { value -> rgssSettingsOverride = rgssSettingsOverride.copy(frameSkip = value) }
+                                OverrideSwitch(
+                                    stringResource(R.string.engine_settings_tyn_rgss_solid_fonts),
+                                    globalRgssSettings.solidFonts,
+                                    rgssSettingsOverride.solidFonts,
+                                ) { value -> rgssSettingsOverride = rgssSettingsOverride.copy(solidFonts = value) }
+                                OverrideSwitch(
+                                    stringResource(R.string.engine_settings_tyn_rgss_path_cache),
+                                    globalRgssSettings.pathCache,
+                                    rgssSettingsOverride.pathCache,
+                                ) { value -> rgssSettingsOverride = rgssSettingsOverride.copy(pathCache = value) }
+                                OverrideChoice(
+                                    label = stringResource(R.string.engine_settings_tyn_rgss_screen_size),
+                                    options = screenSizeLabels,
+                                    global = globalRgssSettings.windowSize,
+                                    override = rgssSettingsOverride.windowSize,
+                                    emptyLabel = stringResource(R.string.engine_settings_tyn_rgss_screen_auto),
+                                    onSet = { value -> rgssSettingsOverride = rgssSettingsOverride.copy(windowSize = value) },
+                                )
+                                OverrideSwitch(
+                                    stringResource(R.string.engine_settings_tyn_rgss_cheats),
+                                    globalRgssSettings.cheats,
+                                    rgssSettingsOverride.cheats,
+                                ) { value -> rgssSettingsOverride = rgssSettingsOverride.copy(cheats = value) }
                             }
                             Text(
                                 stringResource(R.string.engine_settings_runtime_module_hint),

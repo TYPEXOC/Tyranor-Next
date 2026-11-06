@@ -684,6 +684,15 @@
     <string name="engine_settings_tyn_rgss_ruby_193">Ruby 1.9.3</string>
     <string name="engine_settings_tyn_rgss_ruby_313">Ruby 3.1.3</string>
     <string name="engine_settings_tyn_rgss_manage">管理运行时模块</string>
+    <string name="engine_settings_tyn_rgss_render_group">画面与运行选项</string>
+    <string name="engine_settings_tyn_rgss_smooth_scaling">平滑缩放</string>
+    <string name="engine_settings_tyn_rgss_vsync">垂直同步</string>
+    <string name="engine_settings_tyn_rgss_frame_skip">落后时跳帧</string>
+    <string name="engine_settings_tyn_rgss_solid_fonts">实心字体渲染</string>
+    <string name="engine_settings_tyn_rgss_path_cache">资源路径缓存</string>
+    <string name="engine_settings_tyn_rgss_screen_size">游戏画面分辨率</string>
+    <string name="engine_settings_tyn_rgss_screen_auto">跟随游戏默认</string>
+    <string name="engine_settings_tyn_rgss_cheats">显示 TYN 作弊面板</string>
 
     <string name="engine_settings_renpy_card">Ren’Py 模块设置</string>
     <string name="engine_settings_renpy_group_performance">渲染与性能</string>

@@ -104,7 +104,8 @@ object EffectiveEngineSettings {
     /**
      * RPG Maker RGSS 外置模块全局设置 + 单游戏覆盖合并：
      * 布尔字段「覆盖 ?: 全局」；字符串字段经白名单校验，非法覆盖回退全局。
-     * 保留旧版 JoiPlay RGSS 偏好用于兼容既有设置数据；TYN RGSS 运行时不读取这些字段。
+     * TYN RGSS 模块使用 mkxp-z 支持的渲染选项；其余历史 JoiPlay 专用字段仅留在本地兼容旧数据，
+     * 不会传给 TYN 模块。
      */
     fun mergeRpgMaker(
         global: EngineSettingsStore.RpgMaker,

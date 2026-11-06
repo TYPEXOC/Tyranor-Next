@@ -684,6 +684,15 @@
     <string name="engine_settings_tyn_rgss_ruby_193">Ruby 1.9.3</string>
     <string name="engine_settings_tyn_rgss_ruby_313">Ruby 3.1.3</string>
     <string name="engine_settings_tyn_rgss_manage">ランタイムモジュールを管理</string>
+    <string name="engine_settings_tyn_rgss_render_group">画面と実行設定</string>
+    <string name="engine_settings_tyn_rgss_smooth_scaling">滑らかな拡大縮小</string>
+    <string name="engine_settings_tyn_rgss_vsync">垂直同期</string>
+    <string name="engine_settings_tyn_rgss_frame_skip">遅延時にフレームをスキップ</string>
+    <string name="engine_settings_tyn_rgss_solid_fonts">不透明なフォント描画</string>
+    <string name="engine_settings_tyn_rgss_path_cache">リソースパスキャッシュ</string>
+    <string name="engine_settings_tyn_rgss_screen_size">ゲーム解像度</string>
+    <string name="engine_settings_tyn_rgss_screen_auto">ゲームの既定値を使用</string>
+    <string name="engine_settings_tyn_rgss_cheats">TYNチートパネルを表示</string>
 
     <string name="engine_settings_renpy_card">Ren’Py モジュール設定</string>
     <string name="engine_settings_renpy_group_performance">レンダリングとパフォーマンス</string>

@@ -10,6 +10,8 @@ import com.core.input.InputConfigStore
 import com.core.engine.TranslationTable
 import com.tyranor.next.core.game.model.ScanGame
 import com.tyranor.next.core.settings.AppSettingsStore
+import com.tyranor.next.core.settings.EffectiveEngineSettings
+import com.tyranor.next.core.settings.EngineSettingsStore
 import com.tyranor.next.core.settings.PerGameSettingsStore
 import com.tyranor.next.core.theme.ThemeColorPayload
 import com.tyranor.next.core.theme.ThemeColorPayloadStore
@@ -69,6 +71,14 @@ object RuntimeModuleLauncher {
         } else {
             RgssRubyRuntime.DEFAULT
         }
+        val rgssSettings = if (module.packageName == RuntimeModuleContract.TYN_RGSS_PACKAGE_NAME) {
+            EffectiveEngineSettings.mergeRpgMaker(
+                EngineSettingsStore.loadRpgMaker(context),
+                PerGameSettingsStore.toRpgMakerOverride(PerGameSettingsStore.load(context, game.uri)),
+            )
+        } else {
+            null
+        }
 
         val intent = Intent(RuntimeModuleContract.ACTION_LAUNCH).apply {
             component = ComponentName(module.packageName, module.activityName)
@@ -80,6 +90,20 @@ object RuntimeModuleLauncher {
             putExtra(RuntimeModuleContract.EXTRA_PAD_PROFILE_ID, input.profileId)
             if (module.packageName == RuntimeModuleContract.TYN_RGSS_PACKAGE_NAME) {
                 putExtra(RuntimeModuleContract.EXTRA_RUBY_RUNTIME, rubyRuntime.wireValue)
+                rgssSettings?.let { settings ->
+                    putExtra(
+                        RuntimeModuleContract.EXTRA_RGSS_OPTIONS,
+                        org.json.JSONObject()
+                            .put("smoothScaling", settings.smoothScaling)
+                            .put("vsync", settings.vsync)
+                            .put("frameSkip", settings.frameSkip)
+                            .put("solidFonts", settings.solidFonts)
+                            .put("pathCache", settings.pathCache)
+                            .put("screenSize", settings.windowSize)
+                            .put("cheatsEnabled", settings.cheats)
+                            .toString(),
+                    )
+                }
             }
             putExtra(RuntimeModuleContract.EXTRA_THEME_PRIMARY_COLOR, theme.primaryArgb)
             putExtra(RuntimeModuleContract.EXTRA_THEME_ON_PRIMARY_COLOR, theme.onPrimaryArgb)

@@ -460,12 +460,13 @@ object EngineSettingsStore {
     private const val KEY_WINLATOR_LEGACY_CLEANED = "winlator_legacy_clean_version"
     private const val WINLATOR_LEGACY_CLEAN_VERSION = 3
 
-    // 旧版 RGSS 外置模块偏好取值域；保留用于读取历史设置，新 TYN RGSS 模块不消费这些字段。
-    const val RPG_WINDOW_SIZE_DEFAULT = "640x480"
+    // TYN RGSS / mkxp-z 直接支持的引擎设置值域。
+    const val RPG_WINDOW_SIZE_DEFAULT = "auto"
     const val RPG_SPEED_UP_DEFAULT = "1"
     const val RPG_FONT_SCALE_DEFAULT = "0.75"
     const val RPG_VERTICAL_ALIGN_DEFAULT = "top-center"
     val RPG_WINDOW_SIZES: Set<String> = linkedSetOf(
+        "auto",
         "512x384", "512x768", "544x416", "640x480", "800x600",
         "1024x768", "1280x720", "1280x960", "1920x1080",
     )
@@ -1012,19 +1013,16 @@ object EngineSettingsStore {
         else -> RPG_MZ_V0
     }
 
-    // ---------- 旧版 RPG Maker RGSS 外置模块偏好 ----------
+    // ---------- RPG Maker RGSS / TYN mkxp-z 模块设置 ----------
 
-    /**
-     * 保留历史 RGSS/mkxp 设置以兼容已存配置；TYN RGSS 使用自身运行时默认值，不接收此配置。
-     */
     data class RpgMaker(
         var useRuby18: Boolean = true,
         var debug: Boolean = false,
-        var smoothScaling: Boolean = true,
+        var smoothScaling: Boolean = false,
         var vsync: Boolean = false,
         var frameSkip: Boolean = false,
         var solidFonts: Boolean = false,
-        var pathCache: Boolean = false,
+        var pathCache: Boolean = true,
         var prebuiltPathCache: Boolean = true,
         var fastPathEnum: Boolean = true,
         var copyText: Boolean = false,

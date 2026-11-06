@@ -684,6 +684,15 @@
     <string name="engine_settings_tyn_rgss_ruby_193">Ruby 1.9.3</string>
     <string name="engine_settings_tyn_rgss_ruby_313">Ruby 3.1.3</string>
     <string name="engine_settings_tyn_rgss_manage">Manage runtime modules</string>
+    <string name="engine_settings_tyn_rgss_render_group">Display and runtime</string>
+    <string name="engine_settings_tyn_rgss_smooth_scaling">Smooth scaling</string>
+    <string name="engine_settings_tyn_rgss_vsync">V-Sync</string>
+    <string name="engine_settings_tyn_rgss_frame_skip">Skip frames when behind</string>
+    <string name="engine_settings_tyn_rgss_solid_fonts">Solid font rendering</string>
+    <string name="engine_settings_tyn_rgss_path_cache">Resource path cache</string>
+    <string name="engine_settings_tyn_rgss_screen_size">Game resolution</string>
+    <string name="engine_settings_tyn_rgss_screen_auto">Use game default</string>
+    <string name="engine_settings_tyn_rgss_cheats">Show TYN cheat panel</string>
 
     <string name="engine_settings_renpy_card">Ren’Py module settings</string>
     <string name="engine_settings_renpy_group_performance">Rendering &amp; performance</string>

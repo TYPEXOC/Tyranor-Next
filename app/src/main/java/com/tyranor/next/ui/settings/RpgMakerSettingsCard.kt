@@ -31,18 +31,21 @@ import com.tyranor.next.core.engine.runtime.RuntimeModuleContract
 import com.tyranor.next.core.engine.runtime.RuntimeModuleRegistry
 import com.tyranor.next.core.engine.runtime.RgssRubyRuntime
 import com.tyranor.next.core.settings.AppSettingsStore
+import com.tyranor.next.core.settings.EngineSettingsStore
 import com.tyranor.next.ui.common.ArrowPreference
 import com.tyranor.next.ui.game.startActivityWithPageTransition
 import com.tyranor.next.ui.runtime.EngineModuleManagementActivity
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.preference.OverlayDropdownPreference
+import top.yukonga.miuix.kmp.preference.SwitchPreference
 
-/** TYN 自行构建的 RGSS 运行时模块状态和全局 Ruby VM 选择。 */
+/** TYN RGSS 模块状态、Ruby 默认运行时与 mkxp-z 引擎设置。 */
 @Composable
 internal fun TynRgssRuntimeCard() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var rubyRuntime by remember { mutableStateOf(AppSettingsStore.getRgssRubyRuntime(context)) }
+    var engineSettings by remember { mutableStateOf(EngineSettingsStore.loadRpgMaker(context)) }
     val snapshot by RuntimeModuleRegistry.state.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) {
         RuntimeModuleRegistry.refresh(context)
@@ -112,6 +115,80 @@ internal fun TynRgssRuntimeCard() {
                     rubyRuntime = selected
                     AppSettingsStore.setRgssRubyRuntime(context, selected)
                 }
+            },
+        )
+        Text(
+            stringResource(R.string.engine_settings_tyn_rgss_render_group),
+            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 2.dp),
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        SwitchPreference(
+            title = stringResource(R.string.engine_settings_tyn_rgss_smooth_scaling),
+            checked = engineSettings.smoothScaling,
+            onCheckedChange = { enabled ->
+                engineSettings = engineSettings.copy(smoothScaling = enabled)
+                EngineSettingsStore.saveRpgMaker(context, engineSettings)
+            },
+        )
+        SwitchPreference(
+            title = stringResource(R.string.engine_settings_tyn_rgss_vsync),
+            checked = engineSettings.vsync,
+            onCheckedChange = { enabled ->
+                engineSettings = engineSettings.copy(vsync = enabled)
+                EngineSettingsStore.saveRpgMaker(context, engineSettings)
+            },
+        )
+        SwitchPreference(
+            title = stringResource(R.string.engine_settings_tyn_rgss_frame_skip),
+            checked = engineSettings.frameSkip,
+            onCheckedChange = { enabled ->
+                engineSettings = engineSettings.copy(frameSkip = enabled)
+                EngineSettingsStore.saveRpgMaker(context, engineSettings)
+            },
+        )
+        SwitchPreference(
+            title = stringResource(R.string.engine_settings_tyn_rgss_solid_fonts),
+            checked = engineSettings.solidFonts,
+            onCheckedChange = { enabled ->
+                engineSettings = engineSettings.copy(solidFonts = enabled)
+                EngineSettingsStore.saveRpgMaker(context, engineSettings)
+            },
+        )
+        SwitchPreference(
+            title = stringResource(R.string.engine_settings_tyn_rgss_path_cache),
+            checked = engineSettings.pathCache,
+            onCheckedChange = { enabled ->
+                engineSettings = engineSettings.copy(pathCache = enabled)
+                EngineSettingsStore.saveRpgMaker(context, engineSettings)
+            },
+        )
+        val screenSizes = EngineSettingsStore.RPG_WINDOW_SIZES.toList()
+        val autoScreenSizeLabel = stringResource(R.string.engine_settings_tyn_rgss_screen_auto)
+        val screenSizeLabels = screenSizes.map { size ->
+            if (size == EngineSettingsStore.RPG_WINDOW_SIZE_DEFAULT) {
+                autoScreenSizeLabel
+            } else {
+                size.replace('x', '×')
+            }
+        }
+        OverlayDropdownPreference(
+            title = stringResource(R.string.engine_settings_tyn_rgss_screen_size),
+            items = screenSizeLabels,
+            selectedIndex = screenSizes.indexOf(engineSettings.windowSize).coerceAtLeast(0),
+            onSelectedIndexChange = { index ->
+                screenSizes.getOrNull(index)?.let { size ->
+                    engineSettings = engineSettings.copy(windowSize = size)
+                    EngineSettingsStore.saveRpgMaker(context, engineSettings)
+                }
+            },
+        )
+        SwitchPreference(
+            title = stringResource(R.string.engine_settings_tyn_rgss_cheats),
+            checked = engineSettings.cheats,
+            onCheckedChange = { enabled ->
+                engineSettings = engineSettings.copy(cheats = enabled)
+                EngineSettingsStore.saveRpgMaker(context, engineSettings)
             },
         )
         ArrowPreference(
