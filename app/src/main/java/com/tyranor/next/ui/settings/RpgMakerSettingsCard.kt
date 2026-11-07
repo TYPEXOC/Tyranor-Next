@@ -80,8 +80,18 @@ internal fun RpgMakerRgssSettingsCard(
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     val runtimeModules by RuntimeModuleRegistry.state.collectAsStateWithLifecycle()
-    val moduleInstalled = runtimeModules.modules.any {
+    val tynRgssModule = runtimeModules.modules.firstOrNull {
         it.packageName == RuntimeModuleContract.TYN_RGSS_PACKAGE_NAME
+    }
+    val moduleInstalled = tynRgssModule != null
+    val moduleVersion = tynRgssModule?.let { module ->
+        val versionName = module.versionName?.takeIf { it.isNotBlank() }
+        when {
+            versionName != null && module.versionCode > 0L -> "$versionName (${module.versionCode})"
+            versionName != null -> versionName
+            module.versionCode > 0L -> module.versionCode.toString()
+            else -> null
+        }
     }
     var advancedExpanded by remember { mutableStateOf(false) }
     var showResetDialog by remember { mutableStateOf(false) }
@@ -236,6 +246,13 @@ internal fun RpgMakerRgssSettingsCard(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                moduleVersion?.let { version ->
+                    Text(
+                        stringResource(R.string.engine_settings_rpgm_module_version, version),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
             Icon(
                 imageVector = if (moduleInstalled) Icons.Filled.CheckCircle else Icons.Filled.Cancel,

@@ -88,7 +88,7 @@ iOS版本计划中...
 - 共享 Native 插件 `.so` 的源头位于 `engine/src/main/nativeplugins`；app 侧仅维护插件 `manifest.json` 和 app-only 插件。构建时由 Gradle 合并生成 `app/build/generated/assets/nativeplugins/*.zip`
 - 共享 RPG Maker 注入脚本源头位于 `engine/src/main/assets`；app 侧只保留应用专属注入脚本，构建时由 Gradle 同步生成到 app assets，避免两边手工维护重复文件
 - `app` 模块通过 `core/game/launch/EngineLauncher` 将扫描结果映射到对应引擎 Activity 启动（SAF URI → 真实路径转换）
-- JoiPlay 外置模块继续承载 Ren'Py 与 Ruffle；RPG Maker RGSS 由 TYN 自行构建的模块承载。Ruby 运行时提供自动、1.8.7、1.9.3、3.1.3；自动按扫描到的代际选择 XP/VX 的 1.8.7、VX Ace 的 1.9.3，未知代际回退 3.1.3。渲染、分辨率、倍速、字体、缓存、复制对白、作弊、CJK 字体、postload 脚本与调试设置支持全局默认及单游戏覆盖；模块在私有运行目录中应用配置，不修改游戏文件。RGSS 游戏的操作抽屉提供单游戏引擎设置入口，普通第三方运行时模块仍不提供该入口。RPG Maker 卡片保留通用名称，封面角标显示 XP / VX / VX Ace。Ruffle 使用 `launchEntryIsFile` 文件入口，启动前把 SWF 文件记录解析为父目录再下发
+- JoiPlay 外置模块继续承载 Ren'Py 与 Ruffle；RPG Maker RGSS 由 TYN 自行构建的模块承载。Ruby 运行时提供自动、1.8.7、1.9.3、3.1.3；自动按扫描到的代际选择 XP/VX 的 1.8.7、VX Ace 的 1.9.3，未知代际回退 3.1.3。渲染、分辨率、倍速、字体、缓存、复制对白、作弊、CJK 字体、postload 脚本与调试设置支持全局默认及单游戏覆盖；模块在私有运行目录中应用配置，不修改游戏文件。RGSS 游戏的操作抽屉提供单游戏引擎设置入口，设置卡片显示模块状态与已安装版本，Ruby 运行时选项简洁显示「自动」；普通第三方运行时模块仍不提供该入口。RPG Maker 卡片保留通用名称，封面角标显示 XP / VX / VX Ace。Ruffle 使用 `launchEntryIsFile` 文件入口，启动前把 SWF 文件记录解析为父目录再下发
 - 第三方 APK 运行时模块由 `core/engine/runtime` 按 `com.tyranor.runtime.` 前缀与 `LAUNCH` action 动态发现，在侧边栏「妙妙工具 → 引擎模块管理」默认关闭、按模块启用；扫描与能力仅使用模块 `res/raw/tyranor_runtime.json` 声明的内容，启动时传游戏文件夹，已声明翻译能力的模块可按用户当前选择临时读取译表，并可读取/写回按键方案。RGSS 模块在自己的 APK 进程内运行，提供 TYN 按键、作弊面板和不改游戏文件的运行时翻译桥
 - PSP / Nintendo Switch 由 `core/engine/external` 的 `ExternalEmulatorRegistry` / `ExternalEmulatorLauncher` 跳转外置 PPSSPP / Eden：扫描识别 ROM 后逐条入库（一 ROM 一条），运行时在目录解析前分流、按显式组件与读取授权启动；引擎页「外置跳转支持」项展示安装状态并可跳下载页，Manifest `<queries>` 已声明对应包名
 - Tyrano 运行环境内置本地 HTTP 服务器、Asar 归档解析与 JS 钩子脚本（`__tyrano__.js` 等），无需外部依赖即可运行网页式脚本游戏
