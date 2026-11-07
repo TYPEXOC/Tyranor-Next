@@ -64,9 +64,12 @@ object RuntimeModuleLauncher {
         val profileUri = if (input.padEnabled) selectedPadProfileUri(context, input.profileId) else null
         val theme = ThemeColorPayloadStore.current ?: ThemeColorPayload.DEFAULT
         val rubyRuntime = if (module.packageName == RuntimeModuleContract.TYN_RGSS_PACKAGE_NAME) {
-            RgssRubyRuntime.fromWireValue(
-                PerGameSettingsStore.getStr(context, game.uri, PerGameSettingsStore.F_RPG_RUBY_RUNTIME)
-                    ?: AppSettingsStore.getRgssRubyRuntime(context).wireValue,
+            RgssRubyRuntime.resolveForGame(
+                RgssRubyRuntime.fromWireValue(
+                    PerGameSettingsStore.getStr(context, game.uri, PerGameSettingsStore.F_RPG_RUBY_RUNTIME)
+                        ?: AppSettingsStore.getRgssRubyRuntime(context).wireValue,
+                ),
+                game.externalModuleAlias,
             )
         } else {
             RgssRubyRuntime.DEFAULT
@@ -94,12 +97,22 @@ object RuntimeModuleLauncher {
                     putExtra(
                         RuntimeModuleContract.EXTRA_RGSS_OPTIONS,
                         org.json.JSONObject()
+                            .put("debug", settings.debug)
                             .put("smoothScaling", settings.smoothScaling)
                             .put("vsync", settings.vsync)
                             .put("frameSkip", settings.frameSkip)
                             .put("solidFonts", settings.solidFonts)
                             .put("pathCache", settings.pathCache)
+                            .put("prebuiltPathCache", settings.prebuiltPathCache)
+                            .put("fastPathEnum", settings.fastPathEnum)
+                            .put("copyText", settings.copyText)
+                            .put("useCJKFont", settings.useCJKFont)
+                            .put("enablePostloadScripts", settings.enablePostloadScripts)
+                            .put("customFont", settings.customFont)
+                            .put("verticalScreenAlign", settings.verticalScreenAlign)
                             .put("screenSize", settings.windowSize)
+                            .put("speedUp", settings.speedUp)
+                            .put("fontScale", settings.fontScale)
                             .put("cheatsEnabled", settings.cheats)
                             .toString(),
                     )

@@ -39,7 +39,7 @@ object RuntimeModuleBindings {
                 val packageName = game.runtimeModulePackage
                 val unavailable = packageName == null ||
                     packageName.isBlank() ||
-                    packageName !in enabledPackages ||
+                    (packageName != RuntimeModuleContract.TYN_RGSS_PACKAGE_NAME && packageName !in enabledPackages) ||
                     packageName !in discoveredPackages
                 if (game.engine == EngineType.RUNTIME_MODULE && unavailable) {
                     count++

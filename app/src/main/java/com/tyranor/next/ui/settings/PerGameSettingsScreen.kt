@@ -45,6 +45,7 @@ import androidx.compose.ui.graphics.Color as ComposeColor
 import com.tyranor.next.core.engine.EngineType
 import com.tyranor.next.core.engine.runtime.RgssRubyRuntime
 import com.tyranor.next.core.engine.runtime.RuntimeModuleContract
+import com.tyranor.next.core.engine.external.RpgMakerRuntimeEnvironment
 import com.tyranor.next.core.engine.external.EmulatorLaunchStyle
 import com.tyranor.next.core.engine.external.ExternalEmulatorRegistry
 import com.tyranor.next.core.game.launch.EngineLauncher
@@ -303,6 +304,29 @@ fun PerGameSettingsScreen(game: ScanGame) {
                     val p = FontImport.importToPrivate(ctx, uri)
                     if (p != null) krFont = p
                 } finally { importingFont = false }
+            }
+        }
+    }
+    val rgssFontLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null && !importingFont) {
+            importingFont = true
+            scope.launch {
+                try {
+                    val path = runInterruptible(Dispatchers.IO) {
+                        RpgMakerRuntimeEnvironment.importCustomFont(ctx, uri)
+                    }
+                    if (path != null) {
+                        rgssSettingsOverride = rgssSettingsOverride.copy(customFont = path)
+                    }
+                    android.widget.Toast.makeText(
+                        ctx,
+                        if (path != null) R.string.engine_settings_rpgm_custom_font_imported
+                        else R.string.engine_settings_rpgm_custom_font_import_failed,
+                        android.widget.Toast.LENGTH_SHORT,
+                    ).show()
+                } finally {
+                    importingFont = false
+                }
             }
         }
     }
@@ -625,12 +649,22 @@ fun PerGameSettingsScreen(game: ScanGame) {
         PerGameSettingsStore.setStr(ctx, gid, PerGameSettingsStore.F_RPG_MZ_VERSION, rpgMzVersion)
         if (game.runtimeModulePackage == RuntimeModuleContract.TYN_RGSS_PACKAGE_NAME) {
             PerGameSettingsStore.setStr(ctx, gid, PerGameSettingsStore.F_RPG_RUBY_RUNTIME, rgssRubyRuntimeOverride)
+            PerGameSettingsStore.setBool(ctx, gid, PerGameSettingsStore.F_RPG_DEBUG, rgssSettingsOverride.debug)
             PerGameSettingsStore.setBool(ctx, gid, PerGameSettingsStore.F_RPG_SMOOTH_SCALING, rgssSettingsOverride.smoothScaling)
             PerGameSettingsStore.setBool(ctx, gid, PerGameSettingsStore.F_RPG_VSYNC, rgssSettingsOverride.vsync)
             PerGameSettingsStore.setBool(ctx, gid, PerGameSettingsStore.F_RPG_FRAME_SKIP, rgssSettingsOverride.frameSkip)
             PerGameSettingsStore.setBool(ctx, gid, PerGameSettingsStore.F_RPG_SOLID_FONTS, rgssSettingsOverride.solidFonts)
             PerGameSettingsStore.setBool(ctx, gid, PerGameSettingsStore.F_RPG_PATH_CACHE, rgssSettingsOverride.pathCache)
+            PerGameSettingsStore.setBool(ctx, gid, PerGameSettingsStore.F_RPG_PREBUILT_PATH_CACHE, rgssSettingsOverride.prebuiltPathCache)
+            PerGameSettingsStore.setBool(ctx, gid, PerGameSettingsStore.F_RPG_FAST_PATH_ENUM, rgssSettingsOverride.fastPathEnum)
+            PerGameSettingsStore.setBool(ctx, gid, PerGameSettingsStore.F_RPG_COPY_TEXT, rgssSettingsOverride.copyText)
+            PerGameSettingsStore.setBool(ctx, gid, PerGameSettingsStore.F_RPG_USE_CJK_FONT, rgssSettingsOverride.useCJKFont)
+            PerGameSettingsStore.setBool(ctx, gid, PerGameSettingsStore.F_RPG_ENABLE_POSTLOAD_SCRIPTS, rgssSettingsOverride.enablePostloadScripts)
+            PerGameSettingsStore.setStr(ctx, gid, PerGameSettingsStore.F_RPG_CUSTOM_FONT, rgssSettingsOverride.customFont)
+            PerGameSettingsStore.setStr(ctx, gid, PerGameSettingsStore.F_RPG_VERTICAL_SCREEN_ALIGN, rgssSettingsOverride.verticalScreenAlign)
             PerGameSettingsStore.setStr(ctx, gid, PerGameSettingsStore.F_RPG_WINDOW_SIZE, rgssSettingsOverride.windowSize)
+            PerGameSettingsStore.setStr(ctx, gid, PerGameSettingsStore.F_RPG_SPEED_UP, rgssSettingsOverride.speedUp)
+            PerGameSettingsStore.setStr(ctx, gid, PerGameSettingsStore.F_RPG_FONT_SCALE, rgssSettingsOverride.fontScale)
             PerGameSettingsStore.setBool(ctx, gid, PerGameSettingsStore.F_RPG_CHEATS, rgssSettingsOverride.cheats)
         }
         PerGameSettingsStore.setBool(ctx, gid, PerGameSettingsStore.F_INPUT_PAD_ENABLED, inputPadEnabled)
@@ -1256,10 +1290,17 @@ fun PerGameSettingsScreen(game: ScanGame) {
                         }
                     }
                     EngineType.RUNTIME_MODULE -> item {
-                        SectionCard(game.engine.displayName) {
+                        SectionCard(
+                            if (game.runtimeModulePackage == RuntimeModuleContract.TYN_RGSS_PACKAGE_NAME) {
+                                stringResource(R.string.engine_settings_tyn_rgss_card)
+                            } else {
+                                game.engine.displayName
+                            },
+                        ) {
                             if (game.runtimeModulePackage == RuntimeModuleContract.TYN_RGSS_PACKAGE_NAME) {
                                 val runtimeIds = RgssRubyRuntime.entries.map { it.wireValue }
                                 val runtimeLabels = listOf(
+                                    stringResource(R.string.engine_settings_tyn_rgss_ruby_auto),
                                     stringResource(R.string.engine_settings_tyn_rgss_ruby_187),
                                     stringResource(R.string.engine_settings_tyn_rgss_ruby_193),
                                     stringResource(R.string.engine_settings_tyn_rgss_ruby_313),
@@ -1271,63 +1312,113 @@ fun PerGameSettingsScreen(game: ScanGame) {
                                     override = rgssRubyRuntimeOverride,
                                     onSet = { rgssRubyRuntimeOverride = it },
                                 )
-                                val screenSizeLabels = linkedMapOf(
-                                    "auto" to stringResource(R.string.engine_settings_tyn_rgss_screen_auto),
-                                    "512x384" to "512×384",
-                                    "512x768" to "512×768",
-                                    "544x416" to "544×416",
-                                    "640x480" to "640×480",
-                                    "800x600" to "800×600",
-                                    "1024x768" to "1024×768",
-                                    "1280x720" to "1280×720",
-                                    "1280x960" to "1280×960",
-                                    "1920x1080" to "1920×1080",
-                                )
                                 OverrideSwitch(
-                                    stringResource(R.string.engine_settings_tyn_rgss_smooth_scaling),
+                                    stringResource(R.string.engine_settings_rpgm_debug),
+                                    globalRgssSettings.debug,
+                                    rgssSettingsOverride.debug,
+                                ) { value -> rgssSettingsOverride = rgssSettingsOverride.copy(debug = value) }
+                                OverrideSwitch(
+                                    stringResource(R.string.engine_settings_rpgm_smooth_scaling),
                                     globalRgssSettings.smoothScaling,
                                     rgssSettingsOverride.smoothScaling,
                                 ) { value -> rgssSettingsOverride = rgssSettingsOverride.copy(smoothScaling = value) }
                                 OverrideSwitch(
-                                    stringResource(R.string.engine_settings_tyn_rgss_vsync),
+                                    stringResource(R.string.engine_settings_rpgm_vsync),
                                     globalRgssSettings.vsync,
                                     rgssSettingsOverride.vsync,
                                 ) { value -> rgssSettingsOverride = rgssSettingsOverride.copy(vsync = value) }
                                 OverrideSwitch(
-                                    stringResource(R.string.engine_settings_tyn_rgss_frame_skip),
+                                    stringResource(R.string.engine_settings_rpgm_frame_skip),
                                     globalRgssSettings.frameSkip,
                                     rgssSettingsOverride.frameSkip,
                                 ) { value -> rgssSettingsOverride = rgssSettingsOverride.copy(frameSkip = value) }
                                 OverrideSwitch(
-                                    stringResource(R.string.engine_settings_tyn_rgss_solid_fonts),
+                                    stringResource(R.string.engine_settings_rpgm_solid_fonts),
                                     globalRgssSettings.solidFonts,
                                     rgssSettingsOverride.solidFonts,
                                 ) { value -> rgssSettingsOverride = rgssSettingsOverride.copy(solidFonts = value) }
                                 OverrideSwitch(
-                                    stringResource(R.string.engine_settings_tyn_rgss_path_cache),
+                                    stringResource(R.string.engine_settings_rpgm_path_cache),
                                     globalRgssSettings.pathCache,
                                     rgssSettingsOverride.pathCache,
                                 ) { value -> rgssSettingsOverride = rgssSettingsOverride.copy(pathCache = value) }
+                                OverrideSwitch(
+                                    stringResource(R.string.engine_settings_rpgm_prebuilt_path_cache),
+                                    globalRgssSettings.prebuiltPathCache,
+                                    rgssSettingsOverride.prebuiltPathCache,
+                                ) { value -> rgssSettingsOverride = rgssSettingsOverride.copy(prebuiltPathCache = value) }
+                                OverrideSwitch(
+                                    stringResource(R.string.engine_settings_rpgm_fast_path_enum),
+                                    globalRgssSettings.fastPathEnum,
+                                    rgssSettingsOverride.fastPathEnum,
+                                ) { value -> rgssSettingsOverride = rgssSettingsOverride.copy(fastPathEnum = value) }
+                                OverrideSwitch(
+                                    stringResource(R.string.engine_settings_rpgm_copy_text),
+                                    globalRgssSettings.copyText,
+                                    rgssSettingsOverride.copyText,
+                                ) { value -> rgssSettingsOverride = rgssSettingsOverride.copy(copyText = value) }
+                                OverrideSwitch(
+                                    stringResource(R.string.engine_settings_rpgm_use_cjk_font),
+                                    globalRgssSettings.useCJKFont,
+                                    rgssSettingsOverride.useCJKFont,
+                                ) { value -> rgssSettingsOverride = rgssSettingsOverride.copy(useCJKFont = value) }
+                                OverrideSwitch(
+                                    stringResource(R.string.engine_settings_rpgm_postload_scripts),
+                                    globalRgssSettings.enablePostloadScripts,
+                                    rgssSettingsOverride.enablePostloadScripts,
+                                ) { value -> rgssSettingsOverride = rgssSettingsOverride.copy(enablePostloadScripts = value) }
+                                OverrideFontPreference(
+                                    label = stringResource(R.string.engine_settings_rpgm_custom_font),
+                                    globalValue = globalRgssSettings.customFont,
+                                    override = rgssSettingsOverride.customFont,
+                                    followGameDefaultLabel = stringResource(R.string.engine_settings_rpgm_custom_font_default),
+                                    onSet = { value -> rgssSettingsOverride = rgssSettingsOverride.copy(customFont = value) },
+                                    onPick = { if (!importingFont) rgssFontLauncher.launch("*/*") },
+                                    enabled = !importingFont,
+                                )
                                 OverrideChoice(
-                                    label = stringResource(R.string.engine_settings_tyn_rgss_screen_size),
-                                    options = screenSizeLabels,
+                                    label = stringResource(R.string.engine_settings_rpgm_font_scale),
+                                    options = rpgFontScaleOptions().toMap(),
+                                    global = globalRgssSettings.fontScale,
+                                    override = rgssSettingsOverride.fontScale,
+                                    onSet = { value -> rgssSettingsOverride = rgssSettingsOverride.copy(fontScale = value) },
+                                )
+                                OverrideChoice(
+                                    label = stringResource(R.string.engine_settings_rpgm_vertical_align),
+                                    options = rpgVerticalAlignOptions().toMap(),
+                                    global = globalRgssSettings.verticalScreenAlign,
+                                    override = rgssSettingsOverride.verticalScreenAlign,
+                                    onSet = { value -> rgssSettingsOverride = rgssSettingsOverride.copy(verticalScreenAlign = value) },
+                                )
+                                OverrideChoice(
+                                    label = stringResource(R.string.engine_settings_rpgm_window_size),
+                                    options = rpgWindowSizeOptions().toMap(),
                                     global = globalRgssSettings.windowSize,
                                     override = rgssSettingsOverride.windowSize,
                                     emptyLabel = stringResource(R.string.engine_settings_tyn_rgss_screen_auto),
                                     onSet = { value -> rgssSettingsOverride = rgssSettingsOverride.copy(windowSize = value) },
                                 )
                                 OverrideSwitch(
-                                    stringResource(R.string.engine_settings_tyn_rgss_cheats),
+                                    stringResource(R.string.engine_settings_rpgm_cheats),
                                     globalRgssSettings.cheats,
                                     rgssSettingsOverride.cheats,
                                 ) { value -> rgssSettingsOverride = rgssSettingsOverride.copy(cheats = value) }
+                                OverrideChoice(
+                                    label = stringResource(R.string.engine_settings_rpgm_speed_up),
+                                    options = rpgSpeedUpOptions().toMap(),
+                                    global = globalRgssSettings.speedUp,
+                                    override = rgssSettingsOverride.speedUp,
+                                    onSet = { value -> rgssSettingsOverride = rgssSettingsOverride.copy(speedUp = value) },
+                                )
                             }
-                            Text(
-                                stringResource(R.string.engine_settings_runtime_module_hint),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
-                            )
+                            if (game.runtimeModulePackage != RuntimeModuleContract.TYN_RGSS_PACKAGE_NAME) {
+                                Text(
+                                    stringResource(R.string.engine_settings_runtime_module_hint),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+                                )
+                            }
                         }
                     }
                     EngineType.TYRANO,

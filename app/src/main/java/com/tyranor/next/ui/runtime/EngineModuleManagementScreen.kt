@@ -48,6 +48,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tyranor.next.R
 import com.tyranor.next.core.engine.EngineType
 import com.tyranor.next.core.engine.runtime.RuntimeModuleBindings
+import com.tyranor.next.core.engine.runtime.RuntimeModuleContract
 import com.tyranor.next.core.engine.runtime.RuntimeModuleDescriptor
 import com.tyranor.next.core.engine.runtime.RuntimeModuleRegistry
 import com.tyranor.next.core.game.storage.GameLibraryFacade
@@ -82,6 +83,9 @@ internal fun EngineModuleManagementScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val snapshot by RuntimeModuleRegistry.state.collectAsStateWithLifecycle()
+    val managedModules = snapshot.modules.filterNot {
+        it.packageName == RuntimeModuleContract.TYN_RGSS_PACKAGE_NAME
+    }
     // 预先解析带数量的 Toast 格式串，避免在点击回调里用 LocalContext 查资源（Compose lint）。
     val disabledToastPattern = stringResource(R.string.engine_module_management_disabled_toast)
 
@@ -264,7 +268,7 @@ internal fun EngineModuleManagementScreen() {
                     }
                 }
 
-                if (refreshing && snapshot.modules.isEmpty() && lastError == null) {
+                if (refreshing && managedModules.isEmpty() && lastError == null) {
                     item(key = "loading") {
                         Box(
                             modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
@@ -275,7 +279,7 @@ internal fun EngineModuleManagementScreen() {
                     }
                 }
 
-                if (!refreshing && snapshot.modules.isEmpty() && lastError == null) {
+                if (!refreshing && managedModules.isEmpty() && lastError == null) {
                     item(key = "empty") {
                         Box(
                             modifier = Modifier.fillParentMaxHeight().fillMaxWidth().padding(horizontal = 24.dp),
@@ -300,7 +304,7 @@ internal fun EngineModuleManagementScreen() {
                 }
 
                 items(
-                    items = snapshot.modules,
+                    items = managedModules,
                     key = { module -> module.packageName },
                 ) { module ->
                     EngineModuleCard(

@@ -491,6 +491,34 @@ internal fun ruffleLoadBehaviorOptionsMap(): Map<String, String> = ruffleLoadBeh
 @Composable
 internal fun ruffleScreenTimeoutOptionsMap(): Map<String, String> = ruffleScreenTimeoutOptions().toMap()
 
+// RPG Maker RGSS global engine settings; keep the baseline option labels and ordering.
+@Composable
+internal fun rpgWindowSizeOptions(): List<Pair<String, String>> {
+    val automaticLabel = stringResource(R.string.engine_settings_tyn_rgss_screen_auto)
+    return EngineSettingsStore.RPG_WINDOW_SIZES.map { size ->
+        size to if (size == EngineSettingsStore.RPG_WINDOW_SIZE_DEFAULT) {
+            automaticLabel
+        } else {
+            size
+        }
+    }
+}
+
+@Composable
+internal fun rpgSpeedUpOptions(): List<Pair<String, String>> =
+    EngineSettingsStore.RPG_SPEED_UPS.map { it to "${it}x" }
+
+@Composable
+internal fun rpgFontScaleOptions(): List<Pair<String, String>> =
+    EngineSettingsStore.RPG_FONT_SCALES.map { it to it }
+
+@Composable
+internal fun rpgVerticalAlignOptions(): List<Pair<String, String>> = listOf(
+    "top" to stringResource(R.string.engine_settings_rpgm_valign_top),
+    "top-center" to stringResource(R.string.engine_settings_rpgm_valign_top_center),
+    "center" to stringResource(R.string.engine_settings_rpgm_valign_center),
+)
+
 /** The core catalog adapts engine contributions to UI-only localized labels. */
 @Composable
 internal fun graphicsFilterOptions(): List<Pair<String, String>> =

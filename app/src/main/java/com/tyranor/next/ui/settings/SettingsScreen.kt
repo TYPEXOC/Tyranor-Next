@@ -60,6 +60,7 @@ import androidx.core.content.FileProvider
 import androidx.documentfile.provider.DocumentFile
 import com.tyranor.next.R
 import com.tyranor.next.core.game.launch.EngineLauncher
+import com.tyranor.next.core.engine.runtime.RgssRubyRuntime
 import com.tyranor.next.core.settings.AppSettingsStore
 import com.tyranor.next.core.settings.GraphicsCapabilities
 import com.tyranor.next.core.settings.GraphicsFamily
@@ -752,6 +753,8 @@ internal fun EngineSettingsDetailScreen(kind: EngineSettingsKind) {
     var rpgSaveInterop by remember { mutableStateOf(EngineSettingsStore.isRpgSaveInterop(ctx)) }
     var rpgMvVersion by remember { mutableStateOf(EngineSettingsStore.getRpgMvEngineVersion(ctx)) }
     var rpgMzVersion by remember { mutableStateOf(EngineSettingsStore.getRpgMzEngineVersion(ctx)) }
+    var rpg by remember { mutableStateOf(EngineSettingsStore.loadRpgMaker(ctx)) }
+    var rgssRubyRuntime by remember { mutableStateOf(AppSettingsStore.getRgssRubyRuntime(ctx)) }
     var renpyVersion by remember { mutableStateOf(EngineSettingsStore.getRenpyVersion(ctx)) }
     var renpy by remember { mutableStateOf(EngineSettingsStore.loadRenPy(ctx)) }
     var siglusLanguage by remember { mutableStateOf(EngineSettingsStore.getSiglusLanguage(ctx)) }
@@ -879,6 +882,8 @@ internal fun EngineSettingsDetailScreen(kind: EngineSettingsKind) {
         EngineSettingsStore.setRpgSaveInterop(ctx, rpgSaveInterop)
         EngineSettingsStore.setRpgMvEngineVersion(ctx, rpgMvVersion)
         EngineSettingsStore.setRpgMzEngineVersion(ctx, rpgMzVersion)
+        EngineSettingsStore.saveRpgMaker(ctx, rpg)
+        AppSettingsStore.setRgssRubyRuntime(ctx, rgssRubyRuntime)
         EngineSettingsStore.setRenpyVersion(ctx, renpyVersion)
         EngineSettingsStore.saveRenPy(ctx, renpy)
         EngineSettingsStore.setSiglusLanguage(ctx, siglusLanguage)
@@ -927,7 +932,7 @@ internal fun EngineSettingsDetailScreen(kind: EngineSettingsKind) {
                 krSwCompress, krOglCompress, krMem, krTexsize, krAccurate, krFps, isSdl3, krIs134126,
                 krVCursorScale, krMenuOpa, krPatchOverlayMode,
                 ons, artKernel, artVersion, artRotate, artPatch, artResolution, artSideCut, artSurfaceCache,
-                artFontCache, artPowerSaving, tyExternal, tyScoped, rpgMakerMod, rpgLegacyRenderer, rpgSaveInterop, rpgMvVersion, rpgMzVersion, renpyVersion, renpy, siglusLanguage, fbNls,
+                artFontCache, artPowerSaving, tyExternal, tyScoped, rpgMakerMod, rpgLegacyRenderer, rpgSaveInterop, rpgMvVersion, rpgMzVersion, rpg, rgssRubyRuntime, renpyVersion, renpy, siglusLanguage, fbNls,
                 fvpNls, fvpSystemFont, fvpTextHidpi, fvpFont,
                 xs35Scoped, xs35Renderer, xs35IntegerScale, xs35MuteUnfocus,
                 xs4Scoped, xs4Encoding, xs4FontGothic, xs4FontMincho, xs4Joypad, xs4MsgskipDelay,
@@ -976,6 +981,8 @@ internal fun EngineSettingsDetailScreen(kind: EngineSettingsKind) {
                 onRpgSaveInterop = { rpgSaveInterop = it },
                 onRpgMvVersion = { rpgMvVersion = it },
                 onRpgMzVersion = { rpgMzVersion = it },
+                onRpg = { rpg = it },
+                onRgssRubyRuntime = { rgssRubyRuntime = it },
                 onRenpyVersion = { renpyVersion = it },
                 onRenpy = { renpy = it },
                 onSiglusLanguage = { siglusLanguage = it },
@@ -1084,6 +1091,7 @@ private fun LazyListPlaceholder(
     artPowerSaving: String,
     tyExternal: Boolean, tyScoped: Boolean, rpgMakerMod: Boolean,
     rpgLegacyRenderer: Boolean, rpgSaveInterop: Boolean, rpgMvVersion: String, rpgMzVersion: String,
+    rpg: EngineSettingsStore.RpgMaker, rgssRubyRuntime: RgssRubyRuntime,
     renpyVersion: String, renpy: EngineSettingsStore.RenPy, siglusLanguage: String,
     fbNls: String,
     fvpNls: String, fvpSystemFont: Boolean, fvpTextHidpi: Boolean, fvpFont: String,
@@ -1112,6 +1120,8 @@ private fun LazyListPlaceholder(
     onArtPowerSaving: (String) -> Unit,
     onTyExternal: (Boolean) -> Unit, onTyScoped: (Boolean) -> Unit, onRpgMakerMod: (Boolean) -> Unit,
     onRpgLegacyRenderer: (Boolean) -> Unit, onRpgSaveInterop: (Boolean) -> Unit, onRpgMvVersion: (String) -> Unit, onRpgMzVersion: (String) -> Unit,
+    onRpg: (EngineSettingsStore.RpgMaker) -> Unit,
+    onRgssRubyRuntime: (RgssRubyRuntime) -> Unit,
     onRenpyVersion: (String) -> Unit,
     onRenpy: (EngineSettingsStore.RenPy) -> Unit,
     onSiglusLanguage: (String) -> Unit,
@@ -1316,7 +1326,12 @@ private fun LazyListPlaceholder(
         }
 
         if (kind == EngineSettingsKind.RPG_MAKER) item {
-            TynRgssRuntimeCard()
+            RpgMakerRgssSettingsCard(
+                settings = rpg,
+                onSettings = onRpg,
+                rubyRuntime = rgssRubyRuntime,
+                onRubyRuntime = onRgssRubyRuntime,
+            )
         }
 
         if (kind == EngineSettingsKind.RENPY) item {

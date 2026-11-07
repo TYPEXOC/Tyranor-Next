@@ -7,20 +7,15 @@ import com.tyranor.next.core.engine.EngineType
 import com.tyranor.next.core.engine.runtime.RuntimeModuleContract
 import com.tyranor.next.core.game.model.ScanGame
 
-/** Game cards retain the detected RGSS generation even when all generations share one host type. */
+/** Keep the card title generic for RGSS games; the cover badge carries the detected generation. */
 @Composable
 fun gameEngineDisplayName(game: ScanGame, runtimeModuleLabel: String? = null): String {
-    val rgssName = if (game.engine == EngineType.RPGMAKER || game.engine == EngineType.RUNTIME_MODULE) {
-        when (game.externalModuleAlias) {
-            RGSS_XP_ALIAS -> R.string.engine_name_rpgmaker_xp
-            RGSS_VX_ALIAS -> R.string.engine_name_rpgmaker_vx
-            RGSS_VX_ACE_ALIAS -> R.string.engine_name_rpgmaker_vx_ace
-            else -> null
-        }
-    } else {
-        null
+    val isRgssGame = game.externalModuleAlias?.let { it in RGSS_ALIASES } == true ||
+        (game.engine == EngineType.RUNTIME_MODULE &&
+            game.runtimeModulePackage == RuntimeModuleContract.TYN_RGSS_PACKAGE_NAME)
+    if (isRgssGame && game.engine in setOf(EngineType.RPGMAKER, EngineType.RUNTIME_MODULE)) {
+        return stringResource(R.string.engine_name_rpgmaker)
     }
-    if (rgssName != null) return stringResource(rgssName)
 
     return when (game.engine) {
         EngineType.UNKNOWN -> stringResource(R.string.engine_name_unknown)
@@ -51,6 +46,9 @@ fun gameEngineBadgeLabel(game: ScanGame): String {
     ) stringResource(R.string.engine_badge_tyn_rgss) else game.engine.abbr
 }
 
-private const val RGSS_XP_ALIAS = "internal.rpgmxp"
-private const val RGSS_VX_ALIAS = "internal.rpgmvx"
-private const val RGSS_VX_ACE_ALIAS = "internal.rpgmvxace"
+private val RGSS_ALIASES = setOf(
+    "internal.rpgmxp",
+    "internal.rpgmvx",
+    "internal.rpgmvxace",
+    "internal.mkxp-z",
+)
