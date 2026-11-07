@@ -38,6 +38,9 @@ internal fun RtpImportRejection.userMessage(context: Context): String {
         is RtpImportRejection.IoFailed ->
             localized.getString(R.string.engine_settings_rpgm_rtp_reject_io, name)
 
+        RtpImportRejection.StorageUnavailable ->
+            localized.getString(R.string.engine_settings_rpgm_rtp_storage_unavailable)
+
         RtpImportRejection.EmptyArchive ->
             localized.getString(R.string.engine_settings_rpgm_rtp_reject_empty)
     }

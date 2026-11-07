@@ -28,7 +28,7 @@
 
 - 用户添加扫描根后递归识别游戏；默认扫描深度 3，可设置 1–5。支持差量扫描与重新扫描，手动添加的 PC/安卓记录在重扫后保留。
 - 游戏身份、引擎、目录或入口文件 URI、启动目标与封面元数据落入 Room；记录既可来自目录，也可来自单个文件（ROM / SWF）。无法识别为受支持引擎的目录不作为普通扫描候选入库。
-- 游戏页提供搜索、排序、卡片样式、改名、封面操作、启动文件选择及适用的单游戏设置/存档操作；可清理已不存在的游戏记录。
+- 游戏页提供搜索、排序、卡片样式、改名、封面操作、启动文件选择及适用的单游戏设置/存档操作；TYN RGSS 模块游戏可从操作抽屉进入单游戏引擎设置，普通第三方运行时模块不显示该入口；可清理已不存在的游戏记录。
 - 快捷启动最多 **3** 项；小屏单卡左右滑动，卡片下方以「当前页胶囊 + 其余圆点」指示页数（仅 2–3 项时显示）；最近游戏最多读取 **20** 项（首页列表显示 10 项，竖屏两列、横屏/大屏五列封面卡展示封面/引擎色底与游戏名，长按删除该条记录）。桌面快捷方式经独立入口回到统一启动链。
 - PC 游戏由用户选择目录和启动 exe 手动添加；安卓游戏从已安装可启动应用选择，以 `androidapp://<包名>` 标识，卸载后启动返回缺失结果。
 - 第三方 APK 运行时模块游戏只能经扫描入库：模块须先安装并在「引擎模块管理」启用，且声明扫描特征；主 App 不提供该类型的手动添加、模块选择、目录导入或拖入入口。
@@ -49,7 +49,7 @@
 | Ethornell / BGI | BGI 特征与资源组合 | 内置实验宿主，见第 10 节 |
 | Tyrano / VN / WebOther | `tyrano/`、`globalData.vndata`、HTML 等 | 内置 Web 壳 |
 | RPG Maker MV / MZ | `rpg_core.js` / `rmmz_core.js`、`www/` 等 | 内置 Web 运行环境，支持适用的 Asar 包 |
-| RPG Maker RGSS | XP/VX/VX Ace 资源或 mkxp-z 模块选择 | 外置 RPGM APK 模块 |
+| RPG Maker RGSS | XP/VX/VX Ace 资源；扫描记录保留对应代际别名 | 已安装且扫描命中的 TYN RGSS 运行时模块；游戏卡片统一显示 RPG Maker，封面角标显示 XP / VX / VX Ace；未安装或未扫描时提示安装并重新扫描 |
 | Ren'Py | `.rpa`、`.rpy/.rpyc` 等组合 | 外置 Ren'Py APK；自动或指定 8.5 / 7.7.1 |
 | Ruffle / Flash | 顶层 `.swf`；根 `index.html/index.htm` + 唯一 SWF 的叶子目录 | 外置 Ruffle APK；一 SWF 一条记录 |
 | 第三方运行时模块 | 已安装的 `com.tyranor.runtime.*` APK + 模块 `res/raw` 扫描描述 | 显式组件交棒游戏文件夹，模块自行运行 |
@@ -76,13 +76,14 @@ Ruffle（SWF / Flash）由外置 Ruffle APK 模块承载，当前扫描与启动
 来源：`core/engine/runtime/`、`ui/runtime/`。
 
 - **发现**：Manifest `<queries>` 声明 `com.tyranor.runtime.action.LAUNCH`（含 `CATEGORY_DEFAULT`），主 App 按 action 查询可见应用并只保留包名前缀 `com.tyranor.runtime.`；不申请 `QUERY_ALL_PACKAGES`，也不校验签名、版本或包内容。一个包只取一个入口 Activity：优先带 `com.tyranor.runtime.MANIFEST` meta-data 的，否则按 Activity 名排序取第一个。
-- **启用默认关**：发现结果只用于侧边栏「妙妙工具 → 引擎模块管理」列表与模块名展示，不写入扫描索引或游戏库；开关默认关闭。游戏库卡片对这类游戏统一显示「Plugin」，不显示模块名。启用只把包名写入 `AppSettingsStore.KEY_RUNTIME_MODULE_ENABLED`（StringSet，默认空集），不触发扫描、不立即写库。同包名更新/重装保留开关；包名变更视为新模块，默认关闭。
-- **扫描描述**：模块可选提供 `res/raw/tyranor_runtime.json`，声明 `extensions` / `markers` / `match`（`any` 或 `all`）；这是自动扫描的唯一特征来源，主 App 不根据包名、应用名、图标或内置第三方特征库猜测，也不执行模块代码；扩展名只匹配目录直接子文件，marker 支持直接子项与单层路径（如 `data/*.pak`），不递归。描述缺失、读取/解析失败或没有有效模式时只关闭该模块的自动扫描能力，模块仍可被发现、启用和启动。
-- **扫描接入**：扫描开始时快照「已发现 + 已启用 + 有扫描描述」的模块；仅当内置识别结果为 `UNKNOWN` 或 `WEB_OTHER` 时才尝试模块匹配，KRKR / ONS / RPGM / Ren'Py 等强特征结果不被覆盖。多模块命中按「`all` 优先于 `any` → marker 数量多 → 包名」选择；重扫对同一 URI 优先保留旧绑定，扫描深度沿用现有上限。
+- **启用默认关**：普通运行时模块用于侧边栏「妙妙工具 → 引擎模块管理」并由开关启用；TYN RGSS 由 RPG Maker 引擎入口管理，不列入该通用模块管理页。普通模块启用后只把包名写入 `AppSettingsStore.KEY_RUNTIME_MODULE_ENABLED`（StringSet，默认空集），不触发扫描、不立即写库；启用后需要重新扫描游戏库。同包名更新/重装保留开关；包名变更视为新模块，默认关闭。模块卡片显示 APK 应用图标，点图标或模块名打开模块自己的说明页；普通模块卡片显示模块名，TYN RGSS 游戏卡片统一显示「RPG Maker」，封面角标显示 XP / VX / VX Ace。
+- **扫描描述与模块能力**：模块可选提供 `res/raw/tyranor_runtime.json`，声明扫描特征 `extensions` / `markers` / `match`（`any` 或 `all`），并可用 `capabilities` 声明功能（当前识别 `translation`）。可选 `overrideEngines` 仅允许受支持的外部引擎类型；未声明时扫描描述只接管 `UNKNOWN` / `WEB_OTHER` 弱结果。扫描描述是自动扫描的唯一特征来源，主 App 不根据包名、应用名、图标或第三方库猜测，也不执行模块代码；扩展名只匹配目录直接子文件，marker 支持直接子项与单层路径（如 `data/*.pak`），不递归。描述缺失、读取/解析失败或没有有效扫描模式时只关闭该模块的自动扫描能力，模块仍可被发现、启用和启动。
+- **扫描接入**：扫描开始时快照「已发现 + 已启用 + 有扫描描述」的普通模块；模块先按特征匹配内置弱结果，只有通过 `overrideEngines` 明确声明的类型才可覆盖强特征。TYN RGSS 是专用例外：安装后扫描时按其 `RPGMAKER` 描述识别 XP/VX/VX Ace 游戏；未安装或未命中时仍保留 RPG Maker RGSS 识别，但启动会提示安装 TYN RGSS 并重新扫描。其他 KRKR / ONS / Ren'Py 强特征不会被覆盖。多模块命中按「`all` 优先于 `any` → marker 数量多 → 包名」选择；重扫对同一 URI 优先保留旧绑定，扫描深度沿用现有上限。
 - **唯一入库入口**：扫描是第三方运行时游戏唯一入库入口；管理页、添加游戏对话框和游戏页均不提供手动添加、模块选择、目录导入或拖入，也不提供手动绑定/重绑或模块缺失修复页。
 - **绑定与降级**：`ScanGame.runtimeModulePackage`（Room `games.runtime_module_package`，v3）记录「游戏 → 模块包名」；模块卸载、禁用、入口不再可发现或包名为空时，绑定游戏降级为 `EngineType.UNKNOWN`，但保留最后已知包名（用于重扫合并，不作为启动依据），保留标题、封面与最近时间。发现查询失败不降级。重新安装/启用后重新扫描可恢复，不支持自动或手动改绑。
-- **启动交棒**：`EngineType.RUNTIME_MODULE` 由 `RuntimeModuleLauncher` 以显式 `ComponentName` 启动，只传当前游戏文件夹绝对路径、标题与协议版本；不传 `game` / `settings` JSON，也不附加 URI 读写授权。`Dispatched` 只表示 Intent 已交棒，不保证模块进入游戏或未崩溃；模块缺失、未启用、入口缺失、路径无法解析、安全拒绝与其它异常返回类型化结果。模块缺失或未启用（存在绑定包名时）会触发该游戏降级；路径无法解析时不请求「所有文件访问」，存储权限由模块自行负责。
-- **能力边界**：`RUNTIME_MODULE` 不进入 `EngineLauncher.supportedEngines`，不出现在引擎页引擎列表；不接管存档（`GameSaveManager` 无统一接口）、虚拟按键/手柄重映射、引擎或单游戏设置。运行时、设置与存档均由模块自身管理。管理页的刷新只重新发现模块，不触发游戏库扫描；禁用仍有绑定游戏的模块前先确认，确认后降级。
+- **启动交棒**：`EngineType.RUNTIME_MODULE` 由 `RuntimeModuleLauncher` 以显式 `ComponentName` 启动，传当前游戏文件夹绝对路径、标题、游戏标识、协议版本与当前强调色。RPG Maker 引擎设置卡片显示 TYN RGSS 模块安装状态与已安装版本，Ruby 运行时默认项显示为「自动」。TYN RGSS 模块接收 Ruby VM（自动 / 1.8.7 / 1.9.3 / 3.1.3）；自动根据扫描保存的引擎别名为 XP/VX 选择 1.8.7、为 VX Ace 选择 1.9.3，未知代际回退 3.1.3；用户指定版本优先。`RGSS_OPTIONS` JSON 将全局设置与单游戏覆盖合并后传给 TYN 模块，覆盖 OpenGL 调试、平滑缩放、垂直同步、跳帧、实心字体、资源路径缓存及预建策略、快速资源枚举、对白复制、CJK 字体、postload 脚本开关、自定义字体、字体缩放、画面垂直对齐、画面分辨率、倍速和 TYN 作弊面板。分辨率选「跟随游戏默认」时保留游戏 `mkxp.json` 值及 RGSS 代际默认值。模块将有效值写入自己的私有 mkxp 配置/会话目录，不修改游戏文件；JoiPlay 专用但 TYN 模块未实现的历史字段不传入。仅对声明 `translation` 能力且用户已选择翻译文件的模块，附加只读 content URI；若虚拟按键启用，则附加按键方案 content URI 并授予临时读写权限。URI 同时放入 `ClipData` 以确保 Android 跨应用授权生效；未选择翻译或禁用按键时不传对应 URI。不传通用 `game` / `settings` JSON。`Dispatched` 只表示 Intent 已交棒，不保证模块进入游戏或未崩溃；模块缺失、未启用、入口缺失、路径无法解析、安全拒绝与其它异常返回类型化结果。模块缺失或未启用（存在绑定包名时）会触发该游戏降级；路径无法解析时不请求「所有文件访问」，存储权限由模块自行负责。
+- **RGSS RTP**：TYN 主程序在自己的首个可用 `getExternalMediaDirs()` 目录下管理 `RTP/<代际>/app`，并通过 `RTP_ROOT` 把实际路径传给 TYN RGSS 模块；模块负责发现、校验和挂载，忽略失效路径，并确保 SDL 偏好目录中的持久 `mkxp.json` 不能覆盖本次启动传入的 RTP 列表。主 App 以 SAF 读取用户选择的 ZIP/目录，再写入自身外置媒体目录；历史 `/JoiPlay/RTP` 内容不自动迁移，可通过文件夹导入重新导入。外置媒体目录可由 App 自身访问，独立模块读取时仍需具备共享存储访问能力。完整诊断记录配置来源与最终有效路径。Ruby 报告 `Errno::ENOENT` 时附加游戏资源/RTP 检查提示。
+- **能力边界**：`RUNTIME_MODULE` 不进入 `EngineLauncher.supportedEngines`，不出现在引擎页引擎列表；主 App 不接管存档（`GameSaveManager` 无统一接口）。模块声明 `translation` 能力后，游戏抽屉才提供翻译文件选择；主 App 仍不绘制外置引擎文字。RGSS 模块在独立进程内加载 TYN 按键方案、作弊界面及运行时翻译桥，翻译文件留在 TYN 私有目录或原游戏目录，不写入游戏文件夹。RGSS 模块接收并应用主 App 的运行设置；对白复制目前覆盖标准 RGSS 消息事件，自定义插件自行绘制且不经过标准消息路径的内容可能不在复制范围内。翻译桥支持运行中轮询更新译表并重绘可重绘的活动窗口；不承诺覆盖每个游戏自定义绘制路径。管理页的刷新只重新发现模块，不触发游戏库扫描；禁用仍有绑定游戏的模块前先确认，确认后降级。
 
 ## 5. 设置、输入与图形
 

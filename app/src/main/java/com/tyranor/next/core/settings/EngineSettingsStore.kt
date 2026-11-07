@@ -456,12 +456,13 @@ object EngineSettingsStore {
     private const val KEY_WINLATOR_LEGACY_CLEANED = "winlator_legacy_clean_version"
     private const val WINLATOR_LEGACY_CLEAN_VERSION = 3
 
-    // RPG Maker RGSS 外置模块取值域（对齐 JoiPlay utilities/f.java；verticalAlign 对齐插件默认）
-    const val RPG_WINDOW_SIZE_DEFAULT = "640x480"
+    // TYN RGSS / mkxp-z 直接支持的引擎设置值域。
+    const val RPG_WINDOW_SIZE_DEFAULT = "auto"
     const val RPG_SPEED_UP_DEFAULT = "1"
     const val RPG_FONT_SCALE_DEFAULT = "0.75"
     const val RPG_VERTICAL_ALIGN_DEFAULT = "top-center"
     val RPG_WINDOW_SIZES: Set<String> = linkedSetOf(
+        "auto",
         "512x384", "512x768", "544x416", "640x480", "800x600",
         "1024x768", "1280x720", "1280x960", "1920x1080",
     )
@@ -1004,21 +1005,16 @@ object EngineSettingsStore {
         else -> RPG_MZ_V0
     }
 
-    // ---------- RPG Maker RGSS 外置模块 ----------
+    // ---------- RPG Maker RGSS / TYN mkxp-z 模块设置 ----------
 
-    /**
-     * RGSS/mkxp 外置模块的 rpg 配置节。默认值对齐 JoiPlay `SettingsFactory.loadDefault`：
-     * useRuby18/smoothScaling/prebuiltPathCache/cheats 默认开，其余默认关。
-     * 仅保留 RPGM 插件 `MKXPConfigurationParser` 实际解析的键。
-     */
     data class RpgMaker(
         var useRuby18: Boolean = true,
         var debug: Boolean = false,
-        var smoothScaling: Boolean = true,
+        var smoothScaling: Boolean = false,
         var vsync: Boolean = false,
         var frameSkip: Boolean = false,
         var solidFonts: Boolean = false,
-        var pathCache: Boolean = false,
+        var pathCache: Boolean = true,
         var prebuiltPathCache: Boolean = true,
         var fastPathEnum: Boolean = true,
         var copyText: Boolean = false,

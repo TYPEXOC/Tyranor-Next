@@ -46,6 +46,9 @@ sealed interface RtpImportRejection {
      */
     data class IoFailed(val name: String) : RtpImportRejection
 
+    /** 应用外置媒体目录当前不可用。 */
+    data object StorageUnavailable : RtpImportRejection
+
     /** 源里没有任何可导入内容（空 zip / 空目录，或全被元数据过滤掉）。 */
     data object EmptyArchive : RtpImportRejection
 }
@@ -53,15 +56,16 @@ sealed interface RtpImportRejection {
 /**
  * RPGM 外置模块的共享目录管理（RTP / 自定义字体）。
  *
- * 目录契约由 RPGM 插件固定（插件 `MainActivity` 将
- * `/sdcard/JoiPlay/RTP/<RPGXP|RPGVX|RPGVXACE|mkxp-z>/app` 挂载为 RTP 根）：
- * 因此 RTP 与自定义字体必须落在共享存储，App 私有目录外置插件不可读。
+ * RTP 由主 App 管理在自己的外置媒体目录
+ * `Android/media/<app-package>/RTP/<RPGXP|RPGVX|RPGVXACE>/app`，并通过启动 extra 把根目录传给
+ * 独立的 TYN RGSS 模块。外置媒体目录属于共享存储，模块仍以真实文件路径读取；RTP 不再依赖
+ * JoiPlay 的目录契约。自定义字体沿用原有共享目录。
  *
  * 所有方法允许失败，且失败一律以**类型化结果**表达（`RtpImportRejection?` / null 或
  * `Boolean` / `String?`），由调用方按非致命处理；界面文案在 ui 层组装。
  */
 object RpgMakerRuntimeEnvironment {
-    private const val RTP_PARENT = "JoiPlay/RTP"
+    private const val RTP_FOLDER = "RTP"
     private const val FONT_PARENT = "JoiPlay/fonts"
 
     /**
@@ -150,8 +154,21 @@ object RpgMakerRuntimeEnvironment {
         else -> "RPGVXACE"
     }
 
-    fun rtpDir(gameType: String): File =
-        File(Environment.getExternalStorageDirectory(), "$RTP_PARENT/${rtpDirName(gameType)}")
+    fun rtpDir(context: Context, gameType: String): File? =
+        rtpRootDir(context)?.let { File(it, rtpDirName(gameType)) }
+
+    /** TYN 主程序自有 RTP 根目录；RGSS 模块当前需要可直接扫描的真实文件路径。 */
+    @Suppress("DEPRECATION")
+    fun rtpRootDir(context: Context): File? = runCatching {
+        val mediaDir = context.externalMediaDirs.firstOrNull { it != null } ?: return@runCatching null
+        val root = File(mediaDir, RTP_FOLDER)
+        if (!root.exists() && !root.mkdirs()) return@runCatching null
+        if (!root.isDirectory) return@runCatching null
+        // RTP 包含图片和音频素材，但不应进入系统媒体库。
+        val noMedia = File(root, ".nomedia")
+        if (!noMedia.exists() && !noMedia.createNewFile()) return@runCatching null
+        root
+    }.getOrNull()
 
     /**
      * RTP 根目录（`.../<子类型>/app`）。
@@ -160,8 +177,8 @@ object RpgMakerRuntimeEnvironment {
      * 被杀，这里把旧目录放回去。少了这一步，[isRtpImported] 会报「未导入」、游戏也读不到
      * RTP，而盘上其实还留着完整的旧数据。归位是幂等的（目标已有效时不做任何事）。
      */
-    fun rtpAppDir(gameType: String): File {
-        val dir = File(rtpDir(gameType), "app")
+    fun rtpAppDir(context: Context, gameType: String): File? {
+        val dir = rtpDir(context, gameType)?.let { File(it, "app") } ?: return null
         recoverPendingImport(dir)
         return dir
     }
@@ -174,7 +191,8 @@ object RpgMakerRuntimeEnvironment {
      * 方法——若此时先把 target 建成非空（如 mkdirs + 写 sf.sf2），下一次恢复会把备份当成
      * 「已成功替换的陈旧孤儿」删掉，旧 RTP 永久丢失。
      */
-    internal fun rtpAppDirIfReady(gameType: String): File? = rtpAppDirIfReady(rtpDir(gameType))
+    internal fun rtpAppDirIfReady(context: Context, gameType: String): File? =
+        rtpDir(context, gameType)?.let { rtpAppDirIfReady(it) }
 
     /** [rtpAppDirIfReady] 的可测重载：以 [root] 为 `<子类型>` 目录，[delete] 可注入失败。 */
     internal fun rtpAppDirIfReady(
@@ -237,8 +255,8 @@ object RpgMakerRuntimeEnvironment {
     }
 
     /** RTP 是否已导入（app 目录存在且非空）。 */
-    fun isRtpImported(gameType: String): Boolean {
-        val dir = rtpAppDir(gameType)
+    fun isRtpImported(context: Context, gameType: String): Boolean {
+        val dir = rtpAppDir(context, gameType) ?: return false
         return dir.isDirectory && (dir.listFiles()?.isNotEmpty() == true)
     }
 
@@ -257,6 +275,9 @@ object RpgMakerRuntimeEnvironment {
 
         /** 该子类型有导入在途：此时不得触碰导入现场，等导入结束后再清除。 */
         IMPORT_IN_FLIGHT,
+
+        /** 应用外置媒体目录当前不可用。 */
+        STORAGE_UNAVAILABLE,
     }
 
     /**
@@ -277,9 +298,9 @@ object RpgMakerRuntimeEnvironment {
      * 与「另一次导入登记 → 建临时目录」不可能交错。正因如此，走到清理临时目录这一步时同目录内
      * 不可能有在途导入，残留只可能是崩溃留下的半成品，可以全清。
      */
-    fun clearRtp(gameType: String): RtpClearResult = synchronized(importLock) {
+    fun clearRtp(context: Context, gameType: String): RtpClearResult = synchronized(importLock) {
         if (hasInFlightImport(gameType)) return@synchronized RtpClearResult.IMPORT_IN_FLIGHT
-        val root = rtpDir(gameType)
+        val root = rtpDir(context, gameType) ?: return@synchronized RtpClearResult.STORAGE_UNAVAILABLE
         val appDir = File(root, "app")
         val backup = File(root, IMPORT_BACKUP_DIR)
         val marker = File(root, IMPORT_MARKER_FILE)
@@ -381,7 +402,7 @@ object RpgMakerRuntimeEnvironment {
         // 任一环节抛出都必须转成类型化失败，异常不得穿到 UI 层
         var created: File? = null
         return try {
-            val target = rtpAppDir(gameType)
+            val target = rtpAppDir(context, gameType) ?: return RtpImportRejection.StorageUnavailable
             val parent = target.parentFile ?: return RtpImportRejection.IoFailed(target.path)
             if (!parent.exists() && !parent.mkdirs()) return RtpImportRejection.IoFailed(parent.name)
             // 本次导入专属临时目录（并发导入各写各的，不共用固定名）
@@ -419,7 +440,7 @@ object RpgMakerRuntimeEnvironment {
             // fromTreeUri 对非 tree URI 会抛 IllegalArgumentException：必须在 try 内
             val source = DocumentFile.fromTreeUri(context, treeUri)
                 ?: return RtpImportRejection.IoFailed(treeUri.lastPathSegment ?: "tree")
-            val target = rtpAppDir(gameType)
+            val target = rtpAppDir(context, gameType) ?: return RtpImportRejection.StorageUnavailable
             val parent = target.parentFile ?: return RtpImportRejection.IoFailed(target.path)
             if (!parent.exists() && !parent.mkdirs()) return RtpImportRejection.IoFailed(parent.name)
             // 本次导入专属临时目录（并发导入各写各的，不共用固定名）

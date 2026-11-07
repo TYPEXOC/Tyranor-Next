@@ -3,6 +3,7 @@ package com.tyranor.next.core.settings
 import android.content.Context
 import android.content.res.Configuration
 import android.os.Build
+import com.tyranor.next.core.engine.runtime.RgssRubyRuntime
 import kotlinx.coroutines.flow.MutableStateFlow
 
 /**
@@ -23,6 +24,9 @@ object AppSettingsStore {
 
     /** 已启用的第三方 APK 运行时模块包名集合；默认空集（新发现模块默认关闭）。 */
     const val KEY_RUNTIME_MODULE_ENABLED = "runtime_module_enabled"
+
+    /** TYN RGSS 模块的全局 Ruby VM 选择。 */
+    const val KEY_RGSS_RUBY_RUNTIME = "rgss_ruby_runtime"
 
     /** System4 一次性定点重检测迁移标志（纠正旧库中被误判为 XSYS35 的 System4 游戏）。 */
     private const val KEY_MIGRATION_XSYS4_RESCAN_DONE = "migration_xsys4_rescan_done"
@@ -624,6 +628,13 @@ object AppSettingsStore {
     fun isRuntimeModuleEnabled(context: Context, packageName: String): Boolean {
         val target = packageName.trim()
         return target.isNotEmpty() && target in getEnabledRuntimeModules(context)
+    }
+
+    fun getRgssRubyRuntime(context: Context): RgssRubyRuntime =
+        RgssRubyRuntime.fromWireValue(prefs(context).getString(KEY_RGSS_RUBY_RUNTIME, null))
+
+    fun setRgssRubyRuntime(context: Context, runtime: RgssRubyRuntime) {
+        prefs(context).edit().putString(KEY_RGSS_RUBY_RUNTIME, runtime.wireValue).apply()
     }
 
     private fun normalizeLanguage(language: String?): String = when (language) {

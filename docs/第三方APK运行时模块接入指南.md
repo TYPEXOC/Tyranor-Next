@@ -9,8 +9,8 @@
 ## 1. 先理解三件事
 
 1. **模块是一个独立 APK**，不是主 App 的插件或动态代码。
-2. 主 App 只做四件事：**发现模块、让用户启用、按模块声明扫描游戏、把游戏文件夹路径交给模块**。
-3. 游戏运行、设置、存档、按键、画面都由模块自己负责；主 App 不接管。
+2. 主 App 负责**发现模块、让用户启用、按模块声明扫描游戏、把游戏文件夹路径交给模块**；用户已选择时还会临时共享当前翻译文件和按键方案。
+3. 游戏运行、设置、存档、作弊执行与画面都由模块自己负责；主 App 不进入模块进程。
 
 一条完整的接入链路：
 
@@ -21,7 +21,7 @@
   → 用户手动扫描游戏库
   → 主 App 按模块声明的 extensions / markers 识别游戏
   → 用户启动游戏
-  → 主 App 用显式组件把文件夹路径交给模块
+  → 主 App 用显式组件把文件夹路径交给模块，并可选授予译表/按键方案 URI
   → 模块自己运行游戏
 ```
 
@@ -87,6 +87,13 @@ com.example.runtime             ❌ 前缀不对
 | `com.tyranor.runtime.extra.FOLDER_PATH` | String | 游戏文件夹绝对路径，必填 |
 | `com.tyranor.runtime.extra.GAME_TITLE` | String | 游戏标题，可选 |
 | `com.tyranor.runtime.extra.PROTOCOL_VERSION` | Int | 主 App 协议版本，当前为 1 |
+| `com.tyranor.runtime.extra.GAME_ID` | String | 稳定游戏标识，可用于隔离模块状态 |
+| `com.tyranor.runtime.extra.TRANSLATION_URI` | String | 可选；当前选中译表的 `content://` URI，只读 |
+| `com.tyranor.runtime.extra.PAD_ENABLED` | Boolean | 可选；TYN 按键是否启用 |
+| `com.tyranor.runtime.extra.PAD_PROFILE_URI` | String | 可选；生效按键方案的 `content://` URI，临时读写 |
+| `com.tyranor.runtime.extra.PAD_PROFILE_ID` | String | 可选；当前方案 ID |
+| `com.tyranor.runtime.extra.THEME_PRIMARY_COLOR` | Int | 可选；TYN 当前强调色 ARGB |
+| `com.tyranor.runtime.extra.THEME_ON_PRIMARY_COLOR` | Int | 可选；强调色上的前景色 ARGB |
 
 最小接收代码：
 
@@ -102,7 +109,7 @@ class LaunchActivity : Activity() {
         Log.i("MyRuntime", "folder=$folder title=$title protocol=$protocol")
 
         if (folder.isNullOrBlank()) {
-            // 没有文件夹路径，直接结束；主 App 不会传 settings/存档/按键参数
+            // 没有文件夹路径，直接结束
             finish()
             return
         }
@@ -113,13 +120,13 @@ class LaunchActivity : Activity() {
 }
 ```
 
-主 App 不会传：
+兼容性说明：旧模块可以忽略新增 extra。接收 content URI 时，模块应按临时授权读取；若要编辑按键方案，可在启动任务存活期间写回已授予写权限的 URI。URI 与权限一同放进启动 Intent 的 `ClipData`。主 App 不会传：
 
 - `game` / `settings` JSON；
-- 存档路径、按键映射、画面参数；
+- 存档路径或画面参数；
 - SAF URI 的持久授权。
 
-所以模块自己的设置、存档、输入、画面策略都要在模块内完成。
+模块仍需自行实现运行时、作弊、存档与画面策略；按键和翻译仅在主 App 明确选择后提供文件访问。
 
 ---
 
@@ -227,7 +234,7 @@ class LaunchActivity : Activity() {
 3. 用户打开开关：只写入启用状态，**不自动扫描、不立即入库**。
 4. 用户回游戏页手动扫描：只有已启用 + 有扫描描述的模块参与。
 5. 识别到的目录以 `EngineType.RUNTIME_MODULE` 入库，游戏卡引擎名显示 **Plugin**。
-6. 启动游戏时，主 App 把文件夹路径交给模块。
+6. 启动游戏时，主 App 把文件夹路径交给模块；如果用户已选择译表或启用按键，也会授予对应文件的本次启动 URI 权限。
 
 这意味着：
 
@@ -310,9 +317,10 @@ Intent("com.tyranor.runtime.action.LAUNCH").apply {
 
 - `game` / `settings` JSON；
 - 存档目录；
-- 虚拟按键/手柄配置；
 - 画面过滤参数；
 - 模块版本/签名校验结果。
+
+译表 URI 与按键方案 URI 是可选项，只有主 App 中有明确选择/启用时才会传。按键方案通过临时读写 URI 提供给模块，但按键渲染、事件注入与编辑仍由模块实现；译表 URI 为临时只读。不得依赖长期授权或在游戏目录建立配置副本。
 
 模块自己的设置请用自己的 SharedPreferences/数据库/文件维护。
 
@@ -388,7 +396,8 @@ Intent("com.tyranor.runtime.action.LAUNCH").apply {
 - 不执行模块代码做扫描；
 - 不支持正则、文件内容魔数、递归 `**` 扫描；
 - 不传 SAF URI 持久授权；
-- 不接管模块的存档、设置、按键、画面；
+- 不接管模块的存档、运行时设置与画面；
+- 不替模块渲染按键、注入输入或执行译表；只在用户选择后提供译表/按键方案的临时文件 URI；
 - 不提供模块结果回调；
 - 不自动迁移包名变更后的游戏绑定。
 

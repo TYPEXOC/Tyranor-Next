@@ -80,7 +80,14 @@ object RuntimeModuleRegistry {
             when (result) {
                 is RuntimeModuleDiscoveryResult.Success -> {
                     val enabledPackages = AppSettingsStore.getEnabledRuntimeModules(context)
-                    val modules = result.modules.map { it.copy(enabled = it.packageName in enabledPackages) }
+                    val modules = result.modules.map { module ->
+                        // TYN RGSS 是 RPG Maker 引擎的配套运行时，安装后由引擎页/扫描直接使用，
+                        // 不要求再到「妙妙工具 → 引擎模块管理」手动启用。
+                        module.copy(
+                            enabled = module.packageName == RuntimeModuleContract.TYN_RGSS_PACKAGE_NAME ||
+                                module.packageName in enabledPackages,
+                        )
+                    }
                     _state.value = RuntimeModuleSnapshot(
                         modules = modules,
                         lastError = null,

@@ -322,6 +322,10 @@ object EngineLauncher {
         if (game.engine == EngineType.RUNTIME_MODULE) {
             return launchRuntimeModule(context, game, onDispatched)
         }
+        // RPG Maker RGSS 只通过 TYN 自建运行时模块启动，不再回退到 JoiPlay 外置模块。
+        if (game.engine == EngineType.RPGMAKER) {
+            return LaunchResult.Failure.RpgMakerRuntimeRequired
+        }
         // 外置模拟器跳转：PSP / Switch 为 ROM 文件型（不解析目录），
         // YURIS 为 Windows 游戏（目录 + 主 exe，经 Winlator 外置启动协议挂载目录）
         ExternalEmulatorRegistry.forEngine(game.engine)?.let { target ->

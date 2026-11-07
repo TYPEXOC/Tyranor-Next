@@ -2,7 +2,7 @@
   <img src="screenshots/index1.png" alt="Tyranor Next" width="900" />
 </p>
 
-基于 **Tyranor 模拟器逆向重写** 的多引擎视觉小说（Galgame）模拟器器，面向 Android 平台。具体功能与兼容边界见 [SPEC.md](SPEC.md)。
+基于 **Tyranor 模拟器逆向重写** 的多引擎视觉小说（Galgame）聚合启动器，面向 Android 平台。内置 Kirikiri / ONScripter / Tyrano / Artemis / Siglus / RealLive / AVG32 / UK2 / FVP / System35 / System4 等原生与 Web 运行环境，另含 Ethornell / BGI 实验接入，并支持 Ren'Py、Ruffle（SWF / Flash）外置 APK 引擎模块、TYN RGSS 运行时模块、第三方 APK 运行时模块与外置模拟器跳转（PPSSPP / Eden / Winlator），提供游戏库管理、封面获取、存档镜像、引擎参数调节等一体化体验。具体功能与兼容边界见 [SPEC.md](SPEC.md)。
 
 mac原生版本如下：
 
@@ -53,10 +53,10 @@ iOS版本计划中...
 | CatSystem2           | `config/startup.xml`、`*.int`、`*.cst`、`*.hg3`、`*.kcs` 等组合         | 外置 Winlator（winlator-cn）        |
 | PC（手动添加）        | 游戏页顶栏「添加 PC 游戏」选择目录并指定启动 exe                          | 外置 Winlator（winlator-cn）        |
 | TyranoBuilder        | `index.html`、`tyrano/`                                              | 内置 Tyrano Web 运行环境           |
-| RPG Maker XP         | `.rgssad`、`Game.ini` + `Data/*.rxdata`                              | 外置 RPGM APK 模块               |
-| RPG Maker VX         | `.rgss2a`、`Game.ini` + `Data/*.rvdata`                              | 外置 RPGM APK 模块               |
-| RPG Maker VX Ace     | `.rgss3a`、`Game.ini` + `Data/*.rvdata2`                             | 外置 RPGM APK 模块               |
-| mkxp-z               | 用户选择/内部别名 `internal.mkxp-z`                                         | 外置 RPGM APK 模块               |
+| RPG Maker XP         | `.rgssad`、`Game.ini` + `Data/*.rxdata`                              | TYN RGSS 运行时模块               |
+| RPG Maker VX         | `.rgss2a`、`Game.ini` + `Data/*.rvdata`                              | TYN RGSS 运行时模块               |
+| RPG Maker VX Ace     | `.rgss3a`、`Game.ini` + `Data/*.rvdata2`                             | TYN RGSS 运行时模块               |
+| mkxp-z               | 用户选择/内部别名 `internal.mkxp-z`                                         | TYN RGSS 运行时模块               |
 | RPG Maker MV         | `www/`、`js/rpg_core.js`                                             | 内置 Web 运行环境                  |
 | RPG Maker MZ         | `www/`、`js/rmmz_core.js`                                            | 内置 Web 运行环境                  |
 | VN                   | `globalData.vndata`                                                 | 内置 Web 运行环境                  |
@@ -97,8 +97,8 @@ iOS版本计划中...
 - 大体积引擎运行库（`libsiglus.so`、`librfvp.so`、`libethornell.so`、`libkrkrsdl3.so`、IJK 三件套、System35/4 与 `libSDL2x.so`）不进 APK 的 `lib/`：构建期打成 `assets/engine-runtime/<pack>.zip.xz`，首次启动对应引擎时由 `NativeRuntimePack` 解压到应用私有目录，JNI 桥按绝对路径加载
 - 共享 RPG Maker 注入脚本源头位于 `engine/src/main/assets`；app 侧只保留应用专属注入脚本，构建时由 Gradle 同步生成到 app assets，避免两边手工维护重复文件
 - `app` 模块通过 `core/game/launch/EngineLauncher` 将扫描结果映射到对应引擎 Activity 启动（SAF URI → 真实路径转换）
-- Ren'Py、RPG Maker RGSS、Ruffle 等外置 APK 引擎模块由 `core/engine/external` 统一注册、检测安装状态并按 intent 协议拉起；主 App 不维护手动启用开关，模块安装即视为可用。Ruffle 使用 `launchEntryIsFile` 的文件型入口，启动前把 SWF 文件记录解析为父目录再下发
-- 第三方 APK 运行时模块由 `core/engine/runtime` 按 `com.tyranor.runtime.` 前缀与 `LAUNCH` action 动态发现，在侧边栏「妙妙工具 → 引擎模块管理」默认关闭、按模块启用；扫描仅使用模块 `res/raw/tyranor_runtime.json` 声明的特征，启动经显式组件只传入游戏文件夹路径，模块自管运行、设置与存档
+- JoiPlay 外置模块继续承载 Ren'Py 与 Ruffle；RPG Maker RGSS 由 TYN 自行构建的模块承载。Ruby 运行时提供自动、1.8.7、1.9.3、3.1.3；自动按扫描到的代际选择 XP/VX 的 1.8.7、VX Ace 的 1.9.3，未知代际回退 3.1.3。渲染、分辨率、倍速、字体、缓存、复制对白、作弊、CJK 字体、postload 脚本与调试设置支持全局默认及单游戏覆盖；模块在私有运行目录中应用配置，不修改游戏文件。RTP 由主 App 导入和删除，保存在首个可用 `getExternalMediaDirs()/RTP` 并通过真实路径交给模块；历史 JoiPlay RTP 不自动迁移，可通过文件夹导入。RGSS 游戏的操作抽屉提供单游戏引擎设置入口；引擎列表显示模块状态与已安装版本，设置卡片显示模块状态，Ruby 运行时选项简洁显示「自动」；普通第三方运行时模块仍不提供该入口。RPG Maker 卡片保留通用名称，封面角标显示 XP / VX / VX Ace。Ruffle 使用 `launchEntryIsFile` 文件入口，启动前把 SWF 文件记录解析为父目录再下发
+- 第三方 APK 运行时模块由 `core/engine/runtime` 按 `com.tyranor.runtime.` 前缀与 `LAUNCH` action 动态发现，在侧边栏「妙妙工具 → 引擎模块管理」默认关闭、按模块启用；扫描与能力仅使用模块 `res/raw/tyranor_runtime.json` 声明的内容，启动时传游戏文件夹，已声明翻译能力的模块可按用户当前选择临时读取译表，并可读取/写回按键方案。RGSS 模块在自己的 APK 进程内运行，提供 TYN 按键、作弊面板和不改游戏文件的运行时翻译桥
 - PSP / Nintendo Switch 由 `core/engine/external` 的 `ExternalEmulatorRegistry` / `ExternalEmulatorLauncher` 跳转外置 PPSSPP / Eden：扫描识别 ROM 后逐条入库（一 ROM 一条），运行时在目录解析前分流、按显式组件与读取授权启动；引擎页「外置跳转支持」项展示安装状态并可跳下载页，Manifest `<queries>` 已声明对应包名
 - Tyrano 运行环境内置本地 HTTP 服务器、Asar 归档解析与 JS 钩子脚本（`__tyrano__.js` 等），无需外部依赖即可运行网页式脚本游戏
 - FVP（rfvp）宿主为 Java `SurfaceView` + `Choreographer` 主循环驱动 Rust 引擎（`librfvp.so` + 自研桥接库），随 APK 打包；支持 `*.hcb` 原版与 `*.bch` 汉化脚本，文本编码（Shift-JIS/GBK/UTF-8）、系统字体回退与文本 HiDPI 可在引擎设置中按全局/单游戏调整
@@ -139,7 +139,7 @@ app/
 │   ├── core/      功能抽象层：扫描、启动、引擎模块、封面、存档、补丁、拆封包、配置、授权、更新
 │   ├── ui/        界面 UI 交互层：主界面、游戏页、设置页、弹窗、公共组件
 │   └── theme/     Compose / Miuix 主题、色调、深浅色适配
-├── src/main/assets/rtp/    App 自有 RTP 资源
+├── src/main/assets/rtp/    App 内置 RTP 音源资源；用户 RTP 位于首个可用外置媒体目录/RTP
 ├── src/main/nativeplugins/ 插件 manifest 与 app-only 插件源头
 ├── build/generated/assets/ 构建生成的 engine/ 共享脚本与 nativeplugins/ 插件资产（.zip.xz）
 ├── schemas/                Room schema（随代码提交）

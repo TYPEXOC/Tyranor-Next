@@ -29,11 +29,14 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tyranor.next.R
 import com.tyranor.next.core.engine.external.ExternalEngineLauncher
-import com.tyranor.next.core.engine.external.RpgMakerExternalEngineModule
 import com.tyranor.next.core.engine.external.RpgMakerRuntimeEnvironment
 import com.tyranor.next.core.engine.external.RtpImportRejection
+import com.tyranor.next.core.engine.runtime.RgssRubyRuntime
+import com.tyranor.next.core.engine.runtime.RuntimeModuleContract
+import com.tyranor.next.core.engine.runtime.RuntimeModuleRegistry
 import com.tyranor.next.core.settings.EngineSettingsStore
 import com.tyranor.next.theme.DialogItemSurface
 import com.tyranor.next.ui.common.AppAlertDialog
@@ -57,30 +60,37 @@ private val RPGM_RTP_TYPES = listOf("rpgmxp", "rpgmvx", "rpgmvxace")
  */
 private const val RTP_IN_FLIGHT_POLL_MS = 500L
 
+private const val TYN_RGSS_ACTIONS_URL =
+    "https://github.com/TYPEXOC/AnyPlay-Plugin-RGSS/actions/workflows/android.yml"
+
 /**
  * RPG Maker RGSS 外置模块设置卡片（全局）。
  *
  * 仅承载 RPGM 插件 `MKXPConfigurationParser` 实际解析的字段：渲染/显示项即时以本地状态回填，
- * 由外层顶部保存按钮统一落盘（编辑→保存模型）；RTP 导入/清理与字体导入直接落共享目录。
+ * 由外层顶部保存按钮统一落盘（编辑→保存模型）；RTP 导入/删除与字体导入直接落各自托管目录。
  * 覆盖 MV/MZ Web 设置的入口不在此卡片内，避免双入口。
  */
 @Composable
 internal fun RpgMakerRgssSettingsCard(
     settings: EngineSettingsStore.RpgMaker,
     onSettings: (EngineSettingsStore.RpgMaker) -> Unit,
+    rubyRuntime: RgssRubyRuntime,
+    onRubyRuntime: (RgssRubyRuntime) -> Unit,
 ) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
-    var moduleInstalled by remember {
-        mutableStateOf(ExternalEngineLauncher.isPackageInstalled(ctx, RpgMakerExternalEngineModule))
+    val runtimeModules by RuntimeModuleRegistry.state.collectAsStateWithLifecycle()
+    val tynRgssModule = runtimeModules.modules.firstOrNull {
+        it.packageName == RuntimeModuleContract.TYN_RGSS_PACKAGE_NAME
     }
+    val moduleInstalled = tynRgssModule != null
     var advancedExpanded by remember { mutableStateOf(false) }
     var showResetDialog by remember { mutableStateOf(false) }
     var showRtpSourceDialog by remember { mutableStateOf(false) }
     var pendingRtpType by remember { mutableStateOf<String?>(null) }
     var clearingRtpType by remember { mutableStateOf<String?>(null) }
-    // null = 状态尚未读出（IO 还在跑）：先显示「检测中」，避免把真实状态反着显示、
-    // 并顺手藏掉「清除」入口（首帧固定 false 时它会出现又消失）
+    // null = 状态尚未读出（IO 还在跑）：先显示「检测中」，避免把真实状态反着显示，
+    // 并保持删除按钮禁用，避免首帧固定 false 时短暂开放删除。
     var rtpImported by remember { mutableStateOf(RPGM_RTP_TYPES.associateWith<String, Boolean?> { null }) }
     // 导入在途守卫：导入耗时可到分钟级，期间再次点「导入」会（在修复临时目录前）让两次
     // 导入互相破坏；现在临时目录已逐次唯一，但并发导入仍是无意义操作——**同一子类型**的入口
@@ -91,10 +101,10 @@ internal fun RpgMakerRgssSettingsCard(
     //  - 本页发起的导入由 localImportingRtpTypes 跟踪，结束时由 runRtpImport 收尾并给出提示；
     //  - **从 core 登记恢复来的**态由 coreImportingRtpTypes 跟踪——它的结束时机只有 core 知道
     //    （导入在 IO 线程继续跑），必须能被 core 的「无在途」收敛掉，否则「长导入期间切走页面
-    //    再回来」会让按钮一直置灰、也没有完成提示；
+    //    再回来」会让导入按钮一直置灰、也没有完成提示；
     //  - 两个态都是**集合**（core 与 UI 都允许不同子类型并行导入），且恢复态要**排除本页正在
     //    跟踪的那些**：用单值时只装得下一个子类型——恢复态漏掉的那个永不收敛（状态陈旧、清除
-    //    入口消失、无完成提示），本页发起、又被恢复态重复接管的那个则会与 runRtpImport 各弹
+    //    删除按钮状态不再更新、无完成提示），本页发起、又被恢复态重复接管的那个则会与 runRtpImport 各弹
     //    一次「导入完成」。
     var localImportingRtpTypes by remember { mutableStateOf(emptySet<String>()) }
     var coreImportingRtpTypes by remember { mutableStateOf(emptySet<String>()) }
@@ -106,7 +116,7 @@ internal fun RpgMakerRgssSettingsCard(
      */
     suspend fun refreshAllRtp() {
         val states = withContext(Dispatchers.IO) {
-            RPGM_RTP_TYPES.associateWith { RpgMakerRuntimeEnvironment.isRtpImported(it) }
+            RPGM_RTP_TYPES.associateWith { RpgMakerRuntimeEnvironment.isRtpImported(ctx, it) }
         }
         val inFlight = withContext(Dispatchers.IO) {
             RPGM_RTP_TYPES.filter { RpgMakerRuntimeEnvironment.isRtpImportInFlight(it) }.toSet()
@@ -120,17 +130,20 @@ internal fun RpgMakerRgssSettingsCard(
     // RTP 状态读盘（含中断恢复的文件操作）放 IO 线程：组合期在主线程逐个 stat/rename
     // 目录有 ANR 风险（恢复路径会 deleteRecursively 半成品）
     LaunchedEffect(Unit) {
+        RuntimeModuleRegistry.refresh(ctx)
         refreshAllRtp()
     }
 
     // 从安装器返回后刷新模块/RTP 状态（与引擎页 ON_RESUME 刷新策略一致）
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
-        moduleInstalled = ExternalEngineLauncher.isPackageInstalled(ctx, RpgMakerExternalEngineModule)
-        scope.launch { refreshAllRtp() }
+        scope.launch {
+            RuntimeModuleRegistry.refresh(ctx)
+            refreshAllRtp()
+        }
     }
 
     suspend fun refreshRtp(type: String) {
-        val imported = withContext(Dispatchers.IO) { RpgMakerRuntimeEnvironment.isRtpImported(type) }
+        val imported = withContext(Dispatchers.IO) { RpgMakerRuntimeEnvironment.isRtpImported(ctx, type) }
         rtpImported = rtpImported.toMutableMap().apply { put(type, imported) }
     }
 
@@ -236,17 +249,22 @@ internal fun RpgMakerRgssSettingsCard(
             NoRippleTextButton(
                 text = stringResource(R.string.engine_settings_rpgm_module_download),
                 modifier = Modifier.padding(horizontal = 8.dp),
-                onClick = { ExternalEngineLauncher.openInstallPage(ctx, RpgMakerExternalEngineModule) },
+                onClick = { ExternalEngineLauncher.openInstallPage(ctx, TYN_RGSS_ACTIONS_URL) },
             )
         }
 
         // 兼容性
         RpgmGroupLabel(stringResource(R.string.engine_settings_rpgm_group_compat))
-        SwitchPreference(
-            title = stringResource(R.string.engine_settings_rpgm_use_ruby18),
-            checked = settings.useRuby18,
-            onCheckedChange = { onSettings(settings.copy(useRuby18 = it)) },
-        )
+        DropdownRow(
+            stringResource(R.string.engine_settings_tyn_rgss_ruby_runtime),
+            listOf(
+                RgssRubyRuntime.AUTO.wireValue to stringResource(R.string.engine_settings_tyn_rgss_ruby_auto),
+                RgssRubyRuntime.RUBY_187.wireValue to stringResource(R.string.engine_settings_tyn_rgss_ruby_187),
+                RgssRubyRuntime.RUBY_193.wireValue to stringResource(R.string.engine_settings_tyn_rgss_ruby_193),
+                RgssRubyRuntime.RUBY_313.wireValue to stringResource(R.string.engine_settings_tyn_rgss_ruby_313),
+            ),
+            rubyRuntime.wireValue,
+        ) { onRubyRuntime(RgssRubyRuntime.fromWireValue(it)) }
 
         // 渲染
         RpgmGroupLabel(stringResource(R.string.engine_settings_rpgm_group_render))
@@ -434,17 +452,17 @@ internal fun RpgMakerRgssSettingsCard(
             onDismissRequest = { clearingRtpType = null },
             title = {
                 Text(
-                    stringResource(R.string.engine_settings_rpgm_rtp_clear),
+                    stringResource(R.string.engine_settings_rpgm_rtp_delete),
                     style = MaterialTheme.typography.titleMedium,
                 )
             },
             text = { Text(stringResource(R.string.engine_settings_rpgm_rtp_clear_confirm)) },
             confirmButton = {
                 DialogTextButton(text = stringResource(R.string.common_confirm), onClick = {
-                    // clearRtp 会递归删目录：放 IO 线程，避免清除大 RTP 时卡住点击瞬间
+                    // clearRtp 会递归删目录：放 IO 线程，避免删除大 RTP 时卡住点击瞬间
                     scope.launch {
                         val cleared = withContext(Dispatchers.IO) {
-                            RpgMakerRuntimeEnvironment.clearRtp(type)
+                            RpgMakerRuntimeEnvironment.clearRtp(ctx, type)
                         }
                         refreshRtp(type)
                         clearingRtpType = null
@@ -456,6 +474,8 @@ internal fun RpgMakerRgssSettingsCard(
                                 R.string.engine_settings_rpgm_rtp_clear_importing
                             RpgMakerRuntimeEnvironment.RtpClearResult.FAILED ->
                                 R.string.engine_settings_rpgm_rtp_clear_failed
+                            RpgMakerRuntimeEnvironment.RtpClearResult.STORAGE_UNAVAILABLE ->
+                                R.string.engine_settings_rpgm_rtp_storage_unavailable
                         }
                         Toast.makeText(ctx, ctx.getString(msg), Toast.LENGTH_SHORT).show()
                     }
@@ -506,7 +526,7 @@ private fun RpgmRtpRow(
     title: String,
     /** null = 状态尚未读出（IO 在跑）。 */
     imported: Boolean?,
-    /** 本类型正在导入：入口全部置灰（导入与清除互斥，见 RpgmRtpRow 契约）。 */
+    /** 本类型正在导入：导入与删除入口置灰（导入与删除互斥，见 RpgmRtpRow 契约）。 */
     importing: Boolean,
     onImport: () -> Unit,
     onClear: () -> Unit,
@@ -531,19 +551,17 @@ private fun RpgmRtpRow(
         }
         NoRippleTextButton(
             text = stringResource(R.string.engine_settings_rpgm_rtp_import),
-            // 导入在途：禁用入口，避免两次导入并发（也避免把清除与导入交错）
+            // 导入在途：禁用入口，避免两次导入并发（也避免把删除与导入交错）
             enabled = !importing,
             onClick = onImport,
         )
-        if (imported == true) {
-            // 清除是破坏性动作；无点击反馈实现（AGENTS.md 弹窗/页内按钮规范），
-            // 语义色取 colorScheme.error（AGENTS.md 3.3：error 用于错误/删除）
-            NoRippleTextButton(
-                text = stringResource(R.string.engine_settings_rpgm_rtp_clear),
-                enabled = !importing,
-                contentColor = MaterialTheme.colorScheme.error,
-                onClick = onClear,
-            )
-        }
+        // 删除入口始终可见；没有已导入资源或导入进行中时置灰。
+        // 无点击反馈实现（AGENTS.md 弹窗/页内按钮规范），删除语义取 error 色。
+        NoRippleTextButton(
+            text = stringResource(R.string.engine_settings_rpgm_rtp_delete),
+            enabled = imported == true && !importing,
+            contentColor = MaterialTheme.colorScheme.error,
+            onClick = onClear,
+        )
     }
 }

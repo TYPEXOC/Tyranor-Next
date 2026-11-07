@@ -190,6 +190,9 @@ private fun LaunchResult.Failure.toUserMessage(context: Context): String {
         LaunchResult.Failure.EngineUnknown ->
             localized.getString(R.string.launch_engine_unknown)
 
+        LaunchResult.Failure.RpgMakerRuntimeRequired ->
+            localized.getString(R.string.launch_rpgmaker_runtime_required)
+
         is LaunchResult.Failure.StartFailed ->
             detail ?: localized.getString(R.string.launch_failed)
     }

@@ -1,5 +1,7 @@
 package com.tyranor.next.core.engine.runtime
 
+import com.tyranor.next.core.engine.EngineType
+
 /**
  * 一次扫描开始时的可用模块快照（已启用 + 有扫描描述）。
  *
@@ -11,6 +13,19 @@ class RuntimeModuleIndex private constructor(val modules: List<RuntimeModuleDesc
     fun match(
         children: List<RuntimeModuleEntry>,
         childrenOf: (RuntimeModuleEntry) -> List<RuntimeModuleEntry>,
+    ): RuntimeModuleDescriptor? = match(children, childrenOf) { true }
+
+    /** Strong built-in types may only be replaced by modules that explicitly name that engine. */
+    fun matchOverride(
+        engine: EngineType,
+        children: List<RuntimeModuleEntry>,
+        childrenOf: (RuntimeModuleEntry) -> List<RuntimeModuleEntry>,
+    ): RuntimeModuleDescriptor? = match(children, childrenOf) { engine in it.overrideEngines }
+
+    private fun match(
+        children: List<RuntimeModuleEntry>,
+        childrenOf: (RuntimeModuleEntry) -> List<RuntimeModuleEntry>,
+        acceptsModule: (RuntimeModuleDescriptor) -> Boolean,
     ): RuntimeModuleDescriptor? {
         // 多个模块可能声明同一个 `data/*.pak`：索引级共享一次子目录读取，避免 SAF 重复往返。
         val directoryCache = HashMap<RuntimeModuleEntry, List<RuntimeModuleEntry>>()
@@ -19,6 +34,7 @@ class RuntimeModuleIndex private constructor(val modules: List<RuntimeModuleDesc
         }
         return modules.asSequence()
             .filter { it.enabled }
+            .filter(acceptsModule)
             .mapNotNull { module ->
                 val spec = module.scan ?: return@mapNotNull null
                 module.takeIf { RuntimeModuleMatcher.matches(spec, children, cachedChildrenOf) }

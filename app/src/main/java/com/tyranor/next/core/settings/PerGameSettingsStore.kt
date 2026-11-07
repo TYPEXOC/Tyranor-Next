@@ -76,6 +76,7 @@ object PerGameSettingsStore {
 
     // RPG Maker RGSS 外置模块（settings extra 的 rpg 节，null=跟随全局）
     const val F_RPG_USE_RUBY18 = "rpg_use_ruby18"
+    const val F_RPG_RUBY_RUNTIME = "rpg_ruby_runtime"
     const val F_RPG_DEBUG = "rpg_debug"
     const val F_RPG_SMOOTH_SCALING = "rpg_smooth_scaling"
     const val F_RPG_VSYNC = "rpg_vsync"

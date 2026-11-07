@@ -100,6 +100,9 @@ sealed interface LaunchResult {
         /** 游戏引擎未知（含运行时模块卸载/禁用后降级的条目）；应重新扫描。 */
         data object EngineUnknown : Failure
 
+        /** RPG Maker RGSS 已识别，但 TYN RGSS 运行时尚未启用或扫描绑定。 */
+        data object RpgMakerRuntimeRequired : Failure
+
         /** YU-RIS：游戏目录内没有可启动的 .exe（可由单游戏「启动文件」手动指定）。 */
         data object YurisExeMissing : Failure
 

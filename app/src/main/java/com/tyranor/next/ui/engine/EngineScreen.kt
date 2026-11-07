@@ -39,12 +39,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -75,6 +77,9 @@ import com.tyranor.next.core.engine.external.ExternalEmulatorLauncher
 import com.tyranor.next.core.engine.external.ExternalEmulatorRegistry
 import com.tyranor.next.core.engine.external.ExternalEngineLauncher
 import com.tyranor.next.core.engine.external.ExternalEngineModuleRegistry
+import com.tyranor.next.core.engine.runtime.RuntimeModuleContract
+import com.tyranor.next.core.engine.runtime.RuntimeModuleDescriptor
+import com.tyranor.next.core.engine.runtime.RuntimeModuleRegistry
 import com.tyranor.next.core.game.launch.EngineLauncher
 import com.tyranor.next.core.settings.AppSettingsStore
 import com.tyranor.next.core.settings.EngineSettingsStore
@@ -95,6 +100,7 @@ import com.tyranor.next.ui.common.isWideScreen
 import com.tyranor.next.ui.settings.artVersionOptions
 import java.io.File
 import kotlin.math.roundToInt
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import top.yukonga.miuix.kmp.basic.TabRow
@@ -109,6 +115,7 @@ fun EngineScreen(
     gameCount: Int = 0,
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val engineOpenDownloadFailedMessage = stringResource(R.string.engine_open_download_failed)
     val engines = EngineLauncher.supportedEngines
     var externalInstallStates by remember {
@@ -117,6 +124,7 @@ fun EngineScreen(
     var moduleStates by remember {
         mutableStateOf(refreshModuleStates(context))
     }
+    val runtimeModules by RuntimeModuleRegistry.state.collectAsState()
     var emulatorInstallStates by remember {
         mutableStateOf(refreshEmulatorInstallStates(context))
     }
@@ -139,11 +147,15 @@ fun EngineScreen(
         freeBytes = internalStorage.freeBytes,
     )
 
+    LaunchedEffect(Unit) {
+        RuntimeModuleRegistry.refresh(context)
+    }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         externalInstallStates = refreshExternalInstallStates(context, engines)
         moduleStates = refreshModuleStates(context)
         emulatorInstallStates = refreshEmulatorInstallStates(context)
         ppssppVersion = EngineSettingsStore.getPpssppVersion(context)
+        scope.launch { RuntimeModuleRegistry.refresh(context) }
     }
 
     Column(modifier.fillMaxSize()) {
@@ -220,7 +232,15 @@ fun EngineScreen(
             ) { engine ->
                 val module = ExternalEngineModuleRegistry.moduleForEngine(engine)
                 val emulator = ExternalEmulatorRegistry.forEngine(engine)
+                val tynRgssModule = if (engine == EngineType.RPGMAKER) {
+                    runtimeModules.modules.firstOrNull {
+                        it.packageName == RuntimeModuleContract.TYN_RGSS_PACKAGE_NAME
+                    }
+                } else {
+                    null
+                }
                 val installed = when {
+                    engine == EngineType.RPGMAKER -> tynRgssModule != null
                     module != null -> externalInstallStates[engine] == true
                     emulator != null -> {
                         // PSP 的安装态跟随「PPSSPP 版本」生效值（标准版/黄金版）
@@ -234,6 +254,9 @@ fun EngineScreen(
                     else -> true
                 }
                 val statusRes = when {
+                    engine == EngineType.RPGMAKER ->
+                        if (installed) R.string.engine_module_installed else R.string.engine_module_not_installed
+
                     module != null ->
                         if (installed) R.string.engine_module_installed else R.string.engine_module_not_installed
 
@@ -247,7 +270,7 @@ fun EngineScreen(
                     statusTextRes = statusRes,
                     installed = installed,
                     // 外置模块 / 外置模拟器 / Tyrano/WebOther/VN/Artemis（内置版本条目）：点击弹窗
-                    enabled = module != null || emulator != null || engine in dialogOnlyEngines,
+                    enabled = engine == EngineType.RPGMAKER || module != null || emulator != null || engine in dialogOnlyEngines,
                     compact = engineColumns > 1,
                     onClick = {
                         when {
@@ -298,10 +321,13 @@ fun EngineScreen(
                         .verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    engineDialogEntries(context, moduleStates, dialogEngine).forEach { entry ->
+                    val tynRgssModule = runtimeModules.modules.firstOrNull {
+                        it.packageName == RuntimeModuleContract.TYN_RGSS_PACKAGE_NAME
+                    }
+                    engineDialogEntries(context, moduleStates, dialogEngine, tynRgssModule).forEach { entry ->
                         AppNavItem(
                             title = entry.title,
-                            summary = stringResource(entry.summaryRes),
+                            summary = entry.summaryText ?: stringResource(entry.summaryRes),
                             leadingIcon = R.drawable.ic_engine_chip,
                             containerColor = DialogItemSurface,
                         ) {
@@ -857,6 +883,10 @@ private fun refreshExternalInstallStates(
 /** 内置 Tyranor 引擎版本名（Tyrano / WebOther/VN / RPG Maker MV/MZ 的网页壳共用）。 */
 private const val TYRANOR_BUILTIN_VERSION = "Tyranor-2.3.4"
 
+/** TYN RGSS APK is built by GitHub Actions; its APK artifact is downloaded from this workflow. */
+private const val TYN_RGSS_ACTIONS_URL =
+    "https://github.com/TYPEXOC/AnyPlay-Plugin-RGSS/actions/workflows/android.yml"
+
 /** 内置版本条目：恒「已集成」，无下载动作。 */
 private fun builtinEntry(id: String, title: String): EngineDialogEntry =
     EngineDialogEntry(id = id, title = title, summaryRes = R.string.engine_integrated, installed = true)
@@ -919,6 +949,7 @@ private data class EngineDialogEntry(
     @get:StringRes val summaryRes: Int,
     val installed: Boolean,
     val installUrl: String? = null,
+    val summaryText: String? = null,
 )
 
 /** 弹窗条目列表：外置引擎取注册表模块；Artemis 列引擎设置中的内置版本；其余内置引擎见 [builtinDialogEntries]。 */
@@ -927,7 +958,37 @@ private fun engineDialogEntries(
     context: android.content.Context,
     moduleStates: Map<String, Boolean>,
     engine: EngineType,
+    tynRgssModule: RuntimeModuleDescriptor?,
 ): List<EngineDialogEntry> {
+    if (engine == EngineType.RPGMAKER) {
+        val installed = tynRgssModule != null
+        val moduleVersion = tynRgssModule?.let { module ->
+            val versionName = module.versionName?.takeIf { it.isNotBlank() }
+            when {
+                versionName != null && module.versionCode > 0L -> "$versionName (${module.versionCode})"
+                versionName != null -> versionName
+                module.versionCode > 0L -> module.versionCode.toString()
+                else -> null
+            }
+        }
+        return listOf(
+            EngineDialogEntry(
+                id = "tyn-rgss",
+                title = tynRgssModule?.label?.takeIf(String::isNotBlank)
+                    ?: stringResource(R.string.engine_name_tyn_rgss),
+                summaryRes = if (installed) {
+                    R.string.engine_module_installed
+                } else {
+                    R.string.engine_module_not_installed
+                },
+                installed = installed,
+                installUrl = if (installed) null else TYN_RGSS_ACTIONS_URL,
+                summaryText = moduleVersion?.let {
+                    stringResource(R.string.engine_module_installed_version, it)
+                },
+            ),
+        )
+    }
     val modules = ExternalEngineModuleRegistry.modules.filter { it.engine == engine }
     if (modules.isNotEmpty()) {
         return modules.sortedBy { it.displayName }.map { module ->

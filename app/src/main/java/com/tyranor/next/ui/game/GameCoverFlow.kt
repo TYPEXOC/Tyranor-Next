@@ -43,6 +43,7 @@ import com.tyranor.next.core.settings.AppSettingsStore
 import com.tyranor.next.theme.AppComponentShape
 import com.tyranor.next.theme.PageSecondaryTextColor
 import com.tyranor.next.theme.glassBorder
+import com.tyranor.next.ui.common.gameEngineDisplayName
 import kotlinx.coroutines.launch
 import kotlin.math.absoluteValue
 import kotlin.math.min
@@ -157,7 +158,7 @@ private fun CoverFlowCard(
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text("Tyranor", style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(alpha = 0.7f))
             Text(
-                game.engine.displayName,
+                gameEngineDisplayName(game),
                 style = MaterialTheme.typography.bodyMedium,
                 color = Color.White,
                 modifier = Modifier.padding(top = 4.dp),
@@ -183,7 +184,7 @@ private fun CoverFlowCaption(
     if (game == null) return
     val displayTitle = if (hideTitleTag) GameTitleTags.stripAll(game.title) else game.title
     Text(
-        stringResource(R.string.game_cover_flow_caption, game.engine.displayName, displayTitle),
+        stringResource(R.string.game_cover_flow_caption, gameEngineDisplayName(game), displayTitle),
         style = MaterialTheme.typography.bodyMedium,
         color = PageSecondaryTextColor,
         maxLines = 1,

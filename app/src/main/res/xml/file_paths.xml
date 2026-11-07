@@ -7,6 +7,13 @@
     <files-path
         name="update_apks_internal"
         path="updates/" />
+    <!-- RGSS runtime modules receive temporary access to the selected translation and input profile. -->
+    <external-files-path
+        name="translation_tables"
+        path="translations/" />
+    <files-path
+        name="input_profiles"
+        path="input/profiles/" />
     <!-- 外置模拟器跳转：File 回退路径（无法走 SAF 的真实路径 ROM）转 content URI 共享 -->
     <external-path
         name="external_roms"

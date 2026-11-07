@@ -1,0 +1,53 @@
+name: RGSS Runtime Module Build
+
+on:
+  push:
+    branches:
+      - rgss-module
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rgss-runtime-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  assemble:
+    name: Assemble Android APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+
+      - name: Install Android SDK packages
+        run: |
+          sdkmanager --channel=3 "platforms;android-36" "platforms;android-37.0" "build-tools;37.0.0" "ndk;28.0.13004108"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Assemble debug APK
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: tyranor-rgss-module-app-debug
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 30
