@@ -47,8 +47,12 @@ fun gameEngineBadgeLabel(game: ScanGame): String {
 }
 
 private val RGSS_ALIASES = setOf(
-    "internal.rpgmxp",
-    "internal.rpgmvx",
-    "internal.rpgmvxace",
+    RGSS_XP_ALIAS,
+    RGSS_VX_ALIAS,
+    RGSS_VX_ACE_ALIAS,
     "internal.mkxp-z",
 )
+
+private const val RGSS_XP_ALIAS = "internal.rpgmxp"
+private const val RGSS_VX_ALIAS = "internal.rpgmvx"
+private const val RGSS_VX_ACE_ALIAS = "internal.rpgmvxace"

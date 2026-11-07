@@ -256,7 +256,7 @@ internal fun RpgMakerRgssSettingsCard(
         RpgmGroupLabel(stringResource(R.string.engine_settings_rpgm_group_compat))
         DropdownRow(
             stringResource(R.string.engine_settings_tyn_rgss_ruby_runtime),
-            linkedMapOf(
+            listOf(
                 RgssRubyRuntime.AUTO.wireValue to stringResource(R.string.engine_settings_tyn_rgss_ruby_auto),
                 RgssRubyRuntime.RUBY_187.wireValue to stringResource(R.string.engine_settings_tyn_rgss_ruby_187),
                 RgssRubyRuntime.RUBY_193.wireValue to stringResource(R.string.engine_settings_tyn_rgss_ruby_193),
