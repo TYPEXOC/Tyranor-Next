@@ -254,17 +254,65 @@
   function listVariables(query, offset, limit) { return namedSystemList("variable", query, offset, limit); }
   function setVariable(id, value) { $gameVariables.setValue(integer(id), value); return $gameVariables.value(integer(id)); }
 
+  function mapDepth(entry) {
+    var depth = 0, id = entry.parentId, guard = 0;
+    var infos = window.$dataMapInfos || [];
+    while (id > 0 && guard++ < 32) {
+      var parent = infos[id];
+      if (!parent || parent.id === entry.id) break;
+      id = parent.parentId; depth++;
+    }
+    return depth;
+  }
   function listMaps(query, offset, limit) {
     query = String(query || "").toLowerCase();
-    var values = (window.$dataMapInfos || []).filter(function (entry) { return entry && (!query || String(entry.name || "").toLowerCase().indexOf(query) >= 0); });
+    var values = (window.$dataMapInfos || []).filter(function (entry) { return entry && (!query || String(entry.name || "").toLowerCase().indexOf(query) >= 0 || String(entry.id).indexOf(query) >= 0); });
     offset = Math.max(0, integer(offset)); limit = clamp(integer(limit, 100), 1, 300);
-    return { total: values.length, values: values.slice(offset, offset + limit).map(function (entry) { return { id: entry.id, name: entry.name || ("地图 " + entry.id) }; }) };
+    return { total: values.length, values: values.slice(offset, offset + limit).map(function (entry) { return { id: entry.id, name: entry.name || ("地图 " + entry.id), depth: mapDepth(entry) }; }) };
   }
   function currentPosition() { return window.$gamePlayer ? { mapId: $gameMap.mapId(), x: $gamePlayer.x, y: $gamePlayer.y, direction: $gamePlayer.direction() } : null; }
+  function minimapData() {
+    if (!window.$gameMap || !$gameMap.mapId) throw new Error("当前不在地图场景");
+    var w = $gameMap.width(), h = $gameMap.height();
+    var rows = new Array(h);
+    for (var y = 0; y < h; y++) {
+      var row = "";
+      for (var x = 0; x < w; x++) row += $gameMap.isPassable(x, y, 2) ? "1" : "0";
+      rows[y] = row;
+    }
+    var events = ($gameMap.events() || []).filter(Boolean).map(function (ev) { return { id: ev.eventId(), x: ev.x, y: ev.y }; });
+    var player = window.$gamePlayer ? { x: $gamePlayer.x, y: $gamePlayer.y } : null;
+    return { mapId: $gameMap.mapId(), width: w, height: h, rows: rows, events: events, player: player };
+  }
   function teleport(mapId, x, y, direction, fade) {
     if (!window.$gamePlayer) throw new Error("当前不在地图场景");
     $gamePlayer.reserveTransfer(integer(mapId), Math.max(0, integer(x)), Math.max(0, integer(y)), integer(direction, 2), integer(fade, 0));
     if (window.SceneManager && SceneManager._scene && SceneManager._scene.constructor && String(SceneManager._scene.constructor.name).indexOf("Scene_Map") >= 0 && $gamePlayer.performTransfer) $gamePlayer.performTransfer();
+    return true;
+  }
+  function listEvents() {
+    if (!window.$dataMap) throw new Error("当前不在地图场景");
+    var values = ($dataMap.events || []).filter(function (ev) { return ev; }).map(function (ev) {
+      var pages = ev.pages || [];
+      return { id: ev.id, name: ev.name || ("EV" + ev.id), x: ev.x, y: ev.y, pages: pages.length, firstPageLength: pages.length ? (pages[0].list || []).length : 0 };
+    });
+    return { total: values.length, values: values };
+  }
+  function eventDetail(eventId) {
+    if (!window.$dataMap) throw new Error("当前不在地图场景");
+    var ev = $dataMap.events[integer(eventId)];
+    if (!ev) throw new Error("事件不存在");
+    var live = window.$gameMap && $gameMap.event ? $gameMap.event(integer(eventId)) : null;
+    var selfSwitches = {};
+    ["A", "B", "C", "D"].forEach(function (k) {
+      selfSwitches[k] = window.$gameSelfSwitches ? $gameSelfSwitches.value([$gameMap.mapId(), ev.id, k]) : false;
+    });
+    return { id: ev.id, name: ev.name || ("EV" + ev.id), x: ev.x, y: ev.y, pages: (ev.pages || []).length, firstPageLength: ev.pages && ev.pages.length ? (ev.pages[0].list || []).length : 0, selfSwitches: selfSwitches };
+  }
+  function setEventSelfSwitches(eventId, on) {
+    if (!window.$gameSelfSwitches) throw new Error("游戏尚未就绪");
+    var mapId = $gameMap.mapId();
+    ["A", "B", "C", "D"].forEach(function (k) { $gameSelfSwitches.setValue([mapId, integer(eventId), k], !!on); });
     return true;
   }
   function battleSnapshot() {
@@ -310,7 +358,7 @@
   function onReady(callback) { if (isReady()) callback(); else readyListeners.push(callback); }
   loadState();
   window.TyranorMod = {
-    version: "1.0.0", isReady: isReady, onReady: onReady, installHooks: installHooks,
+    version: "1.5.1", isReady: isReady, onReady: onReady, installHooks: installHooks,
     getState: getState, setFlag: setFlag, toggleFlag: toggleFlag, reapplyPersistent: reapplyPersistent,
     getGold: getGold, setGold: setGold, listDatabase: listDatabase, itemCount: itemCount, setItemCount: setItemCount, clearItems: clearItems,
     listActors: listActors, setActorStat: setActorStat, recoverActor: recoverActor, recoverParty: recoverParty,
@@ -318,7 +366,8 @@
     actorStates: actorStates, addState: addState, removeState: removeState,
     actorEquips: actorEquips, listEquipCandidates: listEquipCandidates, changeEquip: changeEquip,
     listSwitches: listSwitches, setSwitch: setSwitch, listVariables: listVariables, setVariable: setVariable,
-    listMaps: listMaps, currentPosition: currentPosition, teleport: teleport,
+    listMaps: listMaps, currentPosition: currentPosition, teleport: teleport, minimapData: minimapData,
+    listEvents: listEvents, eventDetail: eventDetail, setEventSelfSwitches: setEventSelfSwitches,
     battleSnapshot: battleSnapshot, setEnemyHp: setEnemyHp, killAllEnemies: killAllEnemies, forceVictory: forceVictory, forceEscape: forceEscape,
     listSaveSlots: listSaveSlots, saveGame: saveGame, loadGame: loadGame, deleteSave: deleteSave, getMaxSaveSlots: maxSaveSlots
   };

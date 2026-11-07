@@ -33,7 +33,7 @@
       return Promise.resolve(operation()).then(function (value) { if (success) success(value); return value; }).catch(function (error) { console.error(error); toast(error.message || String(error), true); });
     } catch (error) { console.error(error); toast(error.message || String(error), true); return Promise.resolve(); }
   }
-  function card(title, body) { return '<section class="tm-card"><h3>' + escapeHtml(title) + '</h3>' + body + '</section>'; }
+  function card(title, body, cls) { return '<section class="tm-card' + (cls ? " " + cls : "") + '"><h3>' + escapeHtml(title) + '</h3>' + body + '</section>'; }
   function row(label, control) { return '<div class="tm-row"><label>' + escapeHtml(label) + '</label>' + control + '</div>'; }
   function button(text, action, extra, data) { return '<button class="tm-btn ' + (extra || "") + '" data-action="' + action + '" ' + (data || "") + '>' + escapeHtml(text) + '</button>'; }
   function textInput(id, value, type, attrs) { return '<input class="tm-input" id="' + id + '" type="' + (type || "text") + '" value="' + escapeHtml(value == null ? "" : value) + '" ' + (attrs || "") + '>'; }
@@ -64,7 +64,7 @@
   function renderItems(content) {
     var kinds = '<select class="tm-select" id="tm-item-kind" data-action="item-kind"><option value="item">物品</option><option value="weapon">武器</option><option value="armor">护甲</option></select>';
     var tools = '<div class="tm-row">' + kinds + textInput("tm-item-query", "", "search", 'placeholder="搜索名称"') + button("搜索", "render-items", "primary") + '</div>';
-    content.innerHTML = card("物品数据库", tools + '<div id="tm-item-list" class="tm-list"><div class="tm-note">加载中…</div></div>');
+    content.innerHTML = card("物品数据库", tools + '<div id="tm-item-list" class="tm-list"><div class="tm-note">加载中…</div></div>', "tm-fill-card");
     root.querySelector("#tm-item-kind").value = context.itemKind;
     loadItems();
   }
@@ -103,7 +103,7 @@
   }
   function renderSystem(content) {
     var kind = '<select class="tm-select" id="tm-system-kind" data-action="system-kind"><option value="switch">开关</option><option value="variable">变量</option></select>';
-    content.innerHTML = card("开关与变量", '<div class="tm-row">' + kind + textInput("tm-system-query", "", "search", 'placeholder="名称或 ID"') + button("搜索", "render-system", "primary") + '</div><div id="tm-system-list" class="tm-list"></div>');
+    content.innerHTML = card("开关与变量", '<div class="tm-row">' + kind + textInput("tm-system-query", "", "search", 'placeholder="名称或 ID"') + button("搜索", "render-system", "primary") + '</div><div id="tm-system-list" class="tm-list"></div>', "tm-fill-card");
     root.querySelector("#tm-system-kind").value = context.systemKind; loadSystem();
   }
   function loadSystem() {
@@ -116,10 +116,144 @@
   }
   function renderMap(content) {
     var pos = mod.currentPosition();
-    var current = pos ? '地图 #' + pos.mapId + '，坐标 (' + pos.x + ', ' + pos.y + ')' : '当前不在地图';
-    var form = row("当前位置", '<span class="tm-badge">' + current + '</span>') + '<div class="tm-row">' + textInput("tm-map-id", pos && pos.mapId, "number", 'placeholder="地图 ID"') + textInput("tm-map-x", pos && pos.x, "number", 'placeholder="X"') + textInput("tm-map-y", pos && pos.y, "number", 'placeholder="Y"') + button("传送", "teleport", "primary") + '</div>';
-    var maps = mod.listMaps("", 0, 200).values.map(function (map) { return '<div class="tm-item"><span class="tm-name">#' + map.id + ' ' + escapeHtml(map.name) + '</span>' + button("选择", "pick-map", "", 'data-id="' + map.id + '"') + '</div>'; }).join("");
-    content.innerHTML = '<div class="tm-grid">' + card("传送", form) + card("地图列表", '<div class="tm-list">' + maps + '</div>') + '</div>';
+    context.mapMode = context.mapMode || "maps";
+    var modeSelect = '<select class="tm-select" id="tm-map-mode" data-action="map-mode" style="flex:0 0 108px"><option value="maps">地图</option><option value="events">事件</option></select>';
+    var browseRow = '<div class="tm-row">' + modeSelect + textInput("tm-browse-query", "", "search", 'placeholder="搜索"') + button("搜索", "render-browse", "primary") + '</div>';
+    var teleportCard = card("传送", '<div class="tm-row">' + textInput("tm-map-id", pos && pos.mapId, "number", 'placeholder="地图 ID"') + textInput("tm-map-x", pos && pos.x, "number", 'placeholder="X"') + textInput("tm-map-y", pos && pos.y, "number", 'placeholder="Y"') + button("传送", "teleport", "primary") + '</div>');
+    var eventCard = card("事件操作", '<div class="tm-card-body" id="tm-event-panel">' + eventPanelHtml() + '</div>');
+    content.innerHTML = '<div class="tm-grid tm-map-grid">'
+      + '<section class="tm-card tm-browse-card"><h3>浏览</h3>' + browseRow + '<div class="tm-list" id="tm-browse-list"></div></section>'
+      + teleportCard + eventCard + '</div>';
+    root.querySelector("#tm-map-mode").value = context.mapMode;
+    context.eventAll = [];
+    try { context.eventAll = mod.listEvents().values; } catch (_) { context.eventAll = []; }
+    loadBrowse();
+  }
+  function fillTeleport(mapId, x, y) {
+    var mi = root.querySelector("#tm-map-id"), xi = root.querySelector("#tm-map-x"), yi = root.querySelector("#tm-map-y");
+    if (mi && mapId != null) mi.value = mapId;
+    if (xi && x != null) xi.value = x;
+    if (yi && y != null) yi.value = y;
+  }
+  function loadBrowse() {
+    context.mapMode = inputValue("tm-map-mode") || context.mapMode || "maps";
+    var queryInput = root.querySelector("#tm-browse-query");
+    if (queryInput) queryInput.placeholder = context.mapMode === "maps" ? "搜索地图名称 / ID" : "搜索 ID / 名称";
+    if (context.mapMode === "maps") renderMapList(); else renderEventList();
+  }
+  function renderMapList() {
+    var list = root.querySelector("#tm-browse-list");
+    if (!list) return;
+    var pos = null;
+    try { pos = mod.currentPosition(); } catch (_) { pos = null; }
+    var maps = [];
+    try { maps = mod.listMaps(inputValue("tm-browse-query"), 0, 300).values; } catch (e) {
+      list.innerHTML = '<div class="tm-note">' + escapeHtml(String(e && e.message || e)) + '</div>'; return;
+    }
+    list.innerHTML = maps.map(function (m) {
+      var here = pos && Number(pos.mapId) === Number(m.id);
+      var picked = Number(context.pickedMapId) === Number(m.id);
+      var indent = m.depth ? ' style="padding-left:' + (m.depth * 14) + 'px"' : "";
+      var paddedId = ("0000" + m.id).slice(-4);
+      var name = (m.depth ? "└ " : "") + "#" + paddedId + ": " + escapeHtml(m.name);
+      return '<div class="tm-item' + (picked ? " tm-active" : "") + '"><span class="tm-name"' + indent + '>' + name + '</span>' + (here ? '<span class="tm-badge tm-on">你在这里</span>' : '') + button("选择", "pick-map", "", 'data-id="' + m.id + '"') + '</div>';
+    }).join("") || '<div class="tm-note">没有匹配地图</div>';
+    var target = list.querySelector(".tm-item .tm-badge.tm-on");
+    var active = target ? target.closest(".tm-item") : list.querySelector(".tm-item.tm-active");
+    if (active && active.scrollIntoView) { try { active.scrollIntoView({ block: "center" }); } catch (_) { try { active.scrollIntoView(); } catch (_) {} } }
+  }
+  function renderEventList() {
+    var list = root.querySelector("#tm-browse-list");
+    if (!list) return;
+    list.innerHTML = filteredEvents().map(function (ev) {
+      return '<div class="tm-item' + (String(context.eventId) === String(ev.id) ? " tm-active" : "") + '"><span class="tm-name">#' + ev.id + ' ' + escapeHtml(ev.name) + '</span><span class="tm-badge">' + ev.x + ',' + ev.y + '</span>' + button("选择", "pick-event", "", 'data-id="' + ev.id + '"') + '</div>';
+    }).join("") || '<div class="tm-note">当前地图没有事件（进入地图场景后打开）</div>';
+  }
+  function filteredEvents() {
+    var query = String(inputValue("tm-browse-query") || "").toLowerCase();
+    if (!query) return context.eventAll || [];
+    return (context.eventAll || []).filter(function (ev) {
+      return String(ev.name).toLowerCase().indexOf(query) >= 0 || String(ev.id).indexOf(query) >= 0;
+    });
+  }
+  function eventPanelHtml() {
+    if (!context.eventId) return '<div class="tm-note">在左侧选择事件查看详情</div>';
+    var detail;
+    try { detail = mod.eventDetail(context.eventId); } catch (e) { return '<div class="tm-note">' + escapeHtml(String(e && e.message || e)) + '</div>'; }
+    var selfSwitches = ["A", "B", "C", "D"].map(function (k) {
+      return '<span class="tm-badge' + (detail.selfSwitches[k] ? " tm-on" : "") + '">' + k + (detail.selfSwitches[k] ? ":开" : ":关") + '</span>';
+    }).join(" ");
+    var allOn = ["A", "B", "C", "D"].every(function (k) { return detail.selfSwitches[k]; });
+    var state = mod.getState();
+    return '<div class="tm-row">' + button(state.noclip ? "穿墙:开" : "穿墙:关", "flag", state.noclip ? "primary" : "", 'data-flag="noclip"') + button("迷你地图", "show-minimap", "", 'data-id="' + detail.id + '"') + '</div>'
+      + '<div class="tm-row"><small>Pos:</small><span class="tm-badge">' + detail.x + ',' + detail.y + '</span><small>名称:</small><span class="tm-name">' + escapeHtml(detail.name) + '</span></div>'
+      + '<div class="tm-row"><small>独立开关:</small>' + selfSwitches + button(allOn ? "全开" : "全关", "selfswitch-toggle", allOn ? "primary" : "danger", 'data-id="' + detail.id + '"') + '</div>';
+  }
+  function renderEventPanel() {
+    var panel = root.querySelector("#tm-event-panel");
+    if (panel) panel.innerHTML = eventPanelHtml();
+  }
+  function showMinimapDialog() {
+    var data;
+    try { data = mod.minimapData(); } catch (e) { toast(String(e && e.message || e)); return; }
+    var lg = '<span class="tm-lg"><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#3a4640"></span>无法通行</span>'
+      + '<span class="tm-lg"><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#cfe8d6"></span>可通行</span>'
+      + '<span class="tm-lg"><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#fff;border:1px solid #cfd6d2"></span>事件</span>'
+      + '<span class="tm-lg"><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#69f0ae"></span>你</span>';
+    var modal = document.createElement("div");
+    modal.className = "tm-modal";
+    modal.innerHTML = '<div class="tm-modal-box">'
+      + '<div class="tm-modal-head"><strong>迷你地图 #' + data.mapId + '</strong>' + lg + button("×", "close-minimap", "") + '</div>'
+      + '<div class="tm-modal-body"><canvas class="tm-minimap" id="tm-minimap-canvas"></canvas></div>'
+      + '<div class="tm-modal-hint">点击事件块选中该事件；点外部区域或 × 关闭</div>'
+      + '</div>';
+    modal.addEventListener("click", function (e) { if (e.target === modal) { modal.remove(); renderEventPanel(); } });
+    root.appendChild(modal);
+    var canvas = modal.querySelector("#tm-minimap-canvas");
+    var cssW = canvas.parentElement.clientWidth || 480;
+    var tile = Math.max(3, Math.floor(cssW / data.width));
+    var cssH = tile * data.height;
+    var dpr = window.devicePixelRatio || 1;
+    canvas.style.width = cssW + "px";
+    canvas.style.height = cssH + "px";
+    canvas.width = Math.round(cssW * dpr);
+    canvas.height = Math.round(cssH * dpr);
+    var ctx = canvas.getContext("2d");
+    ctx.scale(dpr, dpr);
+    for (var y = 0; y < data.height; y++) {
+      for (var x = 0; x < data.width; x++) {
+        ctx.fillStyle = data.rows[y].charAt(x) === "1" ? "#cfe8d6" : "#3a4640";
+        ctx.fillRect(x * tile, y * tile, tile, tile);
+      }
+    }
+    data.events.forEach(function (ev) {
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(ev.x * tile, ev.y * tile, tile, tile);
+      if (tile >= 6) {
+        ctx.fillStyle = "#202522";
+        ctx.font = Math.floor(tile * 0.72) + "px sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(String(ev.id), ev.x * tile + tile / 2, ev.y * tile + tile / 2 + 1);
+      }
+    });
+    if (data.player) {
+      ctx.strokeStyle = "#22c55e";
+      ctx.lineWidth = Math.max(1.5, tile / 4);
+      ctx.strokeRect(data.player.x * tile + 1, data.player.y * tile + 1, tile - 2, tile - 2);
+    }
+    canvas.addEventListener("click", function (e) {
+      var rect = canvas.getBoundingClientRect();
+      var tx = Math.floor((e.clientX - rect.left) / tile);
+      var ty = Math.floor((e.clientY - rect.top) / tile);
+      var hit = data.events.filter(function (ev) { return ev.x === tx && ev.y === ty; })[0];
+      if (!hit) return;
+      context.eventId = hit.id;
+      modal.remove();
+      renderEventList();
+      renderEventPanel();
+      toast("已选中事件 #" + hit.id);
+    });
   }
   function renderBattle(content) {
     var snapshot = mod.battleSnapshot();
@@ -154,7 +288,7 @@
   function handleAction(action, node) {
     if (action === "close") return close();
     if (action === "render") return render();
-    if (action === "flag") return run(function () { mod.setFlag(node.dataset.flag, node.checked); }, function () { toast("设置已保存"); });
+    if (action === "flag") return run(function () { var on = node.type === "checkbox" ? node.checked : !mod.getState()[node.dataset.flag]; mod.setFlag(node.dataset.flag, on); }, function () { toast("设置已保存"); renderEventPanel(); });
     if (action === "set-gold") return run(function () { mod.setGold(inputValue("tm-gold")); }, function () { toast("金币已修改"); render(); });
     if (action === "max-gold") return run(function () { mod.setGold(99999999); }, function () { toast("金币已拉满"); render(); });
     if (action === "recover-party") return run(mod.recoverParty, function () { toast("队伍已恢复"); render(); });
@@ -168,7 +302,22 @@
     if (action === "change-equip") return run(function () { mod.changeEquip(context.actorId, inputValue("tm-equip-slot"), inputValue("tm-equip-kind"), inputValue("tm-equip-id")); }, function () { toast("装备已更换"); renderActorBody(); });
     if (action === "system-kind" || action === "render-system") return loadSystem();
     if (action === "set-system") return run(function () { var id = node.dataset.id; if (context.systemKind === "switch") mod.setSwitch(id, checked("tm-system-" + id)); else { var raw = inputValue("tm-system-" + id); var value; try { value = JSON.parse(raw); } catch (_) { value = raw; } mod.setVariable(id, value); } }, function () { toast("系统值已修改"); loadSystem(); });
-    if (action === "pick-map") { root.querySelector("#tm-map-id").value = node.dataset.id; return; }
+    if (action === "map-mode") { context.mapMode = node.value; return loadBrowse(); }
+    if (action === "render-browse") return loadBrowse();
+    if (action === "pick-map") { fillTeleport(node.dataset.id, 0, 0); context.pickedMapId = Number(node.dataset.id); if (context.mapMode === "maps") renderMapList(); return; }
+    if (action === "pick-event") {
+      context.eventId = Number(node.dataset.id);
+      var ev = (context.eventAll || []).filter(function (e2) { return String(e2.id) === node.dataset.id; })[0];
+      var pos2 = null; try { pos2 = mod.currentPosition(); } catch (_) {}
+      if (ev) fillTeleport(pos2 && pos2.mapId, ev.x, ev.y);
+      renderEventList(); renderEventPanel(); return;
+    }
+    if (action === "selfswitch-toggle") {
+      var sid = node.dataset.id;
+      return run(function () { var cur = mod.eventDetail(sid).selfSwitches; var on = !["A", "B", "C", "D"].every(function (k) { return cur[k]; }); mod.setEventSelfSwitches(sid, on); return on; }, function (on) { toast(on ? "独立开关 A–D 已全开" : "独立开关 A–D 已全关"); renderEventPanel(); });
+    }
+    if (action === "show-minimap") return showMinimapDialog();
+    if (action === "close-minimap") { var modal = root.querySelector(".tm-modal"); if (modal) modal.remove(); return; }
     if (action === "teleport") return run(function () { return mod.teleport(inputValue("tm-map-id"), inputValue("tm-map-x"), inputValue("tm-map-y"), 2, 0); }, function () { toast("已预约传送"); close(); });
     if (action === "set-enemy") return run(function () { mod.setEnemyHp(node.dataset.index, inputValue("tm-enemy-" + node.dataset.index)); }, render);
     if (action === "kill-enemies") return run(mod.killAllEnemies, render);
