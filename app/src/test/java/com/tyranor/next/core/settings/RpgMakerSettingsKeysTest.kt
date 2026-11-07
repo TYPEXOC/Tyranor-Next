@@ -24,12 +24,13 @@ class RpgMakerSettingsKeysTest {
     }
 
     @Test
-    fun rpgMakerDefaultsMatchJoiPlay() {
+    fun tynRgssDefaultsMatchRuntimeContract() {
         val d = EngineSettingsStore.RpgMaker()
         assertTrue(d.useRuby18)
-        assertTrue(d.smoothScaling)
+        assertEquals(false, d.smoothScaling)
         assertTrue(d.prebuiltPathCache)
         assertTrue(d.fastPathEnum)
+        assertTrue(d.pathCache)
         assertTrue(d.cheats)
         assertEquals(false, d.debug)
         assertEquals(false, d.vsync)
@@ -41,14 +42,14 @@ class RpgMakerSettingsKeysTest {
         assertEquals(false, d.enablePostloadScripts)
         assertEquals("", d.customFont)
         assertEquals("top-center", d.verticalScreenAlign)
-        assertEquals("640x480", d.windowSize)
+        assertEquals("auto", d.windowSize)
         assertEquals("1", d.speedUp)
         assertEquals("0.75", d.fontScale)
     }
 
     @Test
     fun whitelistNormalizationFallsBackToDefaults() {
-        assertEquals("640x480", EngineSettingsStore.normalizeRpgWindowSize("bogus"))
+        assertEquals("auto", EngineSettingsStore.normalizeRpgWindowSize("bogus"))
         assertEquals("1920x1080", EngineSettingsStore.normalizeRpgWindowSize("1920x1080"))
         assertEquals("1", EngineSettingsStore.normalizeRpgSpeedUp("42"))
         assertEquals("9", EngineSettingsStore.normalizeRpgSpeedUp("9"))

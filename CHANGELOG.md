@@ -48,6 +48,7 @@
 
 ### 修复
 
+- 尚未绑定 TYN RGSS 运行时模块的旧 RPG Maker RGSS 记录不再显示主 App 存档管理入口；外置运行模块存档仍由模块自身负责。
 - TYN RGSS 模块游戏的操作抽屉显示单游戏引擎设置入口；普通第三方运行时模块仍隐藏该入口。
 - RPG Maker 引擎列表显示 TYN RGSS 模块版本；Ruby 运行时选项的“自动”标签不再附带说明。
 - RGSS 游戏卡片统一显示「RPG Maker」；XP / VX / VX Ace 代际保留在封面角标中。

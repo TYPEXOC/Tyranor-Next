@@ -2456,6 +2456,7 @@ internal fun shouldShowSaveManagement(engine: EngineType): Boolean =
     engine == EngineType.YURIS ||
         (!engine.isManual &&
             engine != EngineType.RUNTIME_MODULE &&
+            engine != EngineType.RPGMAKER &&
             engine != EngineType.UNKNOWN &&
             (engine != EngineType.ETHORNELL ||
                 com.tyranor.next.core.game.save.EthornellSaveCapability.available) &&
