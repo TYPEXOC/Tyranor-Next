@@ -94,10 +94,9 @@ object RuntimeModuleLauncher {
             putExtra(RuntimeModuleContract.EXTRA_PAD_PROFILE_ID, input.profileId)
             if (module.packageName == RuntimeModuleContract.TYN_RGSS_PACKAGE_NAME) {
                 putExtra(RuntimeModuleContract.EXTRA_RUBY_RUNTIME, rubyRuntime.wireValue)
-                putExtra(
-                    RuntimeModuleContract.EXTRA_RTP_ROOT,
-                    RpgMakerRuntimeEnvironment.rtpRootDir().absolutePath,
-                )
+                RpgMakerRuntimeEnvironment.rtpRootDir(context)?.let { rtpRoot ->
+                    putExtra(RuntimeModuleContract.EXTRA_RTP_ROOT, rtpRoot.absolutePath)
+                }
                 rgssSettings?.let { settings ->
                     putExtra(
                         RuntimeModuleContract.EXTRA_RGSS_OPTIONS,

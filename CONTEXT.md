@@ -32,6 +32,10 @@ _Avoid_: 插件、引擎 DLC、第三方 APK 运行时模块（另一体系）
 用户自行安装、以 `com.tyranor.runtime.` 包名前缀并声明 `com.tyranor.runtime.action.LAUNCH` 的独立 APK，接收游戏文件夹路径自行运行游戏；主 App 只负责发现、启用、扫描描述解释与交棒，强特征引擎只有被模块清单明确声明后才能接管。
 _Avoid_: 插件、外置引擎（指 JoiPlay 时）、外置 APK 引擎模块（指 JoiPlay 注册表体系时）
 
+**RGSS RTP（RGSS RTP）**:
+RPG Maker XP / VX / VX Ace 的共享运行资源，由 Tyranor 主 App 导入、检测和删除，存于主 App 的外置媒体目录并以真实路径交给独立 TYN RGSS 模块挂载；不使用 JoiPlay RTP 目录，也不与用户选择的游戏目录混为一谈。
+_Avoid_: JoiPlay RTP（作为 Tyranor 当前存储位置）、游戏目录 RTP
+
 **运行时模块绑定（Runtime Module Binding）**:
 `ScanGame.runtimeModulePackage` 记录的游戏与第三方 APK 运行时模块包名之间的关系；模块卸载或禁用后游戏降级为 `UNKNOWN`，但保留最后已知包名用于重扫合并与恢复，重装或启用后只能经重新扫描恢复。
 _Avoid_: 手动绑定、模块别名、externalModuleAlias
