@@ -1,10 +1,8 @@
-# Tyranor Next
-
 <p align="center">
-  <img src="screenshots/index.png" alt="Tyranor Next" width="850" />
+  <img src="screenshots/index1.png" alt="Tyranor Next" width="900" />
 </p>
 
-基于 **Tyranor 模拟器逆向重写**的多引擎视觉小说（Galgame）聚合启动器，面向 Android 平台。内置 Kirikiri / ONScripter / Tyrano / Artemis / Siglus / RealLive / AVG32 / UK2 / FVP / System35 / System4 等原生与 Web 运行环境，另含 Ethornell / BGI 实验接入，并支持 Ren'Py、RPG Maker RGSS、Ruffle（SWF / Flash）外置 APK 引擎模块、第三方 APK 运行时模块与外置模拟器跳转（PPSSPP / Eden / Winlator），提供游戏库管理、封面获取、存档镜像、引擎参数调节等一体化体验。具体功能与兼容边界见 [SPEC.md](SPEC.md)。
+基于 **Tyranor 模拟器逆向重写** 的多引擎视觉小说（Galgame）模拟器器，面向 Android 平台。具体功能与兼容边界见 [SPEC.md](SPEC.md)。
 
 mac原生版本如下：
 
@@ -18,6 +16,16 @@ iOS版本计划中...
 企鹅群：364439133
 
 感谢 [@安音](https://www.pixiv.net/users/8182248) 为本项目绘画的logo娘！
+
+### 默认主题界面（浅色）
+<p align="center">
+  <img src="screenshots/index2.png" alt="Tyranor Next" width="900" />
+</p>
+
+### 三种不同风格主题（不包含深浅色模式对比）
+<p align="center">
+  <img src="screenshots/index3.png" alt="Tyranor Next" width="900" />
+</p>
 
 ## 感谢各位贡献者们！一起成为光吧！
 
@@ -85,7 +93,8 @@ iOS版本计划中...
 ### 引擎集成设计
 
 - 引擎原生插件（`kirikiroid2` / `ons` / `artemis` 的 `.so`）以 assets 形式随 APK 打包（`nativeplugins/`），首次启动由 `NativePluginManager` 自动解压安装到应用私有目录
-- 共享 Native 插件 `.so` 的源头位于 `engine/src/main/nativeplugins`；app 侧仅维护插件 `manifest.json` 和 app-only 插件。构建时由 Gradle 合并生成 `app/build/generated/assets/nativeplugins/*.zip`
+- 共享 Native 插件 `.so` 的源头位于 `engine/src/main/nativeplugins`；app 侧仅维护插件 `manifest.json` 和 app-only 插件。构建时由 Gradle 合并打包成 `app/build/generated/assets/nativeplugins/*.zip.xz`（未压缩 zip 容器 + LZMA2，同一引擎家族的多个近重复 `.so` 共享字典）
+- 大体积引擎运行库（`libsiglus.so`、`librfvp.so`、`libethornell.so`、`libkrkrsdl3.so`、IJK 三件套、System35/4 与 `libSDL2x.so`）不进 APK 的 `lib/`：构建期打成 `assets/engine-runtime/<pack>.zip.xz`，首次启动对应引擎时由 `NativeRuntimePack` 解压到应用私有目录，JNI 桥按绝对路径加载
 - 共享 RPG Maker 注入脚本源头位于 `engine/src/main/assets`；app 侧只保留应用专属注入脚本，构建时由 Gradle 同步生成到 app assets，避免两边手工维护重复文件
 - `app` 模块通过 `core/game/launch/EngineLauncher` 将扫描结果映射到对应引擎 Activity 启动（SAF URI → 真实路径转换）
 - Ren'Py、RPG Maker RGSS、Ruffle 等外置 APK 引擎模块由 `core/engine/external` 统一注册、检测安装状态并按 intent 协议拉起；主 App 不维护手动启用开关，模块安装即视为可用。Ruffle 使用 `launchEntryIsFile` 的文件型入口，启动前把 SWF 文件记录解析为父目录再下发
@@ -132,7 +141,7 @@ app/
 │   └── theme/     Compose / Miuix 主题、色调、深浅色适配
 ├── src/main/assets/rtp/    App 自有 RTP 资源
 ├── src/main/nativeplugins/ 插件 manifest 与 app-only 插件源头
-├── build/generated/assets/ 构建生成的 engine/ 共享脚本与 nativeplugins/ 插件 zip
+├── build/generated/assets/ 构建生成的 engine/ 共享脚本与 nativeplugins/ 插件资产（.zip.xz）
 ├── schemas/                Room schema（随代码提交）
 └── src/{test,androidTest,releaseProbe}/ JVM、设备与 release probe 测试
 
