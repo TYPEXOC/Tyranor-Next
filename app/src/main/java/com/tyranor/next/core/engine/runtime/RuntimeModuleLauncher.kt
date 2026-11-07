@@ -9,6 +9,7 @@ import androidx.core.content.FileProvider
 import com.core.input.InputConfigStore
 import com.core.engine.TranslationTable
 import com.tyranor.next.core.game.model.ScanGame
+import com.tyranor.next.core.engine.external.RpgMakerRuntimeEnvironment
 import com.tyranor.next.core.settings.AppSettingsStore
 import com.tyranor.next.core.settings.EffectiveEngineSettings
 import com.tyranor.next.core.settings.EngineSettingsStore
@@ -93,6 +94,10 @@ object RuntimeModuleLauncher {
             putExtra(RuntimeModuleContract.EXTRA_PAD_PROFILE_ID, input.profileId)
             if (module.packageName == RuntimeModuleContract.TYN_RGSS_PACKAGE_NAME) {
                 putExtra(RuntimeModuleContract.EXTRA_RUBY_RUNTIME, rubyRuntime.wireValue)
+                putExtra(
+                    RuntimeModuleContract.EXTRA_RTP_ROOT,
+                    RpgMakerRuntimeEnvironment.rtpRootDir().absolutePath,
+                )
                 rgssSettings?.let { settings ->
                     putExtra(
                         RuntimeModuleContract.EXTRA_RGSS_OPTIONS,

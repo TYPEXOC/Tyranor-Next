@@ -49,6 +49,9 @@ object RuntimeModuleContract {
     /** 可选 extra：TYN RGSS 模块的 mkxp-z 引擎选项 JSON。 */
     const val EXTRA_RGSS_OPTIONS = "com.tyranor.runtime.extra.RGSS_OPTIONS"
 
+    /** 可选 extra：TYN 管理的 RPG Maker RTP 根目录。 */
+    const val EXTRA_RTP_ROOT = "com.tyranor.runtime.extra.RTP_ROOT"
+
     /** 可选 extra：TYN 当前主题强调色，用于模块内控件与按键层。 */
     const val EXTRA_THEME_PRIMARY_COLOR = "com.tyranor.runtime.extra.THEME_PRIMARY_COLOR"
 

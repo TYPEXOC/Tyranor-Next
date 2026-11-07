@@ -53,9 +53,9 @@ sealed interface RtpImportRejection {
 /**
  * RPGM 外置模块的共享目录管理（RTP / 自定义字体）。
  *
- * 目录契约由 RPGM 插件固定（插件 `MainActivity` 将
- * `/sdcard/JoiPlay/RTP/<RPGXP|RPGVX|RPGVXACE|mkxp-z>/app` 挂载为 RTP 根）：
- * 因此 RTP 与自定义字体必须落在共享存储，App 私有目录外置插件不可读。
+ * 为兼容此前的导入数据，TYN 自有 RPGM 模块继续从共享存储
+ * `/sdcard/JoiPlay/RTP/<RPGXP|RPGVX|RPGVXACE>/app` 读取 RTP；路径由 TYN 主程序传给模块，
+ * 不再依赖 JoiPlay 模块。RTP 与自定义字体必须落在共享存储，独立运行时模块无法读取主 App 私有目录。
  *
  * 所有方法允许失败，且失败一律以**类型化结果**表达（`RtpImportRejection?` / null 或
  * `Boolean` / `String?`），由调用方按非致命处理；界面文案在 ui 层组装。
@@ -151,7 +151,10 @@ object RpgMakerRuntimeEnvironment {
     }
 
     fun rtpDir(gameType: String): File =
-        File(Environment.getExternalStorageDirectory(), "$RTP_PARENT/${rtpDirName(gameType)}")
+        File(rtpRootDir(), rtpDirName(gameType))
+
+    /** TYN 主程序管理并传给自有模块的 RTP 根目录。 */
+    fun rtpRootDir(): File = File(Environment.getExternalStorageDirectory(), RTP_PARENT)
 
     /**
      * RTP 根目录（`.../<子类型>/app`）。
