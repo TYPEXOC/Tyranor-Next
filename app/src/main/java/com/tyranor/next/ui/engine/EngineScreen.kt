@@ -327,7 +327,7 @@ fun EngineScreen(
                     engineDialogEntries(context, moduleStates, dialogEngine, tynRgssModule).forEach { entry ->
                         AppNavItem(
                             title = entry.title,
-                            summary = stringResource(entry.summaryRes),
+                            summary = entry.summaryText ?: stringResource(entry.summaryRes),
                             leadingIcon = R.drawable.ic_engine_chip,
                             containerColor = DialogItemSurface,
                         ) {
@@ -950,6 +950,7 @@ private data class EngineDialogEntry(
     @get:StringRes val summaryRes: Int,
     val installed: Boolean,
     val installUrl: String? = null,
+    val summaryText: String? = null,
 )
 
 /** 弹窗条目列表：外置引擎取注册表模块；Artemis 列引擎设置中的内置版本；其余内置引擎见 [builtinDialogEntries]。 */
@@ -962,6 +963,15 @@ private fun engineDialogEntries(
 ): List<EngineDialogEntry> {
     if (engine == EngineType.RPGMAKER) {
         val installed = tynRgssModule != null
+        val moduleVersion = tynRgssModule?.let { module ->
+            val versionName = module.versionName?.takeIf { it.isNotBlank() }
+            when {
+                versionName != null && module.versionCode > 0L -> "$versionName (${module.versionCode})"
+                versionName != null -> versionName
+                module.versionCode > 0L -> module.versionCode.toString()
+                else -> null
+            }
+        }
         return listOf(
             EngineDialogEntry(
                 id = "tyn-rgss",
@@ -974,6 +984,9 @@ private fun engineDialogEntries(
                 },
                 installed = installed,
                 installUrl = if (installed) null else TYN_RGSS_ACTIONS_URL,
+                summaryText = moduleVersion?.let {
+                    stringResource(R.string.engine_module_installed_version, it)
+                },
             ),
         )
     }

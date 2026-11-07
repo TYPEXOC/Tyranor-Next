@@ -133,6 +133,7 @@
     <string name="engine_open_download_failed">ダウンロードページを開けません</string>
     <string name="engine_integrated">内蔵済み</string>
     <string name="engine_module_installed">モジュールはインストール済み</string>
+    <string name="engine_module_installed_version">モジュールはインストール済み · バージョン：%1$s</string>
     <string name="engine_module_download">ダウンロード</string>
     <string name="engine_module_not_installed">モジュール未インストール</string>
     <string name="engine_desc_kirikiri">Kirikiroid2 / krkrsdl3、.xp3 と startup.tjs のゲーム</string>
@@ -979,7 +980,6 @@
 
     <string name="engine_settings_rpgm_module_card">RPG Maker RGSS モジュール</string>
     <string name="engine_settings_rpgm_module_status">モジュール状態</string>
-    <string name="engine_settings_rpgm_module_version">バージョン：%1$s</string>
     <string name="engine_settings_rpgm_module_download">モジュールをダウンロード</string>
     <string name="engine_settings_rpgm_group_compat">互換性</string>
     <string name="engine_settings_rpgm_group_render">レンダリング</string>

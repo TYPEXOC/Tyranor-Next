@@ -133,6 +133,7 @@
     <string name="engine_open_download_failed">无法打开下载页面</string>
     <string name="engine_integrated">已集成</string>
     <string name="engine_module_installed">模块已安装</string>
+    <string name="engine_module_installed_version">模块已安装 · 版本：%1$s</string>
     <string name="engine_module_download">去下载</string>
     <string name="engine_module_not_installed">模块未安装</string>
     <string name="engine_desc_kirikiri">Kirikiroid2 / krkrsdl3，.xp3 与 startup.tjs 游戏</string>
@@ -979,7 +980,6 @@
 
     <string name="engine_settings_rpgm_module_card">RPG Maker RGSS 外置模块</string>
     <string name="engine_settings_rpgm_module_status">模块状态</string>
-    <string name="engine_settings_rpgm_module_version">版本：%1$s</string>
     <string name="engine_settings_rpgm_module_download">下载模块</string>
     <string name="engine_settings_rpgm_group_compat">兼容性</string>
     <string name="engine_settings_rpgm_group_render">渲染</string>

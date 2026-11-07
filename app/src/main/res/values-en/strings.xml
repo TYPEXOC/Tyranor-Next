@@ -133,6 +133,7 @@
     <string name="engine_open_download_failed">Unable to open the download page</string>
     <string name="engine_integrated">Built in</string>
     <string name="engine_module_installed">Module installed</string>
+    <string name="engine_module_installed_version">Module installed · Version: %1$s</string>
     <string name="engine_module_download">Download</string>
     <string name="engine_module_not_installed">Module not installed</string>
     <string name="engine_desc_kirikiri">Kirikiroid2 / krkrsdl3 games using .xp3 and startup.tjs</string>
@@ -979,7 +980,6 @@
 
     <string name="engine_settings_rpgm_module_card">RPG Maker RGSS Module</string>
     <string name="engine_settings_rpgm_module_status">Module status</string>
-    <string name="engine_settings_rpgm_module_version">Version: %1$s</string>
     <string name="engine_settings_rpgm_module_download">Download module</string>
     <string name="engine_settings_rpgm_group_compat">Compatibility</string>
     <string name="engine_settings_rpgm_group_render">Rendering</string>
