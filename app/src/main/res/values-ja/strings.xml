@@ -1049,13 +1049,14 @@
     <string name="engine_settings_rpgm_rtp_reject_entry_count">エントリ数が上限を超えています（%1$d > %2$d）</string>
     <string name="engine_settings_rpgm_rtp_reject_io">読み書きに失敗しました：%1$s（読み取り不可、または空き容量不足）</string>
     <string name="engine_settings_rpgm_rtp_reject_empty">選択した場所にインポートできる内容がありません</string>
+    <string name="engine_settings_rpgm_rtp_reject_invalid_package">選択したバージョンに一致する RTP 素材を確認できません</string>
     <string name="engine_settings_rpgm_rtp_delete">削除</string>
     <string name="engine_settings_rpgm_rtp_clear_confirm">このバージョンの RTP を削除しますか？</string>
     <string name="engine_settings_rpgm_rtp_cleared">RTP を削除しました</string>
     <string name="engine_settings_rpgm_rtp_clear_failed">RTP の削除に失敗しました</string>
     <string name="engine_settings_rpgm_rtp_clear_importing">RTP をインポート中です。完了後に削除してください</string>
     <string name="engine_settings_rpgm_rtp_storage_unavailable">RTP の保存先ディレクトリを利用できません</string>
-    <string name="engine_settings_rpgm_rtp_hint">RTP は Tyranor 専用のメディアフォルダで管理されます。対応する ZIP またはフォルダをインポートしてください。旧 RTP は自動移行されないため、元のフォルダを選び直して再インポートしてください</string>
+    <string name="engine_settings_rpgm_rtp_hint">選択したバージョンの RTP 素材 ZIP またはフォルダ（Audio、Graphics などを含む）のみインポートできます。Windows の setup.exe インストーラーには対応していません。旧 RTP は元のフォルダから再インポートできます</string>
     <string name="engine_settings_rpgm_rtp_from_zip">zip を選択</string>
     <string name="engine_settings_rpgm_rtp_from_dir">フォルダを選択</string>
     <string name="engine_settings_rpgm_reset_defaults">デフォルトに戻す</string>

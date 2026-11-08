@@ -53,6 +53,7 @@
 
 ### 修复
 
+- RPG Maker RTP 导入在提交前校验 `Game.ico`、Audio、Graphics 与 XP/VX/VX Ace 代际特征目录/文件；拒绝安装器、无关 ZIP 和所选版本不匹配的资源，校验失败不影响已有 RTP。已导入时禁用导入、只显示删除入口；删除完成后才可再次导入。
 - 修复设置页卡片内的 `AppNavItem` 在玻璃系外观下重复绘制条目表面（卡片套卡片）的问题：「添加滤镜」与单游戏设置「查看/修改 Winlator 全局设置」改传 `drawSurface = false`，只保留所在 `MiuixCard` 的单层材质；默认主题因卡片与条目同为不透明 `NavWhite` 而不易察觉。
 - 修复宿主进程记录中的陈旧 PID 被其它应用复用后，所有游戏均提示「请先退出游戏」而无法删除的问题：`/proc/<pid>/cmdline` 不可读且 `kill(pid, 0)` 返回 `EPERM`/`EACCES` 时按记录宿主已退出处理（本应用宿主进程必与 App 同 UID），真正无法判定的身份仍保守判忙。
 - 尚未绑定 TYN RGSS 运行时模块的旧 RPG Maker RGSS 记录不再显示主 App 存档管理入口；外置运行模块存档仍由模块自身负责。
