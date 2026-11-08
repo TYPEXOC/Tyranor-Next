@@ -102,6 +102,7 @@ import com.tyranor.next.R
 import com.tyranor.next.core.cover.CoverErrorCode
 import com.tyranor.next.core.cover.CoverImageCache
 import com.tyranor.next.core.cover.CoverScrapeTaskManager
+import com.tyranor.next.core.cover.VndbCoverService
 import com.tyranor.next.core.cover.CoverSearchCandidate
 import com.tyranor.next.core.cover.CoverSearchResult
 import com.tyranor.next.core.cover.CoverScraperService
@@ -654,6 +655,8 @@ internal fun GameActionsSheet(
     var rpgSaveDetection by remember(game.uri) { mutableStateOf<RpgSaveFormat.Detection?>(null) }
     var pendingPatchChoice by remember(game.uri) { mutableStateOf<EngineLauncher.ArtemisPatchChoice?>(null) }
     val batchScrapeRunningMessage = stringResource(R.string.game_batch_scraping_running)
+    val settingCoverMessage = stringResource(R.string.game_setting_cover)
+    val coverSetFailedMessage = stringResource(R.string.game_cover_set_failed)
     val coverDownloadFailedMessage = stringResource(R.string.game_cover_download_failed)
     val drawerCoverSettingsTitle = stringResource(R.string.game_cover_settings)
     val drawerTranslationTitle = stringResource(R.string.game_translation)
@@ -680,6 +683,31 @@ internal fun GameActionsSheet(
         if (!CoverScrapeTaskManager.state.value.running) return false
         android.widget.Toast.makeText(context, batchScrapeRunningMessage, android.widget.Toast.LENGTH_SHORT).show()
         return true
+    }
+
+    // 打开相册选择自定义封面。
+    val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        if (isBatchScrapingActive()) return@rememberLauncherForActivityResult
+        scope.launch {
+            launchError = LaunchErrorState(settingCoverMessage)
+            val updated = withContext(Dispatchers.IO) {
+                try {
+                    VndbCoverService.saveCustomCover(context, game, uri)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Throwable) {
+                    null
+                }
+            }
+            if (updated != null) {
+                onGameUpdated(updated)
+                launchError = null
+                onDismiss()
+            } else {
+                launchError = LaunchErrorState(coverSetFailedMessage)
+            }
+        }
     }
 
     // 发起启动；Artemis 需要 PFS 基础补丁且策略为“启动时询问”时，先弹窗确认再带选择启动
@@ -1129,8 +1157,6 @@ private fun TranslationSelectDialog(
         },
         dismissButton = { DialogTextButton(text = stringResource(R.string.common_cancel), onClick = onDismiss) },
     )
-}
-
 }
 
 /** 封面设置（一级）：搜索封面（聚合全部启用来源）与更换封面（本地图片）二级入口。 */
