@@ -1027,13 +1027,14 @@
     <string name="engine_settings_rpgm_rtp_reject_entry_count">条目数超过上限（%1$d > %2$d）</string>
     <string name="engine_settings_rpgm_rtp_reject_io">读写失败：%1$s（源不可读或存储空间不足）</string>
     <string name="engine_settings_rpgm_rtp_reject_empty">所选来源里没有可导入的内容</string>
+    <string name="engine_settings_rpgm_rtp_reject_invalid_package">未识别到与所选版本匹配的 RTP 资源</string>
     <string name="engine_settings_rpgm_rtp_delete">删除</string>
     <string name="engine_settings_rpgm_rtp_clear_confirm">确定删除该版本的 RTP 资源？</string>
     <string name="engine_settings_rpgm_rtp_clear_failed">RTP 删除失败</string>
     <string name="engine_settings_rpgm_rtp_cleared">RTP 已删除</string>
     <string name="engine_settings_rpgm_rtp_clear_importing">RTP 正在导入，请等导入结束后再删除</string>
     <string name="engine_settings_rpgm_rtp_storage_unavailable">RTP 存储目录当前不可用</string>
-    <string name="engine_settings_rpgm_rtp_hint">RTP 由 Tyranor 管理在自己的媒体目录中；可导入对应版本的 ZIP 或文件夹。旧版资源不会自动迁移，可重新选择原资源文件夹导入</string>
+    <string name="engine_settings_rpgm_rtp_hint">只导入对应版本的 RTP 资源 ZIP 或文件夹（含 Audio、Graphics 等资源）；Windows setup.exe 安装包不受支持。旧版资源可重新选择原资源文件夹导入</string>
     <string name="engine_settings_rpgm_rtp_from_zip">选择压缩包</string>
     <string name="engine_settings_rpgm_rtp_from_dir">选择文件夹</string>
     <string name="engine_settings_rpgm_reset_defaults">恢复默认设置</string>

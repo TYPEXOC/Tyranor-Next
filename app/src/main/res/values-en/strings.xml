@@ -1027,13 +1027,14 @@
     <string name="engine_settings_rpgm_rtp_reject_entry_count">Too many entries (%1$d > %2$d)</string>
     <string name="engine_settings_rpgm_rtp_reject_io">Read/write failed: %1$s (source unreadable or storage full)</string>
     <string name="engine_settings_rpgm_rtp_reject_empty">The selected source contains nothing to import</string>
+    <string name="engine_settings_rpgm_rtp_reject_invalid_package">No RTP resources matching the selected version were recognized</string>
     <string name="engine_settings_rpgm_rtp_delete">Delete</string>
     <string name="engine_settings_rpgm_rtp_clear_confirm">Delete the RTP files for this version?</string>
     <string name="engine_settings_rpgm_rtp_clear_failed">Failed to delete RTP</string>
     <string name="engine_settings_rpgm_rtp_cleared">RTP deleted</string>
     <string name="engine_settings_rpgm_rtp_clear_importing">RTP import is in progress; delete it after the import finishes</string>
     <string name="engine_settings_rpgm_rtp_storage_unavailable">The RTP storage directory is unavailable</string>
-    <string name="engine_settings_rpgm_rtp_hint">Tyranor manages RTP in its own media folder. Import the matching ZIP or folder. Older RTP files are not migrated automatically; select their source folder to import them again</string>
+    <string name="engine_settings_rpgm_rtp_hint">Import only the matching RTP resource ZIP or folder (with Audio, Graphics, and other assets). Windows setup.exe installers are not supported. Older RTP files can be imported again from their source folder</string>
     <string name="engine_settings_rpgm_rtp_from_zip">Choose zip</string>
     <string name="engine_settings_rpgm_rtp_from_dir">Choose folder</string>
     <string name="engine_settings_rpgm_reset_defaults">Reset defaults</string>

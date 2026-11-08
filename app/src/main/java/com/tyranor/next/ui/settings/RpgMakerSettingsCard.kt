@@ -526,7 +526,7 @@ private fun RpgmRtpRow(
     title: String,
     /** null = 状态尚未读出（IO 在跑）。 */
     imported: Boolean?,
-    /** 本类型正在导入：导入与删除入口置灰（导入与删除互斥，见 RpgmRtpRow 契约）。 */
+    /** 本类型正在导入：当前显示的入口不可操作。 */
     importing: Boolean,
     onImport: () -> Unit,
     onClear: () -> Unit,
@@ -551,17 +551,18 @@ private fun RpgmRtpRow(
         }
         NoRippleTextButton(
             text = stringResource(R.string.engine_settings_rpgm_rtp_import),
-            // 导入在途：禁用入口，避免两次导入并发（也避免把删除与导入交错）
-            enabled = !importing,
+            // 只允许从「未导入」状态开始导入；已导入时先删除，避免 UI 暴露替换操作。
+            enabled = imported == false && !importing,
             onClick = onImport,
         )
-        // 删除入口始终可见；没有已导入资源或导入进行中时置灰。
-        // 无点击反馈实现（AGENTS.md 弹窗/页内按钮规范），删除语义取 error 色。
-        NoRippleTextButton(
-            text = stringResource(R.string.engine_settings_rpgm_rtp_delete),
-            enabled = imported == true && !importing,
-            contentColor = MaterialTheme.colorScheme.error,
-            onClick = onClear,
-        )
+        // 仅有已导入资源时显示删除；删除确认完成并刷新状态后，导入按钮才重新启用。
+        if (imported == true) {
+            NoRippleTextButton(
+                text = stringResource(R.string.engine_settings_rpgm_rtp_delete),
+                enabled = !importing,
+                contentColor = MaterialTheme.colorScheme.error,
+                onClick = onClear,
+            )
+        }
     }
 }

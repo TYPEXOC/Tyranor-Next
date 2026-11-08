@@ -51,6 +51,9 @@ sealed interface RtpImportRejection {
 
     /** 源里没有任何可导入内容（空 zip / 空目录，或全被元数据过滤掉）。 */
     data object EmptyArchive : RtpImportRejection
+
+    /** 内容无法识别为受支持代际的 RTP 资源，或与用户选择的版本不匹配。 */
+    data object InvalidRtpPackage : RtpImportRejection
 }
 
 /**
@@ -144,6 +147,43 @@ object RpgMakerRuntimeEnvironment {
     private const val MAX_ENTRY_UNCOMPRESSED_BYTES = 256L * 1024L * 1024L
     private const val MAX_TOTAL_UNCOMPRESSED_BYTES = 4L * 1024L * 1024L * 1024L
     private const val ZIP_BUFFER_SIZE = 64 * 1024
+    private val RTP_AUDIO_EXTENSIONS = setOf(".mid", ".midi", ".ogg", ".wav", ".mp3", ".flac")
+    private val RTP_GRAPHICS_EXTENSIONS = setOf(".png", ".jpg", ".jpeg", ".bmp", ".gif")
+
+    /** 官方 XP RTP 的结构特征；需同时命中核心目录与多个代际专属目录。 */
+    private val RPG_XP_MARKER_DIRS = listOf(
+        "graphics/autotiles",
+        "graphics/windowskins",
+        "graphics/transitions",
+        "graphics/battlebacks",
+        "graphics/fogs",
+        "graphics/gameovers",
+        "graphics/icons",
+        "graphics/panoramas",
+    )
+
+    /** VX 的地图块存放在 Graphics/System，VX Ace 则拆分为独立 Tilesets/标题目录。 */
+    private val RPG_VX_MARKER_FILES = listOf(
+        "graphics/system/tilea1.png",
+        "graphics/system/tilea2.png",
+        "graphics/system/tilea3.png",
+        "graphics/system/tilea4.png",
+        "graphics/system/tilea5.png",
+        "graphics/system/tileb.png",
+        "graphics/system/tilec.png",
+        "graphics/system/tiled.png",
+        "graphics/system/tilee.png",
+        "graphics/system/title.png",
+    )
+
+    /** VX Ace 特有的战斗背景、地图块和标题资源目录。 */
+    private val RPG_VX_ACE_MARKER_DIRS = listOf(
+        "graphics/battlebacks1",
+        "graphics/battlebacks2",
+        "graphics/tilesets",
+        "graphics/titles1",
+        "graphics/titles2",
+    )
 
     private val FONT_EXTENSIONS = listOf(".ttf", ".ttc", ".otf", ".otc")
 
@@ -415,7 +455,7 @@ object RpgMakerRuntimeEnvironment {
             temp.deleteRecursively()
             if (!temp.mkdirs()) return RtpImportRejection.IoFailed(temp.name)
             extractZip(context, uri, temp)?.let { return it }
-            commitImportTemp(temp, target)
+            commitImportTemp(temp, target, gameType)
         } catch (ce: CancellationException) {
             throw ce
         } catch (e: java.util.zip.ZipException) {
@@ -453,7 +493,7 @@ object RpgMakerRuntimeEnvironment {
             temp.deleteRecursively()
             if (!temp.mkdirs()) return RtpImportRejection.IoFailed(temp.name)
             copyDocumentTree(context, source, temp)?.let { return it }
-            commitImportTemp(temp, target)
+            commitImportTemp(temp, target, gameType)
         } catch (ce: CancellationException) {
             throw ce
         } catch (_: Throwable) {
@@ -494,6 +534,7 @@ object RpgMakerRuntimeEnvironment {
     internal fun commitImportTemp(
         temp: File,
         target: File,
+        gameType: String,
         delete: (File) -> Boolean = { it.deleteRecursively() },
     ): RtpImportRejection? = synchronized(importLock) {
         flattenSingleRoot(temp)
@@ -502,6 +543,7 @@ object RpgMakerRuntimeEnvironment {
         // 按 IoFailed 上报（报成「没有内容」会把排查引到错误方向）
         val children = temp.listFiles() ?: return@synchronized RtpImportRejection.IoFailed(temp.name)
         if (children.isEmpty()) return@synchronized RtpImportRejection.EmptyArchive
+        validateRtpContent(temp, gameType)?.let { return@synchronized it }
 
         val parent = target.parentFile ?: return@synchronized RtpImportRejection.IoFailed(target.name)
         val backup = File(parent, IMPORT_BACKUP_DIR)
@@ -603,6 +645,90 @@ object RpgMakerRuntimeEnvironment {
         } catch (_: Exception) {
             null
         }
+    }
+
+    /**
+     * 按资源目录特征识别 RTP，并校验其代际与导入行一致。
+     *
+     * 普通 ZIP 的可解压性不能证明它是 RTP；例如官方 Windows 安装包 ZIP 里只有 `setup.exe`
+     * 时，旧逻辑会把安装器本身当作导入结果。这里在替换已有目录之前检查实际资源树：三代均要求
+     * 有有效 ICO 头的 `Game.ico`、Audio 媒体文件和 Graphics 图片；XP/VX/VX Ace 再分别匹配样本包
+     * 中的独有目录/文件特征。
+     * `mkxp-z` 可承载任一受支持 RGSS 代际，因此只要求内容能唯一识别为其中一代。
+     */
+    internal fun validateRtpContent(root: File, gameType: String): RtpImportRejection? {
+        val files = root.walkTopDown()
+            .filter { it.isFile && it.length() > 0L }
+            .map { it.relativeTo(root).path.replace(File.separatorChar, '/').lowercase(Locale.ROOT) }
+            .toSet()
+
+        if (files.isEmpty()) return RtpImportRejection.EmptyArchive
+        if (
+            !hasValidGameIcon(root) ||
+            !hasMediaFilesUnder(files, "audio", RTP_AUDIO_EXTENSIONS) ||
+            !hasMediaFilesUnder(files, "graphics", RTP_GRAPHICS_EXTENSIONS)
+        ) {
+            return RtpImportRejection.InvalidRtpPackage
+        }
+
+        val generations = buildSet {
+            val xpMarkers = RPG_XP_MARKER_DIRS.count { hasGraphicsFilesUnder(files, it) }
+            if (hasGraphicsFilesUnder(files, "graphics/autotiles") && xpMarkers >= 4) {
+                add(RtpGeneration.XP)
+            }
+
+            val vxMarkers = RPG_VX_MARKER_FILES.count(files::contains)
+            if (files.any { it.startsWith("graphics/faces/") } && vxMarkers >= 6) {
+                add(RtpGeneration.VX)
+            }
+
+            val aceMarkers = RPG_VX_ACE_MARKER_DIRS.count { hasGraphicsFilesUnder(files, it) }
+            if (aceMarkers >= 4) {
+                add(RtpGeneration.VX_ACE)
+            }
+        }
+
+        if (generations.size != 1) return RtpImportRejection.InvalidRtpPackage
+        val detected = generations.single()
+        val requested = when (gameType.trim().lowercase(Locale.ROOT)) {
+            "rpgmxp" -> RtpGeneration.XP
+            "rpgmvx" -> RtpGeneration.VX
+            "mkxp-z" -> null
+            else -> RtpGeneration.VX_ACE
+        }
+        return if (requested == null || requested == detected) null else RtpImportRejection.InvalidRtpPackage
+    }
+
+    private enum class RtpGeneration {
+        XP,
+        VX,
+        VX_ACE,
+    }
+
+    private fun hasMediaFilesUnder(files: Set<String>, directory: String, extensions: Set<String>): Boolean =
+        files.any { path ->
+            path.startsWith("$directory/") && extensions.any { extension -> path.endsWith(extension) }
+        }
+
+    private fun hasGraphicsFilesUnder(files: Set<String>, directory: String): Boolean =
+        hasMediaFilesUnder(files, directory, RTP_GRAPHICS_EXTENSIONS)
+
+    private fun hasValidGameIcon(root: File): Boolean {
+        val icon = root.listFiles()
+            ?.firstOrNull { it.isFile && it.name.equals("Game.ico", ignoreCase = true) }
+            ?: return false
+        return runCatching {
+            icon.inputStream().use { input ->
+                val header = ByteArray(4)
+                var offset = 0
+                while (offset < header.size) {
+                    val read = input.read(header, offset, header.size - offset)
+                    if (read < 0) return@use false
+                    offset += read
+                }
+                header.contentEquals(byteArrayOf(0, 0, 1, 0))
+            }
+        }.getOrDefault(false)
     }
 
     /**

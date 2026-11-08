@@ -43,6 +43,9 @@ internal fun RtpImportRejection.userMessage(context: Context): String {
 
         RtpImportRejection.EmptyArchive ->
             localized.getString(R.string.engine_settings_rpgm_rtp_reject_empty)
+
+        RtpImportRejection.InvalidRtpPackage ->
+            localized.getString(R.string.engine_settings_rpgm_rtp_reject_invalid_package)
     }
 }
 
