@@ -40,6 +40,7 @@ import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -47,9 +48,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.draw.drawWithContent
@@ -96,6 +99,7 @@ import com.tyranor.next.ui.common.AppTopBar
 import com.tyranor.next.ui.common.ByteFormats
 import com.tyranor.next.ui.common.SlidingTabRow
 import com.tyranor.next.ui.common.glassNavBottomInset
+import com.tyranor.next.ui.common.coachAnchor
 import com.tyranor.next.ui.common.isWideScreen
 import com.tyranor.next.ui.settings.artVersionOptions
 import java.io.File
@@ -112,8 +116,11 @@ import android.widget.Toast
 @Composable
 fun EngineScreen(
     modifier: Modifier = Modifier,
+    onCoachAnchorChanged: (Rect) -> Unit = {},
+    isActive: Boolean = true,
     gameCount: Int = 0,
 ) {
+    val latestOnCoachAnchorChanged = rememberUpdatedState(onCoachAnchorChanged)
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val engineOpenDownloadFailedMessage = stringResource(R.string.engine_open_download_failed)
@@ -172,8 +179,11 @@ fun EngineScreen(
                 stringResource(R.string.engine_tab_web),
             )
             MiuixSettingsTheme {
-                val tabModifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 4.dp)
+                val tabModifier = Modifier
+                    .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 4.dp)
                 if (AppThemeColors.isGlass || AppThemeColors.isMilkGlass) {
+                    // 玻璃外观：Miuix TabRow 不支持指示器描边，改用统一标签栏组件
+                    // （亮卡指示器 + 滑动动画 + 0.5dp 发丝描边，见 AGENTS.md「标签栏统一规范」）
                     // 玻璃/白雾外观：Miuix TabRow 的选中文字取 onBackground，会在亮指示器上
                     // 变成浅色；改用统一标签栏组件（自带亮底深字/深底浅字分派）。
                     SlidingTabRow(
@@ -230,6 +240,14 @@ fun EngineScreen(
                 key = { it.name },
                 contentType = { "engine" },
             ) { engine ->
+                val isCoachTarget = engine == tabEngines.firstOrNull()
+                if (isCoachTarget) {
+                    DisposableEffect(engine) {
+                        onDispose {
+                            latestOnCoachAnchorChanged.value(Rect.Zero)
+                        }
+                    }
+                }
                 val module = ExternalEngineModuleRegistry.moduleForEngine(engine)
                 val emulator = ExternalEmulatorRegistry.forEngine(engine)
                 val tynRgssModule = if (engine == EngineType.RPGMAKER) {
@@ -269,6 +287,10 @@ fun EngineScreen(
                     engine = engine,
                     statusTextRes = statusRes,
                     installed = installed,
+                    modifier = Modifier.coachAnchor(
+                        enabled = engine == tabEngines.firstOrNull() && isActive,
+                        onBounds = onCoachAnchorChanged,
+                    ),
                     // 外置模块 / 外置模拟器 / Tyrano/WebOther/VN/Artemis（内置版本条目）：点击弹窗
                     enabled = engine == EngineType.RPGMAKER || module != null || emulator != null || engine in dialogOnlyEngines,
                     compact = engineColumns > 1,
@@ -667,11 +689,13 @@ private fun EngineRow(
     engine: EngineType,
     @StringRes statusTextRes: Int,
     installed: Boolean,
+    modifier: Modifier = Modifier,
     enabled: Boolean,
     compact: Boolean = false,
     onClick: () -> Unit,
 ) {
     EngineRowCard(
+        modifier = modifier,
         iconRes = engineIconRes(engine),
         title = engineDisplayName(engine),
         statusTextRes = statusTextRes,
@@ -705,6 +729,7 @@ private fun ExternalJumpRow(
  */
 @Composable
 private fun EngineRowCard(
+    modifier: Modifier = Modifier,
     @DrawableRes iconRes: Int,
     title: String,
     @StringRes statusTextRes: Int,
@@ -720,7 +745,7 @@ private fun EngineRowCard(
     // 过渡终点直接取卡片背景。默认主题保持原来的 NavWhite 色遮罩，不动其它风格。
     val useImageFadeMask = AppThemeColors.isMilkGlass || AppThemeColors.isGlass
     Card(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clickable(enabled = enabled, onClick = onClick)
             .glassBorder(),
