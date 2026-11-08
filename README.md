@@ -73,7 +73,7 @@ iOS版本计划中...  鸿蒙设备可使用卓易通安装
 | PSP                  | `.pbp`、`.cso`、`.iso`、`.chd`                                         | 外置 PPSSPP 模拟器                 |
 | Nintendo Switch      | `.nsp`、`.xci`、`.nca`、`.nro`                                         | 外置 Eden 模拟器                   |
 
-TYN RGSS 模块使用的 XP、VX、VX Ace RTP 由 Tyranor Next 在应用自己的媒体目录中管理，支持通过系统文件选择器导入资源 ZIP 或资源目录并单独删除；不读取 JoiPlay 的 RTP 目录。安装程序（如包含 `setup.exe` 的压缩包）不是可导入的 RTP 资源包。
+TYN RGSS 模块使用的 XP、VX、VX Ace RTP 由 Tyranor Next 在应用自己的媒体目录中管理，支持通过系统文件选择器导入资源 ZIP 或资源目录并单独删除；导入与删除按钮始终显示并按状态启用，不读取 JoiPlay 的 RTP 目录。安装程序（如包含 `setup.exe` 的压缩包）不是可导入的 RTP 资源包。
 
 
 ### 平台与文件要求
