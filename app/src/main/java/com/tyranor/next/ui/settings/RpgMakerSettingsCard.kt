@@ -555,14 +555,12 @@ private fun RpgmRtpRow(
             enabled = imported == false && !importing,
             onClick = onImport,
         )
-        // 仅有已导入资源时显示删除；删除确认完成并刷新状态后，导入按钮才重新启用。
-        if (imported == true) {
-            NoRippleTextButton(
-                text = stringResource(R.string.engine_settings_rpgm_rtp_delete),
-                enabled = !importing,
-                contentColor = MaterialTheme.colorScheme.error,
-                onClick = onClear,
-            )
-        }
+        NoRippleTextButton(
+            text = stringResource(R.string.engine_settings_rpgm_rtp_delete),
+            // 两个入口常驻：只有已导入且没有导入操作时才允许删除。
+            enabled = imported == true && !importing,
+            contentColor = MaterialTheme.colorScheme.error,
+            onClick = onClear,
+        )
     }
 }
