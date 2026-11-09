@@ -123,17 +123,35 @@ window.__TRS_WRITEBACK__ = true;
     return value.replace(/[^\r\n]+/g, function (line) { return tr(line, site || 'rpg-message'); });
   }
 
-  function messageBlockHasTranslation(value) {
-    var found = false;
-    if (typeof value !== 'string') return false;
-    var wholeKey = '$' + value;
-    if (hasOwn(map, wholeKey) && typeof map[wholeKey] === 'string' && map[wholeKey] !== value) return true;
-    value.replace(/[^\r\n]+/g, function (line) {
-      var key = '$' + line;
-      if (hasOwn(map, key) && typeof map[key] === 'string' && map[key] !== line) found = true;
-      return line;
+  function translateWithMap(value, lookupMap, lookupLineIndex) {
+    if (typeof value !== 'string' || !value) return value;
+    var translated = hasOwn(lookupMap, '$' + value) ? lookupMap['$' + value] : undefined;
+    if (translated === undefined && value.indexOf('\u001b') !== -1) {
+      var plain = value.replace(/\u001b/g, '\\');
+      if (hasOwn(lookupMap, '$' + plain)) translated = lookupMap['$' + plain];
+    }
+    if (translated === undefined && lookupLineIndex) {
+      var ref = hasOwn(lookupLineIndex, '$' + value) ? lookupLineIndex['$' + value] : null;
+      if (ref && hasOwn(lookupMap, ref.block)) {
+        var blockText = lookupMap[ref.block];
+        if (typeof blockText === 'string' && blockText !== ref.block.slice(1)) {
+          var parts = blockText.split('\n');
+          if (parts.length === ref.count && typeof parts[ref.index] === 'string' && parts[ref.index]) {
+            translated = parts[ref.index];
+          }
+        }
+      }
+    }
+    return typeof translated === 'string' ? translated : value;
+  }
+
+  function messageBlockWithMap(value, lookupMap, lookupLineIndex) {
+    if (typeof value !== 'string') return value;
+    var wholeTranslation = translateWithMap(value, lookupMap, lookupLineIndex);
+    if (wholeTranslation !== value) return wholeTranslation;
+    return value.replace(/[^\r\n]+/g, function (line) {
+      return translateWithMap(line, lookupMap, lookupLineIndex);
     });
-    return found;
   }
 
   function translateArgs(value, depth) {
@@ -469,20 +487,49 @@ window.__TRS_WRITEBACK__ = true;
   // the constructors, and a name check (/^Window_/) then matches nothing at all.
   var refreshBurst = 0;
   var lastRefreshScene = null;
+  var lastRefreshWindows = [];
+  var lastMessageRefresh = 'not-run';
 
   function refreshSceneWindows() {
     var scene = root.SceneManager && root.SceneManager._scene;
-    if (!scene) return 0;
+    if (!scene) {
+      lastRefreshWindows = [];
+      return 0;
+    }
     var count = 0;
+    lastRefreshWindows = [];
     var visit = function (node, depth) {
       if (!node || depth > 6) return;
       var isWindow = typeof node.refresh === 'function'
         && node.contents
         && typeof node.contents.drawText === 'function';
       if (isWindow) {
+        var className = node.constructor && node.constructor.name || 'Window(?)';
+        var label = className + '.refresh/args=' + node.refresh.length;
+        // Some plugins use refresh(text, position) for helper windows. Calling
+        // those without arguments can clear or corrupt the active message.
+        if (node.refresh.length > 0) {
+          if (lastRefreshWindows.length < 8) lastRefreshWindows.push(label + ':args-required');
+          return;
+        }
+        // Message name boxes and other attached helpers must be redrawn by
+        // their parent message path, not as independent windows.
+        if (node._parentWindow && typeof node._parentWindow.startMessage === 'function') {
+          if (lastRefreshWindows.length < 8) lastRefreshWindows.push(label + ':message-child');
+          return;
+        }
         // Never restart a message that is currently being typed out.
-        if (node._textState || typeof node.startMessage === 'function' || node._scrollText !== undefined) return;
-        try { node.refresh(); count++; } catch (_) {}
+        if (node._textState || typeof node.startMessage === 'function' || node._scrollText !== undefined) {
+          if (lastRefreshWindows.length < 8) lastRefreshWindows.push(label + ':active-message');
+          return;
+        }
+        try {
+          node.refresh();
+          count++;
+          if (lastRefreshWindows.length < 8) lastRefreshWindows.push(label + ':refreshed');
+        } catch (error) {
+          if (lastRefreshWindows.length < 8) lastRefreshWindows.push(label + ':error:' + error.message);
+        }
         return;
       }
       var kids = node.children;
@@ -496,7 +543,9 @@ window.__TRS_WRITEBACK__ = true;
 
   function patchGameObjects() {
     var ctorNames = ['Bitmap', 'Window_Base', 'Window_Message', 'Window_BattleLog'];
-    var methods = ['drawText', 'drawTextEx', 'drawTextWithIcon', 'addText', 'startMessage'];
+    // Window_Message.startMessage() takes no arguments. Treating it as a
+    // string-taking draw method adds an unexpected undefined argument.
+    var methods = ['drawText', 'drawTextEx', 'drawTextWithIcon', 'addText'];
     var i;
     var j;
     var ctor;
@@ -537,21 +586,115 @@ window.__TRS_WRITEBACK__ = true;
     } catch (_) {}
   }
 
-  function refreshCurrentRpgMessage() {
+  function refreshCurrentRpgMessage(previousMap, previousLineIndex) {
     var message = root.$gameMessage;
     var proto = root.Game_Message && root.Game_Message.prototype;
     var wrappedAllText = proto && proto.allText;
     var originalAllText = wrappedAllText && wrappedAllText.__trsOriginal;
     var scene = root.SceneManager && root.SceneManager._scene;
     var messageWindow = scene && scene._messageWindow;
-    if (!message || !originalAllText || !messageWindow || !messageWindow._textState || typeof messageWindow.startMessage !== 'function') return false;
-    if (typeof message.isBusy === 'function' && !message.isBusy()) return false;
+    var choiceWindow = messageWindow &&
+      (messageWindow._choiceListWindow || messageWindow._choiceWindow);
+    var choiceActive = !!(choiceWindow && (choiceWindow.active ||
+      (typeof choiceWindow.isActive === 'function' && choiceWindow.isActive())));
+    if (!message || !originalAllText || !messageWindow || typeof messageWindow.startMessage !== 'function') {
+      lastMessageRefresh = 'missing-message-runtime';
+      return false;
+    }
+    var busy = typeof message.isBusy === 'function' ? message.isBusy() : false;
     var originalText = originalAllText.call(message);
-    if (!messageBlockHasTranslation(originalText)) return false;
+    var before = messageBlockWithMap(originalText, previousMap || {}, previousLineIndex || {});
+    var after = messageBlockWithMap(originalText, map, lineToBlock);
+    var queueLength = message._texts && message._texts.length;
+    lastMessageRefresh = 'busy:' + busy + ',queue:' +
+      (queueLength === undefined ? '?' : queueLength) + ',state:' +
+      !!messageWindow._textState + ',changed:' + (before !== after) +
+      ',chars:' + (originalText ? originalText.length : 0);
+    if (!busy || before === after) return false;
+    if (typeof messageWindow.isAnySubWindowActive === 'function' &&
+        messageWindow.isAnySubWindowActive() && !choiceActive) {
+      lastMessageRefresh += ',active-subwindow';
+      return false;
+    }
+
+    var choiceIndex = choiceActive ? (typeof choiceWindow.index === 'function' ?
+      choiceWindow.index() : choiceWindow._index) : -1;
+    var choiceRestore = null;
+    if (choiceActive) {
+      if (typeof choiceWindow.start !== 'function' || typeof choiceWindow.deactivate !== 'function') {
+        lastMessageRefresh += ',choice-window-unavailable';
+        return false;
+      }
+      choiceRestore = choiceWindow.__trsChoiceRestoreState;
+      if (choiceRestore && choiceWindow.start === choiceRestore.wrapper) {
+        choiceRestore.index = choiceIndex;
+      } else {
+        choiceRestore = {
+          index: choiceIndex,
+          hadOwnStart: Object.prototype.hasOwnProperty.call(choiceWindow, 'start'),
+          originalStart: choiceWindow.start,
+          wrapper: null
+        };
+        choiceRestore.restore = function () {
+          if (choiceWindow.__trsChoiceRestoreState !== choiceRestore) return;
+          if (choiceWindow.start === choiceRestore.wrapper) {
+            if (choiceRestore.hadOwnStart) choiceWindow.start = choiceRestore.originalStart;
+            else delete choiceWindow.start;
+          }
+          delete choiceWindow.__trsChoiceRestoreState;
+        };
+        choiceRestore.wrapper = function () {
+          var result;
+          try {
+            result = choiceRestore.originalStart.apply(this, arguments);
+          } finally {
+            if (choiceRestore.index >= 0 && typeof this.select === 'function') {
+              this.select(choiceRestore.index);
+            }
+            if (typeof this.activate === 'function') this.activate();
+            choiceRestore.restore();
+          }
+          return result;
+        };
+        choiceWindow.__trsChoiceRestoreState = choiceRestore;
+        choiceWindow.start = choiceRestore.wrapper;
+        root.setTimeout(function () {
+          if (choiceWindow.__trsChoiceRestoreState !== choiceRestore) return;
+          choiceRestore.restore();
+          if (message._choices && message._choices.length && choiceWindow.visible !== false) {
+            if (choiceRestore.index >= 0 && typeof choiceWindow.select === 'function') {
+              choiceWindow.select(choiceRestore.index);
+            }
+            if (typeof choiceWindow.activate === 'function') choiceWindow.activate();
+          }
+        }, 10000);
+      }
+      choiceWindow.deactivate();
+      lastMessageRefresh += ',choice-index:' + choiceIndex;
+    }
     try {
+      if ('pause' in messageWindow) messageWindow.pause = false;
+      if (typeof messageWindow._waitCount === 'number') messageWindow._waitCount = 0;
       messageWindow.startMessage();
+      if (messageWindow._textState) messageWindow._showFast = true;
+      var refreshedState = messageWindow._textState;
+      lastMessageRefresh += ',started,pause:' + !!messageWindow.pause +
+        ',stateAfter:' + !!refreshedState;
+      if (refreshedState) {
+        lastMessageRefresh += ',textAfter:' +
+          (refreshedState.text ? refreshedState.text.length : 0) +
+          ',indexAfter:' + refreshedState.index;
+      }
       return true;
-    } catch (_) {
+    } catch (error) {
+      if (choiceRestore && choiceRestore.restore) {
+        choiceRestore.restore();
+        if (choiceIndex >= 0 && typeof choiceWindow.select === 'function') {
+          choiceWindow.select(choiceIndex);
+        }
+        if (typeof choiceWindow.activate === 'function') choiceWindow.activate();
+      }
+      lastMessageRefresh += ',error:' + error.message;
       return false;
     }
   }
@@ -680,6 +823,8 @@ window.__TRS_WRITEBACK__ = true;
   root.__TRS_SET_TRANSLATIONS__ = function (next) {
     var source;
     var target;
+    var previousMap = map;
+    var previousLineIndex = lineToBlock;
     map = {};
     targets = {};
     next = next || {};
@@ -697,13 +842,22 @@ window.__TRS_WRITEBACK__ = true;
     install();
     patchDOM();
     var writebackApplied = stats.writeback || 0;
-    var refreshed = refreshCurrentRpgMessage();
+    var refreshed = refreshCurrentRpgMessage(previousMap, previousLineIndex);
     var messageProto = root.Game_Message && root.Game_Message.prototype;
     var rpgMessageHook = !!(messageProto && messageProto.allText && messageProto.allText.__trsWrapped);
-    return {pairs: Object.keys(map).length, hooks: stats.installed, replacements: stats.replacements, rpgMessageHook: rpgMessageHook, currentMessageRefreshed: refreshed, hookSites: HOOK_SITES.length, writebackSlots: dataSlots ? dataSlots.length : 0, writebackApplied: writebackApplied, refreshedWindows: stats.refreshed || 0, runtime: describeRuntime()};
+    return {pairs: Object.keys(map).length, hooks: stats.installed, replacements: stats.replacements, rpgMessageHook: rpgMessageHook, currentMessageRefreshed: refreshed, messageRefresh: lastMessageRefresh, hookSites: HOOK_SITES.length, writebackSlots: dataSlots ? dataSlots.length : 0, writebackApplied: writebackApplied, refreshedWindows: stats.refreshed || 0, refreshedWindowSites: lastRefreshWindows.slice(0, 8), runtime: describeRuntime()};
   };
   root.__TRS_RUNTIME__ = true;
   root.__TRS_STATUS__ = function () {
+    var scene = root.SceneManager && root.SceneManager._scene;
+    var messageWindow = scene && scene._messageWindow;
+    var message = root.$gameMessage;
+    var textState = messageWindow && messageWindow._textState;
+    var stateText = textState && typeof textState.text === 'string' ? textState.text : '';
+    var choiceWindow = messageWindow &&
+      (messageWindow._choiceListWindow || messageWindow._choiceWindow);
+    var numberWindow = messageWindow && messageWindow._numberInputWindow;
+    var itemWindow = messageWindow && messageWindow._eventItemWindow;
     return {
       replacements: stats.replacements,
       hooks: stats.installed,
@@ -711,6 +865,28 @@ window.__TRS_WRITEBACK__ = true;
       writeback: stats.writeback || 0,
       writebackSlots: dataSlots ? dataSlots.length : 0,
       refreshed: stats.refreshed || 0,
+      messageRefresh: lastMessageRefresh,
+      refreshedWindowSites: lastRefreshWindows.slice(0, 8),
+      messageLive: {
+        focused: !!(root.document && root.document.hasFocus && root.document.hasFocus()),
+        visible: root.document ? root.document.visibilityState : 'unknown',
+        frame: root.Graphics ? root.Graphics.frameCount : -1,
+        sceneStarted: !!(scene && scene.isStarted && scene.isStarted()),
+        busy: !!(message && message.isBusy && message.isBusy()),
+        queued: message && message._texts ? message._texts.length : -1,
+        state: !!textState,
+        index: textState ? textState.index : -1,
+        textLength: stateText.length,
+        textHead: stateText.slice(0, 24),
+        open: !!(messageWindow && messageWindow.isOpen && messageWindow.isOpen()),
+        openness: messageWindow ? messageWindow.openness : -1,
+        wait: messageWindow ? messageWindow._waitCount : -1,
+        pause: !!(messageWindow && messageWindow.pause),
+        choiceActive: !!(choiceWindow && (choiceWindow.active ||
+          (typeof choiceWindow.isActive === 'function' && choiceWindow.isActive()))),
+        numberActive: !!(numberWindow && numberWindow.active),
+        itemActive: !!(itemWindow && itemWindow.active)
+      },
       unmatched: stats.misses || 0,
       samples: missSamples.slice(0, 6),
       runtime: describeRuntime()
