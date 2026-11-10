@@ -5,6 +5,10 @@ on:
   push:
     branches:
       - main
+      - cheat
+      - ui
+      - translation
+      - rgss-module
   pull_request:
     branches:
       - main
