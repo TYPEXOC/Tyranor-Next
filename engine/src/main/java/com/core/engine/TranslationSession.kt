@@ -1,7 +1,7 @@
 package com.core.engine
 
-import android.content.ContentObserver
 import android.content.Context
+import android.database.ContentObserver
 import android.net.Uri
 import android.os.Handler
 import android.os.HandlerThread
