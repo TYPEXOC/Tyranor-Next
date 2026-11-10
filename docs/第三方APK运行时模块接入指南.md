@@ -80,18 +80,28 @@ com.example.runtime             ❌ 前缀不对
 
 ### 2.3 接收启动参数
 
-主 App 启动模块时使用**显式组件**，只传三个 extra：
+主 App 启动模块时使用**显式组件**。通用 v1 协议固定传下面三个基础 extra。TYN 自有模块可使用下一表列出的扩展字段；这些扩展不是普通第三方模块的必需协议。
+
+**通用 v1 基础字段**：
 
 | extra | 类型 | 说明 |
 | --- | --- | --- |
 | `com.tyranor.runtime.extra.FOLDER_PATH` | String | 游戏文件夹绝对路径，必填 |
 | `com.tyranor.runtime.extra.GAME_TITLE` | String | 游戏标题，可选 |
 | `com.tyranor.runtime.extra.PROTOCOL_VERSION` | Int | 主 App 协议版本，当前为 1 |
-| `com.tyranor.runtime.extra.GAME_ID` | String | 稳定游戏标识，可用于隔离模块状态 |
-| `com.tyranor.runtime.extra.TRANSLATION_URI` | String | 可选；当前选中译表的 `content://` URI，只读 |
+
+**TYN 自有 RGSS 模块扩展字段**（普通第三方模块可忽略）：
+
+| extra | 类型 | 说明 |
+| --- | --- | --- |
+| `com.tyranor.runtime.extra.GAME_ID` | String | 稳定游戏标识，用于隔离模块状态 |
+| `com.tyranor.runtime.extra.TRANSLATION_URI` | String | 可选；当前选中译表的 `content://` URI，只读。模块须在描述文件中声明 `translation` 能力 |
 | `com.tyranor.runtime.extra.PAD_ENABLED` | Boolean | 可选；TYN 按键是否启用 |
 | `com.tyranor.runtime.extra.PAD_PROFILE_URI` | String | 可选；生效按键方案的 `content://` URI，临时读写 |
 | `com.tyranor.runtime.extra.PAD_PROFILE_ID` | String | 可选；当前方案 ID |
+| `com.tyranor.runtime.extra.RUBY_RUNTIME` | String | 可选；Ruby VM 标识（`187` / `193` / `313`） |
+| `com.tyranor.runtime.extra.RTP_ROOT` | String | 可选；TYN 管理的 RPG Maker RTP 根目录 |
+| `com.tyranor.runtime.extra.RGSS_OPTIONS` | String | 可选；TYN RGSS 模块的 mkxp-z 选项 JSON |
 | `com.tyranor.runtime.extra.THEME_PRIMARY_COLOR` | Int | 可选；TYN 当前强调色 ARGB |
 | `com.tyranor.runtime.extra.THEME_ON_PRIMARY_COLOR` | Int | 可选；强调色上的前景色 ARGB |
 
@@ -120,7 +130,7 @@ class LaunchActivity : Activity() {
 }
 ```
 
-兼容性说明：旧模块可以忽略新增 extra。接收 content URI 时，模块应按临时授权读取；若要编辑按键方案，可在启动任务存活期间写回已授予写权限的 URI。URI 与权限一同放进启动 Intent 的 `ClipData`。主 App 不会传：
+兼容性说明：普通第三方模块只需依赖三个通用 v1 基础字段；TYN RGSS 扩展只供对应第一方模块使用。接收 content URI 时，模块应按临时授权读取；若要编辑按键方案，可在启动任务存活期间写回已授予写权限的 URI。URI 与权限一同放进启动 Intent 的 `ClipData`。主 App 不会传：
 
 - `game` / `settings` JSON；
 - 存档路径或画面参数；
@@ -173,6 +183,8 @@ class LaunchActivity : Activity() {
 | `scan.extensions` | 否 | 扩展名数组，必须带前导点，如 `.mygame` |
 | `scan.markers` | 否 | 相对游戏根目录的标记文件/目录路径 |
 
+`capabilities` 是 TYN 扩展字段，不参与扫描匹配。当前 `translation` 能力仅供 TYN 自有 RGSS 模块声明；声明后，TYN 才会在用户选择译表时附带只读 `TRANSLATION_URI`。普通第三方模块不应依赖这个扩展。
+
 **上限**：
 
 - JSON 文件 ≤ 64 KiB；
@@ -218,8 +230,8 @@ class LaunchActivity : Activity() {
 
 ### 3.5 主 App 的扫描优先级
 
-- 先跑内置引擎识别；**KRKR / ONS / RPGM / Ren'Py / Ruffle / Siglus 等强特征结果不会被模块覆盖**。
-- 只有内置结果为 `UNKNOWN` 或 `WEB_OTHER` 时才尝试模块匹配。
+- 先跑内置引擎识别；普通第三方模块不能覆盖 **KRKR / ONS / RPGM / Ren'Py / Ruffle / Siglus 等强特征结果**。
+- 普通第三方模块只有在内置结果为 `UNKNOWN` 或 `WEB_OTHER` 时才尝试匹配。TYN 自有 RGSS 模块是第一方适配：仅固定包名的模块可在扫描描述命中后接管已识别的 RPG Maker RGSS 游戏；此例外不开放给通用模块。
 - 扫描根目录本身不参与模块匹配；游戏必须位于扫描根下的子目录。
 - 含主机 ROM（PSP/Switch）或散装 SWF 的目录会交给对应机制，模块扩展名不能吞并它们。
 - 多模块同时命中时，主 App 按「`all` 优先于 `any` → marker 数量多优先 → 包名排序」确定性选择，不会在扫描时弹窗。

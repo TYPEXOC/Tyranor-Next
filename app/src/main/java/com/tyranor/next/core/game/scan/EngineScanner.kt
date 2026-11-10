@@ -983,8 +983,8 @@ object EngineScanner {
     }
 
     /**
-     * 运行时模块优先接管未知结果；对强特征引擎，仅尝试模块清单通过 `overrideEngines`
-     * 明确声明的类型。命中后保留内置识别出的子引擎别名，再以模块包名交棒。
+     * 普通运行时模块只接管未知结果；TYN RGSS 作为 RPG Maker 第一方集成由固定包名适配。
+     * 命中后保留内置识别出的子引擎别名，再以模块包名交棒。
      */
     private fun applyRuntimeModules(
         builtIn: Detection,
@@ -998,8 +998,10 @@ object EngineScanner {
         if (entries.any { !it.isDirectory && romEngineOf(it.name) != null }) return builtIn
         val module = if (weakResult) {
             runtimeModules.match(entries, childrenOf)
+        } else if (builtIn.engine == EngineType.RPGMAKER) {
+            runtimeModules.matchTynRgss(entries, childrenOf)
         } else {
-            runtimeModules.matchOverride(builtIn.engine, entries, childrenOf)
+            null
         } ?: return builtIn
         return Detection(
             engine = EngineType.RUNTIME_MODULE,

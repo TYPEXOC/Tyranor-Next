@@ -1,7 +1,5 @@
 package com.tyranor.next.core.engine.runtime
 
-import com.tyranor.next.core.engine.EngineType
-
 /**
  * 一次扫描开始时的可用模块快照（已启用 + 有扫描描述）。
  *
@@ -15,12 +13,13 @@ class RuntimeModuleIndex private constructor(val modules: List<RuntimeModuleDesc
         childrenOf: (RuntimeModuleEntry) -> List<RuntimeModuleEntry>,
     ): RuntimeModuleDescriptor? = match(children, childrenOf) { true }
 
-    /** Strong built-in types may only be replaced by modules that explicitly name that engine. */
-    fun matchOverride(
-        engine: EngineType,
+    /** TYN RGSS is a first-party RPG Maker integration, not a generic third-party override. */
+    fun matchTynRgss(
         children: List<RuntimeModuleEntry>,
         childrenOf: (RuntimeModuleEntry) -> List<RuntimeModuleEntry>,
-    ): RuntimeModuleDescriptor? = match(children, childrenOf) { engine in it.overrideEngines }
+    ): RuntimeModuleDescriptor? = match(children, childrenOf) {
+        it.packageName == RuntimeModuleContract.TYN_RGSS_PACKAGE_NAME
+    }
 
     private fun match(
         children: List<RuntimeModuleEntry>,

@@ -56,15 +56,20 @@ object RuntimeModuleLauncher {
         if (module.packageName.isBlank() || module.activityName.isBlank()) return RuntimeModuleLaunchResult.EntryMissing
         if (folderPath.isBlank()) return RuntimeModuleLaunchResult.PathUnresolved
 
-        val translationUri = if (RuntimeModuleCapabilities.TRANSLATION in module.capabilities) {
+        val isTynRgss = module.packageName == RuntimeModuleContract.TYN_RGSS_PACKAGE_NAME
+        val translationUri = if (isTynRgss && RuntimeModuleCapabilities.TRANSLATION in module.capabilities) {
             selectedTranslationUri(context, game, folderPath)
         } else {
             null
         }
-        val input = InputConfigStore.resolve(context, game.uri, engineDefaultsEnabled = true)
-        val profileUri = if (input.padEnabled) selectedPadProfileUri(context, input.profileId) else null
+        val input = if (isTynRgss) {
+            InputConfigStore.resolve(context, game.uri, engineDefaultsEnabled = true)
+        } else {
+            null
+        }
+        val profileUri = input?.takeIf { it.padEnabled }?.let { selectedPadProfileUri(context, it.profileId) }
         val theme = ThemeColorPayloadStore.current ?: ThemeColorPayload.DEFAULT
-        val rubyRuntime = if (module.packageName == RuntimeModuleContract.TYN_RGSS_PACKAGE_NAME) {
+        val rubyRuntime = if (isTynRgss) {
             RgssRubyRuntime.resolveForGame(
                 RgssRubyRuntime.fromWireValue(
                     PerGameSettingsStore.getStr(context, game.uri, PerGameSettingsStore.F_RPG_RUBY_RUNTIME)
@@ -75,7 +80,7 @@ object RuntimeModuleLauncher {
         } else {
             RgssRubyRuntime.DEFAULT
         }
-        val rgssSettings = if (module.packageName == RuntimeModuleContract.TYN_RGSS_PACKAGE_NAME) {
+        val rgssSettings = if (isTynRgss) {
             EffectiveEngineSettings.mergeRpgMaker(
                 EngineSettingsStore.loadRpgMaker(context),
                 PerGameSettingsStore.toRpgMakerOverride(PerGameSettingsStore.load(context, game.uri)),
@@ -88,11 +93,11 @@ object RuntimeModuleLauncher {
             component = ComponentName(module.packageName, module.activityName)
             putExtra(RuntimeModuleContract.EXTRA_FOLDER_PATH, folderPath)
             putExtra(RuntimeModuleContract.EXTRA_GAME_TITLE, game.title)
-            putExtra(RuntimeModuleContract.EXTRA_GAME_ID, game.uri)
             putExtra(RuntimeModuleContract.EXTRA_PROTOCOL_VERSION, RuntimeModuleContract.PROTOCOL_VERSION)
-            putExtra(RuntimeModuleContract.EXTRA_PAD_ENABLED, input.padEnabled)
-            putExtra(RuntimeModuleContract.EXTRA_PAD_PROFILE_ID, input.profileId)
-            if (module.packageName == RuntimeModuleContract.TYN_RGSS_PACKAGE_NAME) {
+            if (isTynRgss) {
+                putExtra(RuntimeModuleContract.EXTRA_GAME_ID, game.uri)
+                putExtra(RuntimeModuleContract.EXTRA_PAD_ENABLED, input?.padEnabled ?: true)
+                putExtra(RuntimeModuleContract.EXTRA_PAD_PROFILE_ID, input?.profileId.orEmpty())
                 putExtra(RuntimeModuleContract.EXTRA_RUBY_RUNTIME, rubyRuntime.wireValue)
                 RpgMakerRuntimeEnvironment.rtpRootDir(context)?.let { rtpRoot ->
                     putExtra(RuntimeModuleContract.EXTRA_RTP_ROOT, rtpRoot.absolutePath)
@@ -121,11 +126,11 @@ object RuntimeModuleLauncher {
                             .toString(),
                     )
                 }
+                putExtra(RuntimeModuleContract.EXTRA_THEME_PRIMARY_COLOR, theme.primaryArgb)
+                putExtra(RuntimeModuleContract.EXTRA_THEME_ON_PRIMARY_COLOR, theme.onPrimaryArgb)
+                translationUri?.let { putExtra(RuntimeModuleContract.EXTRA_TRANSLATION_URI, it.toString()) }
+                profileUri?.let { putExtra(RuntimeModuleContract.EXTRA_PAD_PROFILE_URI, it.toString()) }
             }
-            putExtra(RuntimeModuleContract.EXTRA_THEME_PRIMARY_COLOR, theme.primaryArgb)
-            putExtra(RuntimeModuleContract.EXTRA_THEME_ON_PRIMARY_COLOR, theme.onPrimaryArgb)
-            translationUri?.let { putExtra(RuntimeModuleContract.EXTRA_TRANSLATION_URI, it.toString()) }
-            profileUri?.let { putExtra(RuntimeModuleContract.EXTRA_PAD_PROFILE_URI, it.toString()) }
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             if (translationUri != null) addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             if (profileUri != null) {
