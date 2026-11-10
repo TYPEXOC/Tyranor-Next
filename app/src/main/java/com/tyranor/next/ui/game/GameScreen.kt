@@ -117,7 +117,6 @@ import com.tyranor.next.core.engine.EngineType
 import com.tyranor.next.core.engine.external.EmulatorLaunchStyle
 import com.tyranor.next.core.engine.external.ExternalEmulatorRegistry
 import com.tyranor.next.core.engine.external.ExternalEngineModuleRegistry
-import com.tyranor.next.core.engine.runtime.RuntimeModuleContract
 import com.tyranor.next.core.game.save.RpgSaveFormat
 import com.tyranor.next.core.game.save.sync.SaveSyncService
 import com.tyranor.next.core.game.model.GameSortKeys
@@ -853,11 +852,8 @@ internal fun GameActionsSheet(
                                 ),
                             )
                         }
-                        // 第三方运行时模块没有主 App 侧设置；TYN RGSS 模块有单游戏设置页。
-                        val hasEngineSettings = game.engine != EngineType.UNKNOWN &&
-                            (game.engine != EngineType.RUNTIME_MODULE ||
-                                game.runtimeModulePackage == RuntimeModuleContract.TYN_RGSS_PACKAGE_NAME)
-                        if (hasEngineSettings) {
+                        // 第三方运行时模块没有主 App 侧设置；未知引擎也不展示设置。
+                        if (game.engine != EngineType.RUNTIME_MODULE && game.engine != EngineType.UNKNOWN) {
                             add(
                                 DrawerAction(
                                     key = "engine_settings",
