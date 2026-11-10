@@ -996,13 +996,15 @@ object EngineScanner {
         val weakResult = builtIn.engine == EngineType.UNKNOWN || builtIn.engine == EngineType.WEB_OTHER
         // 主机 ROM / 散装 SWF 目录必须交给 romGamesForSaf/File 逐文件入库，不能被模块扩展名吞掉。
         if (entries.any { !it.isDirectory && romEngineOf(it.name) != null }) return builtIn
-        val module = if (weakResult) {
-            runtimeModules.match(entries, childrenOf)
-        } else if (builtIn.engine == EngineType.RPGMAKER) {
-            runtimeModules.matchTynRgss(entries, childrenOf)
-        } else {
-            null
-        } ?: return builtIn
+        val module = (
+            if (weakResult) {
+                runtimeModules.match(entries, childrenOf)
+            } else if (builtIn.engine == EngineType.RPGMAKER) {
+                runtimeModules.matchTynRgss(entries, childrenOf)
+            } else {
+                null
+            }
+        ) ?: return builtIn
         return Detection(
             engine = EngineType.RUNTIME_MODULE,
             confidence = 80,
