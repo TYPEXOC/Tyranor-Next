@@ -95,7 +95,7 @@ com.example.runtime             ❌ 前缀不对
 | extra | 类型 | 说明 |
 | --- | --- | --- |
 | `com.tyranor.runtime.extra.GAME_ID` | String | 稳定游戏标识，用于隔离模块状态 |
-| `com.tyranor.runtime.extra.TRANSLATION_URI` | String | 可选；当前选中译表的 `content://` URI，只读。模块须在描述文件中声明 `translation` 能力 |
+| `com.tyranor.runtime.extra.TRANSLATION_MAP_URI` | String | 可选；当前选中译表经主 App 解析、规范化后的 JSON map `content://` URI，只读。模块须声明 `translation` 能力和主 App 已注册的 `translationRule` |
 | `com.tyranor.runtime.extra.PAD_ENABLED` | Boolean | 可选；TYN 按键是否启用 |
 | `com.tyranor.runtime.extra.PAD_PROFILE_URI` | String | 可选；生效按键方案的 `content://` URI，临时读写 |
 | `com.tyranor.runtime.extra.PAD_PROFILE_ID` | String | 可选；当前方案 ID |
@@ -182,8 +182,20 @@ class LaunchActivity : Activity() {
 | `scan.match` | 否 | `"any"`（默认）或 `"all"` |
 | `scan.extensions` | 否 | 扩展名数组，必须带前导点，如 `.mygame` |
 | `scan.markers` | 否 | 相对游戏根目录的标记文件/目录路径 |
+| `translationRule` | 否 | 主 App 已注册的翻译发现规则 ID；需同时声明 `translation` 能力 |
 
-`capabilities` 是 TYN 扩展字段，不参与扫描匹配。当前 `translation` 能力仅供 TYN 自有 RGSS 模块声明；声明后，TYN 才会在用户选择译表时附带只读 `TRANSLATION_URI`。普通第三方模块不应依赖这个扩展。
+`capabilities` 是 TYN 扩展字段，不参与扫描匹配。模块可用 `translation` 声明翻译能力，并以 `translationRule` 选择 TYN 主 App 已注册的目录发现规则；主 App 执行目录扫描和格式校验，模块不自行查询文件。当前只注册 `mtool-json`，适用于 MTool JSON 译表。所有模块都必须显式声明规则；缺少规则或规则未注册时不显示翻译选择。新增格式时由 TYN 主 App 增加格式解析器和对应发现规则，模块只需引用规则 ID。
+
+例如：
+
+```json
+{
+  "capabilities": ["translation"],
+  "translationRule": "mtool-json"
+}
+```
+
+用户选择译表后，启动交棒会给模块一个只读 `TRANSLATION_MAP_URI`。URI 提供主 App 按声明规则解析并规范化后的 JSON map；模块在自己的运行会话中加载 map 并维护引擎文本钩子。主 App 监视原始译表变化并刷新 map 内容，URI 保持稳定，以支持运行时热更新。
 
 **上限**：
 

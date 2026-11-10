@@ -1,7 +1,10 @@
 package com.tyranor.next.core.engine.external
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Environment
 import android.provider.OpenableColumns
 import android.util.Log
@@ -46,7 +49,7 @@ sealed interface RtpImportRejection {
      */
     data class IoFailed(val name: String) : RtpImportRejection
 
-    /** 应用外置媒体目录当前不可用。 */
+    /** TyranorNext 共享资源目录不可用或当前没有写入权限。 */
     data object StorageUnavailable : RtpImportRejection
 
     /** 源里没有任何可导入内容（空 zip / 空目录，或全被元数据过滤掉）。 */
@@ -57,19 +60,19 @@ sealed interface RtpImportRejection {
 }
 
 /**
- * RPGM 外置模块的共享目录管理（RTP / 自定义字体）。
+ * RPGM 外置模块的用户资源目录（RTP / 自定义字体）。
  *
- * RTP 由主 App 管理在自己的外置媒体目录
- * `Android/media/<app-package>/RTP/<RPGXP|RPGVX|RPGVXACE>/app`，并通过启动 extra 把根目录传给
- * 独立的 TYN RGSS 模块。外置媒体目录属于共享存储，模块仍以真实文件路径读取；RTP 不再依赖
- * JoiPlay 的目录契约。自定义字体沿用原有共享目录。
+ * 资源放在共享存储根目录的 `TyranorNext/RTP` 与 `TyranorNext/fonts`，用户可通过文件管理器自行维护。
+ * TYN RGSS 模块只接收 `TyranorNext/RTP` 作为 RTP 根目录；不会读取 JoiPlay 的 RTP 或字体目录。
+ * 根目录读写需要 Android「管理所有文件」权限（Android 10 及更早版本使用存储写入权限）。
  *
  * 所有方法允许失败，且失败一律以**类型化结果**表达（`RtpImportRejection?` / null 或
  * `Boolean` / `String?`），由调用方按非致命处理；界面文案在 ui 层组装。
  */
 object RpgMakerRuntimeEnvironment {
+    private const val USER_RESOURCE_FOLDER = "TyranorNext"
     private const val RTP_FOLDER = "RTP"
-    private const val FONT_PARENT = "JoiPlay/fonts"
+    private const val FONT_FOLDER = "fonts"
 
     /**
      * 导入临时目录名前缀（**每次导入唯一**，见 [newImportTempDir]）。
@@ -194,17 +197,41 @@ object RpgMakerRuntimeEnvironment {
         else -> "RPGVXACE"
     }
 
+    /** TyranorNext 用户可见资源目录的绝对路径；此方法不创建目录，也不要求已获写权限。 */
+    @Suppress("DEPRECATION")
+    fun userResourceRootPath(): File = File(Environment.getExternalStorageDirectory(), USER_RESOURCE_FOLDER)
+
+    /** 判断 App 是否可直接读写共享存储根目录。 */
+    fun hasUserResourceStorageAccess(context: Context): Boolean = when {
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.R -> Environment.isExternalStorageManager()
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ->
+            context.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
+        else -> true
+    }
+
+    fun rtpRootPath(): File = File(userResourceRootPath(), RTP_FOLDER)
+
     fun rtpDir(context: Context, gameType: String): File? =
         rtpRootDir(context)?.let { File(it, rtpDirName(gameType)) }
 
-    /** TYN 主程序自有 RTP 根目录；RGSS 模块当前需要可直接扫描的真实文件路径。 */
-    @Suppress("DEPRECATION")
+    /** 创建并返回用户可见的 RTP 根目录；无共享存储写入权限时返回 null。 */
     fun rtpRootDir(context: Context): File? = runCatching {
-        val mediaDir = context.externalMediaDirs.firstOrNull { it != null } ?: return@runCatching null
-        val root = File(mediaDir, RTP_FOLDER)
+        val userRoot = ensureUserResourceRootDir(context) ?: return@runCatching null
+        val root = File(userRoot, RTP_FOLDER)
         if (!root.exists() && !root.mkdirs()) return@runCatching null
         if (!root.isDirectory) return@runCatching null
-        // RTP 包含图片和音频素材，但不应进入系统媒体库。
+        root
+    }.getOrNull()
+
+    private fun ensureUserResourceRootDir(context: Context): File? = runCatching {
+        if (!hasUserResourceStorageAccess(context)) return@runCatching null
+        @Suppress("DEPRECATION")
+        val storageRoot = Environment.getExternalStorageDirectory().canonicalFile
+        val root = userResourceRootPath().canonicalFile
+        if (root.parentFile != storageRoot) return@runCatching null
+        if (!root.exists() && !root.mkdirs()) return@runCatching null
+        if (!root.isDirectory) return@runCatching null
+        // RTP 与字体是资源文件，不应进入系统媒体库。
         val noMedia = File(root, ".nomedia")
         if (!noMedia.exists() && !noMedia.createNewFile()) return@runCatching null
         root
@@ -632,7 +659,8 @@ object RpgMakerRuntimeEnvironment {
             }.getOrNull() ?: uri.lastPathSegment
             val name = (displayName ?: "font.ttf").substringAfterLast('/').substringAfterLast('\\')
             if (FONT_EXTENSIONS.none { name.lowercase(Locale.ROOT).endsWith(it) }) return null
-            val dir = File(Environment.getExternalStorageDirectory().canonicalFile, FONT_PARENT)
+            val userRoot = ensureUserResourceRootDir(context) ?: return null
+            val dir = File(userRoot, FONT_FOLDER)
             if (!dir.isDirectory && !dir.mkdirs()) return null
             if (dir.canonicalFile != dir.absoluteFile) return null
             com.tyranor.next.core.settings.ImmutableFontImport.import(

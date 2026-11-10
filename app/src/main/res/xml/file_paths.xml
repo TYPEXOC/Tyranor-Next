@@ -7,10 +7,7 @@
     <files-path
         name="update_apks_internal"
         path="updates/" />
-    <!-- RGSS runtime modules receive temporary access to the selected translation and input profile. -->
-    <external-files-path
-        name="translation_tables"
-        path="translations/" />
+    <!-- RGSS runtime modules receive temporary access to the selected input profile. -->
     <files-path
         name="input_profiles"
         path="input/profiles/" />

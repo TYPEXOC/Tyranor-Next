@@ -37,7 +37,7 @@ _Avoid_: 插件、引擎 DLC、第三方 APK 运行时模块（另一体系）
 _Avoid_: 插件、外置引擎（指 JoiPlay 时）、外置 APK 引擎模块（指 JoiPlay 注册表体系时）
 
 **RGSS RTP（RGSS RTP）**:
-RPG Maker XP / VX / VX Ace 的共享运行资源，由 Tyranor 主 App 导入、检测和删除，存于主 App 的外置媒体目录并以真实路径交给独立 TYN RGSS 模块挂载；不使用 JoiPlay RTP 目录，也不与用户选择的游戏目录混为一谈。
+RPG Maker XP / VX / VX Ace 的共享运行资源，由 Tyranor 主 App 导入、检测和删除，存于共享存储根目录 `TyranorNext/RTP/` 并以真实路径交给独立 TYN RGSS 模块挂载；用户可用文件管理器直接维护。TYN 不读取 JoiPlay RTP 目录，也不与用户选择的游戏目录混为一谈。
 _Avoid_: JoiPlay RTP（作为 Tyranor 当前存储位置）、游戏目录 RTP
 
 **运行时模块绑定（Runtime Module Binding）**:
@@ -47,6 +47,10 @@ _Avoid_: 手动绑定、模块别名、externalModuleAlias
 **模块扫描描述（Runtime Module Scan Descriptor）**:
 第三方运行时模块在自己 `res/raw/tyranor_runtime.json` 中声明的 `extensions` / `markers`（及 `match`），是主 App 自动扫描该模块游戏的唯一特征来源；`overrideEngines` 可明确声明接管的强特征引擎类型，未声明时只匹配未知或网页类弱结果。
 _Avoid_: 内置特征库、插件清单、手动绑定
+
+**翻译目录（Translation Catalog）**:
+主 App 按游戏或运行时模块声明的翻译发现规则查找译表候选，并集中维护支持的格式、用户选择与 UI 候选 DTO；引擎运行会话只消费当前选择并负责应用到自身文本钩子。
+_Avoid_: UI 直接扫描译表文件、运行时模块自行查询译表
 
 **PC 游戏（手动添加）**:
 用户手动加入游戏库、经外置 Winlator 运行的 Windows 程序，不限定为已识别的视觉小说引擎家族。其运行参数属于 Winlator 设置域。

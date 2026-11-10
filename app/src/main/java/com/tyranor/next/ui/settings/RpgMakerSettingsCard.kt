@@ -1,5 +1,10 @@
 package com.tyranor.next.ui.settings
 
+import android.Manifest
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -79,6 +84,44 @@ internal fun RpgMakerRgssSettingsCard(
 ) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
+    var pendingResourceAccessAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+    var awaitingAllFilesAccess by remember { mutableStateOf(false) }
+    val writeStoragePermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        val action = pendingResourceAccessAction
+        pendingResourceAccessAction = null
+        if (granted) {
+            action?.invoke()
+        } else {
+            Toast.makeText(ctx, R.string.engine_settings_rpgm_storage_access_required, Toast.LENGTH_LONG).show()
+        }
+    }
+    fun withResourceStorageAccess(action: () -> Unit) {
+        if (RpgMakerRuntimeEnvironment.hasUserResourceStorageAccess(ctx)) {
+            action()
+            return
+        }
+        pendingResourceAccessAction = action
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            awaitingAllFilesAccess = true
+            val packageUri = Uri.parse("package:${ctx.packageName}")
+            runCatching {
+                ctx.startActivity(Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, packageUri))
+            }.recoverCatching {
+                ctx.startActivity(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
+            }.onFailure {
+                awaitingAllFilesAccess = false
+                pendingResourceAccessAction = null
+                Toast.makeText(ctx, R.string.engine_settings_rpgm_storage_access_required, Toast.LENGTH_LONG).show()
+            }
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            writeStoragePermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+        } else {
+            pendingResourceAccessAction = null
+            action()
+        }
+    }
     val runtimeModules by RuntimeModuleRegistry.state.collectAsStateWithLifecycle()
     val tynRgssModule = runtimeModules.modules.firstOrNull {
         it.packageName == RuntimeModuleContract.TYN_RGSS_PACKAGE_NAME
@@ -136,6 +179,16 @@ internal fun RpgMakerRgssSettingsCard(
 
     // 从安装器返回后刷新模块/RTP 状态（与引擎页 ON_RESUME 刷新策略一致）
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        if (awaitingAllFilesAccess) {
+            awaitingAllFilesAccess = false
+            val action = pendingResourceAccessAction
+            pendingResourceAccessAction = null
+            if (RpgMakerRuntimeEnvironment.hasUserResourceStorageAccess(ctx)) {
+                action?.invoke()
+            } else {
+                Toast.makeText(ctx, R.string.engine_settings_rpgm_storage_access_required, Toast.LENGTH_LONG).show()
+            }
+        }
         scope.launch {
             RuntimeModuleRegistry.refresh(ctx)
             refreshAllRtp()
@@ -318,7 +371,7 @@ internal fun RpgMakerRgssSettingsCard(
                 ?: stringResource(R.string.engine_settings_rpgm_custom_font_default),
             followLabel = stringResource(R.string.engine_settings_rpgm_custom_font_default),
             onFollow = { onSettings(settings.copy(customFont = "")) },
-            onPick = { fontLauncher.launch("*/*") },
+            onPick = { withResourceStorageAccess { fontLauncher.launch("*/*") } },
             valueInSummary = true,
         )
 
@@ -360,6 +413,11 @@ internal fun RpgMakerRgssSettingsCard(
                 onCheckedChange = { onSettings(settings.copy(useCJKFont = it)) },
             )
             SwitchPreference(
+                title = stringResource(R.string.engine_settings_rpgm_animate_autotiles),
+                checked = settings.animateAutotiles,
+                onCheckedChange = { onSettings(settings.copy(animateAutotiles = it)) },
+            )
+            SwitchPreference(
                 title = stringResource(R.string.engine_settings_rpgm_postload_scripts),
                 checked = settings.enablePostloadScripts,
                 onCheckedChange = { onSettings(settings.copy(enablePostloadScripts = it)) },
@@ -397,6 +455,15 @@ internal fun RpgMakerRgssSettingsCard(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
         )
+        Text(
+            stringResource(
+                R.string.engine_settings_rpgm_user_resource_path,
+                RpgMakerRuntimeEnvironment.userResourceRootPath().absolutePath,
+            ),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+        )
 
         // 恢复默认（仅 rpg 节）
         ArrowPreference(
@@ -426,7 +493,7 @@ internal fun RpgMakerRgssSettingsCard(
                         indication = null,
                     ) {
                         showRtpSourceDialog = false
-                        zipLauncher.launch("*/*")
+                        withResourceStorageAccess { zipLauncher.launch("*/*") }
                     }
                     AppNavItem(
                         title = stringResource(R.string.engine_settings_rpgm_rtp_from_dir),
@@ -434,7 +501,7 @@ internal fun RpgMakerRgssSettingsCard(
                         indication = null,
                     ) {
                         showRtpSourceDialog = false
-                        treeLauncher.launch(null)
+                        withResourceStorageAccess { treeLauncher.launch(null) }
                     }
                 }
             },
@@ -460,24 +527,26 @@ internal fun RpgMakerRgssSettingsCard(
             confirmButton = {
                 DialogTextButton(text = stringResource(R.string.common_confirm), onClick = {
                     // clearRtp 会递归删目录：放 IO 线程，避免删除大 RTP 时卡住点击瞬间
-                    scope.launch {
-                        val cleared = withContext(Dispatchers.IO) {
-                            RpgMakerRuntimeEnvironment.clearRtp(ctx, type)
+                    withResourceStorageAccess {
+                        scope.launch {
+                            val cleared = withContext(Dispatchers.IO) {
+                                RpgMakerRuntimeEnvironment.clearRtp(ctx, type)
+                            }
+                            refreshRtp(type)
+                            clearingRtpType = null
+                            val msg = when (cleared) {
+                                RpgMakerRuntimeEnvironment.RtpClearResult.CLEARED ->
+                                    R.string.engine_settings_rpgm_rtp_cleared
+                                // 在途导入：core 拒绝清除（否则会把半成品装成 app），如实告知而不是报「失败」
+                                RpgMakerRuntimeEnvironment.RtpClearResult.IMPORT_IN_FLIGHT ->
+                                    R.string.engine_settings_rpgm_rtp_clear_importing
+                                RpgMakerRuntimeEnvironment.RtpClearResult.FAILED ->
+                                    R.string.engine_settings_rpgm_rtp_clear_failed
+                                RpgMakerRuntimeEnvironment.RtpClearResult.STORAGE_UNAVAILABLE ->
+                                    R.string.engine_settings_rpgm_rtp_storage_unavailable
+                            }
+                            Toast.makeText(ctx, ctx.getString(msg), Toast.LENGTH_SHORT).show()
                         }
-                        refreshRtp(type)
-                        clearingRtpType = null
-                        val msg = when (cleared) {
-                            RpgMakerRuntimeEnvironment.RtpClearResult.CLEARED ->
-                                R.string.engine_settings_rpgm_rtp_cleared
-                            // 在途导入：core 拒绝清除（否则会把半成品装成 app），如实告知而不是报「失败」
-                            RpgMakerRuntimeEnvironment.RtpClearResult.IMPORT_IN_FLIGHT ->
-                                R.string.engine_settings_rpgm_rtp_clear_importing
-                            RpgMakerRuntimeEnvironment.RtpClearResult.FAILED ->
-                                R.string.engine_settings_rpgm_rtp_clear_failed
-                            RpgMakerRuntimeEnvironment.RtpClearResult.STORAGE_UNAVAILABLE ->
-                                R.string.engine_settings_rpgm_rtp_storage_unavailable
-                        }
-                        Toast.makeText(ctx, ctx.getString(msg), Toast.LENGTH_SHORT).show()
                     }
                 })
             },

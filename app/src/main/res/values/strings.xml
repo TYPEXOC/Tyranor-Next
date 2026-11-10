@@ -1032,6 +1032,7 @@
     <string name="engine_settings_rpgm_copy_text">复制文本</string>
     <string name="engine_settings_rpgm_cheats">金手指</string>
     <string name="engine_settings_rpgm_use_cjk_font">使用 CJK 字体</string>
+    <string name="engine_settings_rpgm_animate_autotiles">自动图块动画</string>
     <string name="engine_settings_rpgm_postload_scripts">脚本后置注入</string>
     <string name="engine_settings_rpgm_debug">调试日志</string>
     <string name="engine_settings_rpgm_group_rtp">RTP 资源</string>
@@ -1056,7 +1057,9 @@
     <string name="engine_settings_rpgm_rtp_clear_failed">RTP 删除失败</string>
     <string name="engine_settings_rpgm_rtp_cleared">RTP 已删除</string>
     <string name="engine_settings_rpgm_rtp_clear_importing">RTP 正在导入，请等导入结束后再删除</string>
-    <string name="engine_settings_rpgm_rtp_storage_unavailable">RTP 存储目录当前不可用</string>
+    <string name="engine_settings_rpgm_rtp_storage_unavailable">TyranorNext 资源目录当前不可用</string>
+    <string name="engine_settings_rpgm_storage_access_required">需要授予存储访问权限才能管理 TyranorNext 目录；授权后返回继续</string>
+    <string name="engine_settings_rpgm_user_resource_path">用户资源目录：%1$s（RTP、字体）</string>
     <string name="engine_settings_rpgm_rtp_hint">只导入对应版本的 RTP 资源 ZIP 或文件夹（含 Audio、Graphics 等资源）；Windows setup.exe 安装包不受支持。旧版资源可重新选择原资源文件夹导入</string>
     <string name="engine_settings_rpgm_rtp_from_zip">选择压缩包</string>
     <string name="engine_settings_rpgm_rtp_from_dir">选择文件夹</string>

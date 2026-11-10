@@ -659,6 +659,7 @@ fun PerGameSettingsScreen(game: ScanGame) {
             PerGameSettingsStore.setBool(ctx, gid, PerGameSettingsStore.F_RPG_FAST_PATH_ENUM, rgssSettingsOverride.fastPathEnum)
             PerGameSettingsStore.setBool(ctx, gid, PerGameSettingsStore.F_RPG_COPY_TEXT, rgssSettingsOverride.copyText)
             PerGameSettingsStore.setBool(ctx, gid, PerGameSettingsStore.F_RPG_USE_CJK_FONT, rgssSettingsOverride.useCJKFont)
+            PerGameSettingsStore.setBool(ctx, gid, PerGameSettingsStore.F_RPG_ANIMATE_AUTOTILES, rgssSettingsOverride.animateAutotiles)
             PerGameSettingsStore.setBool(ctx, gid, PerGameSettingsStore.F_RPG_ENABLE_POSTLOAD_SCRIPTS, rgssSettingsOverride.enablePostloadScripts)
             PerGameSettingsStore.setStr(ctx, gid, PerGameSettingsStore.F_RPG_CUSTOM_FONT, rgssSettingsOverride.customFont)
             PerGameSettingsStore.setStr(ctx, gid, PerGameSettingsStore.F_RPG_VERTICAL_SCREEN_ALIGN, rgssSettingsOverride.verticalScreenAlign)
@@ -1360,6 +1361,11 @@ fun PerGameSettingsScreen(game: ScanGame) {
                                     globalRgssSettings.useCJKFont,
                                     rgssSettingsOverride.useCJKFont,
                                 ) { value -> rgssSettingsOverride = rgssSettingsOverride.copy(useCJKFont = value) }
+                                OverrideSwitch(
+                                    stringResource(R.string.engine_settings_rpgm_animate_autotiles),
+                                    globalRgssSettings.animateAutotiles,
+                                    rgssSettingsOverride.animateAutotiles,
+                                ) { value -> rgssSettingsOverride = rgssSettingsOverride.copy(animateAutotiles = value) }
                                 OverrideSwitch(
                                     stringResource(R.string.engine_settings_rpgm_postload_scripts),
                                     globalRgssSettings.enablePostloadScripts,

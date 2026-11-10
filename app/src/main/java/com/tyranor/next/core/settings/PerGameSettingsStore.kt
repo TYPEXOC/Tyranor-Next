@@ -88,6 +88,7 @@ object PerGameSettingsStore {
     const val F_RPG_COPY_TEXT = "rpg_copy_text"
     const val F_RPG_CHEATS = "rpg_cheats"
     const val F_RPG_USE_CJK_FONT = "rpg_use_cjk_font"
+    const val F_RPG_ANIMATE_AUTOTILES = "rpg_animate_autotiles"
     const val F_RPG_ENABLE_POSTLOAD_SCRIPTS = "rpg_enable_postload_scripts"
     const val F_RPG_CUSTOM_FONT = "rpg_custom_font"
     const val F_RPG_VERTICAL_SCREEN_ALIGN = "rpg_vertical_screen_align"
@@ -285,6 +286,7 @@ object PerGameSettingsStore {
             copyText = boolOrNull(F_RPG_COPY_TEXT),
             cheats = boolOrNull(F_RPG_CHEATS),
             useCJKFont = boolOrNull(F_RPG_USE_CJK_FONT),
+            animateAutotiles = boolOrNull(F_RPG_ANIMATE_AUTOTILES),
             enablePostloadScripts = boolOrNull(F_RPG_ENABLE_POSTLOAD_SCRIPTS),
             customFont = strOrNull(F_RPG_CUSTOM_FONT),
             verticalScreenAlign = strOrNull(F_RPG_VERTICAL_SCREEN_ALIGN),

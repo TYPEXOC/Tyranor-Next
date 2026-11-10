@@ -125,6 +125,7 @@ object EffectiveEngineSettings {
             copyText = resolveBool(override.copyText, global.copyText),
             cheats = resolveBool(override.cheats, global.cheats),
             useCJKFont = resolveBool(override.useCJKFont, global.useCJKFont),
+            animateAutotiles = resolveBool(override.animateAutotiles, global.animateAutotiles),
             enablePostloadScripts = resolveBool(override.enablePostloadScripts, global.enablePostloadScripts),
             customFont = resolve(override.customFont, global.customFont),
             verticalScreenAlign = resolveAllowed(
@@ -284,6 +285,7 @@ data class RpgMakerOverride(
     val copyText: Boolean? = null,
     val cheats: Boolean? = null,
     val useCJKFont: Boolean? = null,
+    val animateAutotiles: Boolean? = null,
     val enablePostloadScripts: Boolean? = null,
     val customFont: String? = null,
     val verticalScreenAlign: String? = null,

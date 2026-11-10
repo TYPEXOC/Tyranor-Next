@@ -143,6 +143,7 @@ object EngineSettingsStore {
     const val KEY_RPG_COPY_TEXT = "rpg_copy_text"
     const val KEY_RPG_CHEATS = "rpg_cheats"
     const val KEY_RPG_USE_CJK_FONT = "rpg_use_cjk_font"
+    const val KEY_RPG_ANIMATE_AUTOTILES = "rpg_animate_autotiles"
     const val KEY_RPG_ENABLE_POSTLOAD_SCRIPTS = "rpg_enable_postload_scripts"
     const val KEY_RPG_CUSTOM_FONT = "rpg_custom_font"
     const val KEY_RPG_VERTICAL_SCREEN_ALIGN = "rpg_vertical_screen_align"
@@ -1020,6 +1021,7 @@ object EngineSettingsStore {
         var copyText: Boolean = false,
         var cheats: Boolean = true,
         var useCJKFont: Boolean = false,
+        var animateAutotiles: Boolean = true,
         var enablePostloadScripts: Boolean = false,
         var customFont: String = "",
         var verticalScreenAlign: String = RPG_VERTICAL_ALIGN_DEFAULT,
@@ -1032,7 +1034,8 @@ object EngineSettingsStore {
         KEY_RPG_USE_RUBY18, KEY_RPG_DEBUG, KEY_RPG_SMOOTH_SCALING,
         KEY_RPG_VSYNC, KEY_RPG_FRAME_SKIP, KEY_RPG_SOLID_FONTS, KEY_RPG_PATH_CACHE,
         KEY_RPG_PREBUILT_PATH_CACHE, KEY_RPG_FAST_PATH_ENUM, KEY_RPG_COPY_TEXT,
-        KEY_RPG_CHEATS, KEY_RPG_USE_CJK_FONT, KEY_RPG_ENABLE_POSTLOAD_SCRIPTS,
+        KEY_RPG_CHEATS, KEY_RPG_USE_CJK_FONT, KEY_RPG_ANIMATE_AUTOTILES,
+        KEY_RPG_ENABLE_POSTLOAD_SCRIPTS,
     )
     private val RPG_MAKER_STRING_KEYS = listOf(
         KEY_RPG_CUSTOM_FONT, KEY_RPG_VERTICAL_SCREEN_ALIGN,
@@ -1055,6 +1058,7 @@ object EngineSettingsStore {
             copyText = p.getBoolean(KEY_RPG_COPY_TEXT, d.copyText),
             cheats = p.getBoolean(KEY_RPG_CHEATS, d.cheats),
             useCJKFont = p.getBoolean(KEY_RPG_USE_CJK_FONT, d.useCJKFont),
+            animateAutotiles = p.getBoolean(KEY_RPG_ANIMATE_AUTOTILES, d.animateAutotiles),
             enablePostloadScripts = p.getBoolean(KEY_RPG_ENABLE_POSTLOAD_SCRIPTS, d.enablePostloadScripts),
             customFont = p.getString(KEY_RPG_CUSTOM_FONT, d.customFont).orEmpty(),
             verticalScreenAlign = normalizeRpgVerticalAlign(p.getString(KEY_RPG_VERTICAL_SCREEN_ALIGN, d.verticalScreenAlign)),
@@ -1078,6 +1082,7 @@ object EngineSettingsStore {
             putBoolean(KEY_RPG_COPY_TEXT, r.copyText)
             putBoolean(KEY_RPG_CHEATS, r.cheats)
             putBoolean(KEY_RPG_USE_CJK_FONT, r.useCJKFont)
+            putBoolean(KEY_RPG_ANIMATE_AUTOTILES, r.animateAutotiles)
             putBoolean(KEY_RPG_ENABLE_POSTLOAD_SCRIPTS, r.enablePostloadScripts)
             putString(KEY_RPG_CUSTOM_FONT, r.customFont.trim())
             putString(KEY_RPG_VERTICAL_SCREEN_ALIGN, normalizeRpgVerticalAlign(r.verticalScreenAlign))

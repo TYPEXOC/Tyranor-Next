@@ -4,9 +4,11 @@
 
 ### 新增
 
-- TYN RGSS 的 RTP 由主 App 在自有外置媒体目录管理：支持导入、状态检测与删除，并将首个可用 `getExternalMediaDirs()/RTP` 路径传给模块；不再使用 `/JoiPlay/RTP`，旧目录资源不自动迁移，可用文件夹导入重新导入。主 App 从 SAF 读取用户所选资源，写入应用媒体目录时不依赖共享存储根权限。模块过滤失效或来自 MTool/JoiPlay 的旧配置路径，原生持久配置不能覆盖 TYN 本次启动的 RTP 列表。缺少游戏资源时错误提示引导检查游戏文件或导入对应 RTP。
+- 收拢翻译文件目录与格式管理：主 App 的 `TranslationCatalog` 执行候选发现、当前选择与格式校验；UI 只使用 `TranslationCandidate` DTO，不接触文件对象或设置键。运行时模块显式声明 `translationRule` 选择主 App 已注册的发现规则；主 App 将所选译表解析为 JSON map，通过只读 URI 交给模块。缺少规则的模块不提供翻译选择。Web 宿主的 JS 注入、译表监视和热更新仍由 engine 翻译会话维护。
+- TYN RGSS 引擎设置新增「自动图块动画」，支持全局默认和单游戏覆盖，默认开启；关闭后 XP 与 VX/VX Ace 地图停止推进自动图块帧，闪烁动画仍保留。该开关通过 `RGSS_OPTIONS` 传给自有模块并由两套原生地图更新路径执行，不依赖 JoiPlay 的 `disableautotiles.rb`。
+- TYN RGSS 的 RTP 与自定义字体统一由主 App 放在共享存储根目录 `TyranorNext/` 下的 `RTP/`、`fonts/` 中管理，设置页显示目录路径供用户自行维护；导入、状态检测与删除沿用原有版本校验。模块接收 `TyranorNext/RTP`，不再回退到 `/JoiPlay/RTP`，自定义字体也不再写入 `/JoiPlay/fonts`。SAF 仍负责读取用户选择的资源包；Android 11+ 需要分别授予主 App 和 RGSS 模块「管理所有文件」权限，较早 Android 版本由主 App 请求外部存储写入权限。已有 RTP/字体不会自动搬迁，可复制到新目录或重新导入。
 - TYN RGSS 设置由模块接收并应用：自动 / 指定 Ruby 运行时、调试、平滑缩放、垂直同步、跳帧、实心字体、资源路径缓存与预建、快速资源枚举、对白复制、CJK/自定义字体、字体缩放、postload 脚本、屏幕对齐/分辨率、倍速及 TYN 作弊面板，均支持全局默认和单游戏覆盖。自动 Ruby 按识别代际选 XP/VX 的 1.8.7、VX Ace 的 1.9.3，未知代际用 3.1.3；「自动分辨率」跟随游戏配置。JoiPlay 专用而 TYN 模块未实现的历史选项不传给模块。
-- TYN RGSS 模块按 mkxp-z 执行阶段加载游戏配置的 `preloadScript` / `postloadScript`，并自动发现游戏根目录 `preload.rb` / `postload.rb`；后置脚本受「脚本后置注入」开关控制，不另设主 App 脚本导入或隔离管理。
+- TYN RGSS 模块按 mkxp-z 执行阶段加载游戏配置的 `preloadScript` / `postloadScript`，并自动发现游戏根目录 `preload.rb` / `postload.rb`；后置脚本受「脚本后置注入」开关控制，不另设主 App 脚本导入或隔离管理。Essentials 兼容层为 `Graphics.haveresizescreen` 提供基于 mkxp-z 原生 `resize_screen` 的查询；输入更新桥和 `TilemapLoader` 超大图块回退使用 TYN 原生实现。JoiPlay 专用补丁不整包载入。
 - TYN RGSS 运行时模块提供 Ruby 1.8.7、1.9.3、3.1.3 三套独立 Ruby/mkxp-z 原生库；所选版本在载入 native 库前确定。运行配置写入模块私有会话目录，不改游戏文件；复制对白限标准 RGSS 消息事件，插件自定义绘制路径不保证覆盖。
 - RGSS 翻译热更新会在文本钩子就绪后重试刷新已创建的非对白窗口，并记录首次刷新数量；MV/MZ 活动对白更新会保留选择状态、跳过不安全的子窗口刷新，并在译文被删除或还原时同步重绘。
 - 新增首次使用七步快速入门教练层：在真实首页、游戏页、引擎页和设置页中展示添加、搜索、封面、重新扫描等入口；新安装用户可跳过或完成引导，已有数据的升级用户默认跳过，通知权限延后到引导完成后请求。

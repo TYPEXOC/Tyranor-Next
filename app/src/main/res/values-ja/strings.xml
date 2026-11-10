@@ -1032,6 +1032,7 @@
     <string name="engine_settings_rpgm_copy_text">テキストをコピー</string>
     <string name="engine_settings_rpgm_cheats">チート</string>
     <string name="engine_settings_rpgm_use_cjk_font">CJK フォントを使用</string>
+    <string name="engine_settings_rpgm_animate_autotiles">オートタイルアニメーション</string>
     <string name="engine_settings_rpgm_postload_scripts">ポストロードスクリプト</string>
     <string name="engine_settings_rpgm_debug">デバッグログ</string>
     <string name="engine_settings_rpgm_group_rtp">RTP リソース</string>
@@ -1056,7 +1057,9 @@
     <string name="engine_settings_rpgm_rtp_cleared">RTP を削除しました</string>
     <string name="engine_settings_rpgm_rtp_clear_failed">RTP の削除に失敗しました</string>
     <string name="engine_settings_rpgm_rtp_clear_importing">RTP をインポート中です。完了後に削除してください</string>
-    <string name="engine_settings_rpgm_rtp_storage_unavailable">RTP の保存先ディレクトリを利用できません</string>
+    <string name="engine_settings_rpgm_rtp_storage_unavailable">TyranorNext リソースフォルダを利用できません</string>
+    <string name="engine_settings_rpgm_storage_access_required">TyranorNext フォルダの管理にはストレージ権限が必要です。許可してから戻って続行してください。</string>
+    <string name="engine_settings_rpgm_user_resource_path">ユーザーリソースフォルダ：%1$s（RTP、フォント）</string>
     <string name="engine_settings_rpgm_rtp_hint">選択したバージョンの RTP 素材 ZIP またはフォルダ（Audio、Graphics などを含む）のみインポートできます。Windows の setup.exe インストーラーには対応していません。旧 RTP は元のフォルダから再インポートできます</string>
     <string name="engine_settings_rpgm_rtp_from_zip">zip を選択</string>
     <string name="engine_settings_rpgm_rtp_from_dir">フォルダを選択</string>

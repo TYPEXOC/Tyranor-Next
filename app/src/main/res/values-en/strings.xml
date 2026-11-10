@@ -1032,6 +1032,7 @@
     <string name="engine_settings_rpgm_copy_text">Copy text</string>
     <string name="engine_settings_rpgm_cheats">Cheats</string>
     <string name="engine_settings_rpgm_use_cjk_font">Use CJK font</string>
+    <string name="engine_settings_rpgm_animate_autotiles">Animate autotiles</string>
     <string name="engine_settings_rpgm_postload_scripts">Postload scripts</string>
     <string name="engine_settings_rpgm_debug">Debug logs</string>
     <string name="engine_settings_rpgm_group_rtp">RTP</string>
@@ -1056,7 +1057,9 @@
     <string name="engine_settings_rpgm_rtp_clear_failed">Failed to delete RTP</string>
     <string name="engine_settings_rpgm_rtp_cleared">RTP deleted</string>
     <string name="engine_settings_rpgm_rtp_clear_importing">RTP import is in progress; delete it after the import finishes</string>
-    <string name="engine_settings_rpgm_rtp_storage_unavailable">The RTP storage directory is unavailable</string>
+    <string name="engine_settings_rpgm_rtp_storage_unavailable">The TyranorNext resource directory is unavailable</string>
+    <string name="engine_settings_rpgm_storage_access_required">Storage access is needed to manage the TyranorNext folder. Grant access, then return to continue.</string>
+    <string name="engine_settings_rpgm_user_resource_path">User resource folder: %1$s (RTP and fonts)</string>
     <string name="engine_settings_rpgm_rtp_hint">Import only the matching RTP resource ZIP or folder (with Audio, Graphics, and other assets). Windows setup.exe installers are not supported. Older RTP files can be imported again from their source folder</string>
     <string name="engine_settings_rpgm_rtp_from_zip">Choose zip</string>
     <string name="engine_settings_rpgm_rtp_from_dir">Choose folder</string>

@@ -20,6 +20,7 @@ data class RuntimeModuleDescriptor(
     val scan: RuntimeModuleScanSpec?,
     val enabled: Boolean,
     val capabilities: Set<String> = emptySet(),
+    val translationRuleId: String? = null,
 ) {
     companion object {
         /** 解析模块描述文件 JSON，只返回描述文件能声明的字段。 */
@@ -48,6 +49,7 @@ data class RuntimeModuleManifest(
     val label: String?,
     val scan: RuntimeModuleScanSpec?,
     val capabilities: Set<String> = emptySet(),
+    val translationRuleId: String? = null,
 ) {
     companion object {
         fun parse(json: String?): RuntimeModuleManifest? = RuntimeModuleManifestParser.parse(json)
@@ -119,6 +121,7 @@ object RuntimeModuleManifestParser {
             label = (root.opt("label") as? String)?.trim()?.takeIf { it.isNotEmpty() },
             scan = parseScan(root.opt("scan")),
             capabilities = parseCapabilities(root.optJSONArray("capabilities")),
+            translationRuleId = parseTranslationRuleId(root.opt("translationRule")),
         )
     }
 
@@ -159,6 +162,11 @@ object RuntimeModuleManifestParser {
         return result
     }
 
+    private fun parseTranslationRuleId(value: Any?): String? {
+        val raw = (value as? String)?.trim()?.lowercase(Locale.ROOT) ?: return null
+        return raw.takeIf(RuntimeModulePatterns.TRANSLATION_RULE_ID::matches)
+    }
+
     private fun parseExtensions(array: JSONArray?): List<String> {
         if (array == null) return emptyList()
         val result = LinkedHashSet<String>()
@@ -193,6 +201,7 @@ internal object RuntimeModulePatterns {
     const val MAX_MARKER_LENGTH = 256
     const val MAX_CAPABILITIES = 16
     val CAPABILITY = Regex("^[a-z][a-z0-9._-]{0,47}$")
+    val TRANSLATION_RULE_ID = Regex("^[a-z][a-z0-9._-]{0,47}$")
 
     private val WINDOWS_DRIVE = Regex("^[A-Za-z]:")
 

@@ -113,9 +113,11 @@ import com.tyranor.next.core.engine.EngineType
 import com.tyranor.next.core.engine.external.EmulatorLaunchStyle
 import com.tyranor.next.core.engine.external.ExternalEmulatorRegistry
 import com.tyranor.next.core.engine.external.ExternalEngineModuleRegistry
-import com.tyranor.next.core.engine.runtime.RuntimeModuleCapabilities
 import com.tyranor.next.core.engine.runtime.RuntimeModuleContract
+import com.tyranor.next.core.engine.runtime.RuntimeModuleDescriptor
 import com.tyranor.next.core.engine.runtime.RuntimeModuleRegistry
+import com.tyranor.next.core.engine.translation.TranslationCandidate
+import com.tyranor.next.core.engine.translation.TranslationCatalog
 import com.tyranor.next.core.game.save.RpgSaveFormat
 import com.tyranor.next.core.game.save.sync.SaveSyncService
 import com.tyranor.next.core.game.model.GameSortKeys
@@ -624,30 +626,31 @@ internal fun GameActionsSheet(
     var showLaunchFilePicker by rememberSaveable(game.uri) { mutableStateOf(false) }
     var showTranslationDialog by rememberSaveable(game.uri) { mutableStateOf(false) }
     // 选中的翻译文件名：null=未选择（不翻译，保持原文）
-    var translationFile by remember(game.uri) {
-        mutableStateOf(EngineLauncher.selectedTranslationLanguage(context, game))
+    var selectedTranslationCandidateId by remember(game.uri) {
+        mutableStateOf(EngineLauncher.selectedTranslationCandidateId(context, game))
     }
-    // 可用译表文件后台枚举（文件 IO 含译表格式校验，避免阻塞组合）；抽屉打开时扫描一次
-    var translationFiles by remember(game.uri) { mutableStateOf<List<File>?>(null) }
-    val isMvMz = game.engine == EngineType.RPG_MV || game.engine == EngineType.RPG_MZ
-    val supportsRuntimeTranslation = game.engine == EngineType.RUNTIME_MODULE &&
-        runtimeModules.modules.any { module ->
-            module.enabled &&
-                module.packageName == game.runtimeModulePackage &&
-                RuntimeModuleCapabilities.TRANSLATION in module.capabilities
-        }
-    val hasTranslationSelector = isMvMz || supportsRuntimeTranslation
-    val translationFileSelected = !translationFile.isNullOrBlank()
-    LaunchedEffect(game.uri, hasTranslationSelector) {
+    // UI 只持有翻译候选 DTO；实际目录、格式检查和存储键由 core 翻译目录管理。
+    var translationCandidates by remember(game.uri) { mutableStateOf<List<TranslationCandidate>?>(null) }
+    val translationModule = if (game.engine == EngineType.RUNTIME_MODULE) {
+        runtimeModules.modules.firstOrNull { it.packageName == game.runtimeModulePackage }
+    } else {
+        null
+    }
+    val hasTranslationSelector = TranslationCatalog.supports(game, translationModule)
+    val translationFileSelected = !selectedTranslationCandidateId.isNullOrBlank()
+    LaunchedEffect(game.uri, hasTranslationSelector, translationModule) {
         if (!hasTranslationSelector) return@LaunchedEffect
         // 选定译表文件已被删除时清掉失效引用：直接验证文件存在性，不依赖下方扫描结果（扫描为空可能是权限问题）
-        val selected = translationFile
-        if (selected != null && withContext(Dispatchers.IO) { !EngineLauncher.hasTranslationFile(context, game, selected) }) {
-            translationFile = null
-            EngineLauncher.setTranslationLanguage(context, game, null)
+        val selected = selectedTranslationCandidateId
+        if (selected != null && withContext(Dispatchers.IO) {
+                !EngineLauncher.hasTranslationCandidate(context, game, selected, translationModule)
+            }
+        ) {
+            selectedTranslationCandidateId = null
+            EngineLauncher.setTranslationCandidate(context, game, null)
         }
-        translationFiles = withContext(Dispatchers.IO) {
-            EngineLauncher.availableTranslationFiles(context, game)
+        translationCandidates = withContext(Dispatchers.IO) {
+            EngineLauncher.availableTranslationCandidates(context, game, translationModule)
         }
     }
     var showPatchConfirm by rememberSaveable(game.uri) { mutableStateOf(false) }
@@ -1057,11 +1060,12 @@ internal fun GameActionsSheet(
     if (showTranslationDialog) {
         TranslationSelectDialog(
             game = game,
-            files = translationFiles,
-            selected = translationFile,
-            onSelect = { name ->
-                translationFile = name
-                EngineLauncher.setTranslationLanguage(context, game, name)
+            candidates = translationCandidates,
+            selected = selectedTranslationCandidateId,
+            module = translationModule,
+            onSelect = { candidateId ->
+                selectedTranslationCandidateId = candidateId
+                EngineLauncher.setTranslationCandidate(context, game, candidateId)
             },
             onDismiss = { showTranslationDialog = false },
         )
@@ -1087,23 +1091,24 @@ internal fun GameActionsSheet(
 @Composable
 private fun TranslationSelectDialog(
     game: ScanGame,
-    files: List<File>?,
+    candidates: List<TranslationCandidate>?,
     selected: String?,
+    module: RuntimeModuleDescriptor?,
     onSelect: (String?) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
     // 打开对话框即重扫：以抽屉层结果作初始显示，扫描完成后覆盖更新
-    var scanned by remember { mutableStateOf(files) }
-    LaunchedEffect(game.uri) {
+    var scanned by remember { mutableStateOf(candidates) }
+    LaunchedEffect(game.uri, module) {
         scanned = withContext(Dispatchers.IO) {
-            EngineLauncher.availableTranslationFiles(context, game)
+            EngineLauncher.availableTranslationCandidates(context, game, module)
         }
     }
     val current = selected?.takeIf(String::isNotBlank)
     val options = buildList {
         add(null to stringResource(R.string.game_translation_default))
-        scanned.orEmpty().forEach { add(it.name to it.name.removeSuffix(".json")) }
+        scanned.orEmpty().forEach { add(it.id to it.displayName) }
     }
     // null=用户尚未点选：勾选实时跟随当前选中值推导（扫描回填后自动对位）；点选后锁定
     var pickedIndex by remember { mutableStateOf<Int?>(null) }

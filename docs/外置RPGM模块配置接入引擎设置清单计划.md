@@ -44,7 +44,7 @@ TyranorNext 当前状态：
 | 10 | `pathCache` / `prebuiltPathCache` | 默认 `false` / `true` | 已接入全局/单游戏（高级区） | 完成 |
 | 11 | `copyText` | 默认 `false` | 已接入全局/单游戏（高级区） | 完成 |
 | 12 | `cheats` | 默认 `true` | 已接入；按插件解析位置改发 `app.cheats` | 完成 |
-| 13 | `customFont` | 默认空串，字体文件路径 | 已接入：导入共享目录 `/sdcard/JoiPlay/fonts`（插件可读） | 完成 |
+| 13 | `customFont` | 默认空串，字体文件路径 | 已接入：导入共享目录 `/sdcard/TyranorNext/fonts`（TYN RGSS 模块可读，用户可自行管理） | 完成 |
 | 14 | `windowSize` | 9 档：512x384…1920x1080 | 已接入全局/单游戏 | 完成 |
 | 15 | `speedUp` | 1..9，默认 `1` | 已接入全局/单游戏 | 完成 |
 | 16 | `fontScale` | 0.25..2.00，默认 `0.75` | 已接入全局/单游戏 | 完成 |
@@ -52,7 +52,7 @@ TyranorNext 当前状态：
 | 18 | `enablePostloadScripts` | 与 postloadScripts extras 配合 | 已接入全局/单游戏（高级区） | 完成 |
 | 19 | `updateCoreScript` | 无默认值（按需开启） | 属 MV/MZ Web 路径，RPGM 插件不解析 | 不纳入（已核实） |
 | 20 | Web 系键 `usePIXI6` / `useWebGL2` / `downscaleBitmaps` / `fastPathEnum` / `verticalScreenAlign` | 插件解析 `fastPathEnum` / `verticalScreenAlign`；其余属 MV/MZ | `fastPathEnum`（高级区）与 `verticalScreenAlign` 已接入；`usePIXI6`/`useWebGL2`/`downscaleBitmaps` 走 MV/MZ 入口 | 完成 |
-| 21 | RTP 导入/删除（RPGXP/RPGVX/RPGVXACE） | `i0`：InnoExtract 解 `xp_rtp104e.exe` / zip 到 Tyranor 自有 RTP 目录 | 已接入：`RpgMakerRuntimeEnvironment` 支持 SAF zip/目录导入、删除与状态检测；RTP 位于首个可用 `getExternalMediaDirs()/RTP/<NAME>/` | 完成 |
+| 21 | RTP 导入/删除（RPGXP/RPGVX/RPGVXACE） | `i0`：InnoExtract 解 `xp_rtp104e.exe` / zip 到 Tyranor 自有 RTP 目录 | 已接入：`RpgMakerRuntimeEnvironment` 支持 SAF zip/目录导入、删除与状态检测；RTP 位于共享存储根目录 `TyranorNext/RTP/<NAME>/`，用户可自行维护 | 完成 |
 | 22 | `configuration.json`（扁平 `useRuby18`，仅 XP） | 双保险写游戏目录 / `JoiPlay/games/<id>/` | 已有并改为与生效 `useRuby18` 联动（JSON 文件仅更新该键） | 完成 |
 | 23 | 模块安装状态/下载引导 | `runtimes.json` + RuntimeFragment | 引擎设置页卡片已展示状态与下载入口（引擎总页原有状态保留） | 完成 |
 | 24 | 模块详情 `assets/html/info.html` / `license.html` | 运行时详情弹窗读取 | 无 | 可选 P2，未实施 |
@@ -210,7 +210,7 @@ verticalScreenAlign: top / top-center / center
 
 TyranorNext 管理 RPGXP/RPGVX/RPGVXACE 三类 RTP；`core/engine/external/RpgMakerRuntimeEnvironment.kt` 负责导入、删除与状态检测，TYN RGSS 模块从主 App 传入的 RTP 根路径读取。
 
-- [x] 补充状态检测：首个可用 `getExternalMediaDirs()/RTP/<RPGXP|RPGVX|RPGVXACE>/app` 是否存在且非空。
+- [x] 补充状态检测：共享存储根目录 `TyranorNext/RTP/<RPGXP|RPGVX|RPGVXACE>/app` 是否存在且非空。
 - [x] 导入入口（全局设置）：SAF 选择 RTP zip/目录 → 解包到对应目录；兼容官方包内多一层根目录（自动拍平）；`.exe` 暂不支持，UI 提示从官网获取 zip/目录并链接来源。
 - [x] 删除入口：二次确认后删除对应 RTP 目录（仅限 `app` 层级，避免误删用户目录）。
 - [x] `mkxp-z` 子类型沿用现有 `mkxp-z` RTP 目录名，不单独出 UI。
