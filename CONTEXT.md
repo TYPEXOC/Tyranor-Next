@@ -9,7 +9,7 @@ Tyranor Next 是面向 Android 的多引擎视觉小说（Galgame）聚合启动
 _Avoid_: 游戏类型、格式
 
 **内置引擎**:
-随 App 分发、无需外置安装的引擎运行时（Kirikiroid2 / krkrsdl3、ONScripter、Artemis、Siglus（siglus_rs Rust 运行时）、RealLive / AVG32 / UK2（siglus_rs game_launcher 软渲染运行时）、FVP（rfvp Rust 运行时）、System35（xsystem35）、System4（xsystem4，与 System35 共用 libSDL2x）、Ethornell / BGI（实验接入，兼容性未验收）、Tyrano 网页壳）。RPG Maker MV/MZ 由内置 Web 运行环境承载。
+随 App 分发、无需外置安装的引擎运行时（Kirikiroid2 / krkrsdl3、ONScripter、Artemis、Siglus（siglus_rs Rust 运行时）、RealLive / AVG32 / UK2（siglus_rs game_launcher 软渲染运行时）、FVP（rfvp Rust 运行时）、System35（xsystem35）、System4（xsystem4，与 System35 共用 libSDL2x）、Ethornell / BGI（实验接入，兼容性未验收）、CMVS（cmvs-rs Rust 运行时，NativeActivity + loader）、Tyrano 网页壳）。RPG Maker MV/MZ 由内置 Web 运行环境承载。
 _Avoid_: 预制引擎、捆绑引擎
 
 **引擎运行库包（Runtime Pack）**:
@@ -182,7 +182,7 @@ _Avoid_: 设置优先级、全局设置
 _Avoid_: 设置合并、覆盖层
 
 **引擎设置种类（EngineSettingsKind）**:
-引擎设置页的分类入口（KRKR / ONS / ARTEMIS / RPG_MAKER / TYRANO / RENPY / RUFFLE / SIGLUS / FRAMEBUFFER / FVP / XSYS35 / XSYS4 / ETHORNELL / PPSSPP / WINLATOR），各自提供该引擎族专属参数项。
+引擎全局设置的分类（KRKR / ONS / ARTEMIS / RPG_MAKER / TYRANO / RENPY / RUFFLE / SIGLUS / FRAMEBUFFER / FVP / XSYS35 / XSYS4 / ETHORNELL / CMVS / PPSSPP / WINLATOR），各自提供该引擎族专属参数项；入口为引擎页条目弹窗底部的「全局引擎设置」长按钮，不再有独立的引擎设置入口页。
 _Avoid_: 引擎设置 Tab
 
 **运行模式（Winlator Run Mode）**:
@@ -367,8 +367,8 @@ _Avoid_: 液态玻璃 2.0、增强玻璃
 导航样式的第四档（`ui/common/FloatingGlassNavButton.kt`）：可拖动的 64dp 圆形液态玻璃主按钮，点击或长按后朝屏幕内侧沿圆弧展开导航项，手机与平板共用（API 31+ 采样，低版本实底回退）。交互、材质与触觉细则见 AGENTS.md「圆角豁免（悬浮按钮导航）」。
 _Avoid_: FAB 导航、悬浮菜单
 
-**四页常驻组合**:
-主界面四个 Tab（首页 / 游戏 / 引擎 / 设置）常驻组合、隐藏页置 alpha=0 保留节点，切换仅做水平 alpha 动画避免重建列表。
+**主界面常驻组合**:
+主界面可见 Tab（首页 / 游戏 / 引擎 / 设置；应用设置关闭「显示首页」后为游戏 / 引擎 / 设置三页）常驻组合、隐藏页置 alpha=0 保留节点，切换仅做水平 alpha 动画避免重建列表。
 _Avoid_: 懒加载页、Fragment
 
 **首页样式（Home Style）**:
