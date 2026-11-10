@@ -413,11 +413,6 @@ internal fun RpgMakerRgssSettingsCard(
                 onCheckedChange = { onSettings(settings.copy(useCJKFont = it)) },
             )
             SwitchPreference(
-                title = stringResource(R.string.engine_settings_rpgm_animate_autotiles),
-                checked = settings.animateAutotiles,
-                onCheckedChange = { onSettings(settings.copy(animateAutotiles = it)) },
-            )
-            SwitchPreference(
                 title = stringResource(R.string.engine_settings_rpgm_postload_scripts),
                 checked = settings.enablePostloadScripts,
                 onCheckedChange = { onSettings(settings.copy(enablePostloadScripts = it)) },

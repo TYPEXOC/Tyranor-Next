@@ -24,6 +24,12 @@
     <string name="nav_floating_collapse">Collapse navigation</string>
 
     <string name="settings_app_title">App settings</string>
+    <string name="settings_about_app">About app</string>
+    <string name="about_project_url">Project URL</string>
+    <string name="about_app_version">Tyranor NEXT %1$s</string>
+    <string name="about_acknowledgements">Acknowledgements</string>
+    <string name="about_disclaimer">Disclaimer</string>
+    <string name="about_disclaimer_body">This app only provides launching, configuration, and management of game runtime environments. It does not include, host, or distribute any game data, commercial assets, or cracked resources.\n\nThe emulators and compatibility runtimes used by this app (including third-party components) are independent projects, and their copyrights belong to their respective authors. Before use, make sure you legally own and are entitled to run the games concerned, and comply with the licenses of both the games and the emulators.\n\nAny save corruption, data loss, device malfunction, account suspension, or other direct or indirect damages arising from running games with this app are borne solely by the user. The developers make no guarantee regarding game compatibility, stability, or results.\n\nDo not use this app for copyright infringement, piracy, or any purpose that violates applicable laws and regulations.</string>
     <string name="settings_language_title">Language</string>
     <string name="settings_language_system">Follow system</string>
     <string name="settings_language_zh">简体中文</string>
@@ -41,6 +47,7 @@
     <string name="settings_theme_mode_light">Light</string>
     <string name="settings_theme_mode_dark">Dark</string>
     <string name="settings_engine_tabs">Categorize engine page</string>
+    <string name="settings_engine_card_icon">Show engine card icons</string>
     <string name="settings_side_rail">Tablet side rail</string>
     <string name="settings_side_rail_summary">Move navigation to the side on tablets and large windows; keep it at the bottom when off</string>
     <string name="settings_nav_bar_title">Navigation bar style</string>
@@ -53,6 +60,8 @@
     <string name="settings_nav_bar_desc_enhanced">Android 13 and above only</string>
     <string name="settings_nav_bar_desc_floating_button">Floats at the bottom right; tap to expand</string>
     <string name="settings_nav_bar_desc_rail">Shown as a side rail on tablets</string>
+    <string name="settings_show_home_page">Show home page</string>
+    <string name="settings_show_home_page_summary">When off, the home page and its navigation item are hidden; the games page becomes the first page</string>
     <string name="settings_home_style">Home style</string>
     <string name="settings_home_style_native">Default</string>
     <string name="settings_home_style_web">Web</string>
@@ -82,6 +91,7 @@
     <string name="settings_sort_alpha">Alphabetical</string>
     <string name="settings_sort_bracket_tag">Bracket tag</string>
     <string name="settings_game_card_style">Game card style</string>
+    <string name="settings_game_card_style_waterfall">Waterfall</string>
     <string name="settings_game_card_style_grid">Grid</string>
     <string name="settings_game_card_style_cover_flow">List</string>
     <string name="settings_game_card_badge">Card engine badge</string>
@@ -96,7 +106,6 @@
     <string name="settings_no_game_dirs">No game folders yet</string>
     <string name="settings_invalid_suffix">invalid</string>
     <string name="settings_add_dir">Add folder</string>
-    <string name="settings_done">Done</string>
     <string name="settings_input_path">Enter path</string>
     <string name="settings_input_dir_title">Enter folder path</string>
     <string name="settings_path_invalid">Path does not exist or is not a folder</string>
@@ -159,8 +168,6 @@
     <string name="engine_desc_android">Manually added Android apps, launched directly from the library</string>
     <string name="engine_desc_cs2">CatSystem2 (.int/.cst/.hg3 games), runs via external Winlator</string>
     <string name="engine_desc_nintendo_switch">Nintendo Switch games run through the external Eden</string>
-    <string name="engine_external_jump_title">External emulator support</string>
-    <string name="engine_external_jump_summary">PPSSPP / Eden / Winlator</string>
     <string name="engine_tab_rpgm">RPGM</string>
     <string name="engine_tab_gal">GAL</string>
     <string name="engine_tab_console">Handheld</string>
@@ -181,7 +188,7 @@
     <string name="engine_settings_pc_hint">Runs via external Winlator. Change the executable via "Launch file" in game details. No save management; runtime options can be overridden per item in the Winlator card below.</string>
     <string name="engine_settings_android_hint">This game is an installed Android app. Launching from the library opens the app directly. No save management or engine settings.</string>
     <string name="engine_settings_winlator_per_game_note">Overrides apply to this game only; each item can be switched back to "Follow global". An empty value (follow container config) sends no such parameter, leaving it to the Winlator container config. Explicit WineD3D + OpenGL/GDI presets replace the entire WineD3D config; other sub-options use defaults. Enabling Write to container config also persists the preset.</string>
-    <string name="launch_emulator_missing">%1$s is not installed. Download it from “External emulator support”</string>
+    <string name="launch_emulator_missing">%1$s is not installed. Install it and try again.</string>
     <string name="launch_emulator_no_activity">%1$s does not provide an entry to receive games</string>
     <string name="launch_emulator_denied">%1$s launch was denied by the system</string>
     <string name="launch_emulator_failed">%1$s failed to launch</string>
@@ -271,6 +278,7 @@
     <string name="engine_settings_save_content_description">Save settings</string>
     <string name="engine_settings_saved">Engine settings saved</string>
     <string name="engine_settings_per_game_saved">Saved</string>
+    <string name="engine_global_settings">Global engine settings</string>
     <string name="engine_settings_krkr_title">KRKR engine settings</string>
     <string name="engine_settings_ons_title">ONS engine settings</string>
     <string name="engine_settings_artemis_title">Artemis engine settings</string>
@@ -1010,7 +1018,6 @@
     <string name="engine_settings_rpgm_group_display">Display</string>
     <string name="engine_settings_rpgm_group_advanced">Advanced</string>
     <string name="engine_settings_rpgm_group_advanced_hint">Cache / debug and other low-priority options</string>
-    <string name="engine_settings_rpgm_use_ruby18">Ruby 1.8 runtime (RGSS1)</string>
     <string name="engine_settings_rpgm_smooth_scaling">Smooth scaling</string>
     <string name="engine_settings_rpgm_vsync">V-Sync</string>
     <string name="engine_settings_rpgm_frame_skip">Frame skip</string>
@@ -1032,7 +1039,6 @@
     <string name="engine_settings_rpgm_copy_text">Copy text</string>
     <string name="engine_settings_rpgm_cheats">Cheats</string>
     <string name="engine_settings_rpgm_use_cjk_font">Use CJK font</string>
-    <string name="engine_settings_rpgm_animate_autotiles">Animate autotiles</string>
     <string name="engine_settings_rpgm_postload_scripts">Postload scripts</string>
     <string name="engine_settings_rpgm_debug">Debug logs</string>
     <string name="engine_settings_rpgm_group_rtp">RTP</string>
@@ -1057,12 +1063,24 @@
     <string name="engine_settings_rpgm_rtp_clear_failed">Failed to delete RTP</string>
     <string name="engine_settings_rpgm_rtp_cleared">RTP deleted</string>
     <string name="engine_settings_rpgm_rtp_clear_importing">RTP import is in progress; delete it after the import finishes</string>
-    <string name="engine_settings_rpgm_rtp_storage_unavailable">The TyranorNext resource directory is unavailable</string>
-    <string name="engine_settings_rpgm_storage_access_required">Storage access is needed to manage the TyranorNext folder. Grant access, then return to continue.</string>
-    <string name="engine_settings_rpgm_user_resource_path">User resource folder: %1$s (RTP and fonts)</string>
+    <string name="engine_settings_rpgm_rtp_storage_unavailable">The RTP storage directory is unavailable</string>
     <string name="engine_settings_rpgm_rtp_hint">Import only the matching RTP resource ZIP or folder (with Audio, Graphics, and other assets). Windows setup.exe installers are not supported. Older RTP files can be imported again from their source folder</string>
     <string name="engine_settings_rpgm_rtp_from_zip">Choose zip</string>
     <string name="engine_settings_rpgm_rtp_from_dir">Choose folder</string>
     <string name="engine_settings_rpgm_reset_defaults">Reset defaults</string>
     <string name="engine_settings_rpgm_reset_confirm">Resets only the RPG Maker RGSS module settings; takes effect after saving.</string>
+    <string name="launch_cmvs_layout_invalid">CMVS game layout is invalid: missing data/pack/script.cpz, a unique start script or key.cfg</string>
+    <string name="launch_cmvs_user_data_unavailable">CMVS save directory is unavailable</string>
+    <string name="launch_cmvs_font_unavailable">CMVS font is unavailable. Select a font.</string>
+    <string name="launch_cmvs_vulkan_unavailable">This device does not support Vulkan, so CMVS cannot start</string>
+    <string name="launch_cmvs_already_running">A CMVS game is running. Save and exit it before starting another one.</string>
+    <string name="engine_settings_cmvs_title">CMVS Engine Settings</string>
+    <string name="cmvs_font_title">Font</string>
+    <string name="cmvs_font_default">No font selected</string>
+    <string name="cmvs_font_note">The CMVS font is used for titles and text. Normal TTF files use collection index 0.</string>
+    <string name="save_error_save_dir_in_use">The CMVS engine is running. Exit the game before touching its saves.</string>
+    <string name="launch_cmvs_launch_config_unavailable">Cannot write the CMVS launch configuration. Check storage and retry.</string>
+    <string name="launch_cmvs_unregistered">CMVS only supports the 19 registered titles; this game is not registered</string>
+    <string name="launch_cmvs_audio_unavailable">CMVS audio initialization failed</string>
+    <string name="launch_cmvs_init_failed">CMVS engine failed to start</string>
 </resources>
