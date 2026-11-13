@@ -64,6 +64,10 @@ _Avoid_: 外置模块（指 JoiPlay 外置 APK 引擎模块时）、第三方 AP
 内置 Web 运行时，承载 TyranoBuilder、WebOther、VN、RPG Maker MV/MZ 等网页形态游戏；各引擎共用同一颗网页壳版本（Tyranor-2.3.4，为原逆向 app 内置）。
 _Avoid_: Chrome、NW.js 环境
 
+**RPG Maker 虚拟翻译插件**:
+Tyranor Next 把自身维护的翻译运行脚本登记到 MV/MZ 插件清单的本地 HTTP 内存响应中，再由游戏的 `PluginManager` 加载；不在游戏目录创建或修改插件文件。加载模式由主 App 显式选择，虚拟模式失败时不自动回退到宿主注入。
+_Avoid_: 已安装游戏插件、游戏目录插件文件
+
 **TynMV / TynMZ**:
 RPG Maker MV / MZ 在 TyranorNext 中新引入的引擎版本代号（TynMV-0.1/0.2、TynMZ-0.1），区别于原逆向内置的网页壳版本。引擎页弹窗中重实现系列以「TyranorNext-0.1/0.2」合并显示，引擎设置下拉则以 Tyn 命名逐项列出。
 _Avoid_: v0/v1/v2（旧编号）
