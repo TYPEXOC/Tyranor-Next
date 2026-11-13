@@ -813,6 +813,7 @@ window.__TRS_WRITEBACK__ = true;
     var scene = root.SceneManager && root.SceneManager._scene;
     return {
       engine: engine,
+      bootstrap: root.__TRS_BOOTSTRAP_MODE__ || 'host-injection',
       scene: (scene && scene.constructor && scene.constructor.name) || '',
       dataLoaded: !!root.$dataSystem,
       messageLoaded: !!root.Game_Message,
@@ -892,6 +893,17 @@ window.__TRS_WRITEBACK__ = true;
       runtime: describeRuntime()
     };
   };
+  // In virtual-plugin mode the host may queue a map before PluginManager loads
+  // this script. Apply that map once the public setter is ready.
+  if (hasOwn(root, '__TRS_PENDING_TRANSLATIONS__')) {
+    var pendingTranslations = root.__TRS_PENDING_TRANSLATIONS__;
+    try {
+      delete root.__TRS_PENDING_TRANSLATIONS__;
+      root.__TRS_SET_TRANSLATIONS__(pendingTranslations);
+    } catch (pendingError) {
+      root.__TRS_PENDING_TRANSLATIONS__ = pendingTranslations;
+    }
+  }
   install();
   root.setInterval(install, 500);
 })();

@@ -22,7 +22,6 @@ import com.core.engine.EnginePrefs
 import com.core.engine.EngineSessionRegistry
 import com.core.engine.KrkrStartupDialogPolicy
 import com.core.engine.LaunchContract
-import com.core.engine.TranslationTable
 import com.tyranor.next.core.i18n.AppLocaleController
 import com.tyranor.next.core.engine.external.EmulatorLaunchStyle
 import com.tyranor.next.core.engine.external.EmulatorTarget as ExternalEmulatorTarget
@@ -54,6 +53,9 @@ import com.tyranor.next.core.engine.runtime.RuntimeModuleDiscoveryResult
 import com.tyranor.next.core.engine.runtime.RuntimeModuleLauncher
 import com.tyranor.next.core.engine.runtime.RuntimeModuleLaunchResult
 import com.tyranor.next.core.engine.runtime.RuntimeModuleRegistry
+import com.tyranor.next.core.engine.runtime.RuntimeModuleDescriptor
+import com.tyranor.next.core.engine.translation.TranslationCandidate
+import com.tyranor.next.core.engine.translation.TranslationCatalog
 import com.tyranor.next.core.game.manual.AndroidAppGames
 import com.tyranor.next.core.game.model.GamePathUtils
 import com.tyranor.next.core.game.model.EthornellPaths
@@ -108,6 +110,8 @@ import java.util.concurrent.ConcurrentHashMap
  */
 object EngineLauncher {
     private const val TAG = "EngineLauncher"
+    // Manual MV/MZ translation loader selection. Change to DIRECT only for intentional comparison.
+    private const val RPG_TRANSLATION_BOOTSTRAP_MODE = LaunchContract.RPG_TRANSLATION_BOOTSTRAP_VIRTUAL_PLUGIN
     private const val KR_LEGACY_PATCH_MARKER = "// TYRANOR_NEXT_KRKR_LEGACY_PATCH_V1"
     private const val KR_FBF_STEAM_STUB_MARKER = "// TYRANOR_NEXT_FBF_STEAM_STUB_V1"
     private const val EXTERNAL_STORAGE_AUTHORITY = "com.android.externalstorage.documents"
@@ -2019,10 +2023,13 @@ object EngineLauncher {
             scopedSaveRoot?.let { putExtra(LaunchContract.SCOPED_SAVE_ROOT, it) }
             putExtra(LaunchContract.RPG_MAKER_MOD_ENABLED, rpgMakerModEnabled)
             putExtra(LaunchContract.RPG_MAKER_MOD_GAME_ID, game.uri)
-            // 译表文件选择（属性，per-game only）：null 不传=不注入译表（保持原文）
-            PerGameSettingsStore.getStr(context, game.uri, PerGameSettingsStore.F_TRANSLATION_LANGUAGE)
-                ?.takeIf(String::isNotBlank)
-                ?.let { putExtra(LaunchContract.RPG_TRANSLATION_FILE, it) }
+            TranslationCatalog.createSelectedMapUri(context, game, path)?.let { mapUri ->
+                putExtra(LaunchContract.RPG_TRANSLATION_MAP_URI, mapUri.toString())
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            if (rpgSession) {
+                putExtra(LaunchContract.RPG_TRANSLATION_BOOTSTRAP_MODE, RPG_TRANSLATION_BOOTSTRAP_MODE)
+            }
             if (useRpgMakerRuntime) {
                 rpgMakerVersion?.let { putExtra(LaunchContract.RPG_MAKER_VERSION, it) }
                 putExtra(LaunchContract.RPG_LEGACY_RENDERER, rpgLegacyRenderer)
@@ -2520,22 +2527,39 @@ object EngineLauncher {
         }
     }
 
-    /** 「语言」对话框数据源：该游戏可用的译文文件（私有 translations/ 目录 + 游戏目录根兜底）。 */
-    internal fun availableTranslationFiles(context: Context, game: ScanGame): List<File> =
-        TranslationTable.availableTranslationFiles(context, game.uri, resolveGameDirectory(context, game))
+    /** Translation choices are App-owned candidates; UI receives no filesystem paths. */
+    internal fun availableTranslationCandidates(
+        context: Context,
+        game: ScanGame,
+        module: RuntimeModuleDescriptor? = null,
+    ): List<TranslationCandidate> = TranslationCatalog.availableCandidates(
+        context = context,
+        game = game,
+        gameDirectory = resolveGameDirectory(context, game),
+        module = module,
+    )
 
-    /** 当前选中的译表文件名；null=未选择（不翻译，保持原文）。 */
-    internal fun selectedTranslationLanguage(context: Context, game: ScanGame): String? =
-        PerGameSettingsStore.getStr(context, game.uri, PerGameSettingsStore.F_TRANSLATION_LANGUAGE)
+    /** Current selected candidate ID; null means no translation. */
+    internal fun selectedTranslationCandidateId(context: Context, game: ScanGame): String? =
+        TranslationCatalog.selectedCandidateId(context, game)
 
-    /** 保存译表语言选择；null=清除选择（不翻译，保持原文）。 */
-    internal fun setTranslationLanguage(context: Context, game: ScanGame, fileName: String?) {
-        PerGameSettingsStore.setStr(context, game.uri, PerGameSettingsStore.F_TRANSLATION_LANGUAGE, fileName)
-    }
+    /** Save a candidate selection; null clears it. */
+    internal fun setTranslationCandidate(context: Context, game: ScanGame, candidateId: String?) =
+        TranslationCatalog.selectCandidate(context, game, candidateId)
 
-    /** 选定译表文件当前是否实际存在（私有目录/游戏根同名查找，与启动解析同一条路径）。 */
-    internal fun hasTranslationFile(context: Context, game: ScanGame, fileName: String): Boolean =
-        TranslationTable.resolveTranslationFile(context, game.uri, resolveGameDirectory(context, game), fileName) != null
+    /** Check selection existence using the same discovery rule as launch. */
+    internal fun hasTranslationCandidate(
+        context: Context,
+        game: ScanGame,
+        candidateId: String,
+        module: RuntimeModuleDescriptor? = null,
+    ): Boolean = TranslationCatalog.hasCandidate(
+        context = context,
+        game = game,
+        gameDirectory = resolveGameDirectory(context, game),
+        candidateId = candidateId,
+        module = module,
+    )
 
     /** 候选目录枚举：真实路径优先；File 直读不可用（null 或空）时回退 SAF（SD 卡常见）。 */
     private fun readLaunchFileEntries(
