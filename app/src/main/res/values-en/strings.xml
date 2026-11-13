@@ -220,6 +220,10 @@
     <string name="game_launch_action">Launch game</string>
     <string name="game_launch_file">Launch file</string>
     <string name="game_launch_file_auto_summary">Auto - choose a launch file manually if startup fails</string>
+    <string name="game_translation">Translation file</string>
+    <string name="game_translation_default">Default</string>
+    <string name="game_translation_status_default">No translation selected; original text will be used</string>
+    <string name="game_translation_status_selected">Translation selected; it will be loaded when the game starts</string>
     <string name="game_remove_quick_launch">Remove from quick launch</string>
     <string name="game_add_quick_launch">Add to quick launch</string>
     <string name="game_quick_launch_full">Home quick launch is full (max 3)</string>

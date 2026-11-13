@@ -220,6 +220,10 @@
     <string name="game_launch_action">启动游戏</string>
     <string name="game_launch_file">启动文件</string>
     <string name="game_launch_file_auto_summary">自动 - 如有错误请手动选择启动文件</string>
+    <string name="game_translation">翻译文件</string>
+    <string name="game_translation_default">默认</string>
+    <string name="game_translation_status_default">未选择译表，启动游戏时使用原文</string>
+    <string name="game_translation_status_selected">已选择译表，启动游戏时尝试加载</string>
     <string name="game_remove_quick_launch">移除快捷启动</string>
     <string name="game_add_quick_launch">添加快捷启动</string>
     <string name="game_quick_launch_full">首页快捷启动已满（最多 3 个）</string>

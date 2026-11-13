@@ -31,8 +31,8 @@ object RuntimeModuleContract {
     /** 可选 extra：稳定游戏标识，供模块隔离单游戏状态。 */
     const val EXTRA_GAME_ID = "com.tyranor.runtime.extra.GAME_ID"
 
-    /** 可选 extra：已选翻译文件的 content URI；模块获临时读取授权。 */
-    const val EXTRA_TRANSLATION_URI = "com.tyranor.runtime.extra.TRANSLATION_URI"
+    /** 可选 extra：主 App 解析后的规范化 JSON 翻译 map 会话 URI；模块获临时读取授权。 */
+    const val EXTRA_TRANSLATION_MAP_URI = "com.tyranor.runtime.extra.TRANSLATION_MAP_URI"
 
     /** 可选 extra：虚拟按键是否启用。 */
     const val EXTRA_PAD_ENABLED = "com.tyranor.runtime.extra.PAD_ENABLED"

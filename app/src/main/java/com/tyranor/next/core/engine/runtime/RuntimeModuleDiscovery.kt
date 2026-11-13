@@ -91,6 +91,7 @@ object RuntimeModuleDiscovery {
             enabled = false,
             capabilities = manifest?.capabilities.orEmpty(),
             overrideEngines = manifest?.overrideEngines.orEmpty(),
+            translationRuleId = manifest?.translationRuleId,
         )
     }
 

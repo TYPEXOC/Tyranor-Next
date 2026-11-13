@@ -45,6 +45,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items as lazyItems
+import androidx.compose.foundation.lazy.itemsIndexed as lazyItemsIndexed
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -118,6 +119,10 @@ import com.tyranor.next.core.engine.external.EmulatorLaunchStyle
 import com.tyranor.next.core.engine.external.ExternalEmulatorRegistry
 import com.tyranor.next.core.engine.external.ExternalEngineModuleRegistry
 import com.tyranor.next.core.engine.runtime.RuntimeModuleContract
+import com.tyranor.next.core.engine.runtime.RuntimeModuleDescriptor
+import com.tyranor.next.core.engine.runtime.RuntimeModuleRegistry
+import com.tyranor.next.core.engine.translation.TranslationCandidate
+import com.tyranor.next.core.engine.translation.TranslationCatalog
 import com.tyranor.next.core.game.save.RpgSaveFormat
 import com.tyranor.next.core.game.save.sync.SaveSyncService
 import com.tyranor.next.core.game.model.GameSortKeys
@@ -630,6 +635,11 @@ internal fun GameActionsSheet(
     var coverBinding by remember { mutableStateOf(false) }
     var coverBindError by rememberSaveable(game.uri) { mutableStateOf<String?>(null) }
     var showLaunchFilePicker by rememberSaveable(game.uri) { mutableStateOf(false) }
+    var showTranslationDialog by rememberSaveable(game.uri) { mutableStateOf(false) }
+    var selectedTranslationCandidateId by remember(game.uri) {
+        mutableStateOf(EngineLauncher.selectedTranslationCandidateId(context, game))
+    }
+    var translationCandidates by remember(game.uri) { mutableStateOf<List<TranslationCandidate>?>(null) }
     var showPatchConfirm by rememberSaveable(game.uri) { mutableStateOf(false) }
     // MV/MZ 存档格式转化确认：待转化检测结果 + 已选定的 Artemis 补丁策略（两弹窗串联时保留）
     var rpgSaveDetection by remember(game.uri) { mutableStateOf<RpgSaveFormat.Detection?>(null) }
@@ -646,6 +656,34 @@ internal fun GameActionsSheet(
     val saveFormatConvertedWithFailuresFormat = stringResource(R.string.save_format_converted_with_failures)
     val saveFormatConvertFailedMessage = stringResource(R.string.save_format_convert_failed)
     val saveBusyEngineRunningMessage = stringResource(R.string.save_busy_engine_running)
+    val runtimeModules by RuntimeModuleRegistry.state.collectAsState()
+    val translationModule = if (game.engine == EngineType.RUNTIME_MODULE) {
+        runtimeModules.modules.firstOrNull { it.packageName == game.runtimeModulePackage }
+    } else {
+        null
+    }
+    val hasTranslationSelector = TranslationCatalog.supports(game, translationModule)
+    val translationSummary = stringResource(
+        if (selectedTranslationCandidateId.isNullOrBlank()) {
+            R.string.game_translation_status_default
+        } else {
+            R.string.game_translation_status_selected
+        },
+    )
+    LaunchedEffect(game.uri, hasTranslationSelector, translationModule) {
+        if (!hasTranslationSelector) return@LaunchedEffect
+        val selected = selectedTranslationCandidateId
+        if (selected != null && withContext(Dispatchers.IO) {
+                !EngineLauncher.hasTranslationCandidate(context, game, selected, translationModule)
+            }
+        ) {
+            selectedTranslationCandidateId = null
+            EngineLauncher.setTranslationCandidate(context, game, null)
+        }
+        translationCandidates = withContext(Dispatchers.IO) {
+            EngineLauncher.availableTranslationCandidates(context, game, translationModule)
+        }
+    }
 
     /** Blocks destructive cover/shortcut actions while a batch scrape is running. */
     fun isBatchScrapingActive(): Boolean {
@@ -808,6 +846,20 @@ internal fun GameActionsSheet(
                                 showArrow = false,
                                 leadingIconTint = MaterialTheme.colorScheme.primary,
                                 onClick = { showLaunchFilePicker = true },
+                            )
+                        }
+                    }
+                    if (hasTranslationSelector) {
+                        item(key = "drawer_row:translation") {
+                            AppNavItem(
+                                title = stringResource(R.string.game_translation),
+                                summary = translationSummary,
+                                leadingIcon = R.drawable.ic_sheet_language,
+                                containerColor = drawerItemSurface,
+                                verticalPadding = 17.dp,
+                                showArrow = false,
+                                leadingIconTint = drawerPrimaryColor,
+                                onClick = { showTranslationDialog = true },
                             )
                         }
                     }
@@ -978,10 +1030,96 @@ internal fun GameActionsSheet(
         )
     }
 
+    if (showTranslationDialog) {
+        TranslationSelectDialog(
+            game = game,
+            candidates = translationCandidates,
+            selected = selectedTranslationCandidateId,
+            module = translationModule,
+            onSelect = { candidateId ->
+                selectedTranslationCandidateId = candidateId
+                EngineLauncher.setTranslationCandidate(context, game, candidateId)
+            },
+            onDismiss = { showTranslationDialog = false },
+        )
+    }
+
     launchError?.let { state ->
         LaunchErrorDialog(state = state, onDismiss = { launchError = null })
     }
 
+}
+
+/** Translation selection is stored by core; the UI only handles candidate IDs and labels. */
+@Composable
+private fun TranslationSelectDialog(
+    game: ScanGame,
+    candidates: List<TranslationCandidate>?,
+    selected: String?,
+    module: RuntimeModuleDescriptor?,
+    onSelect: (String?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val context = LocalContext.current
+    var scanned by remember { mutableStateOf(candidates) }
+    LaunchedEffect(game.uri, module) {
+        scanned = withContext(Dispatchers.IO) {
+            EngineLauncher.availableTranslationCandidates(context, game, module)
+        }
+    }
+    val current = selected?.takeIf(String::isNotBlank)
+    val options = buildList {
+        add(null to stringResource(R.string.game_translation_default))
+        scanned.orEmpty().forEach { add(it.id to it.displayName) }
+    }
+    var pickedIndex by remember { mutableStateOf<Int?>(null) }
+    val effectiveIndex = pickedIndex
+        ?: options.indexOfFirst { it.first == current }.coerceAtLeast(0)
+
+    AppAlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.game_translation), style = MaterialTheme.typography.titleMedium) },
+        text = {
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth().heightIn(max = 320.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                lazyItemsIndexed(options, key = { _, option -> option.first ?: "" }) { index, (_, label) ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(AppComponentShape)
+                            .background(DialogItemSurface)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                            ) { pickedIndex = index }
+                            .padding(horizontal = 12.dp, vertical = 9.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            label,
+                            style = MaterialTheme.typography.bodyMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f),
+                        )
+                        RadioButton(selected = index == effectiveIndex, onClick = null)
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            DialogTextButton(
+                text = stringResource(R.string.common_confirm),
+                onClick = {
+                    onSelect(options[effectiveIndex].first)
+                    onDismiss()
+                },
+            )
+        },
+        dismissButton = { DialogTextButton(text = stringResource(R.string.common_cancel), onClick = onDismiss) },
+    )
 }
 
 @Composable

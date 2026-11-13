@@ -69,6 +69,13 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
+        <!-- App-normalized maps are exposed only through per-launch, read-only session URIs. -->
+        <provider
+            android:name=".core.engine.translation.TranslationMapProvider"
+            android:authorities="${applicationId}.translationmaps"
+            android:exported="false"
+            android:grantUriPermissions="true" />
+
         <activity
             android:name=".ui.archive.ArchiveUnpackActivity"
             android:exported="false" />

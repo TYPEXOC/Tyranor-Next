@@ -220,6 +220,10 @@
     <string name="game_launch_action">ゲームを起動</string>
     <string name="game_launch_file">起動ファイル</string>
     <string name="game_launch_file_auto_summary">自動 - 問題がある場合は手動で起動ファイルを選択</string>
+    <string name="game_translation">翻訳ファイル</string>
+    <string name="game_translation_default">デフォルト</string>
+    <string name="game_translation_status_default">翻訳表が未選択のため、原文を使用します</string>
+    <string name="game_translation_status_selected">翻訳表を選択済みです。ゲーム起動時に読み込みます</string>
     <string name="game_remove_quick_launch">クイック起動から削除</string>
     <string name="game_add_quick_launch">クイック起動に追加</string>
     <string name="game_quick_launch_full">ホームのクイック起動は最大 3 件までです</string>
