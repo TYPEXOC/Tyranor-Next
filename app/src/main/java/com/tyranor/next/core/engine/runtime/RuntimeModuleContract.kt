@@ -58,6 +58,9 @@ object RuntimeModuleContract {
     /** 可选 extra：主题强调色上的文字颜色。 */
     const val EXTRA_THEME_ON_PRIMARY_COLOR = "com.tyranor.runtime.extra.THEME_ON_PRIMARY_COLOR"
 
+    /** 可选 extra：TYN 当前内容主题是否为深色，用于模块内 WebView 等控件同步配色。 */
+    const val EXTRA_THEME_DARK_MODE = "com.tyranor.runtime.extra.THEME_DARK_MODE"
+
     /** 当前主 App 支持的协议版本。 */
     const val PROTOCOL_VERSION = 1
 }

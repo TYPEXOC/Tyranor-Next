@@ -128,6 +128,7 @@ object RuntimeModuleLauncher {
                 }
                 putExtra(RuntimeModuleContract.EXTRA_THEME_PRIMARY_COLOR, theme.primaryArgb)
                 putExtra(RuntimeModuleContract.EXTRA_THEME_ON_PRIMARY_COLOR, theme.onPrimaryArgb)
+                putExtra(RuntimeModuleContract.EXTRA_THEME_DARK_MODE, theme.darkMode)
                 profileUri?.let { putExtra(RuntimeModuleContract.EXTRA_PAD_PROFILE_URI, it.toString()) }
             }
             translationMapUri?.let { putExtra(RuntimeModuleContract.EXTRA_TRANSLATION_MAP_URI, it.toString()) }

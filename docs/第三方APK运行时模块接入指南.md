@@ -104,6 +104,7 @@ com.example.runtime             ❌ 前缀不对
 | `com.tyranor.runtime.extra.RGSS_OPTIONS` | String | 可选；TYN RGSS 模块的 mkxp-z 选项 JSON |
 | `com.tyranor.runtime.extra.THEME_PRIMARY_COLOR` | Int | 可选；TYN 当前强调色 ARGB |
 | `com.tyranor.runtime.extra.THEME_ON_PRIMARY_COLOR` | Int | 可选；强调色上的前景色 ARGB |
+| `com.tyranor.runtime.extra.THEME_DARK_MODE` | Boolean | 可选；TYN 当前内容主题是否为深色，供模块内控件同步明暗配色 |
 
 最小接收代码：
 
