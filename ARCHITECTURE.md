@@ -94,9 +94,15 @@ Schema 导出到 `app/schemas/`。v1→v2 及降级仍允许破坏性恢复并�
 1. `RuntimeModuleDiscovery` 通过 Manifest `<queries>` 声明的 `com.tyranor.runtime.action.LAUNCH` 查询可见应用，只保留 `com.tyranor.runtime.` 前缀；每个包选择一个入口 Activity，并容错读取 `com.tyranor.runtime.MANIFEST` 指向的 `res/raw` JSON（`RuntimeModuleDescriptor` / `RuntimeModuleScanSpec`）。不申请 `QUERY_ALL_PACKAGES`，不校验签名或版本。
 2. `RuntimeModuleRegistry` 保存发现快照与 `AppSettingsStore.KEY_RUNTIME_MODULE_ENABLED`（StringSet，默认空集），经 `StateFlow` 提供给 `ui/runtime/EngineModuleManagementScreen`；刷新、启用/禁用与扫描索引构建在同一互斥区内串行。新模块默认关闭，启用只写开关。
 3. 扫描开始时 `EngineScanner` 取 `RuntimeModuleIndex`（已发现 + 已启用 + 有扫描描述），仅在 `UNKNOWN` / `WEB_OTHER` 等弱结果上调用 `RuntimeModuleMatcher` 匹配 `extensions` / `markers`；命中写入 `ScanGame.runtimeModulePackage`。多模块按 `all` > `any` → marker 数 → 包名排序，旧 URI 绑定优先；扫描是唯一入库入口。
-4. `EngineLauncher` 对 `RUNTIME_MODULE` 直接调用 `RuntimeModuleLauncher`：显式 `ComponentName` + 文件夹绝对路径/标题/协议版本；`Dispatched` 只表示交棒，`ModuleMissing` / `ModuleDisabled` 触发 `RuntimeModuleBindings.degradeGame`。
+4. `EngineLauncher` 对 `RUNTIME_MODULE` 直接调用 `RuntimeModuleLauncher`：显式 `ComponentName` + 文件夹绝对路径/标题/协议版本；模块声明翻译能力与规则且该游戏已选择译表时，再授予当前规范化 map 的临时只读 URI。`Dispatched` 只表示交棒，`ModuleMissing` / `ModuleDisabled` 触发 `RuntimeModuleBindings.degradeGame`。
 5. `RuntimeModuleBindings.reconcile` 在重扫前与应用回前台等时机核对绑定：模块未发现、未启用或包名为空 → `EngineType.UNKNOWN`（保留最后已知 `runtimeModulePackage` 供重扫合并），保留其它字段；发现查询失败时跳过第三方绑定的降级。旧 Emberfall 内置身份的迁移独立进行。
 6. 绑定经 `ScanGame` → `GameEntity.runtime_module_package`（Room v3）→ `GameRecordCodec` prefs 镜像传播；v2→v3 使用显式 `Migration(2,3)`。
+
+### 翻译功能
+
+`core/engine/translation/TranslationCatalog` 集中注册源格式解析器、按引擎/模块选择发现规则、提供 UI 使用的候选 DTO，并持久化单游戏候选 ID。UI 不读取文件路径或偏好键。当前 MTool JSON 解析器把有效字符串键值归一成 map；`TranslationMapSessions` 为本次会话保存不透明来源描述，`TranslationMapProvider` 通过临时授权的只读 URI 提供 map，并监视源文件写入、替换、创建与删除，通知订阅者重新读取。游戏目录内原始文件不被复制或改写。
+
+内置 Web 宿主由 engine 的 `TranslationSession` 管理 JS 生命周期和热更新；MV/MZ 可显式选择虚拟插件方式，由游戏引擎的插件管理器执行同一翻译脚本，也可选宿主注入方式进行对照。虚拟插件模式识别标准 `js/main.js` 启动顺序；已有 `plugins.js` 时只改写内存响应追加 TYN，没有时由宿主虚拟提供清单，并在入口页中确保清单先于 `main.js` 执行。冲突或非标准启动结构会记录原因并停止该模式，不写入游戏文件，也不自动切换加载方式。第三方运行时模块在清单声明 `capabilities: ["translation"]` 与已注册的 `translationRule` 后，由主 App 交付同一 map URI；源格式与发现逻辑继续由主 App 维护。
 
 [EngineSettingsResolver](app/src/main/java/com/tyranor/next/core/settings/EngineSettingsResolver.kt) 统一读取引擎全局与单游戏覆盖，`EffectiveEngineSettings` 处理归一化与回退。启动和存档消费同一份生效规则，页面不得另写优先级逻辑。
 

@@ -1,9 +1,12 @@
 package com.tyranor.next.core.engine.runtime
 
 import android.content.ActivityNotFoundException
+import android.content.ClipData
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
+import com.tyranor.next.core.engine.translation.TranslationCatalog
 import com.tyranor.next.core.game.model.ScanGame
 import kotlin.coroutines.cancellation.CancellationException
 
@@ -29,9 +32,9 @@ sealed interface RuntimeModuleLaunchResult {
 }
 
 /**
- * 通过显式组件把游戏文件夹绝对路径交给第三方运行时模块。
+ * 通过显式组件把游戏文件夹交给第三方运行时模块；已选翻译 map 通过临时只读 URI 交接。
  *
- * 只传当前游戏文件夹，不传扫描根、其它游戏或主 App 私有目录；不添加 URI 读写授权 flag（v1 只传路径）。
+ * 只共享当前游戏需要的资源，不传扫描根或其它游戏；译表 URI 不授予持久权限。
  */
 object RuntimeModuleLauncher {
 
@@ -45,11 +48,24 @@ object RuntimeModuleLauncher {
         if (module.packageName.isBlank() || module.activityName.isBlank()) return RuntimeModuleLaunchResult.EntryMissing
         if (folderPath.isBlank()) return RuntimeModuleLaunchResult.PathUnresolved
 
+        val translationMapUri = if (TranslationCatalog.supports(game, module)) {
+            runCatching {
+                TranslationCatalog.createSelectedMapUri(context, game, folderPath, module)
+            }.getOrNull()
+        } else {
+            null
+        }
+
         val intent = Intent(RuntimeModuleContract.ACTION_LAUNCH).apply {
             component = ComponentName(module.packageName, module.activityName)
             putExtra(RuntimeModuleContract.EXTRA_FOLDER_PATH, folderPath)
             putExtra(RuntimeModuleContract.EXTRA_GAME_TITLE, game.title)
             putExtra(RuntimeModuleContract.EXTRA_PROTOCOL_VERSION, RuntimeModuleContract.PROTOCOL_VERSION)
+            translationMapUri?.let {
+                putExtra(RuntimeModuleContract.EXTRA_TRANSLATION_MAP_URI, it.toString())
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                clipData = ClipData.newUri(context.contentResolver, "Tyranor translation map", it)
+            }
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
 

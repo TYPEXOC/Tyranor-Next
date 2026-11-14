@@ -113,6 +113,12 @@ object LaunchContract {
     const val RPG_MAKER_MOD_GAME_ID = "rpgMakerModGameId"
     const val RPG_MAKER_VERSION = "rpgMakerVersion"
     const val RPG_LEGACY_RENDERER = "rpgLegacyRenderer"
+    /** Read-only URI for the App-normalized translation map; absent means original text. */
+    const val RPG_TRANSLATION_MAP_URI = "rpgTranslationMapUri"
+    /** Explicit MV/MZ translation runtime delivery mode; no automatic fallback between modes. */
+    const val RPG_TRANSLATION_BOOTSTRAP_MODE = "rpgTranslationBootstrapMode"
+    const val RPG_TRANSLATION_BOOTSTRAP_DIRECT = "directInjection"
+    const val RPG_TRANSLATION_BOOTSTRAP_VIRTUAL_PLUGIN = "virtualPlugin"
 
     // ---------- Siglus ----------
 

@@ -20,10 +20,15 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed as lazyItemsIndexed
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -48,6 +53,11 @@ import androidx.compose.ui.unit.dp
 import com.tyranor.next.R
 import com.tyranor.next.core.cover.CoverScrapeTaskManager
 import com.tyranor.next.core.cover.VndbCoverService
+import com.tyranor.next.core.engine.runtime.RuntimeModuleDescriptor
+import com.tyranor.next.core.engine.runtime.RuntimeModuleRegistry
+import com.tyranor.next.core.engine.translation.TranslationCandidate
+import com.tyranor.next.core.engine.translation.TranslationCatalog
+import com.tyranor.next.core.game.launch.EngineLauncher
 import com.tyranor.next.core.game.model.ScanGame
 import com.tyranor.next.core.game.shortcut.GameShortcutManager
 import com.tyranor.next.core.game.shortcut.deleteShortcutCropBitmap
@@ -108,6 +118,17 @@ internal fun GameQuickActionsDialog(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val moduleSnapshot by RuntimeModuleRegistry.state.collectAsState()
+    val translationModule = remember(moduleSnapshot.modules, game.runtimeModulePackage) {
+        moduleSnapshot.modules.firstOrNull { it.packageName == game.runtimeModulePackage }
+    }
+    val canSelectTranslation = remember(game.engine, translationModule) {
+        TranslationCatalog.supports(game, translationModule)
+    }
+    var showTranslationDialog by rememberSaveable(game.uri) { mutableStateOf(false) }
+    var selectedTranslationId by remember(game.uri) {
+        mutableStateOf(EngineLauncher.selectedTranslationCandidateId(context, game))
+    }
     var showRenameDialog by rememberSaveable(game.uri) { mutableStateOf(false) }
     var showDeleteConfirm by rememberSaveable(game.uri) { mutableStateOf(false) }
     var shortcutRequestInFlight by remember(game.uri) { mutableStateOf(false) }
@@ -279,7 +300,18 @@ internal fun GameQuickActionsDialog(
                         leadingIcon = R.drawable.ic_sheet_rename,
                         onClick = { showRenameDialog = true },
                     )
-                    QuickActionDeleteButton(modifier = Modifier.staggeredEntrance(3), onClick = { showDeleteConfirm = true })
+                    if (canSelectTranslation) {
+                        QuickActionItem(
+                            modifier = Modifier.staggeredEntrance(3),
+                            title = stringResource(R.string.game_translation),
+                            leadingIcon = R.drawable.ic_sheet_language,
+                            onClick = { showTranslationDialog = true },
+                        )
+                    }
+                    QuickActionDeleteButton(
+                        modifier = Modifier.staggeredEntrance(if (canSelectTranslation) 4 else 3),
+                        onClick = { showDeleteConfirm = true },
+                    )
                 }
             }
         },
@@ -296,6 +328,19 @@ internal fun GameQuickActionsDialog(
         },
         topOverhangHeight = QuickActionCoverOverhang,
     )
+
+    if (showTranslationDialog && canSelectTranslation) {
+        TranslationSelectDialog(
+            game = game,
+            module = translationModule,
+            selectedId = selectedTranslationId,
+            onSelect = { candidateId ->
+                selectedTranslationId = candidateId
+                EngineLauncher.setTranslationCandidate(context, game, candidateId)
+            },
+            onDismiss = { showTranslationDialog = false },
+        )
+    }
 
     shortcutCropUriText?.let { uriText ->
         GameShortcutCropDialog(
@@ -368,6 +413,109 @@ internal fun GameQuickActionsDialog(
     }
 
 }
+
+/** Selects a discovered translation map for this game; discovery is refreshed when the dialog opens. */
+@Composable
+private fun TranslationSelectDialog(
+    game: ScanGame,
+    module: RuntimeModuleDescriptor?,
+    selectedId: String?,
+    onSelect: (String?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val context = LocalContext.current
+    var candidates by remember(game.uri, module?.packageName) {
+        mutableStateOf<List<TranslationCandidate>?>(null)
+    }
+    var pickedId by remember(game.uri) { mutableStateOf(selectedId) }
+    var hasPicked by remember(game.uri) { mutableStateOf(false) }
+
+    LaunchedEffect(game.uri, module?.packageName) {
+        candidates = withContext(Dispatchers.IO) {
+            EngineLauncher.availableTranslationCandidates(context, game, module)
+        }
+    }
+    LaunchedEffect(game.uri, module?.packageName, selectedId) {
+        val currentId = selectedId ?: return@LaunchedEffect
+        val exists = withContext(Dispatchers.IO) {
+            EngineLauncher.hasTranslationCandidate(context, game, currentId, module)
+        }
+        if (!exists) onSelect(null)
+    }
+
+    val defaultLabel = stringResource(R.string.game_translation_default)
+    val visibleCandidates = candidates.orEmpty().let { discovered ->
+        if (selectedId != null && discovered.none { it.id == selectedId }) {
+            discovered + TranslationCandidate(
+                id = selectedId,
+                displayName = translationDisplayName(selectedId),
+                formatId = module?.translationRuleId ?: TranslationCatalog.MTOOL_JSON_RULE,
+            )
+        } else {
+            discovered
+        }
+    }
+    val options = buildList {
+        add(null to defaultLabel)
+        visibleCandidates.forEach { add(it.id to it.displayName) }
+    }
+    val effectiveSelectedId = if (hasPicked) pickedId else selectedId
+    val selectedIndex = options.indexOfFirst { it.first == effectiveSelectedId }.coerceAtLeast(0)
+
+    AppAlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.game_translation), style = MaterialTheme.typography.titleMedium) },
+        text = {
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth().heightIn(max = 320.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                lazyItemsIndexed(options, key = { index, option -> option.first ?: "translation-default-$index" }) { index, (value, label) ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(AppComponentShape)
+                            .background(DialogItemSurface)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                            ) {
+                                hasPicked = true
+                                pickedId = value
+                            }
+                            .padding(horizontal = 12.dp, vertical = 9.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            label,
+                            style = MaterialTheme.typography.bodyMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f),
+                        )
+                        RadioButton(selected = index == selectedIndex, onClick = null)
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            DialogTextButton(
+                text = stringResource(R.string.common_confirm),
+                enabled = candidates != null,
+                onClick = {
+                    onSelect(options[selectedIndex].first)
+                    onDismiss()
+                },
+            )
+        },
+        dismissButton = {
+            DialogTextButton(text = stringResource(R.string.common_cancel), onClick = onDismiss)
+        },
+    )
+}
+
+private fun translationDisplayName(candidateId: String): String =
+    if (candidateId.endsWith(".json", ignoreCase = true)) candidateId.dropLast(".json".length) else candidateId
 
 /**
  * 动作条目：沿用 [AppNavItem] 的图标 + 标题排版与动态底色，

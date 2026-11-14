@@ -32,8 +32,13 @@ import com.core.engine.EngineSessionRegistry
 import com.core.engine.EngineStartupOverlay
 import com.core.engine.EngineThemeColors
 import com.core.engine.LaunchContract
+import com.core.engine.RpgMakerTranslationPlugin
+import com.core.engine.TranslationRuntimeDelivery
+import com.core.engine.TranslationSession
+import com.core.engine.TranslationTable
 import com.core.engine.R
 import com.core.input.InputRemapController
+import com.core.web.AsarWebRoot
 import java.io.ByteArrayInputStream
 import java.io.File
 import java.util.Locale
@@ -81,6 +86,12 @@ class RpgMakerActivity : Activity() {
     private var rpgMakerModEnabled = false
     private var rpgMakerModGameId = ""
     private var rpgMakerVersion: String? = null
+    private var translationMapUri: String? = null
+    private var translation: TranslationSession? = null
+    private var translationRuntimeDelivery = TranslationRuntimeDelivery.HOST_INJECTION
+    private var registerVirtualTranslationPlugin = false
+    private var virtualTranslationPluginList = false
+    private var injectTranslationPluginScriptTag = false
     private var startupOverlay: EngineStartupOverlay? = null
     private var initialMainFramePending = true
     private var startupNavigationGeneration = 0L
@@ -137,6 +148,8 @@ class RpgMakerActivity : Activity() {
         intent.getStringExtra(LaunchContract.RPG_MAKER_MOD_GAME_ID),
         intent.getStringExtra(LaunchContract.RPG_MAKER_VERSION),
         intent.getBooleanExtra(LaunchContract.RPG_LEGACY_RENDERER, false).toString(),
+        intent.getStringExtra(LaunchContract.RPG_TRANSLATION_MAP_URI),
+        intent.getStringExtra(LaunchContract.RPG_TRANSLATION_BOOTSTRAP_MODE),
     ).joinToString("\u0000")
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -194,6 +207,8 @@ class RpgMakerActivity : Activity() {
             ?.takeIf(String::isNotBlank)
             ?: resolvedGameDir
         rpgMakerVersion = intent.getStringExtra(LaunchContract.RPG_MAKER_VERSION)?.takeIf(String::isNotBlank)
+        translationMapUri = intent.getStringExtra(LaunchContract.RPG_TRANSLATION_MAP_URI)?.takeIf(String::isNotBlank)
+        translationRuntimeDelivery = selectTranslationRuntimeDelivery(contentRoot)
         Log.i(TAG, "entry mode=${if (gameUsesAsar) "asar" else "dir"} type=${webGameType.intentValue} rpgMakerVersion=$rpgMakerVersion asar=$asarPath contentRoot=${contentRoot.absolutePath}")
         val saves = resolveSaveDirectory(intent, gameRoot)
         saveDirectory = saves
@@ -215,10 +230,46 @@ class RpgMakerActivity : Activity() {
         val lateHook: ByteArray,
         val scriptAppends: Map<String, ByteArray>,
         val internalResources: Map<String, ByteArray>,
+        val injectTranslationPluginScriptTag: Boolean,
         val nwPolyfill: ByteArray?,
         val modHtml: String,
         val legacyRenderer: Boolean,
     )
+
+    private fun selectTranslationRuntimeDelivery(contentRoot: File): TranslationRuntimeDelivery {
+        if (intent.getStringExtra(LaunchContract.RPG_TRANSLATION_BOOTSTRAP_MODE) !=
+            LaunchContract.RPG_TRANSLATION_BOOTSTRAP_VIRTUAL_PLUGIN
+        ) {
+            Log.i(TAG, "translation runtime delivery=host-injection (explicitly selected)")
+            return TranslationRuntimeDelivery.HOST_INJECTION
+        }
+        if (webGameType != WebGameType.RPG_MV && webGameType != WebGameType.RPG_MZ) {
+            Log.e(TAG, "virtual translation plugin requested for non-MV/MZ game; keeping request without registration")
+            return TranslationRuntimeDelivery.VIRTUAL_PLUGIN
+        }
+        val archive = asarArchive
+        val prefix = archive?.let { current -> AsarWebRoot.prefixFor { path -> current.has(path) } }.orEmpty()
+        val hasAsar: ((String) -> Boolean)? = archive?.let { current -> { path: String -> current.has(path) } }
+        val readAsar: ((String) -> ByteArray?)? = archive?.let { current -> { path: String -> current.read(path) } }
+        val hasAsarIgnoringCase: ((String) -> Boolean)? = archive?.let { current -> { path: String -> current.hasIgnoringCase(path) } }
+        val preflight = RpgMakerTranslationPlugin.inspectPluginList(contentRoot, prefix, hasAsar, readAsar, hasAsarIgnoringCase)
+        if (!preflight.supported) {
+            Log.e(TAG, "virtual translation plugin preflight failed (${preflight.reason}); no automatic fallback")
+            registerVirtualTranslationPlugin = false
+            virtualTranslationPluginList = false
+            injectTranslationPluginScriptTag = false
+            return TranslationRuntimeDelivery.VIRTUAL_PLUGIN
+        }
+        registerVirtualTranslationPlugin = true
+        virtualTranslationPluginList = preflight.virtualPluginList
+        injectTranslationPluginScriptTag = preflight.injectPluginListScriptTag
+        Log.i(
+            TAG,
+            "translation runtime delivery=virtual-plugin type=${webGameType.intentValue} asar=${archive != null} " +
+                "virtualPluginList=$virtualTranslationPluginList injectPluginTag=$injectTranslationPluginScriptTag reason=${preflight.reason}",
+        )
+        return TranslationRuntimeDelivery.VIRTUAL_PLUGIN
+    }
 
     /**
      * 装配注入内容与服务器参数；失败时提示并返回 null（调用方应直接结束启动流程）。
@@ -264,13 +315,10 @@ class RpgMakerActivity : Activity() {
                 else -> RPG_MV_HOOK_ASSET
             }
             val lateHook = loadAssetOrNull(hookAsset) ?: ByteArray(0)
-            val scriptAppends = if (webGameType == WebGameType.RPG_MZ) {
-                mapOf(
-                    "js/rmmz_core.js" to loadAsset(RPG_MZ_CORE_HOOK_ASSET),
-                    "js/rmmz_managers.js" to loadAsset(RPG_MZ_MANAGERS_HOOK_ASSET),
-                )
-            } else {
-                emptyMap()
+            val scriptAppends = mutableMapOf<String, ByteArray>()
+            if (webGameType == WebGameType.RPG_MZ) {
+                scriptAppends["js/rmmz_core.js"] = loadAsset(RPG_MZ_CORE_HOOK_ASSET)
+                scriptAppends["js/rmmz_managers.js"] = loadAsset(RPG_MZ_MANAGERS_HOOK_ASSET)
             }
             val modResources = if (rpgMakerModEnabled) {
                 mapOf(
@@ -301,10 +349,50 @@ class RpgMakerActivity : Activity() {
             } else {
                 null
             }
-            val internalResources = modResources + v1Overlay
+            val translationRuntime = if (translationRuntimeDelivery == TranslationRuntimeDelivery.VIRTUAL_PLUGIN &&
+                registerVirtualTranslationPlugin
+            ) {
+                loadAssetOrNull(TranslationTable.RUNTIME_ASSET)
+            } else {
+                null
+            }
+            if (translationRuntimeDelivery == TranslationRuntimeDelivery.VIRTUAL_PLUGIN &&
+                registerVirtualTranslationPlugin && translationRuntime == null
+            ) {
+                Log.e(TAG, "virtual translation runtime asset missing; no automatic fallback")
+                registerVirtualTranslationPlugin = false
+                virtualTranslationPluginList = false
+                injectTranslationPluginScriptTag = false
+            }
+            if (translationRuntimeDelivery == TranslationRuntimeDelivery.VIRTUAL_PLUGIN && registerVirtualTranslationPlugin) {
+                if (!virtualTranslationPluginList) {
+                    scriptAppends[RpgMakerTranslationPlugin.PLUGIN_LIST_PATH] =
+                        RpgMakerTranslationPlugin.buildRegistrationAppend()
+                }
+            }
+            val translationResources = if (registerVirtualTranslationPlugin && translationRuntime != null) {
+                RpgMakerTranslationPlugin.runtimeResource(translationRuntime) +
+                    if (virtualTranslationPluginList) {
+                        mapOf(RpgMakerTranslationPlugin.PLUGIN_LIST_PATH to RpgMakerTranslationPlugin.buildVirtualPluginList())
+                    } else {
+                        emptyMap()
+                    }
+            } else {
+                emptyMap()
+            }
+            val internalResources = modResources + v1Overlay + translationResources
             Log.i(TAG, "asset loaded $hookAsset bytes=${lateHook.size} early=${nwPolyfill?.size ?: 0} scriptAppends=${scriptAppends.keys} v1Overlay=${v1Overlay.keys} rpgMakerVersion=$rpgMakerVersion v12Session=$v12Session useCoreScriptOverlay=$useCoreScriptOverlay")
             val legacyRenderer = intent.getBooleanExtra(LaunchContract.RPG_LEGACY_RENDERER, false)
-            InjectionBundle(contentRoot, lateHook, scriptAppends, internalResources, nwPolyfill, modHtml, legacyRenderer)
+            InjectionBundle(
+                contentRoot,
+                lateHook,
+                scriptAppends,
+                internalResources,
+                registerVirtualTranslationPlugin && injectTranslationPluginScriptTag,
+                nwPolyfill,
+                modHtml,
+                legacyRenderer,
+            )
         } catch (error: Throwable) {
             Log.e(TAG, "build injection bundle failed", error)
             failLaunch(getString(R.string.engine_rpgmaker_server_failed))
@@ -318,10 +406,12 @@ class RpgMakerActivity : Activity() {
             localServer = if (gameUsesAsar) {
                 RpgMakerLocalHttpServer(
                     bundle.contentRoot, asarArchive, bundle.lateHook, true, bundle.scriptAppends, bundle.modHtml, bundle.internalResources, bundle.nwPolyfill, v12Session, v2Session,
+                    injectTranslationPluginScriptTag = bundle.injectTranslationPluginScriptTag,
                 )
             } else {
                 RpgMakerLocalHttpServer(
                     bundle.contentRoot, bundle.lateHook, true, bundle.scriptAppends, bundle.modHtml, bundle.internalResources, bundle.nwPolyfill, v12Session, v2Session,
+                    injectTranslationPluginScriptTag = bundle.injectTranslationPluginScriptTag,
                 )
             }.also { it.start() }
         } catch (error: Throwable) {
@@ -393,6 +483,13 @@ class RpgMakerActivity : Activity() {
                 browser.addJavascriptInterface(it.Bridge(), InputRemapController.BRIDGE_NAME)
             }
         }
+        // 译表注入（恒开启；未检测到译表文件时控制器空转，行为与未集成前一致）
+        translation = TranslationSession(
+            context = this,
+            translationMapUri = translationMapUri,
+            evaluateJs = { js, callback -> webView?.let { v -> runCatching { v.evaluateJavascript(js, callback) } } },
+            runtimeDelivery = translationRuntimeDelivery,
+        ).also { it.attach() }
         // PIXI legacy 兼容渲染（?android-legacy=1，__rpg_v12.js 的既定开关）：
         // 由设置页开关经 rpgLegacyRenderer extra 控制，规避部分 Android GPU
         // 上 WebGL 正常初始化却整屏渲染为黑的问题；默认关闭不影响既有行为。
@@ -476,6 +573,8 @@ class RpgMakerActivity : Activity() {
                 // 尽早注入输入接收器（幂等；onPageFinished 会再补一次），
                 // 避免加载期的手柄/按键输入被静默丢弃
                 view?.let { v -> runCatching { v.evaluateJavascript(inputJs, null) } }
+                // 译表运行时尽早注入（幂等）；onPageFinished 会再补一次
+                translation?.onPageStarted()
             }
 
             override fun onPageFinished(view: WebView?, url: String?) {
@@ -489,6 +588,7 @@ class RpgMakerActivity : Activity() {
                     runCatching { view.evaluateJavascript(mouseJs, null) }
                     runCatching { view.evaluateJavascript(inputJs, null) }
                 }
+                translation?.onPageFinished()
             }
 
             override fun onPageCommitVisible(view: WebView?, url: String?) {
@@ -824,6 +924,8 @@ class RpgMakerActivity : Activity() {
     override fun onDestroy() {
         EngineSessionRegistry.clear(this, EngineSessionRegistry.HOST_RPGMAKER)
         DoubleBackExit.clear(this)
+        runCatching { translation?.destroy() }
+        translation = null
         startupOverlay?.dispose()
         startupOverlay = null
         runCatching { inputRemap?.onDestroy() }
