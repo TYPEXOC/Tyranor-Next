@@ -1973,7 +1973,7 @@ internal fun GameCard(
                 )
                 // 左上角引擎类型角标：开关开启且实际渲染封面的卡片才显示（无封面占位卡不显示）
                 BlurVisibility(showEngineBadge, modifier = Modifier.align(Alignment.TopStart)) {
-                    GameCoverEngineBadge(engine = game.engine, reveal = reveal)
+                    GameCoverEngineBadge(game = game, reveal = reveal)
                 }
             }
         }
@@ -2105,7 +2105,7 @@ internal fun UniformGameCard(
                     modifier = reveal.image(Modifier.fillMaxSize()),
                 )
                 BlurVisibility(showEngineBadge, modifier = Modifier.align(Alignment.TopStart)) {
-                    GameCoverEngineBadge(engine = game.engine, reveal = reveal)
+                    GameCoverEngineBadge(game = game, reveal = reveal)
                 }
             }
         }
@@ -2130,6 +2130,7 @@ internal fun UniformGameCard(
 @Composable
 private fun gameCardEngineName(game: ScanGame): String = when (game.engine) {
     EngineType.UNKNOWN -> stringResource(R.string.engine_name_unknown)
+    EngineType.RPGMAKER -> stringResource(R.string.engine_name_rpgmaker)
     // 无封面占位卡用短名「Switch」，避免「Nintendo Switch」过长
     EngineType.NINTENDO_SWITCH -> stringResource(R.string.engine_name_switch)
     // 第三方运行时游戏在游戏库中统一用 Plugin 表示引擎；模块名只在「引擎模块管理」页展示。
@@ -2158,12 +2159,18 @@ private fun GameCoverPlaceholder(engineName: String) {
 /** 封面左上角引擎类型角标：瀑布流与网格两种卡片共用（labelSmall 属 AGENTS.md 明文豁免）。 */
 @Composable
 private fun GameCoverEngineBadge(
-    engine: EngineType,
+    game: ScanGame,
     reveal: CoverReveal,
     modifier: Modifier = Modifier,
 ) {
+    val label = when (game.externalModuleAlias?.lowercase()) {
+        "internal.rpgmxp", "external.rpgmxp" -> stringResource(R.string.engine_badge_rpgmaker_xp)
+        "internal.rpgmvx", "external.rpgmvx" -> stringResource(R.string.engine_badge_rpgmaker_vx)
+        "internal.rpgmvxace", "external.rpgmvxace" -> stringResource(R.string.engine_badge_rpgmaker_vx_ace)
+        else -> game.engine.abbr
+    }
     Text(
-        engine.abbr,
+        label,
         style = MaterialTheme.typography.labelSmall,
         // 角标样式固定（半透明黑底 + 白字，见 theme/Color.kt），不随主题色变化
         color = CoverBadgeText,

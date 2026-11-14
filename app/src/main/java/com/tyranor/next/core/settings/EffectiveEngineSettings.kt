@@ -104,7 +104,7 @@ object EffectiveEngineSettings {
     /**
      * RPG Maker RGSS 外置模块全局设置 + 单游戏覆盖合并：
      * 布尔字段「覆盖 ?: 全局」；字符串字段经白名单校验，非法覆盖回退全局。
-     * useRuby18 不做强制改写，由 RpgMakerExternalEngineModule 按 XP 子类型兜底（默认 true）。
+     * Ruby VM 由单独的全局/单游戏 RgssRubyRuntime 设置选择；旧 useRuby18 字段仅为既有设置数据兼容保留。
      */
     fun mergeRpgMaker(
         global: EngineSettingsStore.RpgMaker,

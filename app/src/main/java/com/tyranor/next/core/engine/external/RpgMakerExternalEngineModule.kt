@@ -1,20 +1,26 @@
 package com.tyranor.next.core.engine.external
 
 import android.content.Context
+import android.content.ClipData
 import android.content.Intent
-import android.content.pm.ActivityInfo
-import android.os.Environment
+import android.net.Uri
 import android.util.Log
+import androidx.core.content.FileProvider
+import com.core.input.InputConfigStore
 import com.tyranor.next.R
 import com.tyranor.next.core.engine.EngineType
 import com.tyranor.next.core.game.scan.EngineScanner
+import com.tyranor.next.core.settings.AppSettingsStore
 import com.tyranor.next.core.settings.EngineSettingsStore
+import com.tyranor.next.core.settings.PerGameSettingsStore
+import com.tyranor.next.core.theme.ThemeColorPayload
+import com.tyranor.next.core.theme.ThemeColorPayloadStore
 import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
 import java.util.Locale
 
-/** RPG Maker Runtime 外置 APK 模块协议。 */
+/** RPG Maker 固定外置适配器：将 JoiPlay RPGM 启动目标替换为 TYN RGSS APK。 */
 object RpgMakerExternalEngineModule : ExternalEngineModule {
     private const val TAG = "RpgMakerExternalModule"
 
@@ -23,13 +29,29 @@ object RpgMakerExternalEngineModule : ExternalEngineModule {
     private const val TYPE_RPGMVXACE = "rpgmvxace"
     private const val TYPE_MKXP_Z = "mkxp-z"
     private const val LEGACY_GAME_DIR_TARGET = "\u005B\u6E38\u620F\u76EE\u5F55\u005D"
+    // The fixed TYN adapter targets its known package directly; the APK currently exports the v1 action.
+    private const val TYN_RGSS_LAUNCH_ACTION = "com.tyranor.runtime.action.LAUNCH"
+    private const val PROTOCOL_VERSION = 1
+    private const val EXTRA_FOLDER_PATH = "com.tyranor.runtime.extra.FOLDER_PATH"
+    private const val EXTRA_GAME_TITLE = "com.tyranor.runtime.extra.GAME_TITLE"
+    private const val EXTRA_PROTOCOL_VERSION = "com.tyranor.runtime.extra.PROTOCOL_VERSION"
+    private const val EXTRA_GAME_ID = "com.tyranor.runtime.extra.GAME_ID"
+    private const val EXTRA_PAD_ENABLED = "com.tyranor.runtime.extra.PAD_ENABLED"
+    private const val EXTRA_PAD_PROFILE_URI = "com.tyranor.runtime.extra.PAD_PROFILE_URI"
+    private const val EXTRA_PAD_PROFILE_ID = "com.tyranor.runtime.extra.PAD_PROFILE_ID"
+    private const val EXTRA_RUBY_RUNTIME = "com.tyranor.runtime.extra.RUBY_RUNTIME"
+    private const val EXTRA_RGSS_OPTIONS = "com.tyranor.runtime.extra.RGSS_OPTIONS"
+    private const val EXTRA_RTP_ROOT = "com.tyranor.runtime.extra.RTP_ROOT"
+    private const val EXTRA_THEME_PRIMARY_COLOR = "com.tyranor.runtime.extra.THEME_PRIMARY_COLOR"
+    private const val EXTRA_THEME_ON_PRIMARY_COLOR = "com.tyranor.runtime.extra.THEME_ON_PRIMARY_COLOR"
+    private const val EXTRA_THEME_DARK_MODE = "com.tyranor.runtime.extra.THEME_DARK_MODE"
 
     override val id: String = "rpgmaker"
     override val engine: EngineType = EngineType.RPGMAKER
-    override val displayName: String = "RPGM Module"
-    override val displayNameRes: Int = R.string.external_rpgm_module_name
-    override val packageName: String = "cyou.joiplay.runtime.rpgmaker"
-    override val action: String = "cyou.joiplay.runtime.rpgmvxace.run"
+    override val displayName: String = "TYN RGSS"
+    override val displayNameRes: Int = R.string.engine_name_tyn_rgss
+    override val packageName: String = "com.tyranor.runtime.rgss"
+    override val action: String = TYN_RGSS_LAUNCH_ACTION
     override val defaultAlias: String = "internal.rpgmaker"
     override val supportedAliases: Set<String> = setOf(
         "external.rpgmaker",
@@ -40,107 +62,91 @@ object RpgMakerExternalEngineModule : ExternalEngineModule {
         "internal.mkxpz",
     )
     override val installUrl: String =
-        "https://github.com/Weiss-UltimateSavior/RinneMobile/releases/download/test/RPGM-Plugin.apk"
+        "https://github.com/TYPEXOC/AnyPlay-Plugin-RGSS/actions/workflows/android.yml"
 
     override fun prepareForLaunch(
         context: Context,
         request: ExternalEngineLaunchRequest,
     ): ExternalEngineLaunchResult? {
         val gameType = resolveGameType(request)
-        val folder = resolveGameFolder(request)
-        if (folder.isBlank()) {
+        if (resolveGameFolder(request).isBlank()) {
             return ExternalEngineLaunchResult.failure(
                 ExternalEngineErrorCode.PREPARE_FAILED,
                 messageRes = R.string.external_rpgm_resolve_dir_failed,
             )
         }
-        val settings = request.resolvedSettings?.rpg ?: EngineSettingsStore.RpgMaker()
         ensureRtpEnvironment(context.applicationContext, gameType)
-        if (gameType == TYPE_RPGMXP) {
-            syncGameConfiguration(
-                gameFolder = folder,
-                gameId = gameIdFor(folder, request.game.title),
-                useRuby18 = settings.useRuby18,
-            )
-        }
         return null
     }
 
-    override fun buildLaunchIntent(request: ExternalEngineLaunchRequest): Intent {
-        val gameType = resolveGameType(request)
-        return Intent(actionForGameType(gameType)).setPackage(packageName).apply {
-            putExtra(ExternalEngineContract.GAME, buildGameJson(request))
-            putExtra(
-                ExternalEngineContract.SETTINGS,
-                buildSettingsJson(gameType, request.resolvedSettings?.rpg),
+    override fun buildLaunchIntent(request: ExternalEngineLaunchRequest): Intent =
+        buildTynLaunchIntent(context = null, request = request)
+
+    override fun buildLaunchIntent(context: Context, request: ExternalEngineLaunchRequest): Intent =
+        buildTynLaunchIntent(context = context.applicationContext, request = request)
+
+    private fun buildTynLaunchIntent(context: Context?, request: ExternalEngineLaunchRequest): Intent {
+        val folder = resolveGameFolder(request)
+        val title = request.game.title.ifBlank { folder.substringAfterLast('/', "RPG Maker Game") }
+        val settings = request.resolvedSettings?.rpg ?: EngineSettingsStore.RpgMaker()
+        val rubyRuntime = context?.let {
+            RgssRubyRuntime.resolveForGame(
+                RgssRubyRuntime.fromWireValue(
+                    PerGameSettingsStore.getStr(it, request.game.uri, PerGameSettingsStore.F_RPG_RUBY_RUNTIME)
+                        ?: AppSettingsStore.getRgssRubyRuntime(it).wireValue,
+                ),
+                request.game.externalModuleAlias,
             )
-            putExtra(ExternalEngineContract.ORIENTATION, ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE)
-            putExtra(ExternalEngineContract.ROOT_URI, request.game.uri)
-            putExtra(ExternalEngineContract.LAUNCH_TARGET, request.launchTarget)
+        } ?: RgssRubyRuntime.resolveForGame(RgssRubyRuntime.DEFAULT, request.game.externalModuleAlias)
+        val input = context?.let { InputConfigStore.resolve(it, request.game.uri, engineDefaultsEnabled = true) }
+        val profileUri = if (context != null) {
+            input?.takeIf { it.padEnabled }?.let { selectedPadProfileUri(context, it.profileId) }
+        } else {
+            null
+        }
+        val theme = ThemeColorPayloadStore.current ?: ThemeColorPayload.DEFAULT
+
+        return Intent(action).setPackage(packageName).apply {
+            putExtra(EXTRA_FOLDER_PATH, folder)
+            putExtra(EXTRA_GAME_TITLE, title)
+            putExtra(EXTRA_PROTOCOL_VERSION, PROTOCOL_VERSION)
+            putExtra(EXTRA_GAME_ID, request.game.uri)
+            putExtra(EXTRA_PAD_ENABLED, input?.padEnabled ?: true)
+            putExtra(EXTRA_PAD_PROFILE_ID, input?.profileId.orEmpty())
+            putExtra(EXTRA_RUBY_RUNTIME, rubyRuntime.wireValue)
+            putExtra(EXTRA_RTP_ROOT, RpgMakerRuntimeEnvironment.rtpRootPath().absolutePath)
+            putExtra(EXTRA_RGSS_OPTIONS, buildRgssOptionsJson(settings))
+            putExtra(EXTRA_THEME_PRIMARY_COLOR, theme.primaryArgb)
+            putExtra(EXTRA_THEME_ON_PRIMARY_COLOR, theme.onPrimaryArgb)
+            putExtra(EXTRA_THEME_DARK_MODE, theme.darkMode)
+            profileUri?.let { putExtra(EXTRA_PAD_PROFILE_URI, it.toString()) }
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            if (profileUri != null && context != null) {
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+                clipData = ClipData.newUri(context.contentResolver, "Tyranor RGSS input profile", profileUri)
+            }
         }
     }
 
-    internal fun buildGameJson(request: ExternalEngineLaunchRequest): String {
-        val gameType = resolveGameType(request)
-        val folder = resolveGameFolder(request).trimEnd('/')
-        val title = request.game.title.ifBlank {
-            folder.substringAfterLast('/', missingDelimiterValue = "RPG Maker Game")
-        }
-        return buildString {
-            append('{')
-            appendJsonField("title", title)
-            append(',')
-            appendJsonField("id", gameIdFor(folder, title))
-            append(',')
-            appendJsonField("folder", folder)
-            append(',')
-            appendJsonField("execFile", "")
-            append(',')
-            appendJsonField("type", gameType)
-            append('}')
-        }
-    }
-
-    /**
-     * 构造 JoiPlay 协议的嵌套 settings JSON：`{"app":..., "rpg":{<key>:{"boolean"|"string": value}}}`。
-     *
-     * 键集以 RPGM 插件 `MKXPConfigurationParser.parse(String)` 实际解析的字段为准：
-     * - `rpg`：useRuby18 / windowSize / fontScale / speedUp / customFont / verticalScreenAlign /
-     *   enablePostloadScripts / pathCache / prebuiltPathCache / fastPathEnum / smoothScaling /
-     *   vsync / frameSkip / solidFonts / copyText / debug / useCJKFont；
-     * - `app`：cheats（插件只从 app.cheats 读取金手指开关）。
-     *
-     * [settings] 为三级合并结果；为空时按默认值下发，其中 XP 的 useRuby18 默认 true，
-     * 保证 RGSS1 脚本交给 Ruby 1.8 解析；非 XP 子类型不做强制改写。
-     */
-    internal fun buildSettingsJson(
-        gameType: String,
-        settings: EngineSettingsStore.RpgMaker? = null,
-    ): String {
-        val s = settings ?: EngineSettingsStore.RpgMaker()
-        val useRuby18 = if (gameType == TYPE_RPGMXP && settings == null) true else s.useRuby18
-        val app = JSONObject()
-            .put("cheats", JSONObject().put("boolean", s.cheats))
-        val rpg = JSONObject()
-            .put("useRuby18", JSONObject().put("boolean", useRuby18))
-            .put("debug", JSONObject().put("boolean", s.debug))
-            .put("smoothScaling", JSONObject().put("boolean", s.smoothScaling))
-            .put("vsync", JSONObject().put("boolean", s.vsync))
-            .put("frameSkip", JSONObject().put("boolean", s.frameSkip))
-            .put("solidFonts", JSONObject().put("boolean", s.solidFonts))
-            .put("pathCache", JSONObject().put("boolean", s.pathCache))
-            .put("prebuiltPathCache", JSONObject().put("boolean", s.prebuiltPathCache))
-            .put("fastPathEnum", JSONObject().put("boolean", s.fastPathEnum))
-            .put("copyText", JSONObject().put("boolean", s.copyText))
-            .put("useCJKFont", JSONObject().put("boolean", s.useCJKFont))
-            .put("enablePostloadScripts", JSONObject().put("boolean", s.enablePostloadScripts))
-            .put("customFont", JSONObject().put("string", s.customFont))
-            .put("verticalScreenAlign", JSONObject().put("string", s.verticalScreenAlign))
-            .put("windowSize", JSONObject().put("string", s.windowSize))
-            .put("speedUp", JSONObject().put("string", s.speedUp))
-            .put("fontScale", JSONObject().put("string", s.fontScale))
-        return JSONObject().put("app", app).put("rpg", rpg).toString()
-    }
+    internal fun buildRgssOptionsJson(settings: EngineSettingsStore.RpgMaker): String = JSONObject()
+        .put("debug", settings.debug)
+        .put("smoothScaling", settings.smoothScaling)
+        .put("vsync", settings.vsync)
+        .put("frameSkip", settings.frameSkip)
+        .put("solidFonts", settings.solidFonts)
+        .put("pathCache", settings.pathCache)
+        .put("prebuiltPathCache", settings.prebuiltPathCache)
+        .put("fastPathEnum", settings.fastPathEnum)
+        .put("copyText", settings.copyText)
+        .put("useCJKFont", settings.useCJKFont)
+        .put("enablePostloadScripts", settings.enablePostloadScripts)
+        .put("customFont", settings.customFont)
+        .put("verticalScreenAlign", settings.verticalScreenAlign)
+        .put("screenSize", settings.windowSize)
+        .put("speedUp", settings.speedUp)
+        .put("fontScale", settings.fontScale)
+        .put("cheatsEnabled", settings.cheats)
+        .toString()
 
     internal fun resolveGameType(request: ExternalEngineLaunchRequest): String {
         val alias = request.game.externalModuleAlias?.trim()?.lowercase(Locale.ROOT).orEmpty()
@@ -158,13 +164,6 @@ object RpgMakerExternalEngineModule : ExternalEngineModule {
             target.endsWith(".rgss3a") -> TYPE_RPGMVXACE
             else -> TYPE_RPGMXP
         }
-    }
-
-    internal fun actionForGameType(gameType: String): String = when (gameType) {
-        TYPE_RPGMXP -> "cyou.joiplay.runtime.rpgmxp.run"
-        TYPE_RPGMVX -> "cyou.joiplay.runtime.rpgmvx.run"
-        TYPE_MKXP_Z -> "cyou.joiplay.runtime.mkxp-z.run"
-        else -> "cyou.joiplay.runtime.rpgmvxace.run"
     }
 
     internal fun resolveGameFolder(request: ExternalEngineLaunchRequest): String {
@@ -204,7 +203,7 @@ object RpgMakerExternalEngineModule : ExternalEngineModule {
             // 一次导入在「旧目录已改名、新内容未顶上」之间被杀，备份里是唯一旧数据、app
             // 缺失，这里 mkdirs + 写入 sf.sf2 会把 target 变成非空，后续恢复把备份当孤儿
             // 删掉，旧 RTP 永久丢失。归位失败时返回 null → 本次不写入，留给下次重试。
-            val rtpAppDir = RpgMakerRuntimeEnvironment.rtpAppDirIfReady(gameType)
+            val rtpAppDir = RpgMakerRuntimeEnvironment.rtpAppDirIfReady(context, gameType)
             if (rtpAppDir == null) {
                 Log.w(TAG, "RTP pending import unresolved; skip app dir setup for $gameType")
                 return
@@ -222,59 +221,6 @@ object RpgMakerExternalEngineModule : ExternalEngineModule {
         }
     }
 
-    /**
-     * 同步 XP 的扁平 configuration.json（插件 `loadFromFile()` 读取），与生效 useRuby18 联动：
-     * - 文件不存在：创建 `{"useRuby18":<value>}`；
-     * - 文件已是 JSON 对象：仅更新 useRuby18（保留用户其余键）；
-     * - 文件存在但非 JSON：跳过，不覆盖用户文件。
-     */
-    private fun syncGameConfiguration(gameFolder: String, gameId: String, useRuby18: Boolean) {
-        runCatching {
-            val externalRoot = Environment.getExternalStorageDirectory()
-            val candidates = buildList {
-                if (gameFolder.startsWith(externalRoot.absolutePath)) {
-                    add(File(gameFolder, "configuration.json"))
-                }
-                add(
-                    File(
-                        externalRoot,
-                        "JoiPlay" + File.separator + "games" + File.separator +
-                            gameId + File.separator + "configuration.json",
-                    ),
-                )
-            }
-            for (configFile in candidates.distinctBy { it.absolutePath }) {
-                syncFlatConfigurationFile(configFile, useRuby18)
-            }
-        }.onFailure { error ->
-            Log.w(TAG, "syncGameConfiguration failed (non-fatal)", error)
-        }
-    }
-
-    private fun syncFlatConfigurationFile(configFile: File, useRuby18: Boolean) {
-        val exists = configFile.exists()
-        val existing = if (exists) {
-            runCatching { JSONObject(configFile.readText()) }.getOrNull()
-        } else {
-            null
-        }
-        if (exists && existing == null) {
-            Log.w(TAG, "skip non-JSON configuration file: ${configFile.absolutePath}")
-            return
-        }
-        if (existing != null && existing.has("useRuby18") &&
-            existing.optBoolean("useRuby18") == useRuby18
-        ) {
-            return
-        }
-        val json = existing ?: JSONObject()
-        json.put("useRuby18", useRuby18)
-        configFile.parentFile?.let { parent ->
-            if (!parent.exists()) parent.mkdirs()
-        }
-        configFile.writeText(json.toString())
-    }
-
     private fun copyAssetToFile(context: Context, assetPath: String, destination: File) {
         runCatching {
             context.assets.open(assetPath).use { input ->
@@ -287,6 +233,10 @@ object RpgMakerExternalEngineModule : ExternalEngineModule {
         }
     }
 
-    private fun gameIdFor(folder: String, title: String): String =
-        Integer.toHexString(folder.ifBlank { title }.hashCode())
+    private fun selectedPadProfileUri(context: Context, profileId: String): Uri? = runCatching {
+        val profile = InputConfigStore.readProfileOrBuiltin(context, profileId)
+        val file = InputConfigStore.profileFile(context, profile.id)
+        if (!file.isFile && !InputConfigStore.writeProfile(context, profile)) return null
+        FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+    }.getOrNull()
 }

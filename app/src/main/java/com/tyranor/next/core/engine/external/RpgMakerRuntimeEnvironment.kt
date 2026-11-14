@@ -1,7 +1,10 @@
 package com.tyranor.next.core.engine.external
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Environment
 import android.provider.OpenableColumns
 import android.util.Log
@@ -46,23 +49,30 @@ sealed interface RtpImportRejection {
      */
     data class IoFailed(val name: String) : RtpImportRejection
 
+    /** TyranorNext 共享资源目录不可用或当前没有写入权限。 */
+    data object StorageUnavailable : RtpImportRejection
+
     /** 源里没有任何可导入内容（空 zip / 空目录，或全被元数据过滤掉）。 */
     data object EmptyArchive : RtpImportRejection
+
+    /** 内容无法识别为受支持代际的 RTP 资源，或与用户选择的版本不匹配。 */
+    data object InvalidRtpPackage : RtpImportRejection
 }
 
 /**
- * RPGM 外置模块的共享目录管理（RTP / 自定义字体）。
+ * RPGM 外置模块的用户资源目录（RTP / 自定义字体）。
  *
- * 目录契约由 RPGM 插件固定（插件 `MainActivity` 将
- * `/sdcard/JoiPlay/RTP/<RPGXP|RPGVX|RPGVXACE|mkxp-z>/app` 挂载为 RTP 根）：
- * 因此 RTP 与自定义字体必须落在共享存储，App 私有目录外置插件不可读。
+ * 资源放在共享存储根目录的 `TyranorNext/RTP` 与 `TyranorNext/fonts`，用户可通过文件管理器自行维护。
+ * TYN RGSS 模块只接收 `TyranorNext/RTP` 作为 RTP 根目录；不会读取 JoiPlay 的 RTP 或字体目录。
+ * 根目录读写需要 Android「管理所有文件」权限（Android 10 及更早版本使用存储写入权限）。
  *
  * 所有方法允许失败，且失败一律以**类型化结果**表达（`RtpImportRejection?` / null 或
  * `Boolean` / `String?`），由调用方按非致命处理；界面文案在 ui 层组装。
  */
 object RpgMakerRuntimeEnvironment {
-    private const val RTP_PARENT = "JoiPlay/RTP"
-    private const val FONT_PARENT = "JoiPlay/fonts"
+    private const val USER_RESOURCE_FOLDER = "TyranorNext"
+    private const val RTP_FOLDER = "RTP"
+    private const val FONT_FOLDER = "fonts"
 
     /**
      * 导入临时目录名前缀（**每次导入唯一**，见 [newImportTempDir]）。
@@ -140,6 +150,43 @@ object RpgMakerRuntimeEnvironment {
     private const val MAX_ENTRY_UNCOMPRESSED_BYTES = 256L * 1024L * 1024L
     private const val MAX_TOTAL_UNCOMPRESSED_BYTES = 4L * 1024L * 1024L * 1024L
     private const val ZIP_BUFFER_SIZE = 64 * 1024
+    private val RTP_AUDIO_EXTENSIONS = setOf(".mid", ".midi", ".ogg", ".wav", ".mp3", ".flac")
+    private val RTP_GRAPHICS_EXTENSIONS = setOf(".png", ".jpg", ".jpeg", ".bmp", ".gif")
+
+    /** 官方 XP RTP 的结构特征；需同时命中核心目录与多个代际专属目录。 */
+    private val RPG_XP_MARKER_DIRS = listOf(
+        "graphics/autotiles",
+        "graphics/windowskins",
+        "graphics/transitions",
+        "graphics/battlebacks",
+        "graphics/fogs",
+        "graphics/gameovers",
+        "graphics/icons",
+        "graphics/panoramas",
+    )
+
+    /** VX 的地图块存放在 Graphics/System，VX Ace 则拆分为独立 Tilesets/标题目录。 */
+    private val RPG_VX_MARKER_FILES = listOf(
+        "graphics/system/tilea1.png",
+        "graphics/system/tilea2.png",
+        "graphics/system/tilea3.png",
+        "graphics/system/tilea4.png",
+        "graphics/system/tilea5.png",
+        "graphics/system/tileb.png",
+        "graphics/system/tilec.png",
+        "graphics/system/tiled.png",
+        "graphics/system/tilee.png",
+        "graphics/system/title.png",
+    )
+
+    /** VX Ace 特有的战斗背景、地图块和标题资源目录。 */
+    private val RPG_VX_ACE_MARKER_DIRS = listOf(
+        "graphics/battlebacks1",
+        "graphics/battlebacks2",
+        "graphics/tilesets",
+        "graphics/titles1",
+        "graphics/titles2",
+    )
 
     private val FONT_EXTENSIONS = listOf(".ttf", ".ttc", ".otf", ".otc")
 
@@ -150,8 +197,45 @@ object RpgMakerRuntimeEnvironment {
         else -> "RPGVXACE"
     }
 
-    fun rtpDir(gameType: String): File =
-        File(Environment.getExternalStorageDirectory(), "$RTP_PARENT/${rtpDirName(gameType)}")
+    /** TyranorNext 用户可见资源目录的绝对路径；此方法不创建目录，也不要求已获写权限。 */
+    @Suppress("DEPRECATION")
+    fun userResourceRootPath(): File = File(Environment.getExternalStorageDirectory(), USER_RESOURCE_FOLDER)
+
+    /** 判断 App 是否可直接读写共享存储根目录。 */
+    fun hasUserResourceStorageAccess(context: Context): Boolean = when {
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.R -> Environment.isExternalStorageManager()
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ->
+            context.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
+        else -> true
+    }
+
+    fun rtpRootPath(): File = File(userResourceRootPath(), RTP_FOLDER)
+
+    fun rtpDir(context: Context, gameType: String): File? =
+        rtpRootDir(context)?.let { File(it, rtpDirName(gameType)) }
+
+    /** 创建并返回用户可见的 RTP 根目录；无共享存储写入权限时返回 null。 */
+    fun rtpRootDir(context: Context): File? = runCatching {
+        val userRoot = ensureUserResourceRootDir(context) ?: return@runCatching null
+        val root = File(userRoot, RTP_FOLDER)
+        if (!root.exists() && !root.mkdirs()) return@runCatching null
+        if (!root.isDirectory) return@runCatching null
+        root
+    }.getOrNull()
+
+    private fun ensureUserResourceRootDir(context: Context): File? = runCatching {
+        if (!hasUserResourceStorageAccess(context)) return@runCatching null
+        @Suppress("DEPRECATION")
+        val storageRoot = Environment.getExternalStorageDirectory().canonicalFile
+        val root = userResourceRootPath().canonicalFile
+        if (root.parentFile != storageRoot) return@runCatching null
+        if (!root.exists() && !root.mkdirs()) return@runCatching null
+        if (!root.isDirectory) return@runCatching null
+        // RTP 与字体是资源文件，不应进入系统媒体库。
+        val noMedia = File(root, ".nomedia")
+        if (!noMedia.exists() && !noMedia.createNewFile()) return@runCatching null
+        root
+    }.getOrNull()
 
     /**
      * RTP 根目录（`.../<子类型>/app`）。
@@ -160,8 +244,8 @@ object RpgMakerRuntimeEnvironment {
      * 被杀，这里把旧目录放回去。少了这一步，[isRtpImported] 会报「未导入」、游戏也读不到
      * RTP，而盘上其实还留着完整的旧数据。归位是幂等的（目标已有效时不做任何事）。
      */
-    fun rtpAppDir(gameType: String): File {
-        val dir = File(rtpDir(gameType), "app")
+    fun rtpAppDir(context: Context, gameType: String): File? {
+        val dir = rtpDir(context, gameType)?.let { File(it, "app") } ?: return null
         recoverPendingImport(dir)
         return dir
     }
@@ -174,7 +258,8 @@ object RpgMakerRuntimeEnvironment {
      * 方法——若此时先把 target 建成非空（如 mkdirs + 写 sf.sf2），下一次恢复会把备份当成
      * 「已成功替换的陈旧孤儿」删掉，旧 RTP 永久丢失。
      */
-    internal fun rtpAppDirIfReady(gameType: String): File? = rtpAppDirIfReady(rtpDir(gameType))
+    internal fun rtpAppDirIfReady(context: Context, gameType: String): File? =
+        rtpDir(context, gameType)?.let { rtpAppDirIfReady(it) }
 
     /** [rtpAppDirIfReady] 的可测重载：以 [root] 为 `<子类型>` 目录，[delete] 可注入失败。 */
     internal fun rtpAppDirIfReady(
@@ -237,8 +322,8 @@ object RpgMakerRuntimeEnvironment {
     }
 
     /** RTP 是否已导入（app 目录存在且非空）。 */
-    fun isRtpImported(gameType: String): Boolean {
-        val dir = rtpAppDir(gameType)
+    fun isRtpImported(context: Context, gameType: String): Boolean {
+        val dir = rtpAppDir(context, gameType) ?: return false
         return dir.isDirectory && (dir.listFiles()?.isNotEmpty() == true)
     }
 
@@ -257,6 +342,9 @@ object RpgMakerRuntimeEnvironment {
 
         /** 该子类型有导入在途：此时不得触碰导入现场，等导入结束后再清除。 */
         IMPORT_IN_FLIGHT,
+
+        /** 应用外置媒体目录当前不可用。 */
+        STORAGE_UNAVAILABLE,
     }
 
     /**
@@ -277,9 +365,9 @@ object RpgMakerRuntimeEnvironment {
      * 与「另一次导入登记 → 建临时目录」不可能交错。正因如此，走到清理临时目录这一步时同目录内
      * 不可能有在途导入，残留只可能是崩溃留下的半成品，可以全清。
      */
-    fun clearRtp(gameType: String): RtpClearResult = synchronized(importLock) {
+    fun clearRtp(context: Context, gameType: String): RtpClearResult = synchronized(importLock) {
         if (hasInFlightImport(gameType)) return@synchronized RtpClearResult.IMPORT_IN_FLIGHT
-        val root = rtpDir(gameType)
+        val root = rtpDir(context, gameType) ?: return@synchronized RtpClearResult.STORAGE_UNAVAILABLE
         val appDir = File(root, "app")
         val backup = File(root, IMPORT_BACKUP_DIR)
         val marker = File(root, IMPORT_MARKER_FILE)
@@ -381,7 +469,7 @@ object RpgMakerRuntimeEnvironment {
         // 任一环节抛出都必须转成类型化失败，异常不得穿到 UI 层
         var created: File? = null
         return try {
-            val target = rtpAppDir(gameType)
+            val target = rtpAppDir(context, gameType) ?: return RtpImportRejection.StorageUnavailable
             val parent = target.parentFile ?: return RtpImportRejection.IoFailed(target.path)
             if (!parent.exists() && !parent.mkdirs()) return RtpImportRejection.IoFailed(parent.name)
             // 本次导入专属临时目录（并发导入各写各的，不共用固定名）
@@ -394,7 +482,7 @@ object RpgMakerRuntimeEnvironment {
             temp.deleteRecursively()
             if (!temp.mkdirs()) return RtpImportRejection.IoFailed(temp.name)
             extractZip(context, uri, temp)?.let { return it }
-            commitImportTemp(temp, target)
+            commitImportTemp(temp, target, gameType)
         } catch (ce: CancellationException) {
             throw ce
         } catch (e: java.util.zip.ZipException) {
@@ -419,7 +507,7 @@ object RpgMakerRuntimeEnvironment {
             // fromTreeUri 对非 tree URI 会抛 IllegalArgumentException：必须在 try 内
             val source = DocumentFile.fromTreeUri(context, treeUri)
                 ?: return RtpImportRejection.IoFailed(treeUri.lastPathSegment ?: "tree")
-            val target = rtpAppDir(gameType)
+            val target = rtpAppDir(context, gameType) ?: return RtpImportRejection.StorageUnavailable
             val parent = target.parentFile ?: return RtpImportRejection.IoFailed(target.path)
             if (!parent.exists() && !parent.mkdirs()) return RtpImportRejection.IoFailed(parent.name)
             // 本次导入专属临时目录（并发导入各写各的，不共用固定名）
@@ -432,7 +520,7 @@ object RpgMakerRuntimeEnvironment {
             temp.deleteRecursively()
             if (!temp.mkdirs()) return RtpImportRejection.IoFailed(temp.name)
             copyDocumentTree(context, source, temp)?.let { return it }
-            commitImportTemp(temp, target)
+            commitImportTemp(temp, target, gameType)
         } catch (ce: CancellationException) {
             throw ce
         } catch (_: Throwable) {
@@ -473,6 +561,7 @@ object RpgMakerRuntimeEnvironment {
     internal fun commitImportTemp(
         temp: File,
         target: File,
+        gameType: String,
         delete: (File) -> Boolean = { it.deleteRecursively() },
     ): RtpImportRejection? = synchronized(importLock) {
         flattenSingleRoot(temp)
@@ -481,6 +570,7 @@ object RpgMakerRuntimeEnvironment {
         // 按 IoFailed 上报（报成「没有内容」会把排查引到错误方向）
         val children = temp.listFiles() ?: return@synchronized RtpImportRejection.IoFailed(temp.name)
         if (children.isEmpty()) return@synchronized RtpImportRejection.EmptyArchive
+        validateRtpContent(temp, gameType)?.let { return@synchronized it }
 
         val parent = target.parentFile ?: return@synchronized RtpImportRejection.IoFailed(target.name)
         val backup = File(parent, IMPORT_BACKUP_DIR)
@@ -569,7 +659,8 @@ object RpgMakerRuntimeEnvironment {
             }.getOrNull() ?: uri.lastPathSegment
             val name = (displayName ?: "font.ttf").substringAfterLast('/').substringAfterLast('\\')
             if (FONT_EXTENSIONS.none { name.lowercase(Locale.ROOT).endsWith(it) }) return null
-            val dir = File(Environment.getExternalStorageDirectory().canonicalFile, FONT_PARENT)
+            val userRoot = ensureUserResourceRootDir(context) ?: return null
+            val dir = File(userRoot, FONT_FOLDER)
             if (!dir.isDirectory && !dir.mkdirs()) return null
             if (dir.canonicalFile != dir.absoluteFile) return null
             com.tyranor.next.core.settings.ImmutableFontImport.import(
@@ -582,6 +673,90 @@ object RpgMakerRuntimeEnvironment {
         } catch (_: Exception) {
             null
         }
+    }
+
+    /**
+     * 按资源目录特征识别 RTP，并校验其代际与导入行一致。
+     *
+     * 普通 ZIP 的可解压性不能证明它是 RTP；例如官方 Windows 安装包 ZIP 里只有 `setup.exe`
+     * 时，旧逻辑会把安装器本身当作导入结果。这里在替换已有目录之前检查实际资源树：三代均要求
+     * 有有效 ICO 头的 `Game.ico`、Audio 媒体文件和 Graphics 图片；XP/VX/VX Ace 再分别匹配样本包
+     * 中的独有目录/文件特征。
+     * `mkxp-z` 可承载任一受支持 RGSS 代际，因此只要求内容能唯一识别为其中一代。
+     */
+    internal fun validateRtpContent(root: File, gameType: String): RtpImportRejection? {
+        val files = root.walkTopDown()
+            .filter { it.isFile && it.length() > 0L }
+            .map { it.relativeTo(root).path.replace(File.separatorChar, '/').lowercase(Locale.ROOT) }
+            .toSet()
+
+        if (files.isEmpty()) return RtpImportRejection.EmptyArchive
+        if (
+            !hasValidGameIcon(root) ||
+            !hasMediaFilesUnder(files, "audio", RTP_AUDIO_EXTENSIONS) ||
+            !hasMediaFilesUnder(files, "graphics", RTP_GRAPHICS_EXTENSIONS)
+        ) {
+            return RtpImportRejection.InvalidRtpPackage
+        }
+
+        val generations = buildSet {
+            val xpMarkers = RPG_XP_MARKER_DIRS.count { hasGraphicsFilesUnder(files, it) }
+            if (hasGraphicsFilesUnder(files, "graphics/autotiles") && xpMarkers >= 4) {
+                add(RtpGeneration.XP)
+            }
+
+            val vxMarkers = RPG_VX_MARKER_FILES.count(files::contains)
+            if (files.any { it.startsWith("graphics/faces/") } && vxMarkers >= 6) {
+                add(RtpGeneration.VX)
+            }
+
+            val aceMarkers = RPG_VX_ACE_MARKER_DIRS.count { hasGraphicsFilesUnder(files, it) }
+            if (aceMarkers >= 4) {
+                add(RtpGeneration.VX_ACE)
+            }
+        }
+
+        if (generations.size != 1) return RtpImportRejection.InvalidRtpPackage
+        val detected = generations.single()
+        val requested = when (gameType.trim().lowercase(Locale.ROOT)) {
+            "rpgmxp" -> RtpGeneration.XP
+            "rpgmvx" -> RtpGeneration.VX
+            "mkxp-z" -> null
+            else -> RtpGeneration.VX_ACE
+        }
+        return if (requested == null || requested == detected) null else RtpImportRejection.InvalidRtpPackage
+    }
+
+    private enum class RtpGeneration {
+        XP,
+        VX,
+        VX_ACE,
+    }
+
+    private fun hasMediaFilesUnder(files: Set<String>, directory: String, extensions: Set<String>): Boolean =
+        files.any { path ->
+            path.startsWith("$directory/") && extensions.any { extension -> path.endsWith(extension) }
+        }
+
+    private fun hasGraphicsFilesUnder(files: Set<String>, directory: String): Boolean =
+        hasMediaFilesUnder(files, directory, RTP_GRAPHICS_EXTENSIONS)
+
+    private fun hasValidGameIcon(root: File): Boolean {
+        val icon = root.listFiles()
+            ?.firstOrNull { it.isFile && it.name.equals("Game.ico", ignoreCase = true) }
+            ?: return false
+        return runCatching {
+            icon.inputStream().use { input ->
+                val header = ByteArray(4)
+                var offset = 0
+                while (offset < header.size) {
+                    val read = input.read(header, offset, header.size - offset)
+                    if (read < 0) return@use false
+                    offset += read
+                }
+                header.contentEquals(byteArrayOf(0, 0, 1, 0))
+            }
+        }.getOrDefault(false)
     }
 
     /**

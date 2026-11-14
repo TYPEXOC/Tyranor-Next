@@ -37,12 +37,12 @@ Siglus 之外由 game_launcher 运行库承载的三个软件渲染引擎（Real
 _Avoid_: 软渲染引擎、game_fb 引擎
 
 **外置 APK 引擎模块（External Engine Module）**:
-以独立 Android 应用形式分发、由用户另行安装的引擎运行时，用于承载 Ren'Py、RPG Maker RGSS 与 Ruffle（SWF / Flash）等游戏，由固定包名与静态注册表管理，与动态发现的「第三方 APK 运行时模块」是两套体系。游戏由模块运行，主 App 管理扫描、安装状态与启动协议，并对 Android 11 及以上 Ren’Py 的游戏目录存档提供统一管理。
+以独立 Android 应用形式分发、由用户另行安装的引擎运行时，由固定包名与静态注册表管理，与动态发现的「第三方 APK 运行时模块」是两套体系。当前 Ren'Py、Ruffle（SWF / Flash）使用 JoiPlay 模块；RPG Maker RGSS 使用 TYN 自有模块替代 JoiPlay RPG Maker 模块。游戏由模块运行，主 App 管理扫描、安装状态与启动协议，并对 Android 11 及以上 Ren’Py 的游戏目录存档提供统一管理。
 _Avoid_: 插件、引擎 DLC、第三方 APK 运行时模块（另一体系）
 
 **第三方 APK 运行时模块（Third-party APK Runtime Module）**:
 用户自行安装、以 `com.tyranor.runtime.` 包名前缀并声明 `com.tyranor.runtime.action.LAUNCH` 的独立 APK，接收游戏文件夹路径自行运行游戏；主 App 只负责发现、启用、扫描描述解释与交棒。
-_Avoid_: 插件、外置引擎（指 JoiPlay 时）、外置 APK 引擎模块（指 JoiPlay 注册表体系时）
+_Avoid_: 插件、外置 APK 引擎模块、外置模拟器
 
 **运行时模块绑定（Runtime Module Binding）**:
 `ScanGame.runtimeModulePackage` 记录的游戏与第三方 APK 运行时模块包名之间的关系；模块卸载或禁用后游戏降级为 `UNKNOWN`，但保留最后已知包名用于重扫合并与恢复，重装或启用后只能经重新扫描恢复。

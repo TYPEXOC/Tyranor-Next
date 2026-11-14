@@ -89,7 +89,7 @@
 | Ethornell / BGI | BGI 特征与资源组合 | 内置实验宿主，见第 10 节 |
 | Tyrano / VN / WebOther | `tyrano/`、`globalData.vndata`、HTML 等 | 内置 Web 壳 |
 | RPG Maker MV / MZ | `rpg_core.js` / `rmmz_core.js`、`www/` 等 | 内置 Web 运行环境，支持适用的 Asar 包与主 App 统一管理的翻译文件 |
-| RPG Maker RGSS | XP/VX/VX Ace 资源或 mkxp-z 模块选择 | 外置 RPGM APK 模块 |
+| RPG Maker RGSS | XP/VX/VX Ace 资源或 mkxp-z 模块选择 | 固定 RPG Maker 适配器启动 TYN RGSS 外置 APK |
 | Ren'Py | `.rpa`、`.rpy/.rpyc` 等组合 | 外置 Ren'Py APK；自动或指定 8.5.3 / 7.7.1 |
 | Ruffle / Flash | 顶层 `.swf`；根 `index.html/index.htm` + 唯一 SWF 的叶子目录 | 外置 Ruffle APK；一 SWF 一条记录 |
 | 第三方运行时模块 | 已安装的 `com.tyranor.runtime.*` APK + 模块 `res/raw` 扫描描述 | 显式组件交棒游戏文件夹，模块自行运行 |
@@ -99,7 +99,9 @@
 
 所有内置引擎播放器（含加载期、运行期、视频窗口与 System4 手册窗口）统一使用 `SCREEN_ORIENTATION_LANDSCAPE`，禁止传感器翻转和反向横屏；清单与宿主运行时请求同时约束，旧方向 extra 与 Artemis 旋转设置不再生效。应用主页面和按键布局编辑器保持各自方向策略。Ren'Py / RPG Maker RGSS / Ruffle 启动请求使用标准横屏；外置 APK、模拟器及安卓游戏的实际窗口方向由目标应用决定。
 
-JoiPlay 外置模块与模拟器必须先安装；主 App 显示安装状态及获取入口。第三方 APK 运行时模块同样由用户自行安装，但主 App 不提供下载/安装器，只在「引擎模块管理」中列出并管理启用状态。启动前检查目标、权限和目录，失败由类型化结果映射 UI 文案。设置中的“自动”按当前运行时规则解析，不承诺回退能修复不受支持的脚本或资源。
+JoiPlay 外置模块（Ren'Py、Ruffle）和模拟器必须先安装；主 App 显示安装状态及获取入口。RPG Maker RGSS 由固定注册的适配器启动指定包名的 TYN RGSS 模块，并显示该模块的安装状态。第三方 APK 运行时模块同样由用户自行安装，但主 App 不提供下载/安装器，只在「引擎模块管理」中列出并管理启用状态。启动前检查目标、权限和目录，失败由类型化结果映射 UI 文案。设置中的“自动”按当前运行时规则解析，不承诺回退能修复不受支持的脚本或资源。
+
+RPG Maker RGSS 的游戏扫描仍由内置识别器完成，游戏启动经固定 `RpgMakerExternalEngineModule` 发送 TYN RGSS v1 Intent；该包不作为通用第三方运行时模块发现、启用或扫描。全局与单游戏设置可选择 Ruby 运行时并传递 RTP 根目录与 RGSS 配置，RTP 导入会校验代际和归档内容；设置默认值沿用上游（窗口 `640x480`、平滑缩放开启、路径缓存关闭），不新增 `animateAutotiles` 设置。游戏卡片显示 RPG Maker XP、VX 或 VX Ace 代际角标。
 
 **翻译文件**：游戏操作面板中的「翻译文件」入口读取 App 注册的发现规则，并以候选 DTO 展示；主 App 统一识别和解析译表，按游戏保存当前选择。MV/MZ 可从 App 私有译表目录或游戏根目录发现有效的 MTool JSON 字符串映射。启动时向内置 Web 宿主提供只读译表会话 URI；当前加载方式由用户显式选择宿主注入或虚拟插件，失败不自动切换方式。虚拟插件模式依赖标准 MV/MZ 插件启动链路而不要求游戏预先配置插件：已有 `js/plugins.js` 时在内存响应末尾追加 TYN；缺失时由宿主虚拟提供清单，并保证清单在标准 `js/main.js` 前执行。发现同名冲突或无法确认启动顺序时保留原内容并记录原因。译表文件的写入、替换、创建或删除可触发当前会话重新读取与热更新，游戏原始文件不被修改。第三方 APK 运行时模块可以在 `tyranor_runtime.json` 声明 `capabilities: ["translation"]` 与 `translationRule`，主 App 仍负责文件发现/解析，模块只接收临时授权的只读 map URI。
 
@@ -124,7 +126,7 @@ Ruffle（SWF / Flash）由外置 Ruffle APK 模块承载，当前扫描与启动
 - **发现**：Manifest `<queries>` 声明 `com.tyranor.runtime.action.LAUNCH`（含 `CATEGORY_DEFAULT`），主 App 按 action 查询可见应用并只保留包名前缀 `com.tyranor.runtime.`；不申请 `QUERY_ALL_PACKAGES`，也不校验签名、版本或包内容。一个包只取一个入口 Activity：优先带 `com.tyranor.runtime.MANIFEST` meta-data 的，否则按 Activity 名排序取第一个。
 - **启用默认关**：发现结果只用于侧边栏「妙妙工具 → 引擎模块管理」列表与模块名展示，不写入扫描索引或游戏库；开关默认关闭。游戏库卡片对这类游戏统一显示「Plugin」，不显示模块名。启用只把包名写入 `AppSettingsStore.KEY_RUNTIME_MODULE_ENABLED`（StringSet，默认空集），不触发扫描、不立即写库。同包名更新/重装保留开关；包名变更视为新模块，默认关闭。
 - **扫描描述**：模块可选提供 `res/raw/tyranor_runtime.json`，声明 `extensions` / `markers` / `match`（`any` 或 `all`）；这是自动扫描的唯一特征来源，主 App 不根据包名、应用名、图标或内置第三方特征库猜测，也不执行模块代码；扩展名只匹配目录直接子文件，marker 支持直接子项与单层路径（如 `data/*.pak`），不递归。描述缺失、读取/解析失败或没有有效模式时只关闭该模块的自动扫描能力，模块仍可被发现、启用和启动。
-- **扫描接入**：扫描开始时快照「已发现 + 已启用 + 有扫描描述」的模块；仅当内置识别结果为 `UNKNOWN` 或 `WEB_OTHER` 时才尝试模块匹配，KRKR / ONS / RPGM / Ren'Py 等强特征结果不被覆盖。多模块命中按「`all` 优先于 `any` → marker 数量多 → 包名」选择；重扫对同一 URI 优先保留旧绑定，扫描深度沿用现有上限。
+- **扫描接入**：扫描开始时快照「已发现 + 已启用 + 有扫描描述」的模块；仅当内置识别结果为 `UNKNOWN` 或 `WEB_OTHER` 时才尝试模块匹配，KRKR / ONS / RPGM / Ren'Py 等强特征结果不被覆盖。固定外置引擎注册表中的包会排除在第三方模块发现外。多模块命中按「`all` 优先于 `any` → marker 数量多 → 包名」选择；重扫对同一 URI 优先保留旧绑定，扫描深度沿用现有上限。
 - **唯一入库入口**：扫描是第三方运行时游戏唯一入库入口；管理页、添加游戏对话框和游戏页均不提供手动添加、模块选择、目录导入或拖入，也不提供手动绑定/重绑或模块缺失修复页。
 - **绑定与降级**：`ScanGame.runtimeModulePackage`（Room `games.runtime_module_package`，v3）记录「游戏 → 模块包名」；模块卸载、禁用、入口不再可发现或包名为空时，绑定游戏降级为 `EngineType.UNKNOWN`，但保留最后已知包名（用于重扫合并，不作为启动依据），保留标题、封面与最近时间。发现查询失败不降级。重新安装/启用后重新扫描可恢复，不支持自动或手动改绑。
 - **启动交棒**：`EngineType.RUNTIME_MODULE` 由 `RuntimeModuleLauncher` 以显式 `ComponentName` 启动，只传当前游戏文件夹绝对路径、标题与协议版本；不传 `game` / `settings` JSON，也不附加 URI 读写授权。`Dispatched` 只表示 Intent 已交棒，不保证模块进入游戏或未崩溃；模块缺失、未启用、入口缺失、路径无法解析、安全拒绝与其它异常返回类型化结果。模块缺失或未启用（存在绑定包名时）会触发该游戏降级；路径无法解析时不请求「所有文件访问」，存储权限由模块自行负责。

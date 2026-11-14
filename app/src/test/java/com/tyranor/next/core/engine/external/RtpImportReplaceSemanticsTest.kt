@@ -1,5 +1,6 @@
 package com.tyranor.next.core.engine.external
 
+import android.content.ContextWrapper
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -25,6 +26,9 @@ class RtpImportReplaceSemanticsTest {
 
     @get:Rule
     val temporaryFolder = TemporaryFolder()
+
+    // clearRtp 发现同类型导入在途时会立即返回，不应解析或访问共享存储。
+    private val context = ContextWrapper(null)
 
     private fun buildZip(entries: List<Pair<String, ByteArray>>): ByteArray {
         val bos = ByteArrayOutputStream()
@@ -109,13 +113,14 @@ class RtpImportReplaceSemanticsTest {
         // 提交段成功：新内容顶上、提交标记与备份都清掉（盘上不留「待恢复」现场）
         val parent = temporaryFolder.newFolder("commit")
         val temp = File(parent, ".import_tmp").apply { mkdirs() }
-        File(temp, "gfx.png").writeText("new-rtp")
+        createValidVxRtp(temp)
+        File(temp, "Audio/BGM/sample.ogg").writeText("new-rtp")
         val target = File(parent, "app").apply { mkdirs() }
         File(target, "old.bin").writeText("old-rtp")
 
-        val rejection = RpgMakerRuntimeEnvironment.commitImportTemp(temp, target)
+        val rejection = RpgMakerRuntimeEnvironment.commitImportTemp(temp, target, "rpgmvx")
         assertEquals("成功不应返回拒绝原因", null, rejection)
-        assertEquals("new-rtp", File(target, "gfx.png").readText())
+        assertEquals("new-rtp", File(target, "Audio/BGM/sample.ogg").readText())
         assertFalse("旧数据应被新内容替换", File(target, "old.bin").exists())
         assertFalse("备份应清掉", File(parent, ".import_backup").exists())
         assertFalse("提交标记应清掉", File(parent, ".importing").exists())
@@ -132,7 +137,7 @@ class RtpImportReplaceSemanticsTest {
         val existing = File(parent, "app").apply { mkdirs() }
         File(existing, "gfx.png").writeText("user-rtp")
 
-        val rejection = RpgMakerRuntimeEnvironment.commitImportTemp(temp, existing)
+        val rejection = RpgMakerRuntimeEnvironment.commitImportTemp(temp, existing, "rpgmvx")
 
         assertEquals(RtpImportRejection.EmptyArchive, rejection)
         assertTrue("既有内容不得被空来源清掉", File(existing, "gfx.png").isFile)
@@ -186,13 +191,13 @@ class RtpImportReplaceSemanticsTest {
         // 旧数据（target）原样保留
         val parent = temporaryFolder.newFolder("commit-stale-fail")
         val temp = File(parent, ".import_tmp").apply { mkdirs() }
-        File(temp, "new.bin").writeText("new-rtp")
+        createValidVxRtp(temp)
         val target = File(parent, "app").apply { mkdirs() }
         File(target, "current.bin").writeText("current")
         val backup = File(parent, ".import_backup").apply { mkdirs() }
         File(backup, "old.bin").writeText("old")
 
-        val rejection = RpgMakerRuntimeEnvironment.commitImportTemp(temp, target) { false }
+        val rejection = RpgMakerRuntimeEnvironment.commitImportTemp(temp, target, "rpgmvx") { false }
 
         assertTrue("陈旧备份占位时必须放弃导入", rejection is RtpImportRejection.IoFailed)
         assertEquals("current", File(target, "current.bin").readText())
@@ -261,7 +266,7 @@ class RtpImportReplaceSemanticsTest {
             assertEquals(
                 "在途导入期间清除必须被拒绝",
                 RpgMakerRuntimeEnvironment.RtpClearResult.IMPORT_IN_FLIGHT,
-                RpgMakerRuntimeEnvironment.clearRtp("rpgmvx"),
+                RpgMakerRuntimeEnvironment.clearRtp(context, "rpgmvx"),
             )
             // 清除不得吞掉在途登记（它正是靠这条登记才拒绝的）。别写「不得删掉在途临时目录」：
             // clearRtp 删的是真实外部存储的 `<子类型>` 目录，与本测试的 TemporaryFolder 无关，
@@ -296,7 +301,7 @@ class RtpImportReplaceSemanticsTest {
             )
             assertEquals(
                 RpgMakerRuntimeEnvironment.RtpClearResult.IMPORT_IN_FLIGHT,
-                RpgMakerRuntimeEnvironment.clearRtp("mkxp-z"),
+                RpgMakerRuntimeEnvironment.clearRtp(context, "mkxp-z"),
             )
         } finally {
             RpgMakerRuntimeEnvironment.unregisterInFlightImport("mkxp-z", first)
@@ -319,7 +324,7 @@ class RtpImportReplaceSemanticsTest {
             assertEquals(
                 "同一子类型的另一种拼写也必须被拒绝清除",
                 RpgMakerRuntimeEnvironment.RtpClearResult.IMPORT_IN_FLIGHT,
-                RpgMakerRuntimeEnvironment.clearRtp("RpgMvx"),
+                RpgMakerRuntimeEnvironment.clearRtp(context, "RpgMvx"),
             )
         } finally {
             RpgMakerRuntimeEnvironment.unregisterInFlightImport("rpgmvx", temp)
@@ -383,5 +388,31 @@ class RtpImportReplaceSemanticsTest {
 
         assertTrue("新鲜（可能是在途）临时目录不得被清理", inFlight.isDirectory)
         assertTrue("其内容也不得被动", File(inFlight, "half.bin").isFile)
+    }
+
+    private fun createValidVxRtp(root: File) {
+        File(root, "Game.ico").apply {
+            parentFile?.mkdirs()
+            writeBytes(byteArrayOf(0, 0, 1, 0))
+        }
+        File(root, "Audio/BGM/sample.ogg").apply {
+            parentFile?.mkdirs()
+            writeText("fixture")
+        }
+        File(root, "Graphics/Characters/sample.png").apply {
+            parentFile?.mkdirs()
+            writeText("fixture")
+        }
+        listOf("TileA1", "TileA2", "TileA3", "TileA4", "TileA5", "TileB", "TileC")
+            .forEach { marker ->
+                File(root, "Graphics/System/$marker.png").apply {
+                    parentFile?.mkdirs()
+                    writeText("fixture")
+                }
+            }
+        File(root, "Graphics/Faces/Actor1.png").apply {
+            parentFile?.mkdirs()
+            writeText("fixture")
+        }
     }
 }

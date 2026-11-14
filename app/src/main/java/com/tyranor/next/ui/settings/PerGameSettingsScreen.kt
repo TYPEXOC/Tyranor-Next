@@ -50,6 +50,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.tyranor.next.R
 import androidx.compose.ui.graphics.Color as ComposeColor
 import com.tyranor.next.core.engine.EngineType
+import com.tyranor.next.core.engine.external.RgssRubyRuntime
 import com.tyranor.next.core.engine.external.EmulatorLaunchStyle
 import com.tyranor.next.core.engine.external.ExternalEmulatorRegistry
 import com.tyranor.next.core.engine.external.RpgMakerRuntimeEnvironment
@@ -60,6 +61,7 @@ import com.tyranor.next.core.game.save.GameSaveManager
 import com.tyranor.next.core.settings.GraphicsCapabilities
 import com.tyranor.next.core.settings.GraphicsFamily
 import com.tyranor.next.core.settings.GraphicsOverride
+import com.tyranor.next.core.settings.AppSettingsStore
 import com.tyranor.next.core.input.InputRemapRepository
 import com.tyranor.next.core.settings.EngineSettingsStore
 import com.tyranor.next.core.settings.EffectiveEngineSettings
@@ -309,6 +311,10 @@ fun PerGameSettingsScreen(game: ScanGame) {
         mutableStateOf(PerGameSettingsStore.toRpgMakerOverride(PerGameSettingsStore.load(ctx, gid)))
     }
     val rpgm = rpgmOverride ?: RpgMakerOverride()
+    var rgssRubyRuntimeOverride by remember(gid) {
+        mutableStateOf(PerGameSettingsStore.getStr(ctx, gid, PerGameSettingsStore.F_RPG_RUBY_RUNTIME))
+    }
+    val globalRgssRubyRuntime = remember { AppSettingsStore.getRgssRubyRuntime(ctx) }
 
     val scope = rememberCoroutineScope()
     var importingFont by remember(gid) { mutableStateOf(false) }
@@ -675,7 +681,7 @@ fun PerGameSettingsScreen(game: ScanGame) {
             InputRemapRepository.setGameProfileIdOverride(ctx, gid, inputProfileOverride)
             inputProfileDirty = false
         }
-        PerGameSettingsStore.setBool(ctx, gid, PerGameSettingsStore.F_RPG_USE_RUBY18, rpgm.useRuby18)
+        PerGameSettingsStore.setStr(ctx, gid, PerGameSettingsStore.F_RPG_RUBY_RUNTIME, rgssRubyRuntimeOverride)
         PerGameSettingsStore.setBool(ctx, gid, PerGameSettingsStore.F_RPG_SMOOTH_SCALING, rpgm.smoothScaling)
         PerGameSettingsStore.setBool(ctx, gid, PerGameSettingsStore.F_RPG_VSYNC, rpgm.vsync)
         PerGameSettingsStore.setBool(ctx, gid, PerGameSettingsStore.F_RPG_FRAME_SKIP, rpgm.frameSkip)
@@ -1353,9 +1359,18 @@ fun PerGameSettingsScreen(game: ScanGame) {
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
                             )
-                            OverrideSwitch(stringResource(R.string.engine_settings_rpgm_use_ruby18), globalRpg.useRuby18, rpgm.useRuby18) {
-                                rpgmOverride = rpgm.copy(useRuby18 = it)
-                            }
+                            OverrideChoice(
+                                label = stringResource(R.string.engine_settings_tyn_rgss_ruby_runtime),
+                                options = listOf(
+                                    RgssRubyRuntime.AUTO.wireValue to stringResource(R.string.engine_settings_tyn_rgss_ruby_auto),
+                                    RgssRubyRuntime.RUBY_187.wireValue to stringResource(R.string.engine_settings_tyn_rgss_ruby_187),
+                                    RgssRubyRuntime.RUBY_193.wireValue to stringResource(R.string.engine_settings_tyn_rgss_ruby_193),
+                                    RgssRubyRuntime.RUBY_313.wireValue to stringResource(R.string.engine_settings_tyn_rgss_ruby_313),
+                                ).toMap(),
+                                global = globalRgssRubyRuntime.wireValue,
+                                override = rgssRubyRuntimeOverride,
+                                onSet = { rgssRubyRuntimeOverride = it },
+                            )
                             OverrideSwitch(stringResource(R.string.engine_settings_rpgm_smooth_scaling), globalRpg.smoothScaling, rpgm.smoothScaling) {
                                 rpgmOverride = rpgm.copy(smoothScaling = it)
                             }

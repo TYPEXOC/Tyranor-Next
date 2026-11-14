@@ -6,6 +6,7 @@ import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.content.pm.ResolveInfo
 import android.os.Build
+import com.tyranor.next.core.engine.external.ExternalEngineModuleRegistry
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.nio.charset.StandardCharsets
@@ -22,10 +23,15 @@ sealed interface RuntimeModuleDiscoveryResult {
  * 通过模块声明的 action 发现第三方运行时模块。
  *
  * 依赖 Manifest 的 `<queries>` 声明 [RuntimeModuleContract.ACTION_LAUNCH]（Android 11+ 包可见性）；
- * 未声明时查询会得到空列表而不是异常。只要求包名前缀 + action；不校验签名/版本/包内容。
+ * 未声明时查询会得到空列表而不是异常。只要求包名前缀 + action；固定外置注册表中的包会排除；
+ * 不校验签名/版本/包内容。
  * 描述文件读取或解析失败只让 `scan = null`，模块本身仍保留（仍可被发现/启用/启动）。
  */
 object RuntimeModuleDiscovery {
+
+    /** Fixed adapters are managed by their own registry even if an APK also advertises the generic action. */
+    private val fixedExternalPackages = ExternalEngineModuleRegistry.modules
+        .mapTo(HashSet()) { it.packageName }
 
     fun discover(context: Context): RuntimeModuleDiscoveryResult {
         val packageManager = context.applicationContext.packageManager
@@ -42,6 +48,7 @@ object RuntimeModuleDiscovery {
         val candidates = resolved.asSequence()
             .mapNotNull { it.activityInfo }
             .filter { it.packageName.orEmpty().startsWith(RuntimeModuleContract.PACKAGE_PREFIX) }
+            .filterNot { it.packageName in fixedExternalPackages }
             .distinctBy { it.packageName.orEmpty() to it.name.orEmpty() }
             .toList()
 

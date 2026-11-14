@@ -10,7 +10,7 @@
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <queries>
-        <package android:name="cyou.joiplay.runtime.rpgmaker" />
+        <package android:name="com.tyranor.runtime.rgss" />
         <package android:name="cyou.joiplay.runtime.renpy.v8d4d1" />
         <package android:name="cyou.joiplay.runtime.renpy.v7d7d1" />
         <package android:name="cyou.joiplay.runtime.ruffle" />
@@ -69,13 +69,6 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
-
-        <!-- App-normalized maps are exposed only through per-launch, read-only session URIs. -->
-        <provider
-            android:name=".core.engine.translation.TranslationMapProvider"
-            android:authorities="${applicationId}.translationmaps"
-            android:exported="false"
-            android:grantUriPermissions="true" />
 
         <activity
             android:name=".ui.archive.ArchiveUnpackActivity"

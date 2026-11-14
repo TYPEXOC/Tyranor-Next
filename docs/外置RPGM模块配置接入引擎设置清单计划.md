@@ -1,14 +1,16 @@
-# 外置 RPGM 模块配置接入引擎设置清单计划
+# RPG Maker RGSS 外置模块设置与接入记录
 
 > 来源：JoiPlay 逆向分析（`/Users/weiss/Desktop/decompiled/joiplay_jadx`）中 RPG Maker 外置 APK 模块（`cyou.joiplay.runtime.rpgmaker`）的配置链路。
-> 目标：把 JoiPlay 对 RGSS/mkxp 系外置模块的设置能力，落到 TyranorNext 现有「应用 / 引擎 / 单游戏」三级设置体系中，通过启动 Intent 的 `settings` extra 下发给外置 RPMG 模块。
+> 历史目标：把 JoiPlay 对 RGSS/mkxp 系外置模块的设置能力，落到 TyranorNext 现有「应用 / 引擎 / 单游戏」三级设置体系中。当前启动已切换为下方“当前实现”所述的 TYN RGSS 协议。
 > 范围：`EngineType.RPGMAKER`（`rpgmxp` / `rpgmvx` / `rpgmvxace` / `mkxp-z`）。RPG Maker MV/MZ 继续走内置 Web 宿主，不纳入本计划。
 >
-> 实施状态：**已完成**（2026-09-12）。键集按 RPGM 插件反编译 `cyou.joiplay.commons.parser.MKXPConfigurationParser`（`/Users/weiss/Desktop/decompiled/rpgm_jadx`）实际解析字段核对后落地：
+> 历史实施状态：JoiPlay 适配阶段于 2026-09-12 完成。键集按 RPGM 插件反编译 `cyou.joiplay.commons.parser.MKXPConfigurationParser`（`/Users/weiss/Desktop/decompiled/rpgm_jadx`）实际解析字段核对后落地：
 > - 移除插件不解析的 `useMiniz` / `updateCoreScript` / `animateAutotiles`（`animateAutotiles` 被插件启动时强制置 true）；
 > - 补齐插件实际解析的 `verticalScreenAlign` / `fastPathEnum` / `useCJKFont`；
 > - `cheats` 改发到 `app` 节（插件只从 `app.cheats` 读取）；
 > - `configuration.json` 改为与生效 `useRuby18` 联动（插件 `loadFromFile` 在 intent `settings` 之后加载，文件优先，旧值会覆盖用户意图）。
+
+> **当前实现（2026-11-14）**：RPG Maker RGSS 通过固定注册的 `RpgMakerExternalEngineModule` 启动包名 `com.tyranor.runtime.rgss` 的 TYN RGSS APK；此 APK 虽导出通用 v1 action，主 App 仍按固定适配器启动，并从第三方运行时模块动态发现中过滤该固定包。启动 Intent 传递游戏目录/标题、Ruby 运行时、RTP 根目录、RGSS 设置、按键方案 URI 与主题色。Ruby 运行时支持全局和单游戏覆盖；RTP 放在 TyranorNext 共享资源目录并做导入内容校验；不再向游戏目录或 JoiPlay 目录写 `configuration.json`。RGSS 设置默认值沿用上游（`640x480`、平滑缩放开启、路径缓存关闭），不新增 `animateAutotiles` 设置；游戏卡片显示 XP / VX / VX Ace 代际角标。下方 JoiPlay 盘点与旧方案条目保留作历史背景，不代表当前启动协议。
 
 ---
 
@@ -44,7 +46,7 @@ TyranorNext 当前状态：
 | 10 | `pathCache` / `prebuiltPathCache` | 默认 `false` / `true` | 已接入全局/单游戏（高级区） | 完成 |
 | 11 | `copyText` | 默认 `false` | 已接入全局/单游戏（高级区） | 完成 |
 | 12 | `cheats` | 默认 `true` | 已接入；按插件解析位置改发 `app.cheats` | 完成 |
-| 13 | `customFont` | 默认空串，字体文件路径 | 已接入：导入共享目录 `/sdcard/JoiPlay/fonts`（插件可读） | 完成 |
+| 13 | `customFont` | 默认空串，字体文件路径 | 已接入：导入共享目录 `/sdcard/TyranorNext/fonts`（TYN RGSS 模块可读，用户可自行管理） | 完成 |
 | 14 | `windowSize` | 9 档：512x384…1920x1080 | 已接入全局/单游戏 | 完成 |
 | 15 | `speedUp` | 1..9，默认 `1` | 已接入全局/单游戏 | 完成 |
 | 16 | `fontScale` | 0.25..2.00，默认 `0.75` | 已接入全局/单游戏 | 完成 |
@@ -52,7 +54,7 @@ TyranorNext 当前状态：
 | 18 | `enablePostloadScripts` | 与 postloadScripts extras 配合 | 已接入全局/单游戏（高级区） | 完成 |
 | 19 | `updateCoreScript` | 无默认值（按需开启） | 属 MV/MZ Web 路径，RPGM 插件不解析 | 不纳入（已核实） |
 | 20 | Web 系键 `usePIXI6` / `useWebGL2` / `downscaleBitmaps` / `fastPathEnum` / `verticalScreenAlign` | 插件解析 `fastPathEnum` / `verticalScreenAlign`；其余属 MV/MZ | `fastPathEnum`（高级区）与 `verticalScreenAlign` 已接入；`usePIXI6`/`useWebGL2`/`downscaleBitmaps` 走 MV/MZ 入口 | 完成 |
-| 21 | RTP 导入/清理（RPGXP/RPGVX/RPGVXACE） | `i0`：InnoExtract 解 `xp_rtp104e.exe` / zip 到 `/sdcard/JoiPlay/RTP/<NAME>/` | 已接入：`RpgMakerRuntimeEnvironment` 支持 zip/目录导入、清理与状态检测 | 完成 |
+| 21 | RTP 导入/删除（RPGXP/RPGVX/RPGVXACE） | `i0`：InnoExtract 解 `xp_rtp104e.exe` / zip 到 Tyranor 自有 RTP 目录 | 已接入：`RpgMakerRuntimeEnvironment` 支持 SAF zip/目录导入、删除与状态检测；RTP 位于共享存储根目录 `TyranorNext/RTP/<NAME>/`，用户可自行维护 | 完成 |
 | 22 | `configuration.json`（扁平 `useRuby18`，仅 XP） | 双保险写游戏目录 / `JoiPlay/games/<id>/` | 已有并改为与生效 `useRuby18` 联动（JSON 文件仅更新该键） | 完成 |
 | 23 | 模块安装状态/下载引导 | `runtimes.json` + RuntimeFragment | 引擎设置页卡片已展示状态与下载入口（引擎总页原有状态保留） | 完成 |
 | 24 | 模块详情 `assets/html/info.html` / `license.html` | 运行时详情弹窗读取 | 无 | 可选 P2，未实施 |
@@ -208,13 +210,13 @@ verticalScreenAlign: top / top-center / center
 
 ## 7. RTP 管理清单
 
-JoiPlay 提供 RPGXP/RPGVX/RPGVXACE 三类 RTP 的导入与清理，TyranorNext 目前只有目录/`sf.sf2` 兜底；已实现 `core/engine/external/RpgMakerRuntimeEnvironment.kt`。
+TyranorNext 管理 RPGXP/RPGVX/RPGVXACE 三类 RTP；`core/engine/external/RpgMakerRuntimeEnvironment.kt` 负责导入、删除与状态检测，TYN RGSS 模块从主 App 传入的 RTP 根路径读取。
 
-- [x] 补充状态检测：`/sdcard/JoiPlay/RTP/<RPGXP|RPGVX|RPGVXACE>/app` 是否存在且非空。
+- [x] 补充状态检测：共享存储根目录 `TyranorNext/RTP/<RPGXP|RPGVX|RPGVXACE>/app` 是否存在且非空。
 - [x] 导入入口（全局设置）：SAF 选择 RTP zip/目录 → 解包到对应目录；兼容官方包内多一层根目录（自动拍平）；`.exe` 暂不支持，UI 提示从官网获取 zip/目录并链接来源。
-- [x] 清理入口：二次确认后删除对应 RTP 目录（仅限 `app` 层级，避免误删用户目录）。
+- [x] 删除入口：二次确认后删除对应 RTP 目录（仅限 `app` 层级，避免误删用户目录）。
 - [x] `mkxp-z` 子类型沿用现有 `mkxp-z` RTP 目录名，不单独出 UI。
-- [x] 导入/清理失败仅 Toast 提示，不阻断启动路径（与 `ensureRtpEnvironment` 的非致命策略一致）。
+- [x] 导入/删除失败仅 Toast 提示，不阻断启动路径（与 `ensureRtpEnvironment` 的非致命策略一致）。
 
 ---
 

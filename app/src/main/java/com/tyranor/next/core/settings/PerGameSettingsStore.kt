@@ -60,7 +60,7 @@ object PerGameSettingsStore {
 
     // RPG Maker MV/MZ
     const val F_RPG_MAKER_MOD_ENABLED = "rpg_maker_mod_enabled"
-    // 译表文件选择：值为私有 translations/ 目录或游戏目录根下的译表文件名；null=未选定（不翻译，保持原文）
+    // 已选译表文件名；null 表示此游戏不启用翻译
     const val F_TRANSLATION_LANGUAGE = "translation_language"
     const val F_RPG_LEGACY_RENDERER = "rpg_legacy_renderer"
     const val F_RPG_SAVE_INTEROP = "rpg_save_interop"
@@ -77,6 +77,8 @@ object PerGameSettingsStore {
 
     // RPG Maker RGSS 外置模块（settings extra 的 rpg 节，null=跟随全局）
     const val F_RPG_USE_RUBY18 = "rpg_use_ruby18"
+    // TYN RGSS Ruby VM 覆盖；null 表示跟随全局
+    const val F_RPG_RUBY_RUNTIME = "rpg_ruby_runtime"
     const val F_RPG_DEBUG = "rpg_debug"
     const val F_RPG_SMOOTH_SCALING = "rpg_smooth_scaling"
     const val F_RPG_VSYNC = "rpg_vsync"

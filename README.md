@@ -65,10 +65,10 @@ iOS版本计划中...  鸿蒙设备可使用卓易通安装
 | CatSystem2           | `config/startup.xml`、`*.int`、`*.cst`、`*.hg3`、`*.kcs` 等组合         | 外置 Winlator（winlator-cn）        |
 | PC（手动添加）        | 游戏页顶栏「添加 PC 游戏」选择目录并指定启动 exe                          | 外置 Winlator（winlator-cn）        |
 | TyranoBuilder        | `index.html`、`tyrano/`                                              | 内置 Tyrano Web 运行环境           |
-| RPG Maker XP         | `.rgssad`、`Game.ini` + `Data/*.rxdata`                              | 外置 RPGM APK 模块               |
-| RPG Maker VX         | `.rgss2a`、`Game.ini` + `Data/*.rvdata`                              | 外置 RPGM APK 模块               |
-| RPG Maker VX Ace     | `.rgss3a`、`Game.ini` + `Data/*.rvdata2`                             | 外置 RPGM APK 模块               |
-| mkxp-z               | 用户选择/内部别名 `internal.mkxp-z`                                         | 外置 RPGM APK 模块               |
+| RPG Maker XP         | `.rgssad`、`Game.ini` + `Data/*.rxdata`                              | 固定 RPG Maker 适配器 → TYN RGSS APK |
+| RPG Maker VX         | `.rgss2a`、`Game.ini` + `Data/*.rvdata`                              | 固定 RPG Maker 适配器 → TYN RGSS APK |
+| RPG Maker VX Ace     | `.rgss3a`、`Game.ini` + `Data/*.rvdata2`                             | 固定 RPG Maker 适配器 → TYN RGSS APK |
+| mkxp-z               | 用户选择/内部别名 `internal.mkxp-z`                                  | 固定 RPG Maker 适配器 → TYN RGSS APK |
 | RPG Maker MV         | `www/`、`js/rpg_core.js`                                             | 内置 Web 运行环境                  |
 | RPG Maker MZ         | `www/`、`js/rmmz_core.js`                                            | 内置 Web 运行环境                  |
 | VN                   | `globalData.vndata`                                                 | 内置 Web 运行环境                  |

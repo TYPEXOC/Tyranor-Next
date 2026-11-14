@@ -28,7 +28,7 @@ TyranorNext 目前已有三套“把游戏交给外部应用”的机制：
 
 ### 1.2 目标
 
-1. **动态发现**：模块包名以 `com.tyranor.runtime.` 开头，并声明固定 action；主 App 自动发现，不维护白名单。
+1. **动态发现**：模块包名以 `com.tyranor.runtime.` 开头，并声明固定 action；主 App 自动发现。已经由 `core/engine/external` 固定注册的包从动态结果中过滤，避免重复管理。
 2. **独立体系**：不复用 `core/engine/external` 的 JoiPlay 体系与模拟器体系，新建独立功能模块。
 3. **文件夹路径启动**：主 App 通过显式组件 Intent 把游戏文件夹的绝对路径交给模块。
 4. **扫描特征只由模块声明**：自动扫描只使用模块声明的 `extensions` / `markers`；主 App 不猜、不内置第三方特征库。没有 `scan` 描述的模块不参与自动扫描。
@@ -46,7 +46,7 @@ TyranorNext 目前已有三套“把游戏交给外部应用”的机制：
 - 不使用 `QUERY_ALL_PACKAGES` 枚举任意应用。
 - 第三方运行时游戏不提供任何手动添加入库入口（添加游戏、选择模块、目录导入、拖入），也不提供手动绑定/重绑、模块缺失修复页；扫描是唯一入库入口。现有 PC / 安卓手动添加保持不变。
 - 不在主 App 内置第三方模块的特征库，也不根据包名、应用名或图标猜游戏特征。
-- 不替代 JoiPlay 外置模块（Ren'Py / RPGM / Ruffle）和外置模拟器跳转；四套机制并存，互不影响。
+- 不替代 JoiPlay 外置模块（Ren'Py / Ruffle）和外置模拟器跳转；RPG Maker RGSS 由固定 TYN 适配器承载，不进入本动态体系。
 - 不保证模块真的把游戏跑起来：`startActivity` 成功只代表 Intent 已交棒。
 
 ---

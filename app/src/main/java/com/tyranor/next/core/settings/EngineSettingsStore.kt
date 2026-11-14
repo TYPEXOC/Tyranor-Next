@@ -1035,9 +1035,9 @@ object EngineSettingsStore {
     // ---------- RPG Maker RGSS 外置模块 ----------
 
     /**
-     * RGSS/mkxp 外置模块的 rpg 配置节。默认值对齐 JoiPlay `SettingsFactory.loadDefault`：
+     * RGSS/mkxp 外置模块设置。默认值对齐上游 `SettingsFactory.loadDefault`：
      * useRuby18/smoothScaling/prebuiltPathCache/cheats 默认开，其余默认关。
-     * 仅保留 RPGM 插件 `MKXPConfigurationParser` 实际解析的键。
+     * 其中 useRuby18 作为旧设置数据保留；TYN RGSS 使用独立 Ruby 运行时选择，不再消费该键。
      */
     data class RpgMaker(
         var useRuby18: Boolean = true,

@@ -32,9 +32,9 @@ sealed interface RuntimeModuleLaunchResult {
 }
 
 /**
- * 通过显式组件把游戏文件夹交给第三方运行时模块；已选翻译 map 通过临时只读 URI 交接。
+ * 通过显式组件把当前游戏文件夹交给第三方运行时模块；模块声明翻译能力时，可附带已选译表的临时只读 URI。
  *
- * 只共享当前游戏需要的资源，不传扫描根或其它游戏；译表 URI 不授予持久权限。
+ * 不传扫描根或其它游戏；译表 URI 不授予持久权限。
  */
 object RuntimeModuleLauncher {
 

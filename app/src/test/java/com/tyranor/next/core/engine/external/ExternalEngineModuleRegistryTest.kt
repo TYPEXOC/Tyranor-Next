@@ -109,7 +109,9 @@ class ExternalEngineModuleRegistryTest {
         assertSame(RpgMakerExternalEngineModule, ExternalEngineModuleRegistry.moduleForAlias("internal.mkxp-z"))
         assertSame(RpgMakerExternalEngineModule, ExternalEngineModuleRegistry.moduleForAlias(RpgMakerExternalEngineModule.packageName))
         assertTrue(ExternalEngineModuleRegistry.isExternalEngine(EngineType.RPGMAKER))
-        assertTrue(RpgMakerExternalEngineModule.installUrl.orEmpty().endsWith("/RPGM-Plugin.apk"))
+        assertEquals("com.tyranor.runtime.rgss", RpgMakerExternalEngineModule.packageName)
+        assertEquals("com.tyranor.runtime.action.LAUNCH", RpgMakerExternalEngineModule.action)
+        assertTrue(RpgMakerExternalEngineModule.installUrl.orEmpty().contains("AnyPlay-Plugin-RGSS"))
         assertFalse(RpgMakerExternalEngineModule.launchEntryIsFile)
     }
 

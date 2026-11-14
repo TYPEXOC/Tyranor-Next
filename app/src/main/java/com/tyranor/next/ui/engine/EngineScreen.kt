@@ -1,7 +1,9 @@
 package com.tyranor.next.ui.engine
 
 import android.content.Context
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Environment
 import android.os.StatFs
 import android.provider.DocumentsContract
@@ -420,7 +422,7 @@ fun EngineScreen(
                             title = entry.title,
                             // 弹窗正文内的条目在正文升起后再逐条落位（只改图层，停稳即原样）
                             modifier = Modifier.dialogEntryEntrance(index),
-                            summary = stringResource(entry.summaryRes),
+                            summary = entry.summaryText ?: stringResource(entry.summaryRes),
                             leadingIcon = R.drawable.ic_engine_chip,
                             containerColor = DialogItemSurface,
                         ) {
@@ -1097,6 +1099,7 @@ private data class EngineDialogEntry(
     @get:StringRes val summaryRes: Int,
     val installed: Boolean,
     val installUrl: String? = null,
+    val summaryText: String? = null,
 )
 
 /** 弹窗条目列表：外置引擎取注册表模块；Artemis 列引擎设置中的内置版本；其余内置引擎见 [builtinDialogEntries]。 */
@@ -1110,6 +1113,11 @@ private fun engineDialogEntries(
     if (modules.isNotEmpty()) {
         return modules.sortedBy { it.displayName }.map { module ->
             val installed = moduleStates[module.id] == true
+            val installedVersion = if (installed && module.id == "rpgmaker") {
+                readInstalledModuleVersion(context, module.packageName)
+            } else {
+                null
+            }
             EngineDialogEntry(
                 id = module.id,
                 title = module.displayName(context),
@@ -1118,6 +1126,9 @@ private fun engineDialogEntries(
                     else R.string.engine_module_not_installed,
                 installed = installed,
                 installUrl = module.installUrl,
+                summaryText = installedVersion?.let {
+                    context.getString(R.string.engine_module_installed_version, it)
+                },
             )
         }
     }
@@ -1126,6 +1137,31 @@ private fun engineDialogEntries(
         engine in builtinDialogEntries -> builtinDialogEntries[engine].orEmpty()
         else -> emptyList()
     }
+}
+
+private fun readInstalledModuleVersion(context: Context, packageName: String): String? = try {
+    val packageManager = context.packageManager
+    val info = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        packageManager.getPackageInfo(packageName, PackageManager.PackageInfoFlags.of(0))
+    } else {
+        @Suppress("DEPRECATION")
+        packageManager.getPackageInfo(packageName, 0)
+    }
+    val code = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+        info.longVersionCode
+    } else {
+        @Suppress("DEPRECATION")
+        info.versionCode.toLong()
+    }
+    val name = info.versionName?.takeIf(String::isNotBlank)
+    when {
+        name != null && code > 0L -> "$name ($code)"
+        name != null -> name
+        code > 0L -> code.toString()
+        else -> null
+    }
+} catch (_: PackageManager.NameNotFoundException) {
+    null
 }
 
 /** Artemis 弹窗条目：与引擎设置的版本选项同源同序（去掉 auto，非具体版本），全部为内置版本。 */

@@ -5,10 +5,17 @@ import com.tyranor.next.core.game.model.ScanGame
 import com.tyranor.next.core.settings.EngineSettingsStore
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class RpgMakerExternalEngineModuleTest {
+    @Test
+    fun targetsTheFixedTynRgssModule() {
+        assertEquals("com.tyranor.runtime.rgss", RpgMakerExternalEngineModule.packageName)
+        assertEquals("com.tyranor.runtime.action.LAUNCH", RpgMakerExternalEngineModule.action)
+    }
+
     @Test
     fun resolvesSubtypeFromExternalModuleAlias() {
         assertEquals("rpgmxp", RpgMakerExternalEngineModule.resolveGameType(request("internal.rpgmxp")))
@@ -26,84 +33,34 @@ class RpgMakerExternalEngineModuleTest {
     }
 
     @Test
-    fun mapsSubtypeToPluginActions() {
-        assertEquals("cyou.joiplay.runtime.rpgmxp.run", RpgMakerExternalEngineModule.actionForGameType("rpgmxp"))
-        assertEquals("cyou.joiplay.runtime.rpgmvx.run", RpgMakerExternalEngineModule.actionForGameType("rpgmvx"))
-        assertEquals("cyou.joiplay.runtime.rpgmvxace.run", RpgMakerExternalEngineModule.actionForGameType("rpgmvxace"))
-        assertEquals("cyou.joiplay.runtime.mkxp-z.run", RpgMakerExternalEngineModule.actionForGameType("mkxp-z"))
+    fun buildsFlatRgssOptionsWithUpstreamDefaults() {
+        val json = JSONObject(RpgMakerExternalEngineModule.buildRgssOptionsJson(EngineSettingsStore.RpgMaker()))
+
+        assertTrue(json.getBoolean("smoothScaling"))
+        assertFalse(json.getBoolean("pathCache"))
+        assertTrue(json.getBoolean("prebuiltPathCache"))
+        assertEquals("640x480", json.getString("screenSize"))
+        assertFalse(json.has("animateAutotiles"))
+        assertFalse(json.has("useRuby18"))
     }
 
     @Test
-    fun buildsRpgMakerGameJsonPayload() {
-        val request = request("internal.rpgmxp", "[游戏目录]", "/storage/emulated/0/Games/RPGXP/")
-
-        val payload = RpgMakerExternalEngineModule.buildGameJson(request)
-
-        assertTrue(payload.contains("\"title\":\"测试 RPGM\""))
-        assertTrue(payload.contains("\"folder\":\"/storage/emulated/0/Games/RPGXP\""))
-        assertTrue(payload.contains("\"execFile\":\"\""))
-        assertTrue(payload.contains("\"type\":\"rpgmxp\""))
-    }
-
-    @Test
-    fun buildsNestedRpgSettingsWithTypeWrappers() {
-        val json = JSONObject(RpgMakerExternalEngineModule.buildSettingsJson("rpgmvxace"))
-        val app = json.getJSONObject("app")
-        val rpg = json.getJSONObject("rpg")
-        assertTrue(app.getJSONObject("cheats").getBoolean("boolean"))
-        assertTrue(rpg.getJSONObject("useRuby18").getBoolean("boolean"))
-        assertTrue(rpg.getJSONObject("smoothScaling").getBoolean("boolean"))
-        assertTrue(rpg.getJSONObject("prebuiltPathCache").getBoolean("boolean"))
-        assertTrue(rpg.getJSONObject("fastPathEnum").getBoolean("boolean"))
-        assertEquals(false, rpg.getJSONObject("vsync").getBoolean("boolean"))
-        assertEquals(false, rpg.getJSONObject("useCJKFont").getBoolean("boolean"))
-        assertEquals("top-center", rpg.getJSONObject("verticalScreenAlign").getString("string"))
-        assertEquals("640x480", rpg.getJSONObject("windowSize").getString("string"))
-        assertEquals("1", rpg.getJSONObject("speedUp").getString("string"))
-        assertEquals("0.75", rpg.getJSONObject("fontScale").getString("string"))
-    }
-
-    @Test
-    fun xpDefaultsToRuby18WhenSettingsMissing() {
-        val rpg = JSONObject(RpgMakerExternalEngineModule.buildSettingsJson("rpgmxp"))
-            .getJSONObject("rpg")
-        assertTrue(rpg.getJSONObject("useRuby18").getBoolean("boolean"))
-    }
-
-    @Test
-    fun explicitUseRuby18OverrideIsNotForcedBack() {
-        val disabled = EngineSettingsStore.RpgMaker(useRuby18 = false)
-
-        val xp = JSONObject(RpgMakerExternalEngineModule.buildSettingsJson("rpgmxp", disabled))
-            .getJSONObject("rpg")
-        val vx = JSONObject(RpgMakerExternalEngineModule.buildSettingsJson("rpgmvx", disabled))
-            .getJSONObject("rpg")
-
-        assertEquals(false, xp.getJSONObject("useRuby18").getBoolean("boolean"))
-        assertEquals(false, vx.getJSONObject("useRuby18").getBoolean("boolean"))
-    }
-
-    @Test
-    fun passesResolvedSettingsIntoPayload() {
+    fun passesResolvedSettingsIntoFlatOptions() {
         val settings = EngineSettingsStore.RpgMaker(
             vsync = true,
-            customFont = "/data/user/0/com.tyranor.next/files/fonts/demo.ttf",
+            customFont = "/sdcard/TyranorNext/fonts/demo.ttf",
             windowSize = "1280x720",
             speedUp = "3",
             fontScale = "1.25",
         )
 
-        val rpg = JSONObject(RpgMakerExternalEngineModule.buildSettingsJson("mkxp-z", settings))
-            .getJSONObject("rpg")
+        val json = JSONObject(RpgMakerExternalEngineModule.buildRgssOptionsJson(settings))
 
-        assertTrue(rpg.getJSONObject("vsync").getBoolean("boolean"))
-        assertEquals("1280x720", rpg.getJSONObject("windowSize").getString("string"))
-        assertEquals("3", rpg.getJSONObject("speedUp").getString("string"))
-        assertEquals("1.25", rpg.getJSONObject("fontScale").getString("string"))
-        assertEquals(
-            "/data/user/0/com.tyranor.next/files/fonts/demo.ttf",
-            rpg.getJSONObject("customFont").getString("string"),
-        )
+        assertTrue(json.getBoolean("vsync"))
+        assertEquals("1280x720", json.getString("screenSize"))
+        assertEquals("3", json.getString("speedUp"))
+        assertEquals("1.25", json.getString("fontScale"))
+        assertEquals("/sdcard/TyranorNext/fonts/demo.ttf", json.getString("customFont"))
     }
 
     @Test
