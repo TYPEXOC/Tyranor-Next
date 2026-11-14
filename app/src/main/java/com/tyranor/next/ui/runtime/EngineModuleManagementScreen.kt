@@ -1,17 +1,10 @@
 package com.tyranor.next.ui.runtime
 
 import android.widget.Toast
-import android.content.Context
-import android.content.Intent
-import android.net.Uri
-import android.provider.Settings
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -35,8 +28,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -48,7 +39,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tyranor.next.R
 import com.tyranor.next.core.engine.EngineType
 import com.tyranor.next.core.engine.runtime.RuntimeModuleBindings
-import com.tyranor.next.core.engine.runtime.RuntimeModuleContract
 import com.tyranor.next.core.engine.runtime.RuntimeModuleDescriptor
 import com.tyranor.next.core.engine.runtime.RuntimeModuleRegistry
 import com.tyranor.next.core.game.storage.GameLibraryFacade
@@ -56,7 +46,6 @@ import com.tyranor.next.theme.PageTextColor
 import com.tyranor.next.theme.AppComponentCornerRadius
 import com.tyranor.next.theme.MiuixSettingsTheme
 import com.tyranor.next.theme.glassBorder
-import com.tyranor.next.theme.AppComponentShape
 import com.tyranor.next.ui.common.AppAlertDialog
 import com.tyranor.next.ui.common.AppSecondaryTopBar
 import com.tyranor.next.ui.common.DialogTextButton
@@ -75,10 +64,8 @@ import kotlinx.coroutines.withContext
 import kotlin.coroutines.cancellation.CancellationException
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
 import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
-import top.yukonga.miuix.kmp.basic.Switch
-import top.yukonga.miuix.kmp.theme.MiuixTheme
-import androidx.core.graphics.drawable.toBitmap
 import com.tyranor.next.ui.common.SwitchPreference
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import com.tyranor.next.ui.common.notice.AppNotice
 import com.tyranor.next.ui.common.motion.DelayedProgress
 
@@ -94,9 +81,6 @@ internal fun EngineModuleManagementScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val snapshot by RuntimeModuleRegistry.state.collectAsStateWithLifecycle()
-    val managedModules = snapshot.modules.filterNot {
-        it.packageName == RuntimeModuleContract.TYN_RGSS_PACKAGE_NAME
-    }
     // 预先解析带数量的 Toast 格式串，避免在点击回调里用 LocalContext 查资源（Compose lint）。
     val disabledToastPattern = stringResource(R.string.engine_module_management_disabled_toast)
 
@@ -303,7 +287,7 @@ internal fun EngineModuleManagementScreen() {
                     }
                 }
 
-                if (refreshing && managedModules.isEmpty() && lastError == null) {
+                if (refreshing && snapshot.modules.isEmpty() && lastError == null) {
                     item(key = "loading") {
                         Box(
                             modifier = Modifier
@@ -319,7 +303,7 @@ internal fun EngineModuleManagementScreen() {
                     }
                 }
 
-                if (!refreshing && managedModules.isEmpty() && lastError == null) {
+                if (!refreshing && snapshot.modules.isEmpty() && lastError == null) {
                     item(key = "empty") {
                         Box(
                             modifier = Modifier
@@ -355,7 +339,7 @@ internal fun EngineModuleManagementScreen() {
                 }
 
                 itemsIndexed(
-                    items = managedModules,
+                    items = snapshot.modules,
                     key = { _, module -> module.packageName },
                 ) { index, module ->
                     EngineModuleCard(
@@ -367,7 +351,6 @@ internal fun EngineModuleManagementScreen() {
                         toggleEnabled = module.packageName !in togglingPackages,
                         toggleFailures = toggleFailures[module.packageName] ?: 0,
                         onEnabledChange = { enabled -> requestEnabledChange(module, enabled) },
-                        onOpenModule = { openRuntimeModule(context, module.packageName) },
                     )
                 }
             }
@@ -417,18 +400,9 @@ private fun EngineModuleCard(
     gameCount: Int,
     toggleEnabled: Boolean,
     onEnabledChange: (Boolean) -> Unit,
-    onOpenModule: () -> Unit,
     modifier: Modifier = Modifier,
     toggleFailures: Int = 0,
 ) {
-    val context = LocalContext.current
-    val icon = remember(module.packageName) {
-        runCatching {
-            context.packageManager.getApplicationIcon(module.packageName)
-                .toBitmap(width = 96, height = 96)
-                .asImageBitmap()
-        }.getOrNull()
-    }
     val version = module.versionName
         ?.takeIf { it.isNotBlank() }
         ?.let { "$it (${module.versionCode})" }
@@ -460,54 +434,14 @@ private fun EngineModuleCard(
             .glassBorder(),
         cornerRadius = AppComponentCornerRadius,
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            if (icon != null) {
-                Image(
-                    bitmap = icon,
-                    contentDescription = module.label,
-                    modifier = Modifier.size(48.dp).clip(AppComponentShape).clickable(onClick = onOpenModule),
-                )
-            } else {
-                Icon(
-                    painter = painterResource(R.drawable.ic_module),
-                    contentDescription = module.label,
-                    tint = MiuixTheme.colorScheme.primary,
-                    modifier = Modifier.size(48.dp).clickable(onClick = onOpenModule),
-                )
-            }
-            Column(
-                modifier = Modifier.weight(1f).padding(start = 12.dp).clickable(onClick = onOpenModule),
-            ) {
-                Text(
-                    module.label.ifBlank { module.packageName },
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                Text(
-                    summary,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Switch(
+        Column(Modifier.padding(vertical = 4.dp)) {
+            SwitchPreference(
+                title = module.label.ifBlank { module.packageName },
+                summary = summary,
                 checked = module.enabled,
                 enabled = toggleEnabled,
                 onCheckedChange = onEnabledChange,
             )
         }
-    }
-}
-
-private fun openRuntimeModule(context: Context, packageName: String) {
-    val intent = context.packageManager.getLaunchIntentForPackage(packageName)
-        ?: Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-            data = Uri.parse("package:$packageName")
-        }
-    try {
-        context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-    } catch (_: Exception) {
-        Toast.makeText(context, R.string.engine_module_management_open_failed, Toast.LENGTH_SHORT).show()
     }
 }

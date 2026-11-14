@@ -42,7 +42,6 @@ import com.tyranor.next.core.settings.AppSettingsStore
 import com.tyranor.next.theme.AppComponentShape
 import com.tyranor.next.theme.PageSecondaryTextColor
 import com.tyranor.next.theme.glassBorder
-import com.tyranor.next.ui.common.gameEngineDisplayName
 import com.tyranor.next.ui.common.motion.BlurCrossfade
 import com.tyranor.next.ui.common.motion.MotionMode
 import com.tyranor.next.ui.common.motion.PressSquishDefaults
@@ -196,7 +195,7 @@ private fun CoverFlowCard(
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text("Tyranor", style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(alpha = 0.7f))
             Text(
-                gameEngineDisplayName(game),
+                game.engine.displayName,
                 style = MaterialTheme.typography.bodyMedium,
                 color = Color.White,
                 modifier = Modifier.padding(top = 4.dp),
@@ -222,7 +221,7 @@ private fun CoverFlowCaption(
 ) {
     if (game == null) return
     val displayTitle = if (hideTitleTag) GameTitleTags.stripAll(game.title) else game.title
-    val caption = stringResource(R.string.game_cover_flow_caption, gameEngineDisplayName(game), displayTitle)
+    val caption = stringResource(R.string.game_cover_flow_caption, game.engine.displayName, displayTitle)
     // 翻到另一张时标题模糊替换
     BlurCrossfade(caption, modifier = modifier, contentAlignment = Alignment.Center) { text ->
         Text(

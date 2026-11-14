@@ -88,7 +88,7 @@
 | SystemNNN | 游戏根目录下的 `spt/sys.spt`，不区分大小写 | 内置 SystemNNN-Emberfall，进入游戏内环境设定调整运行选项 |
 | Ethornell / BGI | BGI 特征与资源组合 | 内置实验宿主，见第 10 节 |
 | Tyrano / VN / WebOther | `tyrano/`、`globalData.vndata`、HTML 等 | 内置 Web 壳 |
-| RPG Maker MV / MZ | `rpg_core.js` / `rmmz_core.js`、`www/` 等 | 内置 Web 运行环境，支持适用的 Asar 包 |
+| RPG Maker MV / MZ | `rpg_core.js` / `rmmz_core.js`、`www/` 等 | 内置 Web 运行环境，支持适用的 Asar 包与主 App 统一管理的翻译文件 |
 | RPG Maker RGSS | XP/VX/VX Ace 资源或 mkxp-z 模块选择 | 外置 RPGM APK 模块 |
 | Ren'Py | `.rpa`、`.rpy/.rpyc` 等组合 | 外置 Ren'Py APK；自动或指定 8.5.3 / 7.7.1 |
 | Ruffle / Flash | 顶层 `.swf`；根 `index.html/index.htm` + 唯一 SWF 的叶子目录 | 外置 Ruffle APK；一 SWF 一条记录 |
@@ -100,6 +100,8 @@
 所有内置引擎播放器（含加载期、运行期、视频窗口与 System4 手册窗口）统一使用 `SCREEN_ORIENTATION_LANDSCAPE`，禁止传感器翻转和反向横屏；清单与宿主运行时请求同时约束，旧方向 extra 与 Artemis 旋转设置不再生效。应用主页面和按键布局编辑器保持各自方向策略。Ren'Py / RPG Maker RGSS / Ruffle 启动请求使用标准横屏；外置 APK、模拟器及安卓游戏的实际窗口方向由目标应用决定。
 
 JoiPlay 外置模块与模拟器必须先安装；主 App 显示安装状态及获取入口。第三方 APK 运行时模块同样由用户自行安装，但主 App 不提供下载/安装器，只在「引擎模块管理」中列出并管理启用状态。启动前检查目标、权限和目录，失败由类型化结果映射 UI 文案。设置中的“自动”按当前运行时规则解析，不承诺回退能修复不受支持的脚本或资源。
+
+**翻译文件**：游戏操作面板中的「翻译文件」入口读取 App 注册的发现规则，并以候选 DTO 展示；主 App 统一识别和解析译表，按游戏保存当前选择。MV/MZ 可从 App 私有译表目录或游戏根目录发现有效的 MTool JSON 字符串映射。启动时向内置 Web 宿主提供只读译表会话 URI；当前加载方式由用户显式选择宿主注入或虚拟插件，失败不自动切换方式。译表文件的写入、替换、创建或删除可触发当前会话重新读取与热更新，游戏原始文件不被修改。第三方 APK 运行时模块可以在 `tyranor_runtime.json` 声明 `capabilities: ["translation"]` 与 `translationRule`，主 App 仍负责文件发现/解析，模块只接收临时授权的只读 map URI。
 
 Ren’Py 8.5.3 与原 8.5 使用相同 APK 包名，作为同一模块升级，不能独立并存。旧 `8.5` 设置兼容映射到 8.5.3；自动模式对 8.x/未知版本选择 8.5.3，对 7.x 选择 7.7.1。8.x 模块要求 APK versionCode 至少为 10200，旧版会提示更新并提供下载入口；配置载荷与游戏 ID 保持原协议。接入证据和设备验收边界见 [8.5.3 分析记录](docs/renpy-8.5.3-module-analysis.md)。
 

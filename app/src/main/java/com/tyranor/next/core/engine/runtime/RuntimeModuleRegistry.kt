@@ -80,11 +80,7 @@ object RuntimeModuleRegistry {
             when (result) {
                 is RuntimeModuleDiscoveryResult.Success -> {
                     val enabledPackages = AppSettingsStore.getEnabledRuntimeModules(context)
-                    val modules = result.modules.map { module ->
-                        module.copy(
-                            enabled = module.packageName in enabledPackages,
-                        )
-                    }
+                    val modules = result.modules.map { it.copy(enabled = it.packageName in enabledPackages) }
                     _state.value = RuntimeModuleSnapshot(
                         modules = modules,
                         lastError = null,

@@ -458,9 +458,7 @@ private fun ScrollableSlidingTabRow(
         Box(Modifier.fillMaxWidth().horizontalScroll(scrollState)) {
             // 内容坐标系：指示器与标签行同为一个 Box 的子节点，坐标原点一致
             Box(Modifier.height(SlidingTabHeight)) {
-                val measured = geometry[selectedIndex]?.takeIf { it.width > 0f }
-                if (measured != null) {
-                    val target = measured
+                geometry[selectedIndex]?.let { target ->
                     val targetX = with(density) { target.x.toDp() }
                     val targetWidth = with(density) { target.width.toDp() }
                     val edges = rememberStretchyIndicator(targetX, targetX + targetWidth)
@@ -468,32 +466,6 @@ private fun ScrollableSlidingTabRow(
                         modifier = Modifier.align(AbsoluteAlignment.TopLeft).stretchyBounds(edges),
                         shape = shape,
                         squash = { edges.stretch(targetWidth) },
-                    )
-                } else {
-                    // 首次几何回填前也显示选中块；标签测量后切换到带弹性的真实几何指示器。
-                    val fallbackX = with(density) {
-                        var x = ScrollableTabContentPadding.toPx()
-                        for (i in 0 until selectedIndex) {
-                            x += (geometry[i]?.width ?: 0f) + ScrollableTabSpacing.toPx()
-                        }
-                        x
-                    }
-                    val fallbackWidth = with(density) {
-                        (scrollState.viewportSize.toFloat() / tabs.size).coerceAtLeast(0f)
-                    }
-                    val animatedX by animateDpAsState(
-                        targetValue = with(density) { fallbackX.toDp() },
-                        animationSpec = tween(durationMillis = IndicatorDurationMillis, easing = LinearEasing),
-                        label = "slidingTabIndicatorX",
-                    )
-                    val animatedWidth by animateDpAsState(
-                        targetValue = with(density) { fallbackWidth.toDp() },
-                        animationSpec = tween(durationMillis = IndicatorDurationMillis, easing = LinearEasing),
-                        label = "slidingTabIndicatorWidth",
-                    )
-                    TabIndicator(
-                        modifier = Modifier.offset(x = animatedX).width(animatedWidth),
-                        shape = shape,
                     )
                 }
                 Row(

@@ -55,8 +55,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items as lazyItems
-import androidx.compose.foundation.lazy.itemsIndexed as lazyItemsIndexed
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -131,7 +129,6 @@ import androidx.compose.runtime.saveable.Saver
 import com.tyranor.next.core.engine.external.EmulatorLaunchStyle
 import com.tyranor.next.core.engine.external.ExternalEmulatorRegistry
 import com.tyranor.next.core.engine.external.ExternalEngineModuleRegistry
-import com.tyranor.next.core.engine.runtime.RuntimeModuleContract
 import com.tyranor.next.core.game.save.RpgSaveFormat
 import com.tyranor.next.core.game.save.sync.SaveSyncService
 import com.tyranor.next.core.game.model.GameTitleTags
@@ -1035,97 +1032,6 @@ internal fun GameActionsSheet(
                                 }
                             },
                         )
-                    }
-
-                    // KRKR 与所有 Winlator 系引擎（YU-RIS / CatSystem2 / PC）支持启动文件切换
-                    if (
-                        game.engine == EngineType.KIRIKIRI ||
-                        ExternalEmulatorRegistry.forEngine(game.engine)?.launchStyle == EmulatorLaunchStyle.WINLATOR_EXTERNAL
-                    ) {
-                        item {
-                            AppNavItem(
-                                title = stringResource(R.string.game_launch_file),
-                                summary = game.launchFile ?: stringResource(R.string.game_launch_file_auto_summary),
-                                leadingIcon = R.drawable.ic_sheet_launch_file,
-                                containerColor = drawerItemSurface,
-                                verticalPadding = 17.dp,
-                                showArrow = false,
-                                leadingIconTint = MaterialTheme.colorScheme.primary,
-                                onClick = { showLaunchFilePicker = true },
-                            )
-                        }
-                    }
-                    // 所有动作条目统一单个占满一行；卡片管理动作（快捷启动 / 桌面快捷方式 / 改名 /
-                    // 改封面 / 删除）已统一收口到长按操作弹窗，抽屉只保留启动相关动作与二级页面入口。
-                    val drawerActions = buildList {
-                        add(
-                            DrawerAction(
-                                key = "search_cover",
-                                title = drawerSearchCoverTitle,
-                                icon = R.drawable.ic_sheet_search_cover,
-                                iconTint = drawerPrimaryColor,
-                                onClick = { if (!isBatchScrapingActive()) showCoverSourcePicker = true },
-                            ),
-                        )
-                        if (shouldShowSaveManagement(game)) {
-                            add(
-                                DrawerAction(
-                                    key = "save_management",
-                                    title = drawerSaveManagementTitle,
-                                    icon = R.drawable.ic_sheet_saves,
-                                    showArrow = true,
-                                    iconTint = drawerPrimaryColor,
-                                    onClick = {
-                                        startActivityWithPageTransition(context, SaveManagementActivity.createIntent(context, game))
-                                        onDismiss()
-                                    },
-                                ),
-                            )
-                        }
-                        if (game.engine == EngineType.KIRIKIRI) {
-                            add(
-                                DrawerAction(
-                                    key = "online_patch",
-                                    title = drawerOnlinePatchTitle,
-                                    icon = R.drawable.ic_sheet_patch,
-                                    showArrow = true,
-                                    iconTint = drawerPrimaryColor,
-                                    onClick = {
-                                        startActivityWithPageTransition(context, KrkrOnlinePatchActivity.createIntent(context, game))
-                                        onDismiss()
-                                    },
-                                ),
-                            )
-                        }
-                        // 第三方运行时模块没有主 App 侧设置；TYN RGSS 模块有单游戏设置页。
-                        val hasEngineSettings = game.engine != EngineType.UNKNOWN &&
-                            (game.engine != EngineType.RUNTIME_MODULE ||
-                                game.runtimeModulePackage == RuntimeModuleContract.TYN_RGSS_PACKAGE_NAME)
-                        if (hasEngineSettings) {
-                            add(
-                                DrawerAction(
-                                    key = "engine_settings",
-                                    title = drawerEngineSettingsTitle,
-                                    icon = R.drawable.ic_sheet_settings,
-                                    showArrow = true,
-                                    iconTint = drawerPrimaryColor,
-                                    onClick = onEngineSettings,
-                                ),
-                            )
-                        }
-                    }
-                    drawerActions.forEach { action ->
-                        item(key = "drawer_row:" + action.key) {
-                            AppNavItem(
-                                title = action.title,
-                                leadingIcon = action.icon,
-                                containerColor = drawerItemSurface,
-                                verticalPadding = 17.dp,
-                                showArrow = action.showArrow,
-                                leadingIconTint = action.iconTint,
-                                onClick = action.onClick,
-                            )
-                        }
                     }
                 }
             }

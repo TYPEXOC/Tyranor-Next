@@ -2,6 +2,10 @@
 
 ## 未发布
 
+### 新增
+
+- RPG Maker MV/MZ 翻译支持统一译表发现、格式解析与单游戏选择；内置 Web 宿主支持宿主注入或虚拟插件加载，译表变更可热更新，整个流程不修改游戏文件。第三方运行时模块可通过能力声明接收主 App 提供的只读译表会话 URI。
+
 ### 修复
 
 - 公共下拉菜单移除椭圆选框、选中底色与勾选，普通/增强档统一支持长按拖动（弹层内无需滚动时按下即进入选择状态，松手选定，不设按动时长）：候选只变文字主题色并震动一次，松手才提交，展开/选定/收起不震动；保留滚动、点选与无障碍操作。
@@ -64,8 +68,6 @@
 - `libsiglus.so`、`librfvp.so`、`libethornell.so`、`libkrkrsdl3.so`、IJK 三件套与 System35/4（含 `libSDL2x.so`）移出 APK 的 `lib/`：构建期打成 `assets/engine-runtime/{siglus,fvp,ethornell,krkrsdl3,ijk,xsystem}.zip.xz`，`EngineLauncher` 在拉起对应引擎前由 `NativeRuntimePack` 解压到 `files/engine_runtime/<pack>/`（按 APK `lastUpdateTime:versionName` 失效），宿主与 JNI 桥改为按绝对路径加载（IJK 经 `IjkRuntime` 的 `IjkLibLoader`，krkrsdl3 覆写 SDL 的 `loadLibraries`/`getMainSharedObject`）；除 IJK 解压失败只记日志继续启动外，其余分片失败返回新的类型化 `LaunchResult.Failure.EngineLibraryPackFailed`。首启对应引擎需额外解压一次。
 
 ### 变更
-
-- TYN RGSS 运行时模块与其他运行时模块统一遵循默认关闭规则；安装后需在「引擎模块管理」启用，禁用时其已绑定游戏按通用规则降级，重新启用后重扫恢复。
 
 - 设置主页面将「外观主题」下拉项并入扫描目录与扫描深度所在卡片，位于扫描深度滑杆下方；切换即时生效并持久化，「应用设置」入口仍为独立卡片。
 

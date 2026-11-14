@@ -1,6 +1,5 @@
 package com.tyranor.next.core.engine.runtime
 
-import com.tyranor.next.core.engine.EngineType
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.Locale
@@ -21,7 +20,6 @@ data class RuntimeModuleDescriptor(
     val scan: RuntimeModuleScanSpec?,
     val enabled: Boolean,
     val capabilities: Set<String> = emptySet(),
-    val overrideEngines: Set<EngineType> = emptySet(),
     val translationRuleId: String? = null,
 ) {
     companion object {
@@ -33,7 +31,7 @@ data class RuntimeModuleDescriptor(
 }
 
 /**
- * 模块描述文件（`res/raw/tyranor_runtime.json`）解析后的扫描特征与能力。
+ * 模块描述文件（`res/raw/tyranor_runtime.json`）解析后的扫描特征。
  *
  * [extensions] 已归一为小写并带前导点；[markers] 已归一为小写相对路径。
  */
@@ -51,7 +49,6 @@ data class RuntimeModuleManifest(
     val label: String?,
     val scan: RuntimeModuleScanSpec?,
     val capabilities: Set<String> = emptySet(),
-    val overrideEngines: Set<EngineType> = emptySet(),
     val translationRuleId: String? = null,
 ) {
     companion object {
@@ -124,12 +121,28 @@ object RuntimeModuleManifestParser {
             label = (root.opt("label") as? String)?.trim()?.takeIf { it.isNotEmpty() },
             scan = parseScan(root.opt("scan")),
             capabilities = parseCapabilities(root.optJSONArray("capabilities")),
-            overrideEngines = parseOverrideEngines(root.optJSONArray("overrideEngines")),
             translationRuleId = parseTranslationRuleId(root.opt("translationRule")),
         )
     }
 
     fun fromJson(json: String?): RuntimeModuleManifest? = parse(json)
+
+    private fun parseCapabilities(array: JSONArray?): Set<String> {
+        if (array == null) return emptySet()
+        val result = LinkedHashSet<String>()
+        for (index in 0 until array.length()) {
+            if (result.size >= RuntimeModulePatterns.MAX_CAPABILITIES) break
+            val raw = array.opt(index) as? String ?: continue
+            val value = raw.trim().lowercase(Locale.ROOT)
+            if (RuntimeModulePatterns.CAPABILITY.matches(value)) result += value
+        }
+        return result
+    }
+
+    private fun parseTranslationRuleId(value: Any?): String? {
+        val raw = (value as? String)?.trim()?.lowercase(Locale.ROOT) ?: return null
+        return raw.takeIf(RuntimeModulePatterns.TRANSLATION_RULE_ID::matches)
+    }
 
     private fun readProtocol(root: JSONObject): Int {
         val value = root.opt("protocol")
@@ -152,36 +165,6 @@ object RuntimeModuleManifestParser {
         val markers = parseMarkers(scan.optJSONArray("markers"))
         if (extensions.isEmpty() && markers.isEmpty()) return null
         return RuntimeModuleScanSpec(match = match, extensions = extensions, markers = markers)
-    }
-
-    private fun parseCapabilities(array: JSONArray?): Set<String> {
-        if (array == null) return emptySet()
-        val result = LinkedHashSet<String>()
-        for (index in 0 until array.length()) {
-            if (result.size >= RuntimeModulePatterns.MAX_CAPABILITIES) break
-            val raw = array.opt(index) as? String ?: continue
-            val value = raw.trim().lowercase(Locale.ROOT)
-            if (RuntimeModulePatterns.CAPABILITY.matches(value)) result += value
-        }
-        return result
-    }
-
-    private fun parseTranslationRuleId(value: Any?): String? {
-        val raw = (value as? String)?.trim()?.lowercase(Locale.ROOT) ?: return null
-        return raw.takeIf(RuntimeModulePatterns.TRANSLATION_RULE_ID::matches)
-    }
-
-    private fun parseOverrideEngines(array: JSONArray?): Set<EngineType> {
-        if (array == null) return emptySet()
-        val result = LinkedHashSet<EngineType>()
-        for (index in 0 until array.length()) {
-            if (result.size >= RuntimeModulePatterns.MAX_OVERRIDE_ENGINES) break
-            val raw = array.opt(index) as? String ?: continue
-            val engine = EngineType.values().firstOrNull { it.name == raw.trim().uppercase(Locale.ROOT) }
-                ?: continue
-            if (engine in RuntimeModulePatterns.OVERRIDEABLE_ENGINES) result += engine
-        }
-        return result
     }
 
     private fun parseExtensions(array: JSONArray?): List<String> {
@@ -217,10 +200,8 @@ internal object RuntimeModulePatterns {
     const val MAX_MARKERS = 64
     const val MAX_MARKER_LENGTH = 256
     const val MAX_CAPABILITIES = 16
-    const val MAX_OVERRIDE_ENGINES = 16
     val CAPABILITY = Regex("^[a-z][a-z0-9._-]{0,47}$")
     val TRANSLATION_RULE_ID = Regex("^[a-z][a-z0-9._-]{0,47}$")
-    val OVERRIDEABLE_ENGINES = setOf(EngineType.RPGMAKER, EngineType.RENPY, EngineType.RUFFLE)
 
     private val WINDOWS_DRIVE = Regex("^[A-Za-z]:")
 
