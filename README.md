@@ -4,6 +4,28 @@
 
 基于 **Tyranor 模拟器逆向重写** 的多引擎视觉小说（Galgame）模拟器，面向 Android 平台。具体功能与兼容边界见 [SPEC.md](SPEC.md)。
 
+游戏页搜索栏旁的筛选按钮可按引擎类型和游玩状态筛选标题搜索结果，或按字母、括号标签、引擎、最近游玩排序；筛选按钮与搜索栏随列表滚动一起收起，滚回顶部后一起显示。筛选与排序会保留到下次启动；筛选抽屉会按横竖屏可用高度调整。
+
+内置引擎播放器及游戏视频窗口固定为标准横屏，不随设备旋转或 180° 翻转；Artemis 不再提供反向横屏选项。外置播放器的窗口方向最终由对应 APK 控制。
+
+内置引擎宿主共用黑底、主题色转圈的启动加载界面。各宿主在其窗口内容可呈现后退出加载，启动失败时提示返回重试；外置 APK 引擎和模拟器只负责交棒。实现边界与验收见 [统一启动加载计划](docs/统一引擎宿主启动加载界面实施计划.md)。
+
+一级页面（首页、游戏、引擎、设置）保留原有标题栏；二级页面统一提供加粗返回箭头和标题，支持点击返回与系统返回手势。
+
+「应用设置 → 界面动效」可即时切换增强（默认）与普通。增强档提供页面水平侧推、列表与控件弹簧反馈、浮层景深和提示胶囊；普通档保留原有转场。Android 14 / API 34 及以上支持通过主界面左缘系统返回唤出侧栏；较低版本的系统返回沿用原有离页行为，仍可用页面内左缘右滑打开侧栏。
+
+输入框聚焦时保留前导图标回弹，文本区域不参与缩放，避免粉色水滴光标柄反复闪现；仍支持点击定位、长按选词和拖动选择柄。
+
+设置类下拉菜单不再显示椭圆选框，只用文字主题色表示选择。长按后拖动预览，松手选定（弹层内无需滚动时按下的那一刻即为选择状态，松手选定，不需要等长按）；切换候选文字时震动一次，展开、松手和收起不震动。普通与增强档保持一致，也支持点选与无障碍操作。
+
+普通与增强动效均保持叠层弹窗的背景遮罩连续：关闭确认框返回管理弹窗，以及侧栏、封面搜索、裁剪之间的窗口交接，不会因上层遮罩退场而短暂露出全亮背景。嵌套窗口开始关闭时，下层面板立即恢复亮度，页面遮罩由下层继续保持，无需等待上层退场结束。
+
+抽屉上再开弹窗时，抽屉面板会被遮罩，底层页面维持原暗度；关闭上层后立即恢复抽屉亮度。
+
+设置主页面的扫描卡片在扫描深度滑杆下方提供「外观主题」切换，选择后即时生效并持久化。
+
+内置引擎游戏的累计时长仅在首页最近打开卡片的标题下方左对齐显示，采用最多一位小数的小时格式（如 `0.1h`、`100h`），格式化后为 `0h` 时隐藏，底部文字遮罩保持原高度；按前台运行时间记录，切后台及锁屏暂停；加载、标题菜单、自动播放和游戏内视频计入，历史时长不补算。外置引擎、模拟器和安卓游戏不统计。
+
 iOS版本计划中...  鸿蒙设备可使用卓易通安装
 主打轻便、简单、快捷，不引入其他冗余功能的简约设计思路
 
@@ -57,34 +79,39 @@ iOS版本计划中...  鸿蒙设备可使用卓易通安装
 | CMVS                 | `data/pack/script.cpz` + `start.ps3/ps2`（仅 19 部登记作品）              | 内置 CMVS 原生运行时（cmvs-rs，NativeActivity） |
 | System35             | `*.ALD`（`SA.ALD` 等；根目录或 `GAMEDATA/`）、`System39.ain`/`System39.ini`/`*.wai`/`*.bgi`/`*.alk` | 内置 System3.x 运行时（xsystem35） |
 | System4              | `System40.ini` 或 `AliceStart.ini`（根目录；`*.ain` 为辅助特征）                    | 内置 System4 运行时（xsystem4）      |
+| SystemNNN            | 游戏目录下的 `spt/sys.spt`（不区分大小写）                            | 内置 [SystemNNN-Emberfall 0.6.14](https://github.com/PorisRora/SystemNNN-Emberfall)（ARM64） |
 | YU-RIS               | `yscfg.dat`、`pac/*.ypf`、`YS*.DLL`、`.ymv`                          | 外置 Winlator（winlator-cn）        |
 | CatSystem2           | `config/startup.xml`、`*.int`、`*.cst`、`*.hg3`、`*.kcs` 等组合         | 外置 Winlator（winlator-cn）        |
 | PC（手动添加）        | 游戏页顶栏「添加 PC 游戏」选择目录并指定启动 exe                          | 外置 Winlator（winlator-cn）        |
 | TyranoBuilder        | `index.html`、`tyrano/`                                              | 内置 Tyrano Web 运行环境           |
-| RPG Maker XP         | `.rgssad`、`Game.ini` + `Data/*.rxdata`                              | TYN RGSS 外置运行时模块               |
-| RPG Maker VX         | `.rgss2a`、`Game.ini` + `Data/*.rvdata`                              | TYN RGSS 外置运行时模块               |
-| RPG Maker VX Ace     | `.rgss3a`、`Game.ini` + `Data/*.rvdata2`                             | TYN RGSS 外置运行时模块               |
+| RPG Maker XP         | `.rgssad`、`Game.ini` + `Data/*.rxdata`                              | 外置 RPGM APK 模块               |
+| RPG Maker VX         | `.rgss2a`、`Game.ini` + `Data/*.rvdata`                              | 外置 RPGM APK 模块               |
+| RPG Maker VX Ace     | `.rgss3a`、`Game.ini` + `Data/*.rvdata2`                             | 外置 RPGM APK 模块               |
 | mkxp-z               | 用户选择/内部别名 `internal.mkxp-z`                                         | 外置 RPGM APK 模块               |
 | RPG Maker MV         | `www/`、`js/rpg_core.js`                                             | 内置 Web 运行环境                  |
 | RPG Maker MZ         | `www/`、`js/rmmz_core.js`                                            | 内置 Web 运行环境                  |
 | VN                   | `globalData.vndata`                                                 | 内置 Web 运行环境                  |
 | WebOther             | 通用 `index.html` 网页游戏                                                | 内置 Web 运行环境                  |
-| Ren'Py               | `.rpa`、`game/script.rpy`、`game/options.rpy`、`renpy/` + `.rpy/.rpyc` | 外置 RenPy APK 模块              |
+| Ren'Py               | `.rpa`、`game/script.rpy`、`game/options.rpy`、`renpy/` + `.rpy/.rpyc` | 外置 RenPy APK 模块（8.5.3 / 7.7.1） |
 | Ruffle / Flash       | 顶层 `.swf`；根 `index.html/index.htm` + 唯一 SWF 的叶子目录                   | 外置 Ruffle APK 模块              |
 | PSP                  | `.pbp`、`.cso`、`.iso`、`.chd`                                         | 外置 PPSSPP 模拟器                 |
 | Nintendo Switch      | `.nsp`、`.xci`、`.nca`、`.nro`                                         | 外置 Eden 模拟器                   |
 
-TYN RGSS 模块使用的 XP、VX、VX Ace RTP 由 Tyranor Next 在应用自己的媒体目录中管理，支持通过系统文件选择器导入资源 ZIP 或资源目录并单独删除；导入与删除按钮始终显示并按状态启用，不读取 JoiPlay 的 RTP 目录。导入前会校验 RTP 资源结构与所选代际，不接受安装程序或无关压缩包。
 
-主 App 统一发现翻译文件并按格式归一为只读 map 会话，内置 MV/MZ 与声明翻译规则的运行时模块共用同一套选择和译文交接。MV/MZ 默认由游戏 `PluginManager` 加载 APK 内虚拟翻译插件；旧宿主直接注入可通过内部模式选择项手动切换。插件登记和脚本仅由本地 HTTP 服务虚拟提供，不改游戏文件；虚拟模式失败不自动回退。已选译表支持运行中热更新，标准对白按引擎消息状态刷新，插件自绘文本仍取决于其绘制路径。
-
+Ren’Py 在 Android 11 及以上支持统一管理游戏根目录的 `saves/`（导入、导出、删除、存档版本与 WebDAV 同步）。退出外置播放器后，需在存档管理页确认已退出，再进行存档操作；Android 10 及以下不接入。
 
 ### 平台与文件要求
 
 - Android 8.0（API 26）及以上。
 - 当前原生引擎库仅提供 `arm64-v8a`，设备需为 64 位 ARM 架构。
+- SystemNNN 的阅读字号与 PC 存档操作可通过对应页面的悬浮按钮打开。剧情正文字号默认 85%，可选择 100% 恢复原版大小。
+- SystemNNN 影片切到后台后暂停，返回时接着播放。剧情音频未取得焦点时，回到播放器或操作即可重试。
+- SystemNNN 首次使用时解压运行库包。ZIP 导入和 WebDAV 恢复在独立校验进程读取剧情档的输入日志、原生快照结构和随包全局进度，通过后再替换存档。仅含有效全局进度的备份可恢复到没有剧情档和流程图检查点的目录。
+- 旧版本遗留的 SystemNNN 副本可在存档管理中清理资源。SystemNNN 直接在原游戏目录读写，不复制游戏；目录不可读写时启动会报错并提示授权或移动位置。旧版本遗留的副本仍可打开，删除游戏、游戏目录或重扫丢弃条目时会尝试清理其资源（游戏运行中会提示并保留条目），失败的清理会在下次启动时重试。原游戏目录和副本中的全部存档都会保留。
+- SystemNNN 的标题、设置、鉴赏和错误提示跟随应用语言。游戏提供的界面文字和贴图按游戏配置显示。
+- SystemNNN 不再进行整目录复制，WebDAV 直接使用游戏目录下的 `sav`。手动恢复 ZIP 会在解包后确认当前存档目录。
 - 游戏目录需位于 Android 可访问的本地存储，并通过系统文件选择器（SAF）授权；启动时目录必须能够映射为真实文件路径，外置存储上的部分引擎可能需要“所有文件访问”权限。
-- 实际兼容性取决于游戏使用的引擎版本、封包/加密方式和脚本特性；特殊修改版可能需要调整引擎设置或补丁。
+- 实际兼容性取决于游戏使用的引擎版本、封包/加密方式和脚本特性；特殊修改版可能需要调整引擎设置或补丁。KRKR 游戏的渲染器、FPS 限制、内存占用等引擎偏好按 Kirikiroid2 内核原生键名写入引擎偏好文件，全局与单游戏覆盖均可生效。
 
 ## 参与贡献
 
@@ -164,6 +191,7 @@ docs/、.archify/                     专题方案、审查记录与可视化
 - Siglus / RealLive / AVG32 / UK2 引擎运行库来自 [siglus_rs](https://github.com/xmoezzz/siglus_rs)（MPL-2.0，上述引擎的非官方 Rust 重写/移植），以其自身许可证引入；相应源码可于上游或其 fork 仓库获取
 - FVP 引擎运行库来自 [rfvp](https://github.com/xmoezzz/rfvp)（MPL-2.0，FVP 引擎的非官方 Rust 重写/移植），以其自身许可证引入；相应源码可于上游或其 fork 仓库获取
 - CMVS 引擎运行库来自 fork [cmvs-rs](https://github.com/Weiss-UltimateSavior/cmvs-rs)（上游 MIT OR Apache-2.0，Purple SOFTWARE CMVS 引擎的 Rust 重实现），固定上游 commit 并在构建时应用绝对路径补丁；源码与补丁清单见 `tools/cmvs/`
+- SystemNNN 运行库 `libsystemnnn.so` 由 PorisRora（Rooboko）维护的 Emberfall 源码构建。Emberfall 自有代码采用 GPL-2.0-only。原版 SystemNNN 由 tinyan 开发。默认碎裂网格由 Emberfall 自行生成，供全屏转场和图层碎裂共用。 [运行库对应源码](https://github.com/PorisRora/SystemNNN-Emberfall/tree/d0170741089e9f29de7329a5e0d4e37d06ff5c71) · [对应构建记录](engine/src/main/assets/licenses/systemnnn/ffmpeg-source.txt) · [归属与许可](engine/src/main/assets/licenses/systemnnn/upstream-source.txt)
 - System35 引擎运行库来自 [xsystem35-sdl2](https://github.com/kichikuou/xsystem35-sdl2)（GPL-2.0-or-later，AliceSoft System 3.x 开源重实现的 SDL2 移植），引擎源码与修改声明见 fork [xsystem35-sdl2](https://github.com/Weiss-UltimateSavior/xsystem35-sdl2)；本仓库仅保留预构建运行库、构建剧本与补丁记录（见 `engine/xsystem35/BUILD.md`）；其依赖 SDL2 / SDL2_mixer（zlib）、freetype（FTL/GPLv2）、libwebp（BSD-3-Clause）按各自许可证引入，许可证文本随 `engine/xsystem35/licenses/` 保留
 - System4 引擎运行库来自 [xsystem4](https://github.com/nunuhara/xsystem4)（GPL-2.0-or-later，AliceSoft System 4 引擎的开源重实现），引擎源码与修改声明见 fork [xsystem4](https://github.com/Weiss-UltimateSavior/xsystem4)；其依赖 libsys4（GPL-2.0-or-later，上游 [libsys4](https://github.com/nunuhara/libsys4)）同样取自 fork [libsys4](https://github.com/Weiss-UltimateSavior/libsys4)。Android 构建仅参考 `kichikuou/xsystem4-android` 的事实信息，未拷贝其任何文件。静态链入的依赖包括 libsndfile fork [libsndfile](https://github.com/Weiss-UltimateSavior/libsndfile)（`xsystem4` 分支，LGPL-2.1-or-later）、libogg / libvorbis / libwebp（BSD-3-Clause）、libjpeg-turbo（BSD-3-Clause / IJG）、libpng、libffi / libdeflate / cglm（MIT）及 freetype（同 System35）；SDL2（zlib）与 System35 共用 `libSDL2x.so`；xsystem4 与 libsys4 内的第三方例外（如 cJSON、pl_mpeg（MIT）、queue.h、base64.c（BSD）、kvec.h（MIT；`vector.h` 与之同声明）、sts_mixer（Unlicense，公有领域）、mt19937int（libsys4，LGPL-2.0-or-later 声明））按各自许可证引入。预构建运行库、构建剧本与补丁记录见 `engine/xsystem4/BUILD.md`，许可证文本随 `engine/xsystem4/licenses/` 保留
 - Anime4K GLSL 着色器（`engine/src/main/assets/anime4k/`）来自 [bloc97/Anime4K](https://github.com/bloc97/Anime4K)，按其 MIT 许可证引入（版权声明保留于各着色器文件头部）
@@ -182,4 +210,3 @@ docs/、.archify/                     专题方案、审查记录与可视化
 - [Anime4K](https://github.com/bloc97/Anime4K):（bloc97，MIT）：KRKR 游戏画面实时超分（线条重建 CNN 着色器）
 - [OnscripterYuri](https://github.com/YuriSizuku/OnscripterYuri): ONS引擎
 - [UsefulUnpack](https://github.com/znso4pa/usefulunpack)（znso4pa，MIT）：XP3 / KSD 解封包 Rust 实现（`engine/rust` 的 `lib.rs` / `common.rs` / `ksd.rs` 来源，许可证见 `engine/rust/LICENSE.usefulunpack`）
-- 各引擎运行时均基于其开源许可引入
