@@ -1032,8 +1032,9 @@ object EngineScanner {
     }
 
     /**
-     * 普通运行时模块只接管未知结果；TYN RGSS 作为 RPG Maker 第一方集成由固定包名适配。
-     * 命中后保留内置识别出的子引擎别名，再以模块包名交棒。
+     * 第三方运行时模块的弱结果分流：内置强特征（KRKR / ONS / RPGM / Ren'Py 等）不被覆盖，
+     * 只有 [EngineType.UNKNOWN] 与 [EngineType.WEB_OTHER] 才尝试模块声明的扫描特征。
+     * 命中时统一以 [EngineType.RUNTIME_MODULE] + 文件夹路径启动，并记录模块包名。
      */
     private fun applyRuntimeModules(
         builtIn: Detection,
@@ -1042,24 +1043,14 @@ object EngineScanner {
         runtimeModules: RuntimeModuleIndex,
     ): Detection {
         if (runtimeModules.modules.isEmpty()) return builtIn
-        val weakResult = builtIn.engine == EngineType.UNKNOWN || builtIn.engine == EngineType.WEB_OTHER
+        if (builtIn.engine != EngineType.UNKNOWN && builtIn.engine != EngineType.WEB_OTHER) return builtIn
         // 主机 ROM / 散装 SWF 目录必须交给 romGamesForSaf/File 逐文件入库，不能被模块扩展名吞掉。
         if (entries.any { !it.isDirectory && romEngineOf(it.name) != null }) return builtIn
-        val module = (
-            if (weakResult) {
-                runtimeModules.match(entries, childrenOf)
-            } else if (builtIn.engine == EngineType.RPGMAKER) {
-                runtimeModules.matchTynRgss(entries, childrenOf)
-            } else {
-                null
-            }
-        ) ?: return builtIn
+        val module = runtimeModules.match(entries, childrenOf) ?: return builtIn
         return Detection(
             engine = EngineType.RUNTIME_MODULE,
             confidence = 80,
             launchTarget = LAUNCH_TARGET_GAME_DIR,
-            externalModuleAlias = builtIn.externalModuleAlias,
-            titleHint = builtIn.titleHint,
             runtimeModulePackage = module.packageName,
         )
     }

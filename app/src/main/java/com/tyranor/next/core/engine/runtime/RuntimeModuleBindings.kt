@@ -2,6 +2,7 @@ package com.tyranor.next.core.engine.runtime
 
 import android.content.Context
 import com.tyranor.next.core.engine.EngineType
+import com.tyranor.next.core.engine.external.RpgMakerExternalEngineModule
 import com.tyranor.next.core.game.model.ScanGame
 import com.tyranor.next.core.game.storage.GameLibraryFacade
 import com.tyranor.next.core.settings.AppSettingsStore
@@ -22,9 +23,17 @@ object RuntimeModuleBindings {
             game.copy(engine = EngineType.SYSTEMNNN, runtimeModulePackage = null)
         } else game
 
-    /** Read the old Emberfall identity as built-in until an explicit reconciliation persists it. */
+    /** Move RGSS games from the old dynamic-module binding to the fixed RPG Maker adapter. */
+    internal fun fixedRpgMakerAdapter(game: ScanGame): ScanGame =
+        if (game.runtimeModulePackage == RpgMakerExternalEngineModule.packageName &&
+            game.engine in setOf(EngineType.RUNTIME_MODULE, EngineType.UNKNOWN)
+        ) {
+            game.copy(engine = EngineType.RPGMAKER, runtimeModulePackage = null)
+        } else game
+
+    /** Migrate fixed-adapter identities while loading, including old Emberfall and TYN RGSS records. */
     internal fun loadLibraryWithBuiltInSystemNnn(context: Context): List<ScanGame> =
-        GameLibraryFacade.loadGames(context).map(::builtInSystemNnn)
+        GameLibraryFacade.loadGames(context).map { game -> fixedRpgMakerAdapter(builtInSystemNnn(game)) }
 
     /**
      * 批量核对库中所有 [EngineType.RUNTIME_MODULE] 条目：
@@ -65,12 +74,10 @@ object RuntimeModuleBindings {
         enabledPackages: Set<String>,
         restoreReenabled: Boolean,
     ): ScanGame {
-        val builtIn = builtInSystemNnn(game)
-        if (builtIn !== game || discoveredPackages == null) return builtIn
+        val fixedAdapter = fixedRpgMakerAdapter(builtInSystemNnn(game))
+        if (fixedAdapter !== game || discoveredPackages == null) return fixedAdapter
         val packageName = game.runtimeModulePackage
-        val enabled = packageName == RuntimeModuleContract.TYN_RGSS_PACKAGE_NAME ||
-            (!packageName.isNullOrBlank() && packageName in enabledPackages)
-        val available = !packageName.isNullOrBlank() && enabled && packageName in discoveredPackages
+        val available = !packageName.isNullOrBlank() && packageName in enabledPackages && packageName in discoveredPackages
         return when {
             // Retain the last known package so a later scan can restore the binding.
             game.engine == EngineType.RUNTIME_MODULE && !available -> game.copy(engine = EngineType.UNKNOWN)

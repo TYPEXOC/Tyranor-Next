@@ -9,8 +9,8 @@
 ## 1. 先理解三件事
 
 1. **模块是一个独立 APK**，不是主 App 的插件或动态代码。
-2. 主 App 负责**发现模块、让用户启用、按模块声明扫描游戏、把游戏文件夹路径交给模块**；用户已选择时还会临时共享当前翻译文件和按键方案。
-3. 游戏运行、设置、存档、作弊执行与画面都由模块自己负责；主 App 不进入模块进程。
+2. 主 App 只做四件事：**发现模块、让用户启用、按模块声明扫描游戏、把游戏文件夹路径交给模块**。
+3. 游戏运行、设置、存档、按键、画面都由模块自己负责；主 App 不接管。
 
 一条完整的接入链路：
 
@@ -21,9 +21,11 @@
   → 用户手动扫描游戏库
   → 主 App 按模块声明的 extensions / markers 识别游戏
   → 用户启动游戏
-  → 主 App 用显式组件把文件夹路径交给模块，并可选授予译表/按键方案 URI
+  → 主 App 用显式组件把文件夹路径交给模块
   → 模块自己运行游戏
 ```
+
+固定注册在 `core/engine/external` 的外置引擎包不进入这条动态链路，即使它也声明了相同 action 和包名前缀。RPG Maker 的 TYN RGSS APK 由固定适配器启动，不在「引擎模块管理」中重复列出。
 
 ---
 
@@ -80,31 +82,13 @@ com.example.runtime             ❌ 前缀不对
 
 ### 2.3 接收启动参数
 
-主 App 启动模块时使用**显式组件**。通用 v1 协议固定传下面三个基础 extra。TYN 自有模块可使用下一表列出的扩展字段；这些扩展不是普通第三方模块的必需协议。
-
-**通用 v1 基础字段**：
+主 App 启动模块时使用**显式组件**，只传三个 extra：
 
 | extra | 类型 | 说明 |
 | --- | --- | --- |
 | `com.tyranor.runtime.extra.FOLDER_PATH` | String | 游戏文件夹绝对路径，必填 |
 | `com.tyranor.runtime.extra.GAME_TITLE` | String | 游戏标题，可选 |
 | `com.tyranor.runtime.extra.PROTOCOL_VERSION` | Int | 主 App 协议版本，当前为 1 |
-
-**TYN 自有 RGSS 模块扩展字段**（普通第三方模块可忽略）：
-
-| extra | 类型 | 说明 |
-| --- | --- | --- |
-| `com.tyranor.runtime.extra.GAME_ID` | String | 稳定游戏标识，用于隔离模块状态 |
-| `com.tyranor.runtime.extra.TRANSLATION_MAP_URI` | String | 可选；当前选中译表经主 App 解析、规范化后的 JSON map `content://` URI，只读。模块须声明 `translation` 能力和主 App 已注册的 `translationRule` |
-| `com.tyranor.runtime.extra.PAD_ENABLED` | Boolean | 可选；TYN 按键是否启用 |
-| `com.tyranor.runtime.extra.PAD_PROFILE_URI` | String | 可选；生效按键方案的 `content://` URI，临时读写 |
-| `com.tyranor.runtime.extra.PAD_PROFILE_ID` | String | 可选；当前方案 ID |
-| `com.tyranor.runtime.extra.RUBY_RUNTIME` | String | 可选；Ruby VM 标识（`187` / `193` / `313`） |
-| `com.tyranor.runtime.extra.RTP_ROOT` | String | 可选；TYN 管理的 RPG Maker RTP 根目录 |
-| `com.tyranor.runtime.extra.RGSS_OPTIONS` | String | 可选；TYN RGSS 模块的 mkxp-z 选项 JSON |
-| `com.tyranor.runtime.extra.THEME_PRIMARY_COLOR` | Int | 可选；TYN 当前强调色 ARGB |
-| `com.tyranor.runtime.extra.THEME_ON_PRIMARY_COLOR` | Int | 可选；强调色上的前景色 ARGB |
-| `com.tyranor.runtime.extra.THEME_DARK_MODE` | Boolean | 可选；TYN 当前内容主题是否为深色，供模块内控件同步明暗配色 |
 
 最小接收代码：
 
@@ -120,7 +104,7 @@ class LaunchActivity : Activity() {
         Log.i("MyRuntime", "folder=$folder title=$title protocol=$protocol")
 
         if (folder.isNullOrBlank()) {
-            // 没有文件夹路径，直接结束
+            // 没有文件夹路径，直接结束；主 App 不会传 settings/存档/按键参数
             finish()
             return
         }
@@ -131,13 +115,13 @@ class LaunchActivity : Activity() {
 }
 ```
 
-兼容性说明：普通第三方模块只需依赖三个通用 v1 基础字段；TYN RGSS 扩展只供对应第一方模块使用。接收 content URI 时，模块应按临时授权读取；若要编辑按键方案，可在启动任务存活期间写回已授予写权限的 URI。URI 与权限一同放进启动 Intent 的 `ClipData`。主 App 不会传：
+主 App 不会传：
 
 - `game` / `settings` JSON；
-- 存档路径或画面参数；
+- 存档路径、按键映射、画面参数；
 - SAF URI 的持久授权。
 
-模块仍需自行实现运行时、作弊、存档与画面策略；按键和翻译仅在主 App 明确选择后提供文件访问。
+所以模块自己的设置、存档、输入、画面策略都要在模块内完成。
 
 ---
 
@@ -183,20 +167,6 @@ class LaunchActivity : Activity() {
 | `scan.match` | 否 | `"any"`（默认）或 `"all"` |
 | `scan.extensions` | 否 | 扩展名数组，必须带前导点，如 `.mygame` |
 | `scan.markers` | 否 | 相对游戏根目录的标记文件/目录路径 |
-| `translationRule` | 否 | 主 App 已注册的翻译发现规则 ID；需同时声明 `translation` 能力 |
-
-`capabilities` 是 TYN 扩展字段，不参与扫描匹配。模块可用 `translation` 声明翻译能力，并以 `translationRule` 选择 TYN 主 App 已注册的目录发现规则；主 App 执行目录扫描和格式校验，模块不自行查询文件。当前只注册 `mtool-json`，适用于 MTool JSON 译表。所有模块都必须显式声明规则；缺少规则或规则未注册时不显示翻译选择。新增格式时由 TYN 主 App 增加格式解析器和对应发现规则，模块只需引用规则 ID。
-
-例如：
-
-```json
-{
-  "capabilities": ["translation"],
-  "translationRule": "mtool-json"
-}
-```
-
-用户选择译表后，启动交棒会给模块一个只读 `TRANSLATION_MAP_URI`。URI 提供主 App 按声明规则解析并规范化后的 JSON map；模块在自己的运行会话中加载 map 并维护引擎文本钩子。主 App 监视原始译表变化并刷新 map 内容，URI 保持稳定，以支持运行时热更新。
 
 **上限**：
 
@@ -243,8 +213,8 @@ class LaunchActivity : Activity() {
 
 ### 3.5 主 App 的扫描优先级
 
-- 先跑内置引擎识别；普通第三方模块不能覆盖 **KRKR / ONS / RPGM / Ren'Py / Ruffle / Siglus 等强特征结果**。
-- 普通第三方模块只有在内置结果为 `UNKNOWN` 或 `WEB_OTHER` 时才尝试匹配。TYN 自有 RGSS 模块是第一方适配：仅固定包名的模块可在扫描描述命中后接管已识别的 RPG Maker RGSS 游戏；此例外不开放给通用模块。
+- 先跑内置引擎识别；**KRKR / ONS / RPGM / Ren'Py / Ruffle / Siglus 等强特征结果不会被模块覆盖**。
+- 只有内置结果为 `UNKNOWN` 或 `WEB_OTHER` 时才尝试模块匹配。
 - 扫描根目录本身不参与模块匹配；游戏必须位于扫描根下的子目录。
 - 含主机 ROM（PSP/Switch）或散装 SWF 的目录会交给对应机制，模块扩展名不能吞并它们。
 - 多模块同时命中时，主 App 按「`all` 优先于 `any` → marker 数量多优先 → 包名排序」确定性选择，不会在扫描时弹窗。
@@ -259,7 +229,7 @@ class LaunchActivity : Activity() {
 3. 用户打开开关：只写入启用状态，**不自动扫描、不立即入库**。
 4. 用户回游戏页手动扫描：只有已启用 + 有扫描描述的模块参与。
 5. 识别到的目录以 `EngineType.RUNTIME_MODULE` 入库，游戏卡引擎名显示 **Plugin**。
-6. 启动游戏时，主 App 把文件夹路径交给模块；如果用户已选择译表或启用按键，也会授予对应文件的本次启动 URI 权限。
+6. 启动游戏时，主 App 把文件夹路径交给模块。
 
 这意味着：
 
@@ -342,10 +312,9 @@ Intent("com.tyranor.runtime.action.LAUNCH").apply {
 
 - `game` / `settings` JSON；
 - 存档目录；
+- 虚拟按键/手柄配置；
 - 画面过滤参数；
 - 模块版本/签名校验结果。
-
-译表 URI 与按键方案 URI 是可选项，只有主 App 中有明确选择/启用时才会传。按键方案通过临时读写 URI 提供给模块，但按键渲染、事件注入与编辑仍由模块实现；译表 URI 为临时只读。不得依赖长期授权或在游戏目录建立配置副本。
 
 模块自己的设置请用自己的 SharedPreferences/数据库/文件维护。
 
@@ -421,8 +390,7 @@ Intent("com.tyranor.runtime.action.LAUNCH").apply {
 - 不执行模块代码做扫描；
 - 不支持正则、文件内容魔数、递归 `**` 扫描；
 - 不传 SAF URI 持久授权；
-- 不接管模块的存档、运行时设置与画面；
-- 不替模块渲染按键、注入输入或执行译表；只在用户选择后提供译表/按键方案的临时文件 URI；
+- 不接管模块的存档、设置、按键、画面；
 - 不提供模块结果回调；
 - 不自动迁移包名变更后的游戏绑定。
 

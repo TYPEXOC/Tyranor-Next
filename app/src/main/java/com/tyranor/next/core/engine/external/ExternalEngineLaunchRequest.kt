@@ -8,6 +8,6 @@ data class ExternalEngineLaunchRequest(
     val game: ScanGame,
     val gameDirectoryPath: String,
     val launchTarget: String = game.launchTarget,
-    /** 三级设置合并结果；Ren'Py 等仍接入 JoiPlay 协议的外置模块按各自协议消费。 */
+    /** 三级设置合并结果；每个固定外置适配器按自己的模块协议消费。 */
     val resolvedSettings: ResolvedEngineSettings? = null,
 )

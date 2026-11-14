@@ -19,8 +19,6 @@ data class RuntimeModuleDescriptor(
     val activityName: String,
     val scan: RuntimeModuleScanSpec?,
     val enabled: Boolean,
-    val capabilities: Set<String> = emptySet(),
-    val translationRuleId: String? = null,
 ) {
     companion object {
         /** 解析模块描述文件 JSON，只返回描述文件能声明的字段。 */
@@ -31,7 +29,7 @@ data class RuntimeModuleDescriptor(
 }
 
 /**
- * 模块描述文件（`res/raw/tyranor_runtime.json`）解析后的扫描特征与能力。
+ * 模块描述文件（`res/raw/tyranor_runtime.json`）解析后的扫描特征。
  *
  * [extensions] 已归一为小写并带前导点；[markers] 已归一为小写相对路径。
  */
@@ -48,8 +46,6 @@ data class RuntimeModuleManifest(
     val protocol: Int,
     val label: String?,
     val scan: RuntimeModuleScanSpec?,
-    val capabilities: Set<String> = emptySet(),
-    val translationRuleId: String? = null,
 ) {
     companion object {
         fun parse(json: String?): RuntimeModuleManifest? = RuntimeModuleManifestParser.parse(json)
@@ -120,8 +116,6 @@ object RuntimeModuleManifestParser {
             protocol = readProtocol(root),
             label = (root.opt("label") as? String)?.trim()?.takeIf { it.isNotEmpty() },
             scan = parseScan(root.opt("scan")),
-            capabilities = parseCapabilities(root.optJSONArray("capabilities")),
-            translationRuleId = parseTranslationRuleId(root.opt("translationRule")),
         )
     }
 
@@ -148,23 +142,6 @@ object RuntimeModuleManifestParser {
         val markers = parseMarkers(scan.optJSONArray("markers"))
         if (extensions.isEmpty() && markers.isEmpty()) return null
         return RuntimeModuleScanSpec(match = match, extensions = extensions, markers = markers)
-    }
-
-    private fun parseCapabilities(array: JSONArray?): Set<String> {
-        if (array == null) return emptySet()
-        val result = LinkedHashSet<String>()
-        for (index in 0 until array.length()) {
-            if (result.size >= RuntimeModulePatterns.MAX_CAPABILITIES) break
-            val raw = array.opt(index) as? String ?: continue
-            val value = raw.trim().lowercase(Locale.ROOT)
-            if (RuntimeModulePatterns.CAPABILITY.matches(value)) result += value
-        }
-        return result
-    }
-
-    private fun parseTranslationRuleId(value: Any?): String? {
-        val raw = (value as? String)?.trim()?.lowercase(Locale.ROOT) ?: return null
-        return raw.takeIf(RuntimeModulePatterns.TRANSLATION_RULE_ID::matches)
     }
 
     private fun parseExtensions(array: JSONArray?): List<String> {
@@ -199,9 +176,6 @@ internal object RuntimeModulePatterns {
     const val MAX_EXTENSION_LENGTH = 16
     const val MAX_MARKERS = 64
     const val MAX_MARKER_LENGTH = 256
-    const val MAX_CAPABILITIES = 16
-    val CAPABILITY = Regex("^[a-z][a-z0-9._-]{0,47}$")
-    val TRANSLATION_RULE_ID = Regex("^[a-z][a-z0-9._-]{0,47}$")
 
     private val WINDOWS_DRIVE = Regex("^[A-Za-z]:")
 

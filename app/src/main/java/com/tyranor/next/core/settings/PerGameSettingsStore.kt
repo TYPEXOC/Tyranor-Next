@@ -60,8 +60,6 @@ object PerGameSettingsStore {
 
     // RPG Maker MV/MZ
     const val F_RPG_MAKER_MOD_ENABLED = "rpg_maker_mod_enabled"
-    // 译表文件选择：值为私有 translations/ 目录或游戏目录根下的译表文件名；null=未选定（不翻译，保持原文）
-    const val F_TRANSLATION_LANGUAGE = "translation_language"
     const val F_RPG_LEGACY_RENDERER = "rpg_legacy_renderer"
     const val F_RPG_SAVE_INTEROP = "rpg_save_interop"
     const val F_RPG_MV_VERSION = "rpg_mv_engine_version"
@@ -89,7 +87,6 @@ object PerGameSettingsStore {
     const val F_RPG_COPY_TEXT = "rpg_copy_text"
     const val F_RPG_CHEATS = "rpg_cheats"
     const val F_RPG_USE_CJK_FONT = "rpg_use_cjk_font"
-    const val F_RPG_ANIMATE_AUTOTILES = "rpg_animate_autotiles"
     const val F_RPG_ENABLE_POSTLOAD_SCRIPTS = "rpg_enable_postload_scripts"
     const val F_RPG_CUSTOM_FONT = "rpg_custom_font"
     const val F_RPG_VERTICAL_SCREEN_ALIGN = "rpg_vertical_screen_align"
@@ -288,7 +285,6 @@ object PerGameSettingsStore {
             copyText = boolOrNull(F_RPG_COPY_TEXT),
             cheats = boolOrNull(F_RPG_CHEATS),
             useCJKFont = boolOrNull(F_RPG_USE_CJK_FONT),
-            animateAutotiles = boolOrNull(F_RPG_ANIMATE_AUTOTILES),
             enablePostloadScripts = boolOrNull(F_RPG_ENABLE_POSTLOAD_SCRIPTS),
             customFont = strOrNull(F_RPG_CUSTOM_FONT),
             verticalScreenAlign = strOrNull(F_RPG_VERTICAL_SCREEN_ALIGN),

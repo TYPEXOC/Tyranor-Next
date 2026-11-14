@@ -32,7 +32,6 @@ import com.core.engine.EngineSessionRegistry
 import com.core.engine.EngineStartupOverlay
 import com.core.engine.EngineThemeColors
 import com.core.engine.LaunchContract
-import com.core.engine.TranslationSession
 import com.core.engine.R
 import com.core.input.InputRemapController
 import java.io.ByteArrayInputStream
@@ -82,8 +81,6 @@ class RpgMakerActivity : Activity() {
     private var rpgMakerModEnabled = false
     private var rpgMakerModGameId = ""
     private var rpgMakerVersion: String? = null
-    private var translationMapUri: String? = null
-    private var translation: TranslationSession? = null
     private var startupOverlay: EngineStartupOverlay? = null
     private var initialMainFramePending = true
     private var startupNavigationGeneration = 0L
@@ -140,7 +137,6 @@ class RpgMakerActivity : Activity() {
         intent.getStringExtra(LaunchContract.RPG_MAKER_MOD_GAME_ID),
         intent.getStringExtra(LaunchContract.RPG_MAKER_VERSION),
         intent.getBooleanExtra(LaunchContract.RPG_LEGACY_RENDERER, false).toString(),
-        intent.getStringExtra(LaunchContract.RPG_TRANSLATION_MAP_URI),
     ).joinToString("\u0000")
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -198,7 +194,6 @@ class RpgMakerActivity : Activity() {
             ?.takeIf(String::isNotBlank)
             ?: resolvedGameDir
         rpgMakerVersion = intent.getStringExtra(LaunchContract.RPG_MAKER_VERSION)?.takeIf(String::isNotBlank)
-        translationMapUri = intent.getStringExtra(LaunchContract.RPG_TRANSLATION_MAP_URI)?.takeIf(String::isNotBlank)
         Log.i(TAG, "entry mode=${if (gameUsesAsar) "asar" else "dir"} type=${webGameType.intentValue} rpgMakerVersion=$rpgMakerVersion asar=$asarPath contentRoot=${contentRoot.absolutePath}")
         val saves = resolveSaveDirectory(intent, gameRoot)
         saveDirectory = saves
@@ -398,12 +393,6 @@ class RpgMakerActivity : Activity() {
                 browser.addJavascriptInterface(it.Bridge(), InputRemapController.BRIDGE_NAME)
             }
         }
-        // 译表注入（恒开启；未检测到译表文件时控制器空转，行为与未集成前一致）
-        translation = TranslationSession(
-            this, translationMapUri,
-        ) { js, callback ->
-            webView?.let { v -> runCatching { v.evaluateJavascript(js, callback) } }
-        }.also { it.attach() }
         // PIXI legacy 兼容渲染（?android-legacy=1，__rpg_v12.js 的既定开关）：
         // 由设置页开关经 rpgLegacyRenderer extra 控制，规避部分 Android GPU
         // 上 WebGL 正常初始化却整屏渲染为黑的问题；默认关闭不影响既有行为。
@@ -487,8 +476,6 @@ class RpgMakerActivity : Activity() {
                 // 尽早注入输入接收器（幂等；onPageFinished 会再补一次），
                 // 避免加载期的手柄/按键输入被静默丢弃
                 view?.let { v -> runCatching { v.evaluateJavascript(inputJs, null) } }
-                // 译表运行时尽早注入（幂等）；onPageFinished 会再补一次
-                translation?.onPageStarted()
             }
 
             override fun onPageFinished(view: WebView?, url: String?) {
@@ -502,7 +489,6 @@ class RpgMakerActivity : Activity() {
                     runCatching { view.evaluateJavascript(mouseJs, null) }
                     runCatching { view.evaluateJavascript(inputJs, null) }
                 }
-                translation?.onPageFinished()
             }
 
             override fun onPageCommitVisible(view: WebView?, url: String?) {
@@ -838,8 +824,6 @@ class RpgMakerActivity : Activity() {
     override fun onDestroy() {
         EngineSessionRegistry.clear(this, EngineSessionRegistry.HOST_RPGMAKER)
         DoubleBackExit.clear(this)
-        runCatching { translation?.destroy() }
-        translation = null
         startupOverlay?.dispose()
         startupOverlay = null
         runCatching { inputRemap?.onDestroy() }

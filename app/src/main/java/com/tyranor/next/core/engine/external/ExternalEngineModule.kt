@@ -37,6 +37,10 @@ interface ExternalEngineModule {
 
     fun buildLaunchIntent(request: ExternalEngineLaunchRequest): Intent
 
+    /** Context-aware override for adapters that attach app-owned content URIs or current theme data. */
+    fun buildLaunchIntent(context: Context, request: ExternalEngineLaunchRequest): Intent =
+        buildLaunchIntent(request)
+
     fun displayName(context: Context): String =
         displayNameRes?.let { context.getString(it) } ?: displayName
 

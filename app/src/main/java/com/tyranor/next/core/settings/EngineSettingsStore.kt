@@ -148,7 +148,6 @@ object EngineSettingsStore {
     const val KEY_RPG_COPY_TEXT = "rpg_copy_text"
     const val KEY_RPG_CHEATS = "rpg_cheats"
     const val KEY_RPG_USE_CJK_FONT = "rpg_use_cjk_font"
-    const val KEY_RPG_ANIMATE_AUTOTILES = "rpg_animate_autotiles"
     const val KEY_RPG_ENABLE_POSTLOAD_SCRIPTS = "rpg_enable_postload_scripts"
     const val KEY_RPG_CUSTOM_FONT = "rpg_custom_font"
     const val KEY_RPG_VERTICAL_SCREEN_ALIGN = "rpg_vertical_screen_align"
@@ -477,13 +476,12 @@ object EngineSettingsStore {
     private const val KEY_WINLATOR_LEGACY_CLEANED = "winlator_legacy_clean_version"
     private const val WINLATOR_LEGACY_CLEAN_VERSION = 3
 
-    // TYN RGSS / mkxp-z 直接支持的引擎设置值域。
-    const val RPG_WINDOW_SIZE_DEFAULT = "auto"
+    // RPG Maker RGSS 外置模块取值域（对齐 JoiPlay utilities/f.java；verticalAlign 对齐插件默认）
+    const val RPG_WINDOW_SIZE_DEFAULT = "640x480"
     const val RPG_SPEED_UP_DEFAULT = "1"
     const val RPG_FONT_SCALE_DEFAULT = "0.75"
     const val RPG_VERTICAL_ALIGN_DEFAULT = "top-center"
     val RPG_WINDOW_SIZES: Set<String> = linkedSetOf(
-        "auto",
         "512x384", "512x768", "544x416", "640x480", "800x600",
         "1024x768", "1280x720", "1280x960", "1920x1080",
     )
@@ -1034,22 +1032,26 @@ object EngineSettingsStore {
         else -> RPG_MZ_V0
     }
 
-    // ---------- RPG Maker RGSS / TYN mkxp-z 模块设置 ----------
+    // ---------- RPG Maker RGSS 外置模块 ----------
 
+    /**
+     * RGSS/mkxp 外置模块设置。默认值对齐上游 `SettingsFactory.loadDefault`：
+     * useRuby18/smoothScaling/prebuiltPathCache/cheats 默认开，其余默认关。
+     * 其中 useRuby18 作为旧设置数据保留；TYN RGSS 使用独立 Ruby 运行时选择，不再消费该键。
+     */
     data class RpgMaker(
         var useRuby18: Boolean = true,
         var debug: Boolean = false,
-        var smoothScaling: Boolean = false,
+        var smoothScaling: Boolean = true,
         var vsync: Boolean = false,
         var frameSkip: Boolean = false,
         var solidFonts: Boolean = false,
-        var pathCache: Boolean = true,
+        var pathCache: Boolean = false,
         var prebuiltPathCache: Boolean = true,
         var fastPathEnum: Boolean = true,
         var copyText: Boolean = false,
         var cheats: Boolean = true,
         var useCJKFont: Boolean = false,
-        var animateAutotiles: Boolean = true,
         var enablePostloadScripts: Boolean = false,
         var customFont: String = "",
         var verticalScreenAlign: String = RPG_VERTICAL_ALIGN_DEFAULT,
@@ -1062,8 +1064,7 @@ object EngineSettingsStore {
         KEY_RPG_USE_RUBY18, KEY_RPG_DEBUG, KEY_RPG_SMOOTH_SCALING,
         KEY_RPG_VSYNC, KEY_RPG_FRAME_SKIP, KEY_RPG_SOLID_FONTS, KEY_RPG_PATH_CACHE,
         KEY_RPG_PREBUILT_PATH_CACHE, KEY_RPG_FAST_PATH_ENUM, KEY_RPG_COPY_TEXT,
-        KEY_RPG_CHEATS, KEY_RPG_USE_CJK_FONT, KEY_RPG_ANIMATE_AUTOTILES,
-        KEY_RPG_ENABLE_POSTLOAD_SCRIPTS,
+        KEY_RPG_CHEATS, KEY_RPG_USE_CJK_FONT, KEY_RPG_ENABLE_POSTLOAD_SCRIPTS,
     )
     private val RPG_MAKER_STRING_KEYS = listOf(
         KEY_RPG_CUSTOM_FONT, KEY_RPG_VERTICAL_SCREEN_ALIGN,
@@ -1086,7 +1087,6 @@ object EngineSettingsStore {
             copyText = p.getBoolean(KEY_RPG_COPY_TEXT, d.copyText),
             cheats = p.getBoolean(KEY_RPG_CHEATS, d.cheats),
             useCJKFont = p.getBoolean(KEY_RPG_USE_CJK_FONT, d.useCJKFont),
-            animateAutotiles = p.getBoolean(KEY_RPG_ANIMATE_AUTOTILES, d.animateAutotiles),
             enablePostloadScripts = p.getBoolean(KEY_RPG_ENABLE_POSTLOAD_SCRIPTS, d.enablePostloadScripts),
             customFont = p.getString(KEY_RPG_CUSTOM_FONT, d.customFont).orEmpty(),
             verticalScreenAlign = normalizeRpgVerticalAlign(p.getString(KEY_RPG_VERTICAL_SCREEN_ALIGN, d.verticalScreenAlign)),
@@ -1110,7 +1110,6 @@ object EngineSettingsStore {
             putBoolean(KEY_RPG_COPY_TEXT, r.copyText)
             putBoolean(KEY_RPG_CHEATS, r.cheats)
             putBoolean(KEY_RPG_USE_CJK_FONT, r.useCJKFont)
-            putBoolean(KEY_RPG_ANIMATE_AUTOTILES, r.animateAutotiles)
             putBoolean(KEY_RPG_ENABLE_POSTLOAD_SCRIPTS, r.enablePostloadScripts)
             putString(KEY_RPG_CUSTOM_FONT, r.customFont.trim())
             putString(KEY_RPG_VERTICAL_SCREEN_ALIGN, normalizeRpgVerticalAlign(r.verticalScreenAlign))

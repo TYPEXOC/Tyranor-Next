@@ -11,20 +11,6 @@ class RuntimeModuleIndex private constructor(val modules: List<RuntimeModuleDesc
     fun match(
         children: List<RuntimeModuleEntry>,
         childrenOf: (RuntimeModuleEntry) -> List<RuntimeModuleEntry>,
-    ): RuntimeModuleDescriptor? = match(children, childrenOf) { true }
-
-    /** TYN RGSS is a first-party RPG Maker integration, not a generic third-party override. */
-    fun matchTynRgss(
-        children: List<RuntimeModuleEntry>,
-        childrenOf: (RuntimeModuleEntry) -> List<RuntimeModuleEntry>,
-    ): RuntimeModuleDescriptor? = match(children, childrenOf) {
-        it.packageName == RuntimeModuleContract.TYN_RGSS_PACKAGE_NAME
-    }
-
-    private fun match(
-        children: List<RuntimeModuleEntry>,
-        childrenOf: (RuntimeModuleEntry) -> List<RuntimeModuleEntry>,
-        acceptsModule: (RuntimeModuleDescriptor) -> Boolean,
     ): RuntimeModuleDescriptor? {
         // 多个模块可能声明同一个 `data/*.pak`：索引级共享一次子目录读取，避免 SAF 重复往返。
         val directoryCache = HashMap<RuntimeModuleEntry, List<RuntimeModuleEntry>>()
@@ -33,7 +19,6 @@ class RuntimeModuleIndex private constructor(val modules: List<RuntimeModuleDesc
         }
         return modules.asSequence()
             .filter { it.enabled }
-            .filter(acceptsModule)
             .mapNotNull { module ->
                 val spec = module.scan ?: return@mapNotNull null
                 module.takeIf { RuntimeModuleMatcher.matches(spec, children, cachedChildrenOf) }

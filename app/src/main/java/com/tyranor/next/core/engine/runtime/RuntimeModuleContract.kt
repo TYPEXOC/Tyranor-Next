@@ -13,9 +13,6 @@ object RuntimeModuleContract {
     /** 模块包名命名约定；不是安全边界。 */
     const val PACKAGE_PREFIX = "com.tyranor.runtime."
 
-    /** 当前由 TYN 自行构建的 RGSS 运行时模块包名。 */
-    const val TYN_RGSS_PACKAGE_NAME = "com.tyranor.runtime.rgss"
-
     /** Activity meta-data：指向模块 `res/raw/` 下的扫描描述资源。 */
     const val META_MANIFEST = "com.tyranor.runtime.MANIFEST"
 
@@ -28,44 +25,6 @@ object RuntimeModuleContract {
     /** 启动 extra：主 App 协议版本。 */
     const val EXTRA_PROTOCOL_VERSION = "com.tyranor.runtime.extra.PROTOCOL_VERSION"
 
-    /** 可选 extra：稳定游戏标识，供模块隔离单游戏状态。 */
-    const val EXTRA_GAME_ID = "com.tyranor.runtime.extra.GAME_ID"
-
-    /** 可选 extra：主 App 解析后的规范化 JSON 翻译 map 会话 URI；模块获临时读取授权。 */
-    const val EXTRA_TRANSLATION_MAP_URI = "com.tyranor.runtime.extra.TRANSLATION_MAP_URI"
-
-    /** 可选 extra：虚拟按键是否启用。 */
-    const val EXTRA_PAD_ENABLED = "com.tyranor.runtime.extra.PAD_ENABLED"
-
-    /** 可选 extra：按键方案的 content URI；模块获临时读写授权。 */
-    const val EXTRA_PAD_PROFILE_URI = "com.tyranor.runtime.extra.PAD_PROFILE_URI"
-
-    /** 可选 extra：当前生效的按键方案 id。 */
-    const val EXTRA_PAD_PROFILE_ID = "com.tyranor.runtime.extra.PAD_PROFILE_ID"
-
-    /** 可选 extra：TYN RGSS 模块要加载的 Ruby VM（187 / 193 / 313）。 */
-    const val EXTRA_RUBY_RUNTIME = "com.tyranor.runtime.extra.RUBY_RUNTIME"
-
-    /** 可选 extra：TYN RGSS 模块的 mkxp-z 引擎选项 JSON。 */
-    const val EXTRA_RGSS_OPTIONS = "com.tyranor.runtime.extra.RGSS_OPTIONS"
-
-    /** 可选 extra：TYN 管理的 RPG Maker RTP 根目录。 */
-    const val EXTRA_RTP_ROOT = "com.tyranor.runtime.extra.RTP_ROOT"
-
-    /** 可选 extra：TYN 当前主题强调色，用于模块内控件与按键层。 */
-    const val EXTRA_THEME_PRIMARY_COLOR = "com.tyranor.runtime.extra.THEME_PRIMARY_COLOR"
-
-    /** 可选 extra：主题强调色上的文字颜色。 */
-    const val EXTRA_THEME_ON_PRIMARY_COLOR = "com.tyranor.runtime.extra.THEME_ON_PRIMARY_COLOR"
-
-    /** 可选 extra：TYN 当前内容主题是否为深色，用于模块内 WebView 等控件同步配色。 */
-    const val EXTRA_THEME_DARK_MODE = "com.tyranor.runtime.extra.THEME_DARK_MODE"
-
     /** 当前主 App 支持的协议版本。 */
     const val PROTOCOL_VERSION = 1
-}
-
-/** 可选运行能力；模块在 `tyranor_runtime.json` 的 `capabilities` 中声明。 */
-object RuntimeModuleCapabilities {
-    const val TRANSLATION = "translation"
 }

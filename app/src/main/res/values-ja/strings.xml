@@ -1082,9 +1082,7 @@
     <string name="engine_badge_rpgmaker_vx">VX</string>
     <string name="engine_badge_rpgmaker_vx_ace">VX Ace</string>
     <string name="engine_badge_rpgmaker_xp">XP</string>
-    <string name="engine_badge_tyn_rgss">RGSS</string>
     <string name="engine_module_installed_version">モジュールはインストール済み · バージョン：%1$s</string>
-    <string name="engine_module_management_open_failed">ランタイムモジュールを開けませんでした。</string>
     <string name="engine_name_rpgmaker">RPG Maker</string>
     <string name="engine_name_tyn_rgss">TYN RGSS</string>
     <string name="engine_settings_rpgm_rtp_delete">削除</string>
@@ -1092,14 +1090,11 @@
     <string name="engine_settings_rpgm_rtp_storage_unavailable">RTP の保存先ディレクトリを利用できません</string>
     <string name="engine_settings_rpgm_storage_access_required">RTP とフォントを管理するにはファイルアクセス権限が必要です</string>
     <string name="engine_settings_rpgm_user_resource_path">ユーザーリソースフォルダー：%1$s</string>
-    <string name="engine_settings_tyn_rgss_card">TYN RGSS ランタイム</string>
     <string name="engine_settings_tyn_rgss_ruby_187">Ruby 1.8.7</string>
     <string name="engine_settings_tyn_rgss_ruby_193">Ruby 1.9.3</string>
     <string name="engine_settings_tyn_rgss_ruby_313">Ruby 3.1.3</string>
     <string name="engine_settings_tyn_rgss_ruby_auto">自動</string>
     <string name="engine_settings_tyn_rgss_ruby_runtime">既定のRubyランタイム</string>
-    <string name="engine_settings_tyn_rgss_screen_auto">ゲームの既定値を使用</string>
-    <string name="launch_rpgmaker_runtime_required">TYN RGSS ランタイムモジュールをインストールして有効にし、ゲームライブラリを再スキャンしてください。</string>
     <string name="launch_systemnnn_storage_restricted">このゲームフォルダーを直接読み取れません。SystemNNN は元のフォルダーでゲームと sav を読み書きします。フォルダーへのアクセスを許可するか、アクセス可能な保存先へ移動してから再登録してください。</string>
     <string name="launch_systemnnn_invalid_source">選択したフォルダーに読み取れる spt/sys.spt がありません。ゲームが完全に展開されているか確認し、フォルダーを選択し直してください。</string>
     <string name="launch_systemnnn_source_busy">ゲームまたはセーブの処理中です。起動中のプレイヤーを終了してから再試行してください。</string>

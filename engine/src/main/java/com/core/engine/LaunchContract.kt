@@ -113,8 +113,6 @@ object LaunchContract {
     const val RPG_MAKER_MOD_GAME_ID = "rpgMakerModGameId"
     const val RPG_MAKER_VERSION = "rpgMakerVersion"
     const val RPG_LEGACY_RENDERER = "rpgLegacyRenderer"
-    /** Read-only URI for the App-normalized translation-map session; absent means original text. */
-    const val RPG_TRANSLATION_MAP_URI = "rpgTranslationMapUri"
 
     // ---------- Siglus ----------
 

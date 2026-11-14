@@ -104,8 +104,7 @@ object EffectiveEngineSettings {
     /**
      * RPG Maker RGSS 外置模块全局设置 + 单游戏覆盖合并：
      * 布尔字段「覆盖 ?: 全局」；字符串字段经白名单校验，非法覆盖回退全局。
-     * TYN RGSS 模块使用 mkxp-z 支持的渲染选项；其余历史 JoiPlay 专用字段仅留在本地兼容旧数据，
-     * 不会传给 TYN 模块。
+     * Ruby VM 由单独的全局/单游戏 RgssRubyRuntime 设置选择；旧 useRuby18 字段仅为既有设置数据兼容保留。
      */
     fun mergeRpgMaker(
         global: EngineSettingsStore.RpgMaker,
@@ -125,7 +124,6 @@ object EffectiveEngineSettings {
             copyText = resolveBool(override.copyText, global.copyText),
             cheats = resolveBool(override.cheats, global.cheats),
             useCJKFont = resolveBool(override.useCJKFont, global.useCJKFont),
-            animateAutotiles = resolveBool(override.animateAutotiles, global.animateAutotiles),
             enablePostloadScripts = resolveBool(override.enablePostloadScripts, global.enablePostloadScripts),
             customFont = resolve(override.customFont, global.customFont),
             verticalScreenAlign = resolveAllowed(
@@ -285,7 +283,6 @@ data class RpgMakerOverride(
     val copyText: Boolean? = null,
     val cheats: Boolean? = null,
     val useCJKFont: Boolean? = null,
-    val animateAutotiles: Boolean? = null,
     val enablePostloadScripts: Boolean? = null,
     val customFont: String? = null,
     val verticalScreenAlign: String? = null,

@@ -44,14 +44,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tyranor.next.R
 import com.tyranor.next.core.engine.external.ExternalEngineLauncher
+import com.tyranor.next.core.engine.external.RpgMakerExternalEngineModule
 import com.tyranor.next.core.engine.external.RpgMakerRuntimeEnvironment
 import com.tyranor.next.core.engine.external.RtpImportRejection
-import com.tyranor.next.core.engine.runtime.RgssRubyRuntime
-import com.tyranor.next.core.engine.runtime.RuntimeModuleContract
-import com.tyranor.next.core.engine.runtime.RuntimeModuleRegistry
+import com.tyranor.next.core.engine.external.RgssRubyRuntime
 import com.tyranor.next.core.settings.EngineSettingsStore
 import com.tyranor.next.theme.DialogItemSurface
 import com.tyranor.next.ui.common.AppAlertDialog
@@ -75,9 +73,6 @@ private val RPGM_RTP_TYPES = listOf("rpgmxp", "rpgmvx", "rpgmvxace")
  * 只读 core 的进程内登记（ConcurrentHashMap），不触盘，500ms 足以让按钮及时放开。
  */
 private const val RTP_IN_FLIGHT_POLL_MS = 500L
-
-private const val TYN_RGSS_ACTIONS_URL =
-    "https://github.com/TYPEXOC/AnyPlay-Plugin-RGSS/actions/workflows/android.yml"
 
 /**
  * RPG Maker RGSS 外置模块设置卡片（全局）。
@@ -134,11 +129,9 @@ internal fun RpgMakerRgssSettingsCard(
             action()
         }
     }
-    val runtimeModules by RuntimeModuleRegistry.state.collectAsStateWithLifecycle()
-    val tynRgssModule = runtimeModules.modules.firstOrNull {
-        it.packageName == RuntimeModuleContract.TYN_RGSS_PACKAGE_NAME
+    var moduleInstalled by remember {
+        mutableStateOf(ExternalEngineLauncher.isPackageInstalled(ctx, RpgMakerExternalEngineModule))
     }
-    val moduleInstalled = tynRgssModule != null
     var advancedExpanded by remember { mutableStateOf(false) }
     var showResetDialog by remember { mutableStateOf(false) }
     var showRtpSourceDialog by remember { mutableStateOf(false) }
@@ -185,7 +178,6 @@ internal fun RpgMakerRgssSettingsCard(
     // RTP 状态读盘（含中断恢复的文件操作）放 IO 线程：组合期在主线程逐个 stat/rename
     // 目录有 ANR 风险（恢复路径会 deleteRecursively 半成品）
     LaunchedEffect(Unit) {
-        RuntimeModuleRegistry.refresh(ctx)
         refreshAllRtp()
     }
 
@@ -201,8 +193,8 @@ internal fun RpgMakerRgssSettingsCard(
                 Toast.makeText(ctx, R.string.engine_settings_rpgm_storage_access_required, Toast.LENGTH_LONG).show()
             }
         }
+        moduleInstalled = ExternalEngineLauncher.isPackageInstalled(ctx, RpgMakerExternalEngineModule)
         scope.launch {
-            RuntimeModuleRegistry.refresh(ctx)
             refreshAllRtp()
         }
     }
@@ -321,7 +313,7 @@ internal fun RpgMakerRgssSettingsCard(
             NoRippleTextButton(
                 text = stringResource(R.string.engine_settings_rpgm_module_download),
                 modifier = Modifier.padding(horizontal = 8.dp),
-                onClick = { ExternalEngineLauncher.openInstallPage(ctx, TYN_RGSS_ACTIONS_URL) },
+                onClick = { ExternalEngineLauncher.openInstallPage(ctx, RpgMakerExternalEngineModule) },
             )
         }
 
@@ -337,12 +329,6 @@ internal fun RpgMakerRgssSettingsCard(
             ),
             rubyRuntime.wireValue,
         ) { onRubyRuntime(RgssRubyRuntime.fromWireValue(it)) }
-        SwitchPreference(
-            modifier = Modifier.pressSquish(scale = PressSquishDefaults.RowScale),
-            title = stringResource(R.string.engine_settings_rpgm_use_ruby18),
-            checked = settings.useRuby18,
-            onCheckedChange = { onSettings(settings.copy(useRuby18 = it)) },
-        )
 
         // 渲染
         RpgmGroupLabel(stringResource(R.string.engine_settings_rpgm_group_render))

@@ -63,7 +63,7 @@ object ExternalEngineLauncher {
         checkInstallation(context, module)?.let { return it }
         module.prepareForLaunch(context, request)?.let { return it }
 
-        val intent = module.buildLaunchIntent(request).addFlags(
+        val intent = module.buildLaunchIntent(context.applicationContext, request).addFlags(
             Intent.FLAG_ACTIVITY_NEW_TASK or
                 Intent.FLAG_GRANT_READ_URI_PERMISSION or
                 Intent.FLAG_GRANT_WRITE_URI_PERMISSION,

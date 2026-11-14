@@ -54,9 +54,6 @@ import com.tyranor.next.core.engine.runtime.RuntimeModuleDiscoveryResult
 import com.tyranor.next.core.engine.runtime.RuntimeModuleLauncher
 import com.tyranor.next.core.engine.runtime.RuntimeModuleLaunchResult
 import com.tyranor.next.core.engine.runtime.RuntimeModuleRegistry
-import com.tyranor.next.core.engine.runtime.RuntimeModuleDescriptor
-import com.tyranor.next.core.engine.translation.TranslationCandidate
-import com.tyranor.next.core.engine.translation.TranslationCatalog
 import com.tyranor.next.core.game.manual.AndroidAppGames
 import com.tyranor.next.core.game.model.GamePathUtils
 import com.tyranor.next.core.game.model.EthornellPaths
@@ -368,10 +365,6 @@ object EngineLauncher {
         // 第三方 APK 运行时模块：按包名交给显式组件启动，不进入目录解析/设置/插件链
         if (game.engine == EngineType.RUNTIME_MODULE) {
             return launchRuntimeModule(context, game, onDispatched)
-        }
-        // RPG Maker RGSS 只通过 TYN 自建运行时模块启动，不再回退到 JoiPlay 外置模块。
-        if (game.engine == EngineType.RPGMAKER) {
-            return LaunchResult.Failure.RpgMakerRuntimeRequired
         }
         // 外置模拟器跳转：PSP / Switch 为 ROM 文件型（不解析目录），
         // YURIS 为 Windows 游戏（目录 + 主 exe，经 Winlator 外置启动协议挂载目录）
@@ -2184,9 +2177,6 @@ object EngineLauncher {
             scopedSaveRoot?.let { putExtra(LaunchContract.SCOPED_SAVE_ROOT, it) }
             putExtra(LaunchContract.RPG_MAKER_MOD_ENABLED, rpgMakerModEnabled)
             putExtra(LaunchContract.RPG_MAKER_MOD_GAME_ID, game.uri)
-            // 目录与格式在主 App 解析；engine 宿主只接收规范化 map 会话 URI。
-            TranslationCatalog.createSelectedMapUri(context, game, path)
-                ?.let { putExtra(LaunchContract.RPG_TRANSLATION_MAP_URI, it.toString()) }
             if (useRpgMakerRuntime) {
                 rpgMakerVersion?.let { putExtra(LaunchContract.RPG_MAKER_VERSION, it) }
                 putExtra(LaunchContract.RPG_LEGACY_RENDERER, rpgLegacyRenderer)
@@ -2683,40 +2673,6 @@ object EngineLauncher {
             )
         }
     }
-
-    /** 翻译选择项由主 App 目录服务发现；UI 只接收不含文件路径的 DTO。 */
-    internal fun availableTranslationCandidates(
-        context: Context,
-        game: ScanGame,
-        module: RuntimeModuleDescriptor? = null,
-    ): List<TranslationCandidate> = TranslationCatalog.availableCandidates(
-        context = context,
-        game = game,
-        gameDirectory = resolveGameDirectory(context, game),
-        module = module,
-    )
-
-    /** 当前选中的候选 ID；null=未选择（不翻译，保持原文）。 */
-    internal fun selectedTranslationCandidateId(context: Context, game: ScanGame): String? =
-        TranslationCatalog.selectedCandidateId(context, game)
-
-    /** 保存候选 ID；null=清除选择（不翻译，保持原文）。 */
-    internal fun setTranslationCandidate(context: Context, game: ScanGame, candidateId: String?) =
-        TranslationCatalog.selectCandidate(context, game, candidateId)
-
-    /** 选中的候选当前是否存在；与启动解析共用目录规则。 */
-    internal fun hasTranslationCandidate(
-        context: Context,
-        game: ScanGame,
-        candidateId: String,
-        module: RuntimeModuleDescriptor? = null,
-    ): Boolean = TranslationCatalog.hasCandidate(
-        context = context,
-        game = game,
-        gameDirectory = resolveGameDirectory(context, game),
-        candidateId = candidateId,
-        module = module,
-    )
 
     /** 候选目录枚举：真实路径优先；File 直读不可用（null 或空）时回退 SAF（SD 卡常见）。 */
     private fun readLaunchFileEntries(

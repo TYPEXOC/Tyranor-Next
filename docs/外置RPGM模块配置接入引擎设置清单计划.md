@@ -1,14 +1,16 @@
-# 外置 RPGM 模块配置接入引擎设置清单计划
+# RPG Maker RGSS 外置模块设置与接入记录
 
 > 来源：JoiPlay 逆向分析（`/Users/weiss/Desktop/decompiled/joiplay_jadx`）中 RPG Maker 外置 APK 模块（`cyou.joiplay.runtime.rpgmaker`）的配置链路。
-> 目标：把 JoiPlay 对 RGSS/mkxp 系外置模块的设置能力，落到 TyranorNext 现有「应用 / 引擎 / 单游戏」三级设置体系中，通过启动 Intent 的 `settings` extra 下发给外置 RPMG 模块。
+> 历史目标：把 JoiPlay 对 RGSS/mkxp 系外置模块的设置能力，落到 TyranorNext 现有「应用 / 引擎 / 单游戏」三级设置体系中。当前启动已切换为下方“当前实现”所述的 TYN RGSS 协议。
 > 范围：`EngineType.RPGMAKER`（`rpgmxp` / `rpgmvx` / `rpgmvxace` / `mkxp-z`）。RPG Maker MV/MZ 继续走内置 Web 宿主，不纳入本计划。
 >
-> 实施状态：**已完成**（2026-09-12）。键集按 RPGM 插件反编译 `cyou.joiplay.commons.parser.MKXPConfigurationParser`（`/Users/weiss/Desktop/decompiled/rpgm_jadx`）实际解析字段核对后落地：
+> 历史实施状态：JoiPlay 适配阶段于 2026-09-12 完成。键集按 RPGM 插件反编译 `cyou.joiplay.commons.parser.MKXPConfigurationParser`（`/Users/weiss/Desktop/decompiled/rpgm_jadx`）实际解析字段核对后落地：
 > - 移除插件不解析的 `useMiniz` / `updateCoreScript` / `animateAutotiles`（`animateAutotiles` 被插件启动时强制置 true）；
 > - 补齐插件实际解析的 `verticalScreenAlign` / `fastPathEnum` / `useCJKFont`；
 > - `cheats` 改发到 `app` 节（插件只从 `app.cheats` 读取）；
 > - `configuration.json` 改为与生效 `useRuby18` 联动（插件 `loadFromFile` 在 intent `settings` 之后加载，文件优先，旧值会覆盖用户意图）。
+
+> **当前实现（2026-11-14）**：RPG Maker RGSS 通过固定注册的 `RpgMakerExternalEngineModule` 启动包名 `com.tyranor.runtime.rgss` 的 TYN RGSS APK；此 APK 虽导出通用 v1 action，主 App 仍按固定适配器启动，并从第三方运行时模块动态发现中过滤该固定包。启动 Intent 传递游戏目录/标题、Ruby 运行时、RTP 根目录、RGSS 设置、按键方案 URI 与主题色。Ruby 运行时支持全局和单游戏覆盖；RTP 放在 TyranorNext 共享资源目录并做导入内容校验；不再向游戏目录或 JoiPlay 目录写 `configuration.json`。RGSS 设置默认值沿用上游（`640x480`、平滑缩放开启、路径缓存关闭），不新增 `animateAutotiles` 设置；游戏卡片显示 XP / VX / VX Ace 代际角标。下方 JoiPlay 盘点与旧方案条目保留作历史背景，不代表当前启动协议。
 
 ---
 

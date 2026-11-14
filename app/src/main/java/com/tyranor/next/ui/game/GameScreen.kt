@@ -129,7 +129,6 @@ import androidx.compose.runtime.saveable.Saver
 import com.tyranor.next.core.engine.external.EmulatorLaunchStyle
 import com.tyranor.next.core.engine.external.ExternalEmulatorRegistry
 import com.tyranor.next.core.engine.external.ExternalEngineModuleRegistry
-import com.tyranor.next.core.engine.runtime.RuntimeModuleContract
 import com.tyranor.next.core.game.save.RpgSaveFormat
 import com.tyranor.next.core.game.save.sync.SaveSyncService
 import com.tyranor.next.core.game.model.GameTitleTags
@@ -1033,97 +1032,6 @@ internal fun GameActionsSheet(
                                 }
                             },
                         )
-                    }
-
-                    // KRKR 与所有 Winlator 系引擎（YU-RIS / CatSystem2 / PC）支持启动文件切换
-                    if (
-                        game.engine == EngineType.KIRIKIRI ||
-                        ExternalEmulatorRegistry.forEngine(game.engine)?.launchStyle == EmulatorLaunchStyle.WINLATOR_EXTERNAL
-                    ) {
-                        item {
-                            AppNavItem(
-                                title = stringResource(R.string.game_launch_file),
-                                summary = game.launchFile ?: stringResource(R.string.game_launch_file_auto_summary),
-                                leadingIcon = R.drawable.ic_sheet_launch_file,
-                                containerColor = drawerItemSurface,
-                                verticalPadding = 17.dp,
-                                showArrow = false,
-                                leadingIconTint = MaterialTheme.colorScheme.primary,
-                                onClick = { showLaunchFilePicker = true },
-                            )
-                        }
-                    }
-                    // 所有动作条目统一单个占满一行；卡片管理动作（快捷启动 / 桌面快捷方式 / 改名 /
-                    // 改封面 / 删除）已统一收口到长按操作弹窗，抽屉只保留启动相关动作与二级页面入口。
-                    val drawerActions = buildList {
-                        add(
-                            DrawerAction(
-                                key = "search_cover",
-                                title = drawerSearchCoverTitle,
-                                icon = R.drawable.ic_sheet_search_cover,
-                                iconTint = drawerPrimaryColor,
-                                onClick = { if (!isBatchScrapingActive()) showCoverSourcePicker = true },
-                            ),
-                        )
-                        if (shouldShowSaveManagement(game)) {
-                            add(
-                                DrawerAction(
-                                    key = "save_management",
-                                    title = drawerSaveManagementTitle,
-                                    icon = R.drawable.ic_sheet_saves,
-                                    showArrow = true,
-                                    iconTint = drawerPrimaryColor,
-                                    onClick = {
-                                        startActivityWithPageTransition(context, SaveManagementActivity.createIntent(context, game))
-                                        onDismiss()
-                                    },
-                                ),
-                            )
-                        }
-                        if (game.engine == EngineType.KIRIKIRI) {
-                            add(
-                                DrawerAction(
-                                    key = "online_patch",
-                                    title = drawerOnlinePatchTitle,
-                                    icon = R.drawable.ic_sheet_patch,
-                                    showArrow = true,
-                                    iconTint = drawerPrimaryColor,
-                                    onClick = {
-                                        startActivityWithPageTransition(context, KrkrOnlinePatchActivity.createIntent(context, game))
-                                        onDismiss()
-                                    },
-                                ),
-                            )
-                        }
-                        // 第三方运行时模块没有主 App 侧设置；TYN RGSS 模块有单游戏设置页。
-                        val hasEngineSettings = game.engine != EngineType.UNKNOWN &&
-                            (game.engine != EngineType.RUNTIME_MODULE ||
-                                game.runtimeModulePackage == RuntimeModuleContract.TYN_RGSS_PACKAGE_NAME)
-                        if (hasEngineSettings) {
-                            add(
-                                DrawerAction(
-                                    key = "engine_settings",
-                                    title = drawerEngineSettingsTitle,
-                                    icon = R.drawable.ic_sheet_settings,
-                                    showArrow = true,
-                                    iconTint = drawerPrimaryColor,
-                                    onClick = onEngineSettings,
-                                ),
-                            )
-                        }
-                    }
-                    drawerActions.forEach { action ->
-                        item(key = "drawer_row:" + action.key) {
-                            AppNavItem(
-                                title = action.title,
-                                leadingIcon = action.icon,
-                                containerColor = drawerItemSurface,
-                                verticalPadding = 17.dp,
-                                showArrow = action.showArrow,
-                                leadingIconTint = action.iconTint,
-                                onClick = action.onClick,
-                            )
-                        }
                     }
                 }
             }
@@ -2065,7 +1973,7 @@ internal fun GameCard(
                 )
                 // 左上角引擎类型角标：开关开启且实际渲染封面的卡片才显示（无封面占位卡不显示）
                 BlurVisibility(showEngineBadge, modifier = Modifier.align(Alignment.TopStart)) {
-                    GameCoverEngineBadge(engine = game.engine, reveal = reveal)
+                    GameCoverEngineBadge(game = game, reveal = reveal)
                 }
             }
         }
@@ -2197,7 +2105,7 @@ internal fun UniformGameCard(
                     modifier = reveal.image(Modifier.fillMaxSize()),
                 )
                 BlurVisibility(showEngineBadge, modifier = Modifier.align(Alignment.TopStart)) {
-                    GameCoverEngineBadge(engine = game.engine, reveal = reveal)
+                    GameCoverEngineBadge(game = game, reveal = reveal)
                 }
             }
         }
@@ -2222,6 +2130,7 @@ internal fun UniformGameCard(
 @Composable
 private fun gameCardEngineName(game: ScanGame): String = when (game.engine) {
     EngineType.UNKNOWN -> stringResource(R.string.engine_name_unknown)
+    EngineType.RPGMAKER -> stringResource(R.string.engine_name_rpgmaker)
     // 无封面占位卡用短名「Switch」，避免「Nintendo Switch」过长
     EngineType.NINTENDO_SWITCH -> stringResource(R.string.engine_name_switch)
     // 第三方运行时游戏在游戏库中统一用 Plugin 表示引擎；模块名只在「引擎模块管理」页展示。
@@ -2250,12 +2159,18 @@ private fun GameCoverPlaceholder(engineName: String) {
 /** 封面左上角引擎类型角标：瀑布流与网格两种卡片共用（labelSmall 属 AGENTS.md 明文豁免）。 */
 @Composable
 private fun GameCoverEngineBadge(
-    engine: EngineType,
+    game: ScanGame,
     reveal: CoverReveal,
     modifier: Modifier = Modifier,
 ) {
+    val label = when (game.externalModuleAlias?.lowercase()) {
+        "internal.rpgmxp", "external.rpgmxp" -> stringResource(R.string.engine_badge_rpgmaker_xp)
+        "internal.rpgmvx", "external.rpgmvx" -> stringResource(R.string.engine_badge_rpgmaker_vx)
+        "internal.rpgmvxace", "external.rpgmvxace" -> stringResource(R.string.engine_badge_rpgmaker_vx_ace)
+        else -> game.engine.abbr
+    }
     Text(
-        engine.abbr,
+        label,
         style = MaterialTheme.typography.labelSmall,
         // 角标样式固定（半透明黑底 + 白字，见 theme/Color.kt），不随主题色变化
         color = CoverBadgeText,

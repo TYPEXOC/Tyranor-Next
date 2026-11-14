@@ -58,8 +58,8 @@ class ExternalEngineModuleRegistryTest {
         )
         assertSame(RenPyExternalEngineModule, ExternalEngineModuleRegistry.resolveModule(EngineType.RENPY, null))
         assertSame(RenPyExternalEngineModule, ExternalEngineModuleRegistry.resolveModule(EngineType.RENPY, "unknown"))
-        // RGSS 已由 TYN 运行时模块承载，不再注册为 JoiPlay 外置模块。
-        assertNull(ExternalEngineModuleRegistry.resolveModule(EngineType.RPGMAKER, EngineSettingsStore.RENPY_77))
+        // 其余引擎返回其唯一模块，忽略版本
+        assertSame(RpgMakerExternalEngineModule, ExternalEngineModuleRegistry.resolveModule(EngineType.RPGMAKER, EngineSettingsStore.RENPY_77))
         assertNull(ExternalEngineModuleRegistry.resolveModule(EngineType.KIRIKIRI))
     }
 
@@ -87,13 +87,6 @@ class ExternalEngineModuleRegistryTest {
     }
 
     @Test
-    fun rpgMakerRgssIsNotRegisteredAsAnExternalJoiPlayModule() {
-        assertNull(ExternalEngineModuleRegistry.moduleForEngine(EngineType.RPGMAKER))
-        assertNull(ExternalEngineModuleRegistry.moduleForAlias("internal.rpgmxp"))
-        assertFalse(ExternalEngineModuleRegistry.isExternalEngine(EngineType.RPGMAKER))
-    }
-
-    @Test
     fun legacyAndCurrentRenPy85ValuesResolveToUpgradedPackage() {
         assertSame(
             RenPyExternalEngineModule,
@@ -104,6 +97,22 @@ class ExternalEngineModuleRegistryTest {
             ExternalEngineModuleRegistry.resolveRenpyModule(EngineSettingsStore.RENPY_853),
         )
         assertEquals("renpy85", RenPyExternalEngineModule.id)
+    }
+
+    @Test
+    fun resolvesRpgMakerByEngineAndAliases() {
+        assertSame(RpgMakerExternalEngineModule, ExternalEngineModuleRegistry.moduleForEngine(EngineType.RPGMAKER))
+        assertSame(RpgMakerExternalEngineModule, ExternalEngineModuleRegistry.moduleForAlias("internal.rpgmaker"))
+        assertSame(RpgMakerExternalEngineModule, ExternalEngineModuleRegistry.moduleForAlias("internal.rpgmxp"))
+        assertSame(RpgMakerExternalEngineModule, ExternalEngineModuleRegistry.moduleForAlias("internal.rpgmvx"))
+        assertSame(RpgMakerExternalEngineModule, ExternalEngineModuleRegistry.moduleForAlias("internal.rpgmvxace"))
+        assertSame(RpgMakerExternalEngineModule, ExternalEngineModuleRegistry.moduleForAlias("internal.mkxp-z"))
+        assertSame(RpgMakerExternalEngineModule, ExternalEngineModuleRegistry.moduleForAlias(RpgMakerExternalEngineModule.packageName))
+        assertTrue(ExternalEngineModuleRegistry.isExternalEngine(EngineType.RPGMAKER))
+        assertEquals("com.tyranor.runtime.rgss", RpgMakerExternalEngineModule.packageName)
+        assertEquals("com.tyranor.runtime.action.LAUNCH", RpgMakerExternalEngineModule.action)
+        assertTrue(RpgMakerExternalEngineModule.installUrl.orEmpty().contains("AnyPlay-Plugin-RGSS"))
+        assertFalse(RpgMakerExternalEngineModule.launchEntryIsFile)
     }
 
     @Test

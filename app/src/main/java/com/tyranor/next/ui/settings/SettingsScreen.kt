@@ -74,7 +74,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.tyranor.next.R
 import com.tyranor.next.core.game.launch.EngineLauncher
-import com.tyranor.next.core.engine.runtime.RgssRubyRuntime
+import com.tyranor.next.core.engine.external.RgssRubyRuntime
 import com.tyranor.next.core.settings.AppSettingsStore
 import com.tyranor.next.core.settings.AppearanceStyle
 import com.tyranor.next.core.settings.GraphicsCapabilities

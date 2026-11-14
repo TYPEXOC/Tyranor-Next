@@ -1,4 +1,4 @@
-package com.tyranor.next.core.engine.runtime
+package com.tyranor.next.core.engine.external
 
 /** Ruby VM shipped by the TYN RGSS module. The value is also sent across the module launch contract. */
 enum class RgssRubyRuntime(val wireValue: String) {

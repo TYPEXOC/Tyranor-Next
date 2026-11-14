@@ -3,7 +3,7 @@ package com.tyranor.next.core.settings
 import android.content.Context
 import android.content.res.Configuration
 import android.os.Build
-import com.tyranor.next.core.engine.runtime.RgssRubyRuntime
+import com.tyranor.next.core.engine.external.RgssRubyRuntime
 import androidx.annotation.VisibleForTesting
 import com.tyranor.next.core.game.model.GameFilterOptions
 import com.tyranor.next.core.game.model.GameLibraryConditions
