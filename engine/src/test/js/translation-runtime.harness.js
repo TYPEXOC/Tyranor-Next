@@ -122,8 +122,9 @@ runScenario('hook sites', fs.readFileSync(assetPath, 'utf8'),
     check('PIXI updateText', (() => { const t = new g.PIXI.Text(); t._text = 'Attack'; t.updateText(); return t.rendered; })(), 'R[攻击]');
 
     const msg = new g.Game_Message();
-    msg.addText('Potion');
-    check('消息缓冲累积译文', msg._texts, ['药水']);
+    msg.add('Potion');
+    check('消息缓冲保留原文', msg._texts, ['Potion']);
+    check('完整消息读取时翻译', msg.allText(), '药水');
 
     check('数据写回 $dataActors.name', g.$dataActors[1].name, '英雄');
     check('数据写回 $dataActors.profile', g.$dataActors[1].profile, 'A brave one');

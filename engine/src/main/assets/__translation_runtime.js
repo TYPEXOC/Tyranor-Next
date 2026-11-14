@@ -154,6 +154,142 @@ window.__TRS_WRITEBACK__ = true;
     });
   }
 
+  function hashText(value) {
+    var hash = 0;
+    var i;
+    for (i = 0; i < value.length; i++) hash = ((hash << 5) - hash + value.charCodeAt(i)) | 0;
+    return ('00000000' + (hash >>> 0).toString(16)).slice(-8);
+  }
+
+  function summarizeText(value) {
+    value = typeof value === 'string' ? value : '';
+    var previewLength = 32;
+    return {
+      length: value.length,
+      hash: hashText(value),
+      head: value.slice(0, previewLength).replace(/\r/g, '\\r').replace(/\n/g, '\\n'),
+      tail: value.length > previewLength
+        ? value.slice(-previewLength).replace(/\r/g, '\\r').replace(/\n/g, '\\n')
+        : ''
+    };
+  }
+
+  function lookupWithMap(value, lookupMap, lookupLineIndex) {
+    if (typeof value !== 'string' || !value) {
+      return {translated: value, mode: 'miss', key: null, lineIndex: -1};
+    }
+    var mapKey = '$' + value;
+    var plain;
+    var ref;
+    var blockText;
+    var parts;
+    if (hasOwn(lookupMap, mapKey)) {
+      return {translated: lookupMap[mapKey], mode: 'exact', key: value, lineIndex: -1};
+    }
+    if (value.indexOf('\u001b') !== -1) {
+      plain = value.replace(/\u001b/g, '\\');
+      if (hasOwn(lookupMap, '$' + plain)) {
+        return {translated: lookupMap['$' + plain], mode: 'escape-normalized', key: plain, lineIndex: -1};
+      }
+    }
+    ref = lookupLineIndex && hasOwn(lookupLineIndex, mapKey) ? lookupLineIndex[mapKey] : null;
+    if (ref && hasOwn(lookupMap, ref.block)) {
+      blockText = lookupMap[ref.block];
+      if (typeof blockText === 'string' && blockText !== ref.block.slice(1)) {
+        parts = blockText.split('\n');
+        if (parts.length === ref.count && typeof parts[ref.index] === 'string' && parts[ref.index]) {
+          return {
+            translated: parts[ref.index],
+            mode: 'line-index',
+            key: ref.block.slice(1),
+            lineIndex: ref.index
+          };
+        }
+      }
+    }
+    return {translated: value, mode: 'miss', key: null, lineIndex: -1};
+  }
+
+  function summarizeLookupHit(source, result) {
+    return {
+      source: summarizeText(source),
+      mode: result.mode,
+      key: result.key === null ? null : summarizeText(result.key),
+      target: summarizeText(result.translated),
+      lineIndex: result.lineIndex,
+      changed: result.translated !== source
+    };
+  }
+
+  function summarizeMessageLookup(value, lookupMap, lookupLineIndex) {
+    var whole = lookupWithMap(value, lookupMap, lookupLineIndex);
+    var output = value;
+    var matches = [];
+    var matchedKeys = [];
+    if (whole.translated !== value) {
+      output = whole.translated;
+      matches.push(summarizeLookupHit(value, whole));
+      if (whole.key !== null) matchedKeys.push(whole.key);
+    } else {
+      output = value.replace(/[^\r\n]+/g, function (line) {
+        var result = lookupWithMap(line, lookupMap, lookupLineIndex);
+        if (matches.length < 4) {
+          matches.push(summarizeLookupHit(line, result));
+          if (result.key !== null) matchedKeys.push(result.key);
+        }
+        return result.translated;
+      });
+    }
+    return {
+      source: summarizeText(value),
+      output: summarizeText(output),
+      outputText: output,
+      matches: matches,
+      matchedKeys: matchedKeys
+    };
+  }
+
+  function sameMatchedKeys(left, right) {
+    if (!left || !right) return null;
+    var i;
+    if (left.matchedKeys.length !== right.matchedKeys.length) return false;
+    for (i = 0; i < left.matchedKeys.length; i++) {
+      if (left.matchedKeys[i] !== right.matchedKeys[i]) return false;
+    }
+    return true;
+  }
+
+  function summarizeMapChanges(previousMap, currentMap) {
+    previousMap = previousMap || {};
+    currentMap = currentMap || {};
+    var changed = {};
+    var entries = [];
+    var count = 0;
+    var key;
+    var recordChange = function (mapKey) {
+      var marker = '$' + mapKey;
+      if (hasOwn(changed, marker)) return;
+      changed[marker] = true;
+      count++;
+      if (entries.length < 4) {
+        entries.push({
+          key: summarizeText(mapKey.slice(1)),
+          previousTarget: hasOwn(previousMap, mapKey) ? summarizeText(previousMap[mapKey]) : null,
+          currentTarget: hasOwn(currentMap, mapKey) ? summarizeText(currentMap[mapKey]) : null
+        });
+      }
+    };
+    for (key in previousMap) {
+      if (!hasOwn(previousMap, key)) continue;
+      if (!hasOwn(currentMap, key) || previousMap[key] !== currentMap[key]) recordChange(key);
+    }
+    for (key in currentMap) {
+      if (!hasOwn(currentMap, key)) continue;
+      if (!hasOwn(previousMap, key) || previousMap[key] !== currentMap[key]) recordChange(key);
+    }
+    return {count: count, entries: entries};
+  }
+
   function translateArgs(value, depth) {
     if (typeof value === 'string') return tr(value, 'render-argument');
     if (!value || typeof value !== 'object' || depth > 4) return value;
@@ -358,12 +494,9 @@ window.__TRS_WRITEBACK__ = true;
       wrapArg0(battleLog, 'addText', 'rpg-battleLog');
       wrapArg0(battleLog, 'push', 'rpg-battleLogPush');
     }
-    var gameMessage = root.Game_Message && root.Game_Message.prototype;
-    if (gameMessage) {
-      wrapArg0(gameMessage, 'addText', 'rpg-msgAddText');
-      wrapArg0(gameMessage, 'add', 'rpg-msgAdd');
-      wrapArg0(gameMessage, 'applyTextReplace', 'rpg-applyTextReplace');
-    }
+    // Game_Message input methods store their arguments in the message queue.
+    // Keep those source strings intact so map updates can resolve the original
+    // key again; Game_Message.allText and the draw hooks translate on read.
     var titleCommand = root.Window_TitleCommand && root.Window_TitleCommand.prototype;
     if (titleCommand) wrapArg0(titleCommand, 'arinaDrawSpaced', 'rpg-arinaDrawSpaced');
     if (root.Window_TitleCommand) wrapArg0(root.Window_TitleCommand, 'arinaDrawSpaced', 'rpg-arinaDrawSpaced');
@@ -489,6 +622,8 @@ window.__TRS_WRITEBACK__ = true;
   var lastRefreshScene = null;
   var lastRefreshWindows = [];
   var lastMessageRefresh = 'not-run';
+  var lastRpgMessageRender = null;
+  var lastMessageLookupDiagnostics = null;
 
   function refreshSceneWindows() {
     var scene = root.SceneManager && root.SceneManager._scene;
@@ -575,7 +710,13 @@ window.__TRS_WRITEBACK__ = true;
     if (!proto || typeof proto.allText !== 'function' || proto.allText.__trsWrapped) return;
     var original = proto.allText;
     var wrapped = function () {
-      return translateMessageBlock(original.apply(this, arguments), 'rpg-message');
+      var source = original.apply(this, arguments);
+      var translated = translateMessageBlock(source, 'rpg-message');
+      lastRpgMessageRender = {
+        source: source,
+        lookup: summarizeMessageLookup(source, map, lineToBlock)
+      };
+      return translated;
     };
     try {
       Object.defineProperty(wrapped, '__trsWrapped', {value: true});
@@ -610,6 +751,27 @@ window.__TRS_WRITEBACK__ = true;
       (queueLength === undefined ? '?' : queueLength) + ',state:' +
       !!messageWindow._textState + ',changed:' + (before !== after) +
       ',chars:' + (originalText ? originalText.length : 0);
+    var previousRender = lastRpgMessageRender;
+    var previousLookup = summarizeMessageLookup(originalText, previousMap || {}, previousLineIndex || {});
+    var currentLookup = summarizeMessageLookup(originalText, map, lineToBlock);
+    lastMessageLookupDiagnostics = {
+      activeSource: summarizeText(originalText),
+      sameSourceAsLastRender: previousRender ? previousRender.source === originalText : null,
+      sameMatchedKeysAsLastRender: previousRender
+        ? sameMatchedKeys(previousRender.lookup, currentLookup)
+        : null,
+      newOutputSameAsLastRender: previousRender
+        ? previousRender.lookup.outputText === after
+        : null,
+      oldAndNewOutputSame: before === after,
+      lastRendered: previousRender ? {
+        source: previousRender.lookup.source,
+        output: previousRender.lookup.output,
+        matches: previousRender.lookup.matches
+      } : null,
+      previousMap: {output: previousLookup.output, matches: previousLookup.matches},
+      currentMap: {output: currentLookup.output, matches: currentLookup.matches}
+    };
     if (!busy || before === after) return false;
     if (typeof messageWindow.isAnySubWindowActive === 'function' &&
         messageWindow.isAnySubWindowActive() && !choiceActive) {
@@ -826,6 +988,8 @@ window.__TRS_WRITEBACK__ = true;
     var target;
     var previousMap = map;
     var previousLineIndex = lineToBlock;
+    var mapChanges;
+    lastMessageLookupDiagnostics = null;
     map = {};
     targets = {};
     next = next || {};
@@ -837,6 +1001,7 @@ window.__TRS_WRITEBACK__ = true;
       targets['$' + target] = true;
     }
     rebuildLineIndex();
+    mapChanges = summarizeMapChanges(previousMap, map);
     // Several passes after a map change: the title screen may still be built
     // when the map lands, so one refresh is not always enough.
     if (refreshBurst < 8) refreshBurst = 8;
@@ -846,7 +1011,7 @@ window.__TRS_WRITEBACK__ = true;
     var refreshed = refreshCurrentRpgMessage(previousMap, previousLineIndex);
     var messageProto = root.Game_Message && root.Game_Message.prototype;
     var rpgMessageHook = !!(messageProto && messageProto.allText && messageProto.allText.__trsWrapped);
-    return {pairs: Object.keys(map).length, hooks: stats.installed, replacements: stats.replacements, rpgMessageHook: rpgMessageHook, currentMessageRefreshed: refreshed, messageRefresh: lastMessageRefresh, hookSites: HOOK_SITES.length, writebackSlots: dataSlots ? dataSlots.length : 0, writebackApplied: writebackApplied, refreshedWindows: stats.refreshed || 0, refreshedWindowSites: lastRefreshWindows.slice(0, 8), runtime: describeRuntime()};
+    return {pairs: Object.keys(map).length, mapChanges: mapChanges, hooks: stats.installed, replacements: stats.replacements, rpgMessageHook: rpgMessageHook, currentMessageRefreshed: refreshed, messageRefresh: lastMessageRefresh, messageLookup: lastMessageLookupDiagnostics, hookSites: HOOK_SITES.length, writebackSlots: dataSlots ? dataSlots.length : 0, writebackApplied: writebackApplied, refreshedWindows: stats.refreshed || 0, refreshedWindowSites: lastRefreshWindows.slice(0, 8), runtime: describeRuntime()};
   };
   root.__TRS_RUNTIME__ = true;
   root.__TRS_STATUS__ = function () {

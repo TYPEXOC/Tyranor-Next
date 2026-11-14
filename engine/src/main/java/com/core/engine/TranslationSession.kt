@@ -129,12 +129,24 @@ class TranslationSession(
     private fun pushTranslations(reason: String) {
         val text = mapText ?: return
         val callback = ValueCallback<String> { result ->
-            Log.i(TRANSLATION_SESSION_TAG, "applied($reason): ${result?.take(300) ?: "null"}")
+            logAppliedResult(reason, result)
         }
         val setterJs = when (runtimeDelivery) {
             TranslationRuntimeDelivery.HOST_INJECTION -> TranslationTable.buildSetterJs(text)
             TranslationRuntimeDelivery.VIRTUAL_PLUGIN -> TranslationTable.buildPendingSetterJs(text)
         }
         evaluateJs(setterJs, callback)
+    }
+
+    private fun logAppliedResult(reason: String, result: String?) {
+        val value = result ?: "null"
+        val chunkSize = 900
+        val chunkCount = ((value.length + chunkSize - 1) / chunkSize).coerceAtLeast(1)
+        for (index in 0 until chunkCount) {
+            val start = index * chunkSize
+            val end = minOf(start + chunkSize, value.length)
+            val suffix = if (chunkCount == 1) "" else "[${index + 1}/$chunkCount]"
+            Log.i(TRANSLATION_SESSION_TAG, "applied($reason)$suffix: ${value.substring(start, end)}")
+        }
     }
 }
