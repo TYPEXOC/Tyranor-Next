@@ -68,8 +68,7 @@ object RuntimeModuleBindings {
         val builtIn = builtInSystemNnn(game)
         if (builtIn !== game || discoveredPackages == null) return builtIn
         val packageName = game.runtimeModulePackage
-        val enabled = packageName == RuntimeModuleContract.TYN_RGSS_PACKAGE_NAME ||
-            (!packageName.isNullOrBlank() && packageName in enabledPackages)
+        val enabled = !packageName.isNullOrBlank() && packageName in enabledPackages
         val available = !packageName.isNullOrBlank() && enabled && packageName in discoveredPackages
         return when {
             // Retain the last known package so a later scan can restore the binding.
