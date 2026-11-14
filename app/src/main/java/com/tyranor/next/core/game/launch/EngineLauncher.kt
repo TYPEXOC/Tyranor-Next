@@ -139,7 +139,7 @@ object EngineLauncher {
         EngineSettingsStore.ART_ENGINE_V6,
     )
 
-    /** 支持的引擎列表（用于引擎页展示）。按名称长度从大到小排列。 */
+    /** 支持的引擎列表（用于引擎页展示）：按名称长度排列，RGSS 紧跟 RPG Maker MV/MZ。 */
     val supportedEngines: List<EngineType> = listOf(
         EngineType.KIRIKIRI,
         EngineType.ONS,
@@ -170,7 +170,12 @@ object EngineLauncher {
         EngineType.PSP,
         EngineType.NINTENDO_SWITCH,
         // ANDROID_APP 为手动添加的直接跳转条目（无运行时/设置/存档），故不收录、不出现在引擎页
-    ).sortedByDescending { it.displayName.length }
+    ).sortedByDescending { it.displayName.length }.let { sorted ->
+        sorted.filterNot { it == EngineType.RPGMAKER }.toMutableList().apply {
+            val rpgMakerMzIndex = indexOf(EngineType.RPG_MZ)
+            if (rpgMakerMzIndex >= 0) add(rpgMakerMzIndex + 1, EngineType.RPGMAKER)
+        }
+    }
 
     /** Artemis 补丁确认弹窗的用户选择：
      *  本次 = 仅当次应用；总是 = 记住为全局 auto；不再 = 记住为全局 off。 */

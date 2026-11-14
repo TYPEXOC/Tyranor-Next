@@ -1462,7 +1462,7 @@ private fun LazyListPlaceholder(
             }
         }
 
-        if (kind == EngineSettingsKind.RPG_MAKER) cardItem {
+        if (kind == EngineSettingsKind.RPG_MAKER_RGSS) cardItem {
             RpgMakerRgssSettingsCard(
                 settings = rpg,
                 onSettings = onRpg,

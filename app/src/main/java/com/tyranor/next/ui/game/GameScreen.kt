@@ -2126,11 +2126,16 @@ internal fun UniformGameCard(
     }
 }
 
-/** 卡片无封面占位使用的引擎显示名：Switch / Plugin 等短名处理，两种卡片共用。 */
+/** 卡片无封面占位使用的引擎显示名：RGSS 显示识别到的代际，两种卡片共用。 */
 @Composable
 private fun gameCardEngineName(game: ScanGame): String = when (game.engine) {
     EngineType.UNKNOWN -> stringResource(R.string.engine_name_unknown)
-    EngineType.RPGMAKER -> stringResource(R.string.engine_name_rpgmaker)
+    EngineType.RPGMAKER -> when (game.externalModuleAlias?.lowercase()) {
+        "internal.rpgmxp", "external.rpgmxp" -> stringResource(R.string.engine_name_rpgmaker_xp)
+        "internal.rpgmvx", "external.rpgmvx" -> stringResource(R.string.engine_name_rpgmaker_vx)
+        "internal.rpgmvxace", "external.rpgmvxace" -> stringResource(R.string.engine_name_rpgmaker_vx_ace)
+        else -> stringResource(R.string.engine_name_rpgmaker)
+    }
     // 无封面占位卡用短名「Switch」，避免「Nintendo Switch」过长
     EngineType.NINTENDO_SWITCH -> stringResource(R.string.engine_name_switch)
     // 第三方运行时游戏在游戏库中统一用 Plugin 表示引擎；模块名只在「引擎模块管理」页展示。
