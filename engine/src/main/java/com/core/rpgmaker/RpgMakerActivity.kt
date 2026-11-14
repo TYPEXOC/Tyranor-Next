@@ -90,6 +90,8 @@ class RpgMakerActivity : Activity() {
     private var translation: TranslationSession? = null
     private var translationRuntimeDelivery = TranslationRuntimeDelivery.HOST_INJECTION
     private var registerVirtualTranslationPlugin = false
+    private var virtualTranslationPluginList = false
+    private var injectTranslationPluginScriptTag = false
     private var startupOverlay: EngineStartupOverlay? = null
     private var initialMainFramePending = true
     private var startupNavigationGeneration = 0L
@@ -228,6 +230,7 @@ class RpgMakerActivity : Activity() {
         val lateHook: ByteArray,
         val scriptAppends: Map<String, ByteArray>,
         val internalResources: Map<String, ByteArray>,
+        val injectTranslationPluginScriptTag: Boolean,
         val nwPolyfill: ByteArray?,
         val modHtml: String,
         val legacyRenderer: Boolean,
@@ -248,14 +251,23 @@ class RpgMakerActivity : Activity() {
         val prefix = archive?.let { current -> AsarWebRoot.prefixFor { path -> current.has(path) } }.orEmpty()
         val hasAsar: ((String) -> Boolean)? = archive?.let { current -> { path: String -> current.has(path) } }
         val readAsar: ((String) -> ByteArray?)? = archive?.let { current -> { path: String -> current.read(path) } }
-        val preflight = RpgMakerTranslationPlugin.inspectPluginList(contentRoot, prefix, hasAsar, readAsar)
+        val hasAsarIgnoringCase: ((String) -> Boolean)? = archive?.let { current -> { path: String -> current.hasIgnoringCase(path) } }
+        val preflight = RpgMakerTranslationPlugin.inspectPluginList(contentRoot, prefix, hasAsar, readAsar, hasAsarIgnoringCase)
         if (!preflight.supported) {
             Log.e(TAG, "virtual translation plugin preflight failed (${preflight.reason}); no automatic fallback")
             registerVirtualTranslationPlugin = false
+            virtualTranslationPluginList = false
+            injectTranslationPluginScriptTag = false
             return TranslationRuntimeDelivery.VIRTUAL_PLUGIN
         }
         registerVirtualTranslationPlugin = true
-        Log.i(TAG, "translation runtime delivery=virtual-plugin type=${webGameType.intentValue} asar=${archive != null}")
+        virtualTranslationPluginList = preflight.virtualPluginList
+        injectTranslationPluginScriptTag = preflight.injectPluginListScriptTag
+        Log.i(
+            TAG,
+            "translation runtime delivery=virtual-plugin type=${webGameType.intentValue} asar=${archive != null} " +
+                "virtualPluginList=$virtualTranslationPluginList injectPluginTag=$injectTranslationPluginScriptTag reason=${preflight.reason}",
+        )
         return TranslationRuntimeDelivery.VIRTUAL_PLUGIN
     }
 
@@ -349,20 +361,38 @@ class RpgMakerActivity : Activity() {
             ) {
                 Log.e(TAG, "virtual translation runtime asset missing; no automatic fallback")
                 registerVirtualTranslationPlugin = false
+                virtualTranslationPluginList = false
+                injectTranslationPluginScriptTag = false
             }
             if (translationRuntimeDelivery == TranslationRuntimeDelivery.VIRTUAL_PLUGIN && registerVirtualTranslationPlugin) {
-                scriptAppends[RpgMakerTranslationPlugin.PLUGIN_LIST_PATH] =
-                    RpgMakerTranslationPlugin.buildRegistrationAppend()
+                if (!virtualTranslationPluginList) {
+                    scriptAppends[RpgMakerTranslationPlugin.PLUGIN_LIST_PATH] =
+                        RpgMakerTranslationPlugin.buildRegistrationAppend()
+                }
             }
             val translationResources = if (registerVirtualTranslationPlugin && translationRuntime != null) {
-                RpgMakerTranslationPlugin.runtimeResource(translationRuntime)
+                RpgMakerTranslationPlugin.runtimeResource(translationRuntime) +
+                    if (virtualTranslationPluginList) {
+                        mapOf(RpgMakerTranslationPlugin.PLUGIN_LIST_PATH to RpgMakerTranslationPlugin.buildVirtualPluginList())
+                    } else {
+                        emptyMap()
+                    }
             } else {
                 emptyMap()
             }
             val internalResources = modResources + v1Overlay + translationResources
             Log.i(TAG, "asset loaded $hookAsset bytes=${lateHook.size} early=${nwPolyfill?.size ?: 0} scriptAppends=${scriptAppends.keys} v1Overlay=${v1Overlay.keys} rpgMakerVersion=$rpgMakerVersion v12Session=$v12Session useCoreScriptOverlay=$useCoreScriptOverlay")
             val legacyRenderer = intent.getBooleanExtra(LaunchContract.RPG_LEGACY_RENDERER, false)
-            InjectionBundle(contentRoot, lateHook, scriptAppends, internalResources, nwPolyfill, modHtml, legacyRenderer)
+            InjectionBundle(
+                contentRoot,
+                lateHook,
+                scriptAppends,
+                internalResources,
+                registerVirtualTranslationPlugin && injectTranslationPluginScriptTag,
+                nwPolyfill,
+                modHtml,
+                legacyRenderer,
+            )
         } catch (error: Throwable) {
             Log.e(TAG, "build injection bundle failed", error)
             failLaunch(getString(R.string.engine_rpgmaker_server_failed))
@@ -376,10 +406,12 @@ class RpgMakerActivity : Activity() {
             localServer = if (gameUsesAsar) {
                 RpgMakerLocalHttpServer(
                     bundle.contentRoot, asarArchive, bundle.lateHook, true, bundle.scriptAppends, bundle.modHtml, bundle.internalResources, bundle.nwPolyfill, v12Session, v2Session,
+                    injectTranslationPluginScriptTag = bundle.injectTranslationPluginScriptTag,
                 )
             } else {
                 RpgMakerLocalHttpServer(
                     bundle.contentRoot, bundle.lateHook, true, bundle.scriptAppends, bundle.modHtml, bundle.internalResources, bundle.nwPolyfill, v12Session, v2Session,
+                    injectTranslationPluginScriptTag = bundle.injectTranslationPluginScriptTag,
                 )
             }.also { it.start() }
         } catch (error: Throwable) {

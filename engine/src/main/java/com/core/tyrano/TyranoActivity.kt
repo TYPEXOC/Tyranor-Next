@@ -82,6 +82,8 @@ class TyranoActivity : Activity() {
     private var translation: TranslationSession? = null
     private var translationRuntimeDelivery = TranslationRuntimeDelivery.HOST_INJECTION
     private var registerVirtualTranslationPlugin = false
+    private var virtualTranslationPluginList = false
+    private var injectTranslationPluginScriptTag = false
     private val processExitScheduled = AtomicBoolean(false)
     private var startupOverlay: EngineStartupOverlay? = null
     private var initialMainFramePending = true
@@ -228,10 +230,14 @@ class TyranoActivity : Activity() {
             ) {
                 Log.e(TAG, "virtual translation runtime asset missing; no automatic fallback")
                 registerVirtualTranslationPlugin = false
+                virtualTranslationPluginList = false
+                injectTranslationPluginScriptTag = false
             }
             if (translationRuntimeDelivery == TranslationRuntimeDelivery.VIRTUAL_PLUGIN && registerVirtualTranslationPlugin) {
-                scriptAppends[RpgMakerTranslationPlugin.PLUGIN_LIST_PATH] =
-                    RpgMakerTranslationPlugin.buildRegistrationAppend()
+                if (!virtualTranslationPluginList) {
+                    scriptAppends[RpgMakerTranslationPlugin.PLUGIN_LIST_PATH] =
+                        RpgMakerTranslationPlugin.buildRegistrationAppend()
+                }
             }
             val modResources = if (rpgMakerModEnabled) {
                 mapOf(
@@ -245,7 +251,12 @@ class TyranoActivity : Activity() {
             }
             val modHtml = if (rpgMakerModEnabled) buildRpgMakerModHtml() else ""
             val translationResources = if (registerVirtualTranslationPlugin && translationRuntime != null) {
-                RpgMakerTranslationPlugin.runtimeResource(translationRuntime)
+                RpgMakerTranslationPlugin.runtimeResource(translationRuntime) +
+                    if (virtualTranslationPluginList) {
+                        mapOf(RpgMakerTranslationPlugin.PLUGIN_LIST_PATH to RpgMakerTranslationPlugin.buildVirtualPluginList())
+                    } else {
+                        emptyMap()
+                    }
             } else {
                 emptyMap()
             }
@@ -261,10 +272,12 @@ class TyranoActivity : Activity() {
             localServer = if (gameUsesAsar) {
                 TyranoLocalHttpServer(
                     contentRoot, asarArchive, hook, injectBeforeBody, scriptAppends, modHtml, internalResources, preferredPort,
+                    injectTranslationPluginScriptTag = registerVirtualTranslationPlugin && injectTranslationPluginScriptTag,
                 )
             } else {
                 TyranoLocalHttpServer(
                     contentRoot, hook, injectBeforeBody, scriptAppends, modHtml, internalResources, preferredPort,
+                    injectTranslationPluginScriptTag = registerVirtualTranslationPlugin && injectTranslationPluginScriptTag,
                 )
             }.also { it.start() }
         } catch (error: Throwable) {
@@ -371,14 +384,23 @@ class TyranoActivity : Activity() {
         val prefix = archive?.let { current -> AsarWebRoot.prefixFor { path -> current.has(path) } }.orEmpty()
         val hasAsar: ((String) -> Boolean)? = archive?.let { current -> { path: String -> current.has(path) } }
         val readAsar: ((String) -> ByteArray?)? = archive?.let { current -> { path: String -> current.read(path) } }
-        val preflight = RpgMakerTranslationPlugin.inspectPluginList(contentRoot, prefix, hasAsar, readAsar)
+        val hasAsarIgnoringCase: ((String) -> Boolean)? = archive?.let { current -> { path: String -> current.hasIgnoringCase(path) } }
+        val preflight = RpgMakerTranslationPlugin.inspectPluginList(contentRoot, prefix, hasAsar, readAsar, hasAsarIgnoringCase)
         if (!preflight.supported) {
             Log.e(TAG, "virtual translation plugin preflight failed (${preflight.reason}); no automatic fallback")
             registerVirtualTranslationPlugin = false
+            virtualTranslationPluginList = false
+            injectTranslationPluginScriptTag = false
             return TranslationRuntimeDelivery.VIRTUAL_PLUGIN
         }
         registerVirtualTranslationPlugin = true
-        Log.i(TAG, "translation runtime delivery=virtual-plugin type=${webGameType.intentValue} asar=${archive != null}")
+        virtualTranslationPluginList = preflight.virtualPluginList
+        injectTranslationPluginScriptTag = preflight.injectPluginListScriptTag
+        Log.i(
+            TAG,
+            "translation runtime delivery=virtual-plugin type=${webGameType.intentValue} asar=${archive != null} " +
+                "virtualPluginList=$virtualTranslationPluginList injectPluginTag=$injectTranslationPluginScriptTag reason=${preflight.reason}",
+        )
         return TranslationRuntimeDelivery.VIRTUAL_PLUGIN
     }
 

@@ -25,6 +25,9 @@ class AsarArchive @Throws(Exception::class) constructor(file: File?) : Closeable
     private val raf: RandomAccessFile
     private val dataOffset: Long
     private val entries = HashMap<String, Entry>()
+    private val entriesByLowercasePath by lazy(LazyThreadSafetyMode.PUBLICATION) {
+        entries.keys.associateBy { it.lowercase() }
+    }
 
     init {
         archiveFile = file?.canonicalFile
@@ -69,6 +72,9 @@ class AsarArchive @Throws(Exception::class) constructor(file: File?) : Closeable
     fun has(path: String): Boolean {
         return entries.containsKey(normalize(path))
     }
+
+    /** Case-insensitive existence check used by the virtual web host to avoid shadowing a packaged file. */
+    fun hasIgnoringCase(path: String): Boolean = entriesByLowercasePath.containsKey(normalize(path).lowercase())
 
     fun isDirectory(path: String): Boolean {
         val e = entries[normalize(path)]
