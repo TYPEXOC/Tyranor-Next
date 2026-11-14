@@ -40,6 +40,9 @@
     <string name="settings_appearance_style_default">Default</string>
     <string name="settings_appearance_style_glass">Retro glass</string>
     <string name="settings_appearance_style_milk">White mist glass</string>
+    <string name="settings_motion_mode">Interface motion</string>
+    <string name="settings_motion_enhanced">Enhanced</string>
+    <string name="settings_motion_normal">Standard</string>
     <string name="settings_app_corner_radius">App corner radius</string>
     <string name="settings_app_corner_radius_value">%1$d dp</string>
     <string name="settings_disabled_in_glass_style">Unavailable in glass appearance themes</string>
@@ -62,6 +65,8 @@
     <string name="settings_nav_bar_desc_rail">Shown as a side rail on tablets</string>
     <string name="settings_show_home_page">Show home page</string>
     <string name="settings_show_home_page_summary">When off, the home page and its navigation item are hidden; the games page becomes the first page</string>
+    <string name="settings_classic_icon">Classic app icon</string>
+    <string name="settings_classic_icon_summary">Use the previous app icon; turn off to use the current new icon</string>
     <string name="settings_home_style">Home style</string>
     <string name="settings_home_style_native">Default</string>
     <string name="settings_home_style_web">Web</string>
@@ -90,13 +95,14 @@
     <string name="settings_scan_depth_level">%1$d levels</string>
     <string name="settings_sort_alpha">Alphabetical</string>
     <string name="settings_sort_bracket_tag">Bracket tag</string>
+    <string name="game_sort_engine">Engine</string>
+    <string name="game_sort_recent">Recently played</string>
     <string name="settings_game_card_style">Game card style</string>
     <string name="settings_game_card_style_waterfall">Waterfall</string>
     <string name="settings_game_card_style_grid">Grid</string>
     <string name="settings_game_card_style_cover_flow">List</string>
     <string name="settings_game_card_badge">Card engine badge</string>
     <string name="settings_game_card_hide_title_tag">Hide name tags on cards</string>
-    <string name="settings_game_sort">Game sorting</string>
     <string name="settings_engine_settings">Engine settings</string>
     <string name="settings_cover_scraper">Cover scraping</string>
     <string name="settings_update_check">Check for updates</string>
@@ -104,6 +110,11 @@
     <string name="settings_join_group">Join community</string>
     <string name="settings_game_dirs_title">Game folders</string>
     <string name="settings_no_game_dirs">No game folders yet</string>
+    <string name="settings_systemnnn_copy_cleanup_done">Cleared resources from %1$d SystemNNN copies</string>
+    <string name="settings_systemnnn_copy_cleanup_empty">No SystemNNN copy resources to clear</string>
+    <string name="settings_systemnnn_copy_cleanup_incomplete">Cleared %1$d copies. Could not clear %2$d copies. Close any running games and try again.</string>
+    <string name="settings_systemnnn_copy_cleanup_running">Clearing SystemNNN resources…</string>
+    <string name="settings_systemnnn_copy_cleanup_pending">Some SystemNNN resources could not be cleared. You can try again.</string>
     <string name="settings_invalid_suffix">invalid</string>
     <string name="settings_add_dir">Add folder</string>
     <string name="settings_input_path">Enter path</string>
@@ -210,6 +221,17 @@
     <string name="game_empty_message">Add a folder and scan it</string>
     <string name="game_add_folder">Add folder</string>
     <string name="game_no_match">No matching games found</string>
+    <string name="game_filter_title">Filter and sort</string>
+    <string name="game_filter_content_description">Filter and sort</string>
+    <string name="game_filter_state_active">Filter or sort active</string>
+    <string name="game_filter_sort_section">Sort by</string>
+    <string name="game_filter_engine_section">Engine type</string>
+    <string name="game_filter_played_section">Play status</string>
+    <string name="game_filter_all">All</string>
+    <string name="game_filter_played_only">Played</string>
+    <string name="game_filter_played_none">Unplayed</string>
+    <string name="game_filter_reset">Reset</string>
+    <string name="game_filter_reset_keeps_search">Reset leaves the search term unchanged</string>
     <string name="game_auto_patch_title">Apply automatic patch</string>
     <string name="game_auto_patch_message">The launch file for “%1$s” is packed inside a .pfs archive. On first launch, Tyranor Next needs to extract several base files (system.ini, window configuration, and videos) and adapt them for Android. Apply the patch?</string>
     <string name="game_patch_always">Always</string>
@@ -218,12 +240,13 @@
     <string name="game_launch_failed">Launch failed</string>
     <string name="game_cover_set_failed">Failed to set cover</string>
     <string name="game_launch_action">Launch game</string>
+    <string name="game_playtime_total_accessibility">Total play time: %1$s</string>
     <string name="game_launch_file">Launch file</string>
     <string name="game_launch_file_auto_summary">Auto - choose a launch file manually if startup fails</string>
-    <string name="game_remove_quick_launch">Remove from quick launch</string>
-    <string name="game_add_quick_launch">Add to quick launch</string>
+    <string name="game_remove_quick_launch">Remove from Home</string>
+    <string name="game_add_quick_launch">Add to Home</string>
     <string name="game_quick_launch_full">Home quick launch is full (max 3)</string>
-    <string name="game_add_desktop_shortcut">Add to Home screen</string>
+    <string name="game_add_desktop_shortcut">Add to desktop</string>
     <string name="game_desktop_shortcut_requested">Confirm the shortcut in the system dialog</string>
     <string name="game_desktop_shortcut_updated">Home screen shortcut updated</string>
     <string name="game_desktop_shortcut_unsupported">The current launcher does not support pinned shortcuts</string>
@@ -263,7 +286,7 @@
     <string name="game_launch_file_empty">No xp3 or exe files found in this folder</string>
 
     <string name="home_recent_empty">No recently opened games</string>
-    <string name="home_quick_launch">Quick launch</string>
+    <string name="home_quick_launch">Add to Home</string>
     <string name="home_empty_slot_content_description">Empty slot</string>
 
     <string name="engine_settings_save_content_description">Save settings</string>
@@ -474,7 +497,6 @@
     <string name="engine_settings_sharpness">Image sharpening</string>
     <string name="engine_settings_sharpness_strength">Sharpness strength</string>
     <string name="engine_settings_text_encoding">Text encoding</string>
-    <string name="engine_settings_rotate_screen">Rotate screen</string>
     <string name="engine_settings_auto_patch">Automatic patch</string>
     <string name="engine_settings_artemis_resolution">Stage resolution</string>
     <string name="engine_settings_artemis_side_cut">Crop to fill</string>
@@ -669,6 +691,8 @@
 
     <string name="external_engine_resolve_dir_failed">Unable to resolve the real path for the %1$s game directory, so the external engine module cannot start</string>
     <string name="external_engine_module_missing">%1$s was not detected. Download and install the module first</string>
+    <string name="external_engine_module_outdated">The installed module is outdated. Download and install %1$s</string>
+    <string name="engine_module_install_or_update">Module missing or update required</string>
     <string name="external_engine_no_activity">%1$s does not provide an Activity that can receive launch requests</string>
     <string name="external_engine_denied">%1$s launch was denied by the system. Check the module permissions</string>
     <string name="external_engine_launch_failed">%1$s launch failed. Check the module permissions</string>
@@ -791,6 +815,8 @@
     <string name="launch_failed">Launch failed</string>
     <string name="launch_all_files_access_request">Allow “Manage all files” on the system page, then return and launch the game again</string>
     <string name="launch_all_files_access_missing">Missing “Manage all files” permission, so the native engine cannot read the game directory</string>
+    <string name="launch_storage_access_request">Allow storage access in the system app permissions, then return and launch the game again</string>
+    <string name="launch_storage_access_missing">Allow Tyranor-Next to access storage in system settings</string>
     <string name="launch_krkr_save_path_not_dir">KRKR save path exists but is not a directory: %1$s</string>
     <string name="launch_create_krkr_scoped_save_failed">Unable to create the KRKR app-specific save directory: %1$s</string>
     <string name="launch_create_krkr_save_failed">Unable to create the KRKR save directory: %1$s</string>
@@ -925,7 +951,7 @@
     <string name="onboarding_coach_home_web_title">Explore the web home</string>
     <string name="onboarding_coach_home_web_body">Your configured web home is shown here.</string>
     <string name="onboarding_coach_games_title">Add your games</string>
-    <string name="onboarding_coach_games_body">Use Add game to choose and save a game folder. It is scanned after you add it.</string>
+    <string name="onboarding_coach_games_body">Use Add game to add a PC or Android game manually. To scan a folder, use Add folder in an empty library or Game folders in Settings.</string>
     <string name="onboarding_coach_games_search_title">Find a game</string>
     <string name="onboarding_coach_games_search_body">Use search to filter the games in your library by name.</string>
     <string name="onboarding_coach_games_cover_title">Fill in covers</string>
@@ -1027,6 +1053,7 @@
     <string name="engine_module_management_disable_confirm">Disable</string>
     <string name="engine_module_management_load_failed">Failed to load the module list</string>
     <string name="engine_settings_runtime_module_hint">This game runs in a third-party runtime module; the module manages its own settings and saves.</string>
+    <string name="engine_settings_systemnnn_hint">Change SystemNNN settings from the game’s settings screen.</string>
     <string name="engine_desc_runtime_module">Third-party APK runtime module. The module scans and runs its own games; the main app only discovers, enables, and passes the folder path.</string>
     <string name="launch_runtime_module_missing">The runtime module is unavailable. The game was downgraded to unknown; scan again</string>
     <string name="launch_runtime_module_disabled">The runtime module is not enabled. The game was downgraded to unknown; enable it in “Engine modules” and scan again</string>
@@ -1035,8 +1062,8 @@
     <string name="launch_runtime_module_denied">The runtime module refused to launch or permission is insufficient</string>
     <string name="launch_runtime_module_failed">Failed to launch the runtime module</string>
     <string name="save_external_exit_title">Confirm external game has exited</string>
-    <string name="save_external_exit_summary">After quitting the game in Winlator, confirm to end save protection</string>
-    <string name="save_external_exit_message">Fully quit “%1$s” in Winlator first, along with any other game sharing its save folder. Switching back to Tyranor does not mean the game has exited. Confirming clears this run’s protection and allows uploads, save selection and removal. If the game is still writing, saves may be lost.</string>
+    <string name="save_external_exit_summary">After quitting the game in its external runtime, confirm to end save protection</string>
+    <string name="save_external_exit_message">Fully quit “%1$s” in its external runtime first, along with any other game sharing its save folder. Switching back to Tyranor does not mean the game has exited. Confirming clears this run’s protection and allows uploads, save selection and removal. If the game is still writing, saves may be lost.</string>
     <string name="save_external_exit_done">External game exit confirmed. Save management is available</string>
     <string name="launch_cmvs_layout_invalid">CMVS game layout is invalid: missing data/pack/script.cpz, a unique start script or key.cfg</string>
     <string name="launch_cmvs_user_data_unavailable">CMVS save directory is unavailable</string>
@@ -1073,4 +1100,13 @@
     <string name="engine_settings_tyn_rgss_ruby_runtime">Default Ruby runtime</string>
     <string name="engine_settings_tyn_rgss_screen_auto">Use game default</string>
     <string name="launch_rpgmaker_runtime_required">Install and enable the TYN RGSS runtime module, then rescan the game library.</string>
+    <string name="launch_systemnnn_storage_restricted">This game folder cannot be read directly. SystemNNN reads the game and writes sav in the original folder; grant access to it, or move the game to accessible storage and add it again.</string>
+    <string name="launch_systemnnn_invalid_source">The selected folder has no readable spt/sys.spt. Check that the game was fully extracted and select the folder again.</string>
+    <string name="launch_systemnnn_source_busy">The game or a save operation is still running. Close the player and try again.</string>
+    <string name="launch_systemnnn_corrupt_copy">A game copy created by an older version is unusable. Back it up through save management, delete the game, then add it again from an accessible original folder; the folder is not switched automatically.</string>
+    <string name="launch_systemnnn_save_not_writable">The sav folder for the game is not writable. Check the folder permission, storage availability and free space, then try again.</string>
+    <string name="launch_systemnnn_source_missing">The game directory no longer exists. Select the game folder containing spt/sys.spt again.</string>
+    <string name="save_systemnnn_clear_resources">Clear imported game resources</string>
+    <string name="save_systemnnn_clear_resources_message">Free space by clearing resources from the imported copy. The original game folder and all saves in the copy will be kept. The next launch imports the resources again from the original folder.</string>
+    <string name="save_systemnnn_clear_resources_done">Imported game resources cleared</string>
 </resources>

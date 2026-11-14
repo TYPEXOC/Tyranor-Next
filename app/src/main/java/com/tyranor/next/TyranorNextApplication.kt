@@ -2,31 +2,44 @@ package com.tyranor.next
 
 import android.app.Application
 import android.os.Build
+import android.util.Log
 import android.webkit.WebView
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.work.Configuration
 import bridge.PrimaryStorageRoot
+import com.tyranor.next.core.game.save.GameSaveManager
+import com.tyranor.next.core.game.save.SystemNnnCleanupQueue
 import com.tyranor.next.core.game.storage.GameLibraryRepository
 import com.tyranor.next.core.process.AppProcess
 import com.tyranor.next.core.game.save.sync.SaveSyncRuntime
+import com.tyranor.next.core.game.playtime.GamePlaytimeRepository
+import com.tyranor.next.core.game.playtime.GamePlaytimeRuntime
 import com.tyranor.next.core.settings.EngineSettingsStore
+import com.tyranor.next.core.settings.AppIconSwitcher
 import com.tyranor.next.core.settings.AppSettingsStore
 import com.tyranor.next.core.settings.PrefsRenameMigration
 import com.tyranor.next.core.updater.BackgroundUpdateWorker
 import com.tyranor.next.core.updater.GitHubUpdateChecker
 import com.tyranor.next.core.updater.UpdateNotificationManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 /** 在整个应用进入后台时安排一次静默更新检查。 */
 class TyranorNextApplication : Application(), DefaultLifecycleObserver, Configuration.Provider {
     private var libraryInitialized = false
+    private val background = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder().build()
 
     override fun onCreate() {
         super<Application>.onCreate()
+        runCatching { GamePlaytimeRuntime.install(this) }
+            .onFailure { Log.w("GamePlaytimeRuntime", "Could not install playtime tracking", it) }
         // 进程视角主存储挂载根尽早解析并缓存（issue #152）：每个进程（含引擎子进程）的挂载
         // 命名空间独立，StorageManager 视角 per-user 正确；解析失败由内部回退链兜底，不阻断启动。
         PrimaryStorageRoot.resolve(this)
@@ -50,6 +63,8 @@ class TyranorNextApplication : Application(), DefaultLifecycleObserver, Configur
             // commit 失败时 OnboardingPreferences 保留基于旧数据的内存快照：存量用户仍直接进入主界面，
             // 新安装用户仍显示引导；下一次启动或完成引导时会再次尝试落盘。
             AppSettingsStore.initializeOnboarding(this)
+            // 启动器图标别名与设置对齐（升级、清除数据或上次切换失败时兜底）；幂等，无变化不写。
+            AppIconSwitcher.apply(this, AppSettingsStore.isClassicIconEnabled(this))
         }
         // 共享 prefs 文件更名（yukihub_prefs → tyranor_prefs）：所有进程（含引擎子进程）
         // 启动最早时机一次性迁移，必须先于任何 EngineSettingsStore/引擎偏好读取。
@@ -59,7 +74,13 @@ class TyranorNextApplication : Application(), DefaultLifecycleObserver, Configur
         UpdateNotificationManager.createChannel(this)
         GitHubUpdateChecker.restoreState(this)
         // 游戏库 Room 迁移检查 + 首页缓存预热在启动阶段触发，避免首帧 SettingsScreen 同步开库。
-        if (mainProcess) initializeMainLibrary()
+        if (mainProcess) {
+            initializeMainLibrary()
+            // 上次删除游戏/目录或重扫丢弃条目时未完成的副本回收在这里续做；引擎侧不保存这些路径。
+            if (!SystemNnnCleanupQueue.isEmpty(this)) background.launch {
+                runCatching { GameSaveManager(this@TyranorNextApplication).drainSystemNnnCleanupQueue() }
+            }
+        }
         ProcessLifecycleOwner.get().lifecycle.addObserver(this)
     }
 
@@ -67,11 +88,15 @@ class TyranorNextApplication : Application(), DefaultLifecycleObserver, Configur
     private fun initializeMainLibrary() {
         if (libraryInitialized) return
         libraryInitialized = true
+        AppSettingsStore.initGameConditions(this)
         GameLibraryRepository.init(this)
     }
 
     override fun onStart(owner: LifecycleOwner) {
         SaveSyncRuntime.onForeground(this)
+        if (AppProcess.isMain(this)) background.launch {
+            GamePlaytimeRepository.refresh(this@TyranorNextApplication)
+        }
     }
 
     override fun onStop(owner: LifecycleOwner) {

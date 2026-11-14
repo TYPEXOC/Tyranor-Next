@@ -40,6 +40,9 @@
     <string name="settings_appearance_style_default">デフォルト</string>
     <string name="settings_appearance_style_glass">レトロガラス</string>
     <string name="settings_appearance_style_milk">白霧ガラス</string>
+    <string name="settings_motion_mode">画面のアニメーション</string>
+    <string name="settings_motion_enhanced">強化</string>
+    <string name="settings_motion_normal">標準</string>
     <string name="settings_app_corner_radius">アプリの角丸調整</string>
     <string name="settings_app_corner_radius_value">%1$d dp</string>
     <string name="settings_disabled_in_glass_style">ガラス外観テーマでは使用できません</string>
@@ -62,6 +65,8 @@
     <string name="settings_nav_bar_desc_rail">タブレットではサイドレールで表示</string>
     <string name="settings_show_home_page">ホームを表示</string>
     <string name="settings_show_home_page_summary">オフにするとホームとナビゲーションのホーム項目が非表示になり、ゲームページが最初のページになります</string>
+    <string name="settings_classic_icon">クラシックアプリアイコン</string>
+    <string name="settings_classic_icon_summary">オンにすると旧バージョンのアプリアイコン、オフにすると現在の新しいアイコンを使用します</string>
     <string name="settings_home_style">ホームスタイル</string>
     <string name="settings_home_style_native">デフォルト</string>
     <string name="settings_home_style_web">Web</string>
@@ -90,13 +95,14 @@
     <string name="settings_scan_depth_level">%1$d 階層</string>
     <string name="settings_sort_alpha">名前順</string>
     <string name="settings_sort_bracket_tag">括弧タグ</string>
+    <string name="game_sort_engine">エンジン</string>
+    <string name="game_sort_recent">最近プレイ</string>
     <string name="settings_game_card_style">ゲームカードのスタイル</string>
     <string name="settings_game_card_style_waterfall">ウォーターフォール</string>
     <string name="settings_game_card_style_grid">グリッド</string>
     <string name="settings_game_card_style_cover_flow">リスト</string>
     <string name="settings_game_card_badge">カードのエンジンバッジ</string>
     <string name="settings_game_card_hide_title_tag">カードの名前タグを非表示</string>
-    <string name="settings_game_sort">ゲームの並び替え</string>
     <string name="settings_engine_settings">エンジン設定</string>
     <string name="settings_cover_scraper">カバー画像取得</string>
     <string name="settings_update_check">アップデート確認</string>
@@ -104,6 +110,11 @@
     <string name="settings_join_group">コミュニティに参加</string>
     <string name="settings_game_dirs_title">ゲームフォルダ</string>
     <string name="settings_no_game_dirs">ゲームフォルダはありません</string>
+    <string name="settings_systemnnn_copy_cleanup_done">SystemNNN のコピー %1$d 件からゲームデータを削除しました</string>
+    <string name="settings_systemnnn_copy_cleanup_empty">削除できる SystemNNN ゲームデータのコピーはありません</string>
+    <string name="settings_systemnnn_copy_cleanup_incomplete">%1$d 件を削除しました。%2$d 件は削除できませんでした。実行中のゲームを終了して再試行してください。</string>
+    <string name="settings_systemnnn_copy_cleanup_running">SystemNNN のゲームデータを削除しています…</string>
+    <string name="settings_systemnnn_copy_cleanup_pending">一部の SystemNNN ゲームデータを削除できませんでした。再試行できます。</string>
     <string name="settings_invalid_suffix">無効</string>
     <string name="settings_add_dir">フォルダを追加</string>
     <string name="settings_input_path">パスを入力</string>
@@ -210,6 +221,17 @@
     <string name="game_empty_message">フォルダを追加してスキャンしてください</string>
     <string name="game_add_folder">フォルダを追加</string>
     <string name="game_no_match">一致するゲームが見つかりません</string>
+    <string name="game_filter_title">絞り込みと並び替え</string>
+    <string name="game_filter_content_description">絞り込みと並び替え</string>
+    <string name="game_filter_state_active">絞り込みまたは並び替えを適用中</string>
+    <string name="game_filter_sort_section">並び替え</string>
+    <string name="game_filter_engine_section">エンジン種別</string>
+    <string name="game_filter_played_section">プレイ状況</string>
+    <string name="game_filter_all">すべて</string>
+    <string name="game_filter_played_only">プレイ済み</string>
+    <string name="game_filter_played_none">未プレイ</string>
+    <string name="game_filter_reset">リセット</string>
+    <string name="game_filter_reset_keeps_search">リセットしても検索語は残ります</string>
     <string name="game_auto_patch_title">自動パッチを適用</string>
     <string name="game_auto_patch_message">「%1$s」の起動ファイルは .pfs アーカイブ内にあります。初回起動時に一部の基本ファイル（system.ini、ウィンドウ設定、動画）を展開し、Android 向けに適用する必要があります。パッチを適用しますか？</string>
     <string name="game_patch_always">常に</string>
@@ -218,12 +240,13 @@
     <string name="game_launch_failed">起動に失敗しました</string>
     <string name="game_cover_set_failed">カバー画像の設定に失敗しました</string>
     <string name="game_launch_action">ゲームを起動</string>
+    <string name="game_playtime_total_accessibility">累計プレイ時間：%1$s</string>
     <string name="game_launch_file">起動ファイル</string>
     <string name="game_launch_file_auto_summary">自動 - 問題がある場合は手動で起動ファイルを選択</string>
-    <string name="game_remove_quick_launch">クイック起動から削除</string>
-    <string name="game_add_quick_launch">クイック起動に追加</string>
+    <string name="game_remove_quick_launch">ホームから削除</string>
+    <string name="game_add_quick_launch">ホームに追加</string>
     <string name="game_quick_launch_full">ホームのクイック起動は最大 3 件までです</string>
-    <string name="game_add_desktop_shortcut">ホーム画面に追加</string>
+    <string name="game_add_desktop_shortcut">デスクトップに追加</string>
     <string name="game_desktop_shortcut_requested">システムダイアログで追加を確認してください</string>
     <string name="game_desktop_shortcut_updated">ホーム画面ショートカットを更新しました</string>
     <string name="game_desktop_shortcut_unsupported">現在のランチャーは固定ショートカットに対応していません</string>
@@ -263,7 +286,7 @@
     <string name="game_launch_file_empty">フォルダ内に xp3 または exe ファイルが見つかりません</string>
 
     <string name="home_recent_empty">最近開いたゲームはありません</string>
-    <string name="home_quick_launch">クイック起動</string>
+    <string name="home_quick_launch">ホームに追加</string>
     <string name="home_empty_slot_content_description">空きスロット</string>
 
     <string name="engine_settings_save_content_description">設定を保存</string>
@@ -474,7 +497,6 @@
     <string name="engine_settings_sharpness">画面シャープ化</string>
     <string name="engine_settings_sharpness_strength">シャープ化強度</string>
     <string name="engine_settings_text_encoding">テキストエンコード</string>
-    <string name="engine_settings_rotate_screen">画面を反転</string>
     <string name="engine_settings_auto_patch">自動パッチ</string>
     <string name="engine_settings_artemis_resolution">ステージ解像度</string>
     <string name="engine_settings_artemis_side_cut">切り抜いて全画面表示</string>
@@ -669,6 +691,8 @@
 
     <string name="external_engine_resolve_dir_failed">%1$s のゲームフォルダ実パスを解析できないため、外部エンジンモジュールを起動できません</string>
     <string name="external_engine_module_missing">%1$s が見つかりません。先にモジュールをダウンロードしてインストールしてください</string>
+    <string name="external_engine_module_outdated">インストール済みのモジュールが古いため、%1$s をダウンロードしてインストールしてください</string>
+    <string name="engine_module_install_or_update">モジュール未インストール、または更新が必要</string>
     <string name="external_engine_no_activity">%1$s には起動要求を受け取れる Activity がありません</string>
     <string name="external_engine_denied">%1$s の起動がシステムに拒否されました。モジュール権限を確認してください</string>
     <string name="external_engine_launch_failed">%1$s の起動に失敗しました。モジュール権限を確認してください</string>
@@ -791,6 +815,8 @@
     <string name="launch_failed">起動に失敗しました</string>
     <string name="launch_all_files_access_request">システム設定で「すべてのファイルの管理」を許可し、戻ってから再度ゲームを起動してください</string>
     <string name="launch_all_files_access_missing">「すべてのファイルの管理」権限がないため、ネイティブエンジンがゲームフォルダを読み取れません</string>
+    <string name="launch_storage_access_request">システム設定でストレージへのアクセスを許可し、戻ってからゲームを起動してください</string>
+    <string name="launch_storage_access_missing">システム設定で Tyranor-Next にストレージへのアクセスを許可してください</string>
     <string name="launch_krkr_save_path_not_dir">KRKR セーブパスは存在しますがフォルダではありません：%1$s</string>
     <string name="launch_create_krkr_scoped_save_failed">KRKR アプリ個別セーブフォルダを作成できません：%1$s</string>
     <string name="launch_create_krkr_save_failed">KRKR セーブフォルダを作成できません：%1$s</string>
@@ -925,7 +951,7 @@
     <string name="onboarding_coach_home_web_title">ウェブホームを見る</string>
     <string name="onboarding_coach_home_web_body">設定したウェブホームをここに表示します。</string>
     <string name="onboarding_coach_games_title">ゲームを追加</string>
-    <string name="onboarding_coach_games_body">「ゲームを追加」でゲームフォルダーを選択して保存します。追加後に自動でスキャンされます。</string>
+    <string name="onboarding_coach_games_body">「ゲームを追加」から PC ゲームまたは Android ゲームを手動で追加できます。フォルダをスキャンするには、空のゲーム一覧の「フォルダを追加」、または設定の「ゲームフォルダを追加」を使用します。</string>
     <string name="onboarding_coach_games_search_title">ゲームを探す</string>
     <string name="onboarding_coach_games_search_body">検索欄でライブラリ内のゲームを名前から絞り込めます。</string>
     <string name="onboarding_coach_games_cover_title">カバーを補完</string>
@@ -1027,6 +1053,7 @@
     <string name="engine_module_management_disable_confirm">無効化</string>
     <string name="engine_module_management_load_failed">モジュール一覧の読み込みに失敗しました</string>
     <string name="engine_settings_runtime_module_hint">このゲームはサードパーティのランタイムモジュールで動作します。モジュールの設定とセーブデータはモジュール側で管理されます。</string>
+    <string name="engine_settings_systemnnn_hint">SystemNNN の設定はゲーム内の環境設定から変更できます。</string>
     <string name="engine_desc_runtime_module">サードパーティ APK ランタイムモジュール。スキャンと実行はモジュールが行い、本体アプリは検出・有効化・フォルダーパスの受け渡しのみを担当します。</string>
     <string name="launch_runtime_module_missing">ランタイムモジュールを利用できません。ゲームは不明に降格されました。再スキャンしてください</string>
     <string name="launch_runtime_module_disabled">ランタイムモジュールが有効になっていません。ゲームは不明に降格されました。「エンジンモジュール管理」で有効化してから再スキャンしてください</string>
@@ -1035,8 +1062,8 @@
     <string name="launch_runtime_module_denied">ランタイムモジュールが起動を拒否したか、権限が不足しています</string>
     <string name="launch_runtime_module_failed">ランタイムモジュールの起動に失敗しました</string>
     <string name="save_external_exit_title">外部ゲームの終了を確認</string>
-    <string name="save_external_exit_summary">Winlator でゲームを終了してから、セーブ保護の解除を確認します</string>
-    <string name="save_external_exit_message">先に Winlator で「%1$s」と同じセーブフォルダーを共有するすべてのゲームを完全に終了してください。Tyranor に戻るだけでは終了を確認できません。確認すると今回の実行マーカーを解除し、アップロード・セーブの切り替え・削除を許可します。書き込み中の場合、セーブを失うおそれがあります。</string>
+    <string name="save_external_exit_summary">外部実行環境でゲームを終了してから、セーブ保護の解除を確認します</string>
+    <string name="save_external_exit_message">先に外部実行環境で「%1$s」と同じセーブフォルダーを共有するすべてのゲームを完全に終了してください。Tyranor に戻るだけでは終了を確認できません。確認すると今回の実行マーカーを解除し、アップロード・セーブの切り替え・削除を許可します。書き込み中の場合、セーブを失うおそれがあります。</string>
     <string name="save_external_exit_done">外部ゲームの終了を確認しました。セーブを管理できます</string>
     <string name="launch_cmvs_layout_invalid">CMVS のゲーム構成が不正です：data/pack/script.cpz、一意の start、key.cfg のいずれかがありません</string>
     <string name="launch_cmvs_user_data_unavailable">CMVS のセーブディレクトリを利用できません</string>
@@ -1073,4 +1100,13 @@
     <string name="engine_settings_tyn_rgss_ruby_runtime">既定のRubyランタイム</string>
     <string name="engine_settings_tyn_rgss_screen_auto">ゲームの既定値を使用</string>
     <string name="launch_rpgmaker_runtime_required">TYN RGSS ランタイムモジュールをインストールして有効にし、ゲームライブラリを再スキャンしてください。</string>
+    <string name="launch_systemnnn_storage_restricted">このゲームフォルダーを直接読み取れません。SystemNNN は元のフォルダーでゲームと sav を読み書きします。フォルダーへのアクセスを許可するか、アクセス可能な保存先へ移動してから再登録してください。</string>
+    <string name="launch_systemnnn_invalid_source">選択したフォルダーに読み取れる spt/sys.spt がありません。ゲームが完全に展開されているか確認し、フォルダーを選択し直してください。</string>
+    <string name="launch_systemnnn_source_busy">ゲームまたはセーブの処理中です。起動中のプレイヤーを終了してから再試行してください。</string>
+    <string name="launch_systemnnn_corrupt_copy">旧バージョンが作成したゲームコピーを利用できません。セーブ管理でバックアップしたうえでゲームを削除し、アクセス可能な元フォルダーから再登録してください。フォルダーは自動で切り替わりません。</string>
+    <string name="launch_systemnnn_save_not_writable">ゲームの sav フォルダーに書き込めません。権限、保存先の状態、空き容量を確認して再試行してください。</string>
+    <string name="launch_systemnnn_source_missing">ゲームフォルダーが見つかりません。spt/sys.spt を含むフォルダーを選び直してください。</string>
+    <string name="save_systemnnn_clear_resources">取り込んだゲームデータを削除</string>
+    <string name="save_systemnnn_clear_resources_message">アプリ内のコピーからゲームデータを削除して空き容量を増やします。元のゲームフォルダーとコピー内のすべてのセーブデータは残ります。次回の起動時に元のフォルダーからゲームデータを取り込み直します。</string>
+    <string name="save_systemnnn_clear_resources_done">取り込んだゲームデータを削除しました</string>
 </resources>

@@ -78,11 +78,13 @@
 
         <activity
             android:name=".ui.archive.ArchiveUnpackActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:configChanges="uiMode" />
         <activity
             android:name=".ui.save.SaveManagementActivity"
-            android:exported="false" />
-        <activity android:name=".ui.save.WebDavSettingsActivity" android:exported="false" />
+            android:exported="false"
+            android:configChanges="uiMode" />
+        <activity android:name=".ui.save.WebDavSettingsActivity" android:exported="false" android:configChanges="uiMode" />
         <receiver android:name=".core.game.save.sync.SaveSyncExitReceiver" android:exported="false" />
         <!-- 桌面快捷方式回跳蹦床：exported=true 为桌面 Launcher 跨进程显式启动所必需，勿改回 false（见 GameShortcutActivity KDoc） -->
         <activity
@@ -93,25 +95,32 @@
             android:theme="@style/Theme.TyranorNext.Translucent" />
         <activity
             android:name=".ui.patch.KrkrOnlinePatchActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:configChanges="uiMode" />
         <activity
             android:name=".ui.settings.EngineSettingsActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:configChanges="uiMode" />
         <activity
             android:name=".ui.settings.AboutAppActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:configChanges="uiMode" />
         <activity
             android:name=".ui.runtime.EngineModuleManagementActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:configChanges="uiMode" />
         <activity
             android:name=".ui.settings.PerGameSettingsActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:configChanges="uiMode" />
         <activity
             android:name=".ui.settings.GamepadMapActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:configChanges="uiMode" />
         <activity
             android:name=".ui.settings.InputSettingsActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:configChanges="uiMode" />
         <!-- 布局编辑器：横屏 + 不因常见配置变化重建（用户可能正拖拽/编辑未保存的草稿）；
              与 engine 宿主的 configChanges 集合保持一致 -->
         <activity
@@ -121,10 +130,12 @@
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|smallestScreenSize|uiMode|density|fontScale|locale|layoutDirection" />
         <activity
             android:name=".ui.settings.AppSettingsActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:configChanges="uiMode" />
         <activity
             android:name=".ui.cover.CoverScraperSettingsActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:configChanges="uiMode" />
         <activity
             android:name=".ui.auth.HikarinagiOAuthCallbackActivity"
             android:exported="false"
@@ -147,13 +158,40 @@
         </activity>
         <activity
             android:name=".MainActivity"
+            android:configChanges="uiMode"
             android:enableOnBackInvokedCallback="true"
-            android:exported="true">
+            android:exported="true" />
+        <!--
+          启动器图标通过 activity-alias 切换（Android 不支持运行时直接替换 manifest 图标）：
+          应用设置「经典应用图标」开启时启用 LauncherClassic、禁用 LauncherDefault，关闭时反之。
+          保持 MainActivity 自身不挂 MAIN/LAUNCHER，避免两个入口同时出现在桌面。
+        -->
+        <activity-alias
+            android:name="${applicationId}.LauncherDefault"
+            android:enabled="true"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher"
+            android:label="@string/app_name"
+            android:roundIcon="@mipmap/ic_launcher_round"
+            android:targetActivity=".MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-        </activity>
+        </activity-alias>
+        <activity-alias
+            android:name="${applicationId}.LauncherClassic"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_classic"
+            android:label="@string/app_name"
+            android:roundIcon="@mipmap/ic_launcher_classic_round"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
     </application>
 
 </manifest>

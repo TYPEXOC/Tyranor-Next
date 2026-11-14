@@ -38,6 +38,15 @@ import com.tyranor.next.theme.ItemChevronColor
 import com.tyranor.next.theme.NavWhite
 import com.tyranor.next.theme.TextColor
 import com.tyranor.next.theme.glassBorder
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import com.tyranor.next.ui.common.motion.pressSquish
+import com.tyranor.next.ui.common.motion.PressSquishDefaults
+import androidx.compose.animation.core.animateFloatAsState
+import com.tyranor.next.ui.common.motion.BlurCrossfade
+import com.tyranor.next.ui.common.motion.ExpandVisibility
+import com.tyranor.next.ui.common.motion.MotionMode
+import com.tyranor.next.ui.common.motion.MotionTokens
+import com.tyranor.next.ui.common.motion.rememberLastNonNull
 
 /**
  * 功能跳转条目统一组件：左侧图标 + 标题/摘要 + 右侧指示箭头。
@@ -79,7 +88,15 @@ fun AppNavItem(
     onClick: (() -> Unit)? = null,
 ) {
     val enabled = onClick != null
-    val contentAlpha = if (enabled) 1f else 0.4f
+    val targetContentAlpha = if (enabled) 1f else 0.4f
+    // 可用 ↔ 不可用：「增强」档内容透明度弹簧过渡（标题 / 图标 / 箭头一起淡入淡出），「普通」档直接切换
+    val contentAlpha = if (MotionMode.enhanced) {
+        animateFloatAsState(targetContentAlpha, MotionTokens.fadeIn(0.001f), label = "navItemAlpha").value
+    } else {
+        targetContentAlpha
+    }
+    // 摘要退场期间仍显示最后的内容（而不是收起一个空框）
+    val shownSummary = rememberLastNonNull(summary?.takeIf { it.isNotBlank() })
     val interactionSource = remember { MutableInteractionSource() }
     val statusDescription = statusIndicatorDescription?.takeIf(String::isNotBlank)
 
@@ -87,6 +104,11 @@ fun AppNavItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .pressSquish(
+                    enabled = enabled,
+                    scale = if (drawSurface) PressSquishDefaults.CardScale else PressSquishDefaults.RowScale,
+                    refuse = true,
+                )
                 .clip(AppComponentShape)
                 .clickable(
                     interactionSource = interactionSource,
@@ -126,14 +148,17 @@ fun AppNavItem(
                     maxLines = titleMaxLines,
                     overflow = TextOverflow.Ellipsis,
                 )
-                if (!summary.isNullOrBlank()) {
-                    Text(
-                        summary,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = TextColor.copy(alpha = 0.55f * contentAlpha),
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                // 摘要出现 / 消失：高度弹簧展开、模糊清晰；文案变化：模糊替换（「普通」档均为瞬时）
+                ExpandVisibility(visible = !summary.isNullOrBlank(), label = "navItemSummary") {
+                    BlurCrossfade(targetState = shownSummary.orEmpty(), label = "navItemSummaryText") { text ->
+                        Text(
+                            text,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TextColor.copy(alpha = 0.55f * contentAlpha),
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                 }
             }
             if (showArrow) {

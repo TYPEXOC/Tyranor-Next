@@ -4,12 +4,16 @@ Tyranor Next 是面向 Android 的多引擎视觉小说（Galgame）聚合启动
 
 ## 引擎与运行时
 
+**游戏时长**:
+从 Tyranor Next 启动的内置引擎游戏在前台运行的累计时间，包含加载、标题菜单、自动播放与游戏内视频，后台及锁屏时间不计入。它与「最近打开」记录独立，不代表玩家持续操作或游戏已成功显示首帧。
+_Avoid_: 在线时长、进程存活时间、存档时长
+
 **引擎（EngineType）**:
 游戏库用于区分游戏运行时家族与外部启动类别的分类。
 _Avoid_: 游戏类型、格式
 
 **内置引擎**:
-随 App 分发、无需外置安装的引擎运行时（Kirikiroid2 / krkrsdl3、ONScripter、Artemis、Siglus（siglus_rs Rust 运行时）、RealLive / AVG32 / UK2（siglus_rs game_launcher 软渲染运行时）、FVP（rfvp Rust 运行时）、System35（xsystem35）、System4（xsystem4，与 System35 共用 libSDL2x）、Ethornell / BGI（实验接入，兼容性未验收）、CMVS（cmvs-rs Rust 运行时，NativeActivity + loader）、Tyrano 网页壳）。RPG Maker MV/MZ 由内置 Web 运行环境承载。
+随 App 分发、无需外置安装的引擎运行时（Kirikiroid2 / krkrsdl3、ONScripter、Artemis、Siglus（siglus_rs Rust 运行时）、RealLive / AVG32 / UK2（siglus_rs game_launcher 软渲染运行时）、FVP（rfvp Rust 运行时）、System35（xsystem35）、System4（xsystem4，与 System35 共用 libSDL2x）、SystemNNN、Ethornell / BGI（实验接入，兼容性未验收）、CMVS（cmvs-rs Rust 运行时，NativeActivity + loader）、Tyrano 网页壳）。RPG Maker MV/MZ 由内置 Web 运行环境承载。
 _Avoid_: 预制引擎、捆绑引擎
 
 **引擎运行库包（Runtime Pack）**:
@@ -24,33 +28,29 @@ _Avoid_: Winlator BGI 插件、完整 BGI 支持
 AliceSoft 的两代引擎，各为独立的引擎类型（XSYS35 对应 System 3.x，XSYS4 对应 System 4）：目录特征、启动参数与设置互不相同，不合并为一类。
 _Avoid_: System3/4、AliceSoft 引擎
 
+**SystemNNN（SYSTEMNNN）**:
+由 tinyan 开发的视觉小说引擎家族。Tyranor Next 的内置实现由 Emberfall 承载。
+_Avoid_: Emberfall 独立播放器、第三方运行时模块
+
 **视觉小说引擎组（Framebuffer 引擎）**:
 Siglus 之外由 game_launcher 运行库承载的三个软件渲染引擎（RealLive、AVG32、UK2）的统称：引擎逐帧输出 RGBA 帧缓冲，宿主 `FramebufferGameActivity` 拷进 Bitmap 呈现并转发指针/键盘/文本输入；文本编码（NLS）按全局/单游戏设置。
 _Avoid_: 软渲染引擎、game_fb 引擎
 
 **外置 APK 引擎模块（External Engine Module）**:
-以独立 Android 应用形式分发、由用户另行安装的引擎运行时，用于承载 Ren'Py 与 Ruffle（SWF / Flash）等游戏；由固定包名与静态注册表（`core/engine/external`）管理，与按 action + 包名前缀动态发现的「第三方 APK 运行时模块」是两套体系。RPG Maker RGSS 由 TYN 自建运行时模块承载。
+以独立 Android 应用形式分发、由用户另行安装的引擎运行时，用于承载 Ren'Py、RPG Maker RGSS 与 Ruffle（SWF / Flash）等游戏，由固定包名与静态注册表管理，与动态发现的「第三方 APK 运行时模块」是两套体系。游戏由模块运行，主 App 管理扫描、安装状态与启动协议，并对 Android 11 及以上 Ren’Py 的游戏目录存档提供统一管理。
 _Avoid_: 插件、引擎 DLC、第三方 APK 运行时模块（另一体系）
 
 **第三方 APK 运行时模块（Third-party APK Runtime Module）**:
-用户自行安装、以 `com.tyranor.runtime.` 包名前缀并声明 `com.tyranor.runtime.action.LAUNCH` 的独立 APK，接收游戏文件夹路径自行运行游戏；主 App 只负责发现、启用、扫描描述解释与交棒，强特征引擎只有被模块清单明确声明后才能接管。
+用户自行安装、以 `com.tyranor.runtime.` 包名前缀并声明 `com.tyranor.runtime.action.LAUNCH` 的独立 APK，接收游戏文件夹路径自行运行游戏；主 App 只负责发现、启用、扫描描述解释与交棒。
 _Avoid_: 插件、外置引擎（指 JoiPlay 时）、外置 APK 引擎模块（指 JoiPlay 注册表体系时）
-
-**RGSS RTP（RGSS RTP）**:
-RPG Maker XP / VX / VX Ace 的共享运行资源，由 Tyranor 主 App 导入、检测和删除，存于共享存储根目录 `TyranorNext/RTP/` 并以真实路径交给独立 TYN RGSS 模块挂载；用户可用文件管理器直接维护。TYN 不读取 JoiPlay RTP 目录，也不与用户选择的游戏目录混为一谈。
-_Avoid_: JoiPlay RTP（作为 Tyranor 当前存储位置）、游戏目录 RTP
 
 **运行时模块绑定（Runtime Module Binding）**:
 `ScanGame.runtimeModulePackage` 记录的游戏与第三方 APK 运行时模块包名之间的关系；模块卸载或禁用后游戏降级为 `UNKNOWN`，但保留最后已知包名用于重扫合并与恢复，重装或启用后只能经重新扫描恢复。
 _Avoid_: 手动绑定、模块别名、externalModuleAlias
 
 **模块扫描描述（Runtime Module Scan Descriptor）**:
-第三方运行时模块在自己 `res/raw/tyranor_runtime.json` 中声明的 `extensions` / `markers`（及 `match`），是主 App 自动扫描该模块游戏的唯一特征来源；`overrideEngines` 可明确声明接管的强特征引擎类型，未声明时只匹配未知或网页类弱结果。
+第三方运行时模块在自己 `res/raw/tyranor_runtime.json` 中声明的 `extensions` / `markers`（及 `match`），是主 App 自动扫描该模块游戏的唯一特征来源。
 _Avoid_: 内置特征库、插件清单、手动绑定
-
-**翻译目录（Translation Catalog）**:
-主 App 按游戏或运行时模块声明的翻译发现规则查找译表候选，并集中维护支持的格式、用户选择与 UI 候选 DTO；引擎运行会话只消费当前选择并负责应用到自身文本钩子。
-_Avoid_: UI 直接扫描译表文件、运行时模块自行查询译表
 
 **PC 游戏（手动添加）**:
 用户手动加入游戏库、经外置 Winlator 运行的 Windows 程序，不限定为已识别的视觉小说引擎家族。其运行参数属于 Winlator 设置域。
@@ -148,7 +148,7 @@ _Avoid_: 游戏条目、GameItem
 _Avoid_: 入口文件（与 launchFile 混淆时）
 
 **外置模块别名（externalModuleAlias）**:
-内置识别阶段附带的引擎子类型或兼容标记（如 RPG Maker 的 `internal.rpgmxp`、Ruffle 的 `internal.flash`）；RGSS 运行时由 TYN 模块按游戏特征自动处理，Ren'Py 版本由单游戏设置决定，Ruffle 标记用于扫描识别。该字段不承载第三方 APK 运行时模块的包名（后者见「运行时模块绑定」）。
+JoiPlay 外置 APK 引擎模块体系中，同一引擎下不同子运行时或外置模块记录保存的内部标识（如 `internal.rpgmxp`、Ruffle 的 `internal.flash`）：RPG Maker 用它选择子运行时；Ren'Py 改由单游戏版本设置决定，Ruffle 主要作为扫描标记。它不承载第三方 APK 运行时模块的包名（后者见「运行时模块绑定」）。
 _Avoid_: 模块 ID、运行时模块绑定
 
 **文件型外置入口（launchEntryIsFile）**:
@@ -376,8 +376,20 @@ _Avoid_: 液态玻璃 2.0、增强玻璃
 _Avoid_: FAB 导航、悬浮菜单
 
 **主界面常驻组合**:
-主界面可见 Tab（首页 / 游戏 / 引擎 / 设置；应用设置关闭「显示首页」后为游戏 / 引擎 / 设置三页）常驻组合、隐藏页置 alpha=0 保留节点，切换仅做水平 alpha 动画避免重建列表。
+主界面可见 Tab（首页 / 游戏 / 引擎 / 设置；关闭「显示首页」后为三页）保留组合与列表状态；增强档按方向水平弹簧切换、淡化并带轻微景深，普通档保留原补间。增强档在允许隐藏绘制的 Compose 页完全离屏后跳过正文绘制，网页首页等需保持绘制的宿主例外；切换期间未停稳的页面不接收触摸与无障碍操作。
 _Avoid_: 懒加载页、Fragment
+
+**界面动效档**:
+应用设置中的全局两档选项，默认「增强」、可即时切到「普通」；由公共具名效果负责两档行为，业务页面只提交状态和操作。
+_Avoid_: 性能模式、渲染模式
+
+**增强动效 / 普通动效**:
+增强动效提供页面侧推、弹簧反馈和浮层景深；普通动效保留各控件原有转场。遮罩交接、输入释放等正确性修复同时作用于两档。
+_Avoid_: 开启动画 / 关闭动画（普通档仍有原有动画）
+
+**提示胶囊**:
+增强档在当前可绘制窗口顶部显示的短暂提示，由 `NoticeCenter` 和 `NoticeHost` 管理排队、续显与离页；普通档及无可用宿主时使用系统提示。
+_Avoid_: 通知栏、系统通知
 
 **首页样式（Home Style）**:
 首页的两种形态：「默认」（最近打开 + 快捷启动）与「网页」（内置 WebView 展示用户所选地址：预设鲲Gal/一起萌或自定义）。由应用设置切换、即时生效；仅 http/https 在 WebView 内加载，http(s) 下载交系统浏览器，主框架非 http(s) 链接仅白名单 scheme（mailto/tel 等）交系统、其余拦截；Web 首页在首页不在前台或应用退后台时暂停 JS 与页面媒体，避免后台耗电。

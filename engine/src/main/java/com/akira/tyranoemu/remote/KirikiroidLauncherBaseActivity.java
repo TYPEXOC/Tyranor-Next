@@ -5,25 +5,17 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.res.Configuration;
-import android.content.res.ColorStateList;
 import android.graphics.Color;
-import android.graphics.PorterDuff;
-import android.graphics.Typeface;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.util.Xml;
-import android.view.Gravity;
 import android.view.View;
-import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
-import android.widget.FrameLayout;
-import android.widget.LinearLayout;
-import android.widget.ProgressBar;
-import android.widget.TextView;
 import android.widget.Toast;
 
+import com.core.engine.EngineStartupOverlay;
 import com.core.engine.LaunchContract;
 
 import java.io.File;
@@ -39,6 +31,7 @@ import java.util.Map;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.xmlpull.v1.XmlPullParser;
+import org.xmlpull.v1.XmlPullParserFactory;
 import org.xmlpull.v1.XmlSerializer;
 
 import bridge.NativeBridge;
@@ -65,19 +58,20 @@ public abstract class KirikiroidLauncherBaseActivity extends KR2Activity {
     private static final long SAFE_FALLBACK_REVEAL_MS = 20_000L;
     @SuppressLint("StaticFieldLeak") // Dedicated process activity; cleared immediately before process termination.
     public static Context app;
-    private FrameLayout mask;
-    private TextView maskMessage;
-    private TextView maskHint;
-    private ProgressBar loadingSpinner;
+    private EngineStartupOverlay mask;
     private volatile boolean nativeBridgeInitialized;
     private volatile boolean destroyed;
     private volatile boolean firstFrameRendered;
     private volatile boolean launchDispatched;
     private volatile boolean launchSucceeded;
     private volatile boolean maskRevealRequested;
-    private volatile boolean launchOrientationGuardEnabled;
     private volatile String resolvedGameLibrary;
     private int launchReadinessFrames;
+
+    @Override
+    public void setRequestedOrientation(int requestedOrientation) {
+        super.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
+    }
     private String pendingGamePath;
     private boolean pendingMaps;
     private com.core.gl.ArtemisPerformanceOverlay graphicsOverlay;
@@ -98,8 +92,6 @@ public abstract class KirikiroidLauncherBaseActivity extends KR2Activity {
 
     @Override
     public void onCreate(Bundle bundle) {
-        launchOrientationGuardEnabled = !getIntent().getBooleanExtra(LaunchContract.ORIGIN_MODE, false);
-        applyKrkrRequestedOrientation();
         doSetSystemUiVisibility();
         NativeBridge.configureSafMirror(
                 getIntent().getStringExtra(LaunchContract.SAF_MIRROR_INDEX),
@@ -118,71 +110,9 @@ public abstract class KirikiroidLauncherBaseActivity extends KR2Activity {
         if (getIntent().getBooleanExtra(LaunchContract.ORIGIN_MODE, false)) {
             return;
         }
-        int primaryColor = launcherPrimaryColor();
-        int backgroundColor = launcherColor("launcher_bg_color", Color.rgb(244, 245, 245));
-        int textColor = launcherColor("launcher_text_color", Color.rgb(20, 34, 27));
-        int mutedTextColor = launcherColor("launcher_text_muted_color", Color.rgb(130, 144, 138));
-
-        FrameLayout launchMask = new FrameLayout(this);
-        launchMask.setBackgroundColor(backgroundColor);
-        configureLandscapeLoadingWindow(backgroundColor);
-        // Never expose the KRKR shell scene while the selected game is being
-        // started. The overlay is removed only after the game's first frames.
-        FrameLayout safeContent = new FrameLayout(this);
-        launchMask.addView(safeContent, new FrameLayout.LayoutParams(-1, -1));
-        LinearLayout loadingPanel = new LinearLayout(this);
-        loadingPanel.setOrientation(LinearLayout.VERTICAL);
-        loadingPanel.setGravity(Gravity.CENTER_HORIZONTAL);
-        loadingPanel.setPadding(dp(22), dp(20), dp(22), dp(16));
-
-        ProgressBar spinner = new ProgressBar(this);
-        spinner.setIndeterminateTintList(ColorStateList.valueOf(primaryColor));
-        spinner.getIndeterminateDrawable().setColorFilter(primaryColor, PorterDuff.Mode.SRC_IN);
-        spinner.setContentDescription(uiString(R.string.engine_game_loading));
-
-        TextView title = new TextView(this);
-        title.setText(uiString(R.string.engine_starting_game));
-        title.setTextColor(textColor);
-        title.setTextSize(16.0f);
-        title.setTypeface(null, Typeface.BOLD);
-        title.setGravity(Gravity.CENTER);
-        LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(-1, -2);
-        titleParams.topMargin = dp(0);
-        loadingPanel.addView(title, titleParams);
-
-        LinearLayout.LayoutParams spinnerParams = new LinearLayout.LayoutParams(dp(32), dp(32));
-        spinnerParams.gravity = Gravity.CENTER_HORIZONTAL;
-        spinnerParams.topMargin = dp(14);
-        loadingPanel.addView(spinner, spinnerParams);
-
-        TextView hint = new TextView(this);
-        hint.setText(uiString(R.string.engine_preparing_game));
-        hint.setTextColor(mutedTextColor);
-        hint.setTextSize(11.0f);
-        hint.setGravity(Gravity.CENTER);
-        LinearLayout.LayoutParams hintParams = new LinearLayout.LayoutParams(-1, -2);
-        hintParams.topMargin = dp(10);
-        loadingPanel.addView(hint, hintParams);
-
-        FrameLayout.LayoutParams panelParams = new FrameLayout.LayoutParams(-1, -2, Gravity.CENTER);
-        safeContent.addView(loadingPanel, panelParams);
-        safeContent.setOnApplyWindowInsetsListener((view, insets) -> {
-            // Match PadUi: the background can occupy the whole display, while
-            // interactive/readable content stays clear of cutouts and bars.
-            safeContent.setPadding(
-                    insets.getSystemWindowInsetLeft(),
-                    insets.getSystemWindowInsetTop(),
-                    insets.getSystemWindowInsetRight(),
-                    insets.getSystemWindowInsetBottom());
-            return insets;
-        });
-        safeContent.requestApplyInsets();
-        launchMask.setLayoutParams(new ViewGroup.LayoutParams(-1, -1));
-        this.mask = launchMask;
-        this.maskMessage = title;
-        this.maskHint = hint;
-        this.loadingSpinner = spinner;
-        this.mFrameLayout.addView(launchMask);
+        configureLandscapeLoadingWindow(Color.BLACK);
+        mask = new EngineStartupOverlay(this);
+        mask.attachTo(mFrameLayout);
         NativeBridge.setKrkrGameReadyListener(this::revealGame);
         String path = getIntent().getStringExtra(LaunchContract.PATH);
         if (path != null && path.length() != 0) {
@@ -213,9 +143,12 @@ public abstract class KirikiroidLauncherBaseActivity extends KR2Activity {
      * the launcher wants a key removed (empty font / restore), a global XML entry is
      * removed only while it still holds the value we injected last time (tracked via
      * a hidden _rinne_injected_* Item); a value the user changed in the engine UI is
-     * left alone. Game directory files are launcher-managed and cleared unconditionally.
+     * left alone. Game directory clear is ownership-tracked as well: only an entry still
+     * equal to the injected value (marker match) is removed, a user-changed entry is
+     * disowned by dropping the marker, and unmarked kernel-written entries are kept.
      * Known limitation: keys written by pre-marker builds carry no marker and survive
-     * one restore cycle; picking a launcher font again re-establishes the marker.
+     * the ownership-tracked clear; the legacy app-written font values are migrated
+     * separately via clearLegacyAppPrivateFontItem (private fonts directory prefix).
      */
     private void applyFontPreferences() {
         Intent intent = getIntent();
@@ -236,6 +169,13 @@ public abstract class KirikiroidLauncherBaseActivity extends KR2Activity {
                 Log.i(TAG, "font pref default_font='" + font + "' -> " + target
                         + (changed ? "" : " (unchanged)"));
                 clearStalePreferenceItem(target, gameFile, "default_font", markerFor("default_font"));
+                // Pre-marker legacy builds wrote the app-imported font path (inside this
+                // app's private fonts directory) without a marker; ownership tracking
+                // keeps such unmarked entries, so migrate the recognized ones here.
+                // Kernel-UI-picked fonts (paths outside the private fonts directory)
+                // carry no such prefix and are kept.
+                clearLegacyAppPrivateFontItem(gameFile, "default_font", markerFor("default_font"),
+                        new File(getFilesDir(), "fonts").getPath());
             } catch (Exception error) {
                 Log.w(TAG, "apply default_font failed", error);
             }
@@ -330,15 +270,19 @@ public abstract class KirikiroidLauncherBaseActivity extends KR2Activity {
     }
 
     /**
-     * When a key lands in the global file, removes its stale copy (including any
-     * leftover _rinne_injected_* marker) from the game directory XML so the game
-     * follows the global value. Game files are launcher-managed: removal is
-     * unconditional (legacy pre-marker builds wrote keys without markers).
+     * When a key lands in the global file, removes the launcher's stale copy (including the
+     * _rinne_injected_* marker) from the game directory XML so the game follows the global
+     * value. Removal is ownership-tracked: engine preference keys are real kernel keys, so
+     * the game directory XML may also hold values the user wrote through the kernel's own
+     * preference UI. Those entries carry no marker and must survive the clear (the kernel
+     * applies a per-game value ahead of the global one); only an entry still equal to the
+     * value this launcher injected (marker match) is removed, and an entry the user has
+     * since changed in the kernel UI is disowned by dropping the marker and keeping the value.
      */
-    private static void clearStalePreferenceItem(File target, File gameFile, String name, String markerName)
+    static void clearStalePreferenceItem(File target, File gameFile, String name, String markerName)
             throws Exception {
         if (target == gameFile || gameFile == null || !gameFile.isFile()) return;
-        applyPreferenceItem(gameFile, name, markerName, null, false);
+        applyPreferenceItem(gameFile, name, markerName, null, true);
     }
 
     private String gameRootDir() {
@@ -372,38 +316,94 @@ public abstract class KirikiroidLauncherBaseActivity extends KR2Activity {
         return applyPreferenceItem(file, name, markerName, value, true);
     }
 
-    private static boolean applyPreferenceItem(
+    /** Preference XML parse outcomes (see {@link #readPreferenceFile}). */
+    private static final int PREF_PARSE_MISSING = 0;
+    private static final int PREF_PARSE_COMPLETE = 1;
+    private static final int PREF_PARSE_INCOMPLETE = 2;
+    private static final int PREF_PARSE_NOT_FILE = 3;
+
+    /**
+     * Parses Item/Custom/KeyMap entries out of a preference XML file and returns the parse
+     * outcome: {@link #PREF_PARSE_MISSING} when the file does not exist (first launch / new
+     * game directory — callers treat it as an empty configuration and may create it by
+     * writing), {@link #PREF_PARSE_COMPLETE} when parsed to the end, and
+     * {@link #PREF_PARSE_INCOMPLETE} when a mid-parse failure (truncated/corrupt file)
+     * leaves the maps holding only the entries before the failure point — callers must not
+     * write such a partial snapshot back, doing so would permanently drop the tail entries.
+     * {@link #PREF_PARSE_NOT_FILE} when the path exists but is not a regular file (e.g. a
+     * directory) — callers must not write: the replace retry in {@link #writePreferenceXml}
+     * would otherwise delete an empty directory standing at the path.
+     */
+    private static int readPreferenceFile(
+            File file,
+            LinkedHashMap<String, String> items,
+            List<String[]> customs,
+            LinkedHashMap<Integer, Integer> keyMaps) {
+        if (!file.exists()) return PREF_PARSE_MISSING;
+        if (!file.isFile()) return PREF_PARSE_NOT_FILE;
+        XmlPullParser parser;
+        try {
+            parser = XmlPullParserFactory.newInstance().newPullParser();
+        } catch (Exception error) {
+            return PREF_PARSE_INCOMPLETE;
+        }
+        boolean complete = false;
+        try (FileInputStream in = new FileInputStream(file)) {
+            parser.setInput(in, null);
+            for (int event = parser.getEventType();
+                    event != XmlPullParser.END_DOCUMENT;
+                    event = parser.next()) {
+                if (event != XmlPullParser.START_TAG) continue;
+                String tag = parser.getName();
+                String key = parser.getAttributeValue(null, "key");
+                String attr = parser.getAttributeValue(null, "value");
+                if ("Item".equals(tag)) {
+                    if (key != null && attr != null) items.put(key, attr);
+                } else if ("Custom".equals(tag)) {
+                    if (key != null && attr != null) customs.add(new String[]{key, attr});
+                } else if ("KeyMap".equals(tag) && key != null && attr != null) {
+                    try {
+                        int keyCode = Integer.parseInt(key);
+                        int mapped = Integer.parseInt(attr);
+                        if (keyCode != 0 && mapped != 0) keyMaps.put(keyCode, mapped);
+                    } catch (NumberFormatException ignored) {
+                    }
+                }
+            }
+            complete = true;
+        } catch (Exception ignored) {
+            // Mid-parse failure: report incomplete so callers skip the write-back.
+        }
+        return complete ? PREF_PARSE_COMPLETE : PREF_PARSE_INCOMPLETE;
+    }
+
+    /**
+     * Migrates a pre-marker legacy app-written entry whose value points into the app's
+     * private {@code appFontsDirPrefix}: ownership tracking keeps unmarked entries, but
+     * unmarked values under the private fonts directory were written by legacy launcher
+     * builds (the app only stores imported font paths from that directory), so they can
+     * be recognized and removed. Kernel-UI-written values point elsewhere and are kept.
+     */
+    static void clearLegacyAppPrivateFontItem(
+            File gameFile, String name, String markerName, String appFontsDir) throws Exception {
+        LinkedHashMap<String, String> items = new LinkedHashMap<>();
+        List<String[]> customs = new ArrayList<>();
+        LinkedHashMap<Integer, Integer> keyMaps = new LinkedHashMap<>();
+        int parse = readPreferenceFile(gameFile, items, customs, keyMaps);
+        String value = items.get(name);
+        if (parse != PREF_PARSE_COMPLETE || value == null || items.containsKey(markerName) ||
+                !(value.equals(appFontsDir) || value.startsWith(appFontsDir + "/"))) return;
+        items.remove(name);
+        writePreferenceXml(gameFile, items, customs, keyMaps);
+    }
+
+    static boolean applyPreferenceItem(
             File file, String name, String markerName, String value, boolean trackOwnership)
             throws Exception {
         LinkedHashMap<String, String> items = new LinkedHashMap<>();
         List<String[]> customs = new ArrayList<>();
         LinkedHashMap<Integer, Integer> keyMaps = new LinkedHashMap<>();
-        if (file.isFile()) {
-            XmlPullParser parser = Xml.newPullParser();
-            try (FileInputStream in = new FileInputStream(file)) {
-                parser.setInput(in, null);
-                for (int event = parser.getEventType();
-                        event != XmlPullParser.END_DOCUMENT;
-                        event = parser.next()) {
-                    if (event != XmlPullParser.START_TAG) continue;
-                    String tag = parser.getName();
-                    String key = parser.getAttributeValue(null, "key");
-                    String attr = parser.getAttributeValue(null, "value");
-                    if ("Item".equals(tag)) {
-                        if (key != null && attr != null) items.put(key, attr);
-                    } else if ("Custom".equals(tag)) {
-                        if (key != null && attr != null) customs.add(new String[]{key, attr});
-                    } else if ("KeyMap".equals(tag) && key != null && attr != null) {
-                        try {
-                            int keyCode = Integer.parseInt(key);
-                            int mapped = Integer.parseInt(attr);
-                            if (keyCode != 0 && mapped != 0) keyMaps.put(keyCode, mapped);
-                        } catch (NumberFormatException ignored) {
-                        }
-                    }
-                }
-            }
-        }
+        int parse = readPreferenceFile(file, items, customs, keyMaps);
         boolean changed = false;
         if (value != null) {
             changed |= !value.equals(items.put(name, value));
@@ -428,7 +428,10 @@ public abstract class KirikiroidLauncherBaseActivity extends KR2Activity {
             changed |= items.remove(name) != null;
             changed |= items.remove(markerName) != null;
         }
-        if (!changed) return false;
+        // 文件缺失（首次启动/新游戏目录）按空配置创建写入；不完整解析（截断/损坏）
+        // 跳过写回——部分快照会永久丢失损坏点之后的条目；存在但非普通文件（目录等）
+        // 同样禁止写回——替换重试会删除路径上的空目录。
+        if (!changed || (parse != PREF_PARSE_MISSING && parse != PREF_PARSE_COMPLETE)) return false;
         writePreferenceXml(file, items, customs, keyMaps);
         return true;
     }
@@ -449,7 +452,7 @@ public abstract class KirikiroidLauncherBaseActivity extends KR2Activity {
             return;
         }
         File tmp = new File(parent, file.getName() + ".tmp");
-        XmlSerializer serializer = Xml.newSerializer();
+        XmlSerializer serializer = XmlPullParserFactory.newInstance().newSerializer();
         try (FileOutputStream out = new FileOutputStream(tmp)) {
             serializer.setOutput(out, "UTF-8");
             serializer.startDocument("UTF-8", true);
@@ -645,7 +648,7 @@ public abstract class KirikiroidLauncherBaseActivity extends KR2Activity {
             Log.e(TAG, "renderer-ready launch failed", t);
         }
         if (!launchSucceeded) {
-            showLaunchFailure(uiString(R.string.engine_launch_failed));
+            showLaunchFailure();
         } else if (mask != null) {
             // Keep the KRKR shell hidden until the native update hook reports
             // that doStartup and the menu transition completed. The fallback
@@ -665,21 +668,19 @@ public abstract class KirikiroidLauncherBaseActivity extends KR2Activity {
         mask.post(() -> {
             if (!destroyed && mask != null) {
                 Log.i(TAG, "hide KRKR launch mask after game-ready signal");
-                mask.animate().alpha(0.0f).setDuration(150L).withEndAction(() -> {
-                    if (mask != null) mask.setVisibility(android.view.View.GONE);
-                    launchOrientationGuardEnabled = false;
-                    applyKrkrRequestedOrientation();
-                }).start();
+                mask.reveal();
             }
         });
+    }
+
+    private void showLaunchFailure() {
+        showLaunchFailure(null);
     }
 
     private void showLaunchFailure(String message) {
         runOnUiThread(() -> {
             if (destroyed || isFinishing() || mask == null) return;
-            if (loadingSpinner != null) loadingSpinner.setVisibility(View.GONE);
-            if (maskMessage != null) maskMessage.setText(message);
-            if (maskHint != null) maskHint.setText(uiString(R.string.engine_return_and_retry));
+            if (mask != null) mask.fail(message);
         });
     }
 
@@ -690,10 +691,6 @@ public abstract class KirikiroidLauncherBaseActivity extends KR2Activity {
     protected final String gameLibraryForBridge() {
         String library = resolvedGameLibrary;
         return library != null && library.length() != 0 ? library : soName();
-    }
-
-    private int dp(int value) {
-        return Math.round(value * getResources().getDisplayMetrics().density);
     }
 
     private void configureLandscapeLoadingWindow(int backgroundColor) {
@@ -711,54 +708,9 @@ public abstract class KirikiroidLauncherBaseActivity extends KR2Activity {
             window.setStatusBarContrastEnforced(false);
             window.setNavigationBarContrastEnforced(false);
         }
-        int flags = View.SYSTEM_UI_FLAG_LAYOUT_STABLE | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN;
-        if (!isLauncherDarkMode()) {
-            flags |= View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
-        }
-        window.getDecorView().setSystemUiVisibility(flags);
-    }
-
-    private int launcherPrimaryColor() {
-        Intent intent = getIntent();
-        if (intent != null && intent.hasExtra(LaunchContract.PRIMARY_COLOR)) {
-            return intent.getIntExtra(LaunchContract.PRIMARY_COLOR, Color.rgb(24, 185, 120));
-        }
-        // Deprecated reflection fallback: com.apps should pass "primaryColor" via Intent extra.
-        // TODO: remove reflection once com.apps migration is complete.
-        try {
-            Object value = Class.forName("com.apps.LauncherActivity")
-                    .getMethod("launcherPrimaryColor", Context.class)
-                    .invoke(null, this);
-            if (value instanceof Integer) return (Integer) value;
-        } catch (Throwable ignored) {
-            // 反射失败时忽略，回退 Intent extra 主色（兼容兜底）
-        }
-        return launcherColor("launcher_primary_color", Color.rgb(24, 185, 120));
-    }
-
-    @SuppressLint("DiscouragedApi") // Engine cannot compile against the app module's generated R class.
-    private int launcherColor(String name, int fallback) {
-        Context uiContext = launcherUiContext();
-        int id = uiContext.getResources().getIdentifier(name, "color", getPackageName());
-        return id == 0 ? fallback : uiContext.getColor(id);
-    }
-
-    private Context launcherUiContext() {
-        // Deprecated reflection fallback: com.apps should pass "darkMode" via Intent extra.
-        // Note: this Context does NOT automatically resolve values-night resources based on
-        // the "darkMode" Intent extra; wrapLauncherUiMode in com.apps wraps the Context with
-        // a UiModeManager override to force day/night resource resolution. When the reflection
-        // fallback is removed, callers passing "darkMode" extra must also apply the night mode
-        // override via AppCompatDelegate.setDefaultNightMode() or similar before retrieving colors.
-        try {
-            Object value = Class.forName("com.apps.LauncherActivity")
-                    .getMethod("wrapLauncherUiMode", Context.class)
-                    .invoke(null, this);
-            if (value instanceof Context) return (Context) value;
-        } catch (Throwable ignored) {
-            // 反射失败时忽略，回退默认 Context（兼容兜底）
-        }
-        return this;
+        // Loading bars are fixed black, so keep white system-bar icons in every launcher theme.
+        window.getDecorView().setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_LAYOUT_STABLE | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN);
     }
 
     private String uiString(int resourceId) {
@@ -771,25 +723,6 @@ public abstract class KirikiroidLauncherBaseActivity extends KR2Activity {
         } catch (Throwable ignored) {
             return getString(resourceId);
         }
-    }
-
-    private boolean isLauncherDarkMode() {
-        Intent intent = getIntent();
-        if (intent != null && intent.hasExtra(LaunchContract.DARK_MODE)) {
-            return intent.getBooleanExtra(LaunchContract.DARK_MODE, false);
-        }
-        // Deprecated reflection fallback: com.apps should pass "darkMode" via Intent extra.
-        try {
-            Object value = Class.forName("com.apps.LauncherActivity")
-                    .getMethod("isLauncherDarkMode", Context.class)
-                    .invoke(null, this);
-            if (value instanceof Boolean) return (Boolean) value;
-        } catch (Throwable ignored) {
-            // 反射失败时忽略，回退系统 uiMode 判断（兼容兜底）
-        }
-        return (getResources().getConfiguration().uiMode
-                & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
-                == android.content.res.Configuration.UI_MODE_NIGHT_YES;
     }
 
     private static String normalizeKrPath(String path) {
@@ -839,13 +772,11 @@ public abstract class KirikiroidLauncherBaseActivity extends KR2Activity {
     public void onResume() {
         super.onResume();
         if (graphicsOverlay != null) graphicsOverlay.show();
-        applyKrkrRequestedOrientation();
     }
 
     @Override
     public void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
-        applyKrkrRequestedOrientation();
         doSetSystemUiVisibility();
     }
 
@@ -863,10 +794,8 @@ public abstract class KirikiroidLauncherBaseActivity extends KR2Activity {
         try {
             destroyed = true;
             if (graphicsOverlay != null) graphicsOverlay.hide();
+            if (mask != null) mask.dispose();
             mask = null;
-            maskMessage = null;
-            maskHint = null;
-            loadingSpinner = null;
             NativeBridge.setKrkrGameReadyListener(null);
             com.core.gl.Anime4kRuntime.reset();
             if (app == this) app = null;
@@ -881,26 +810,4 @@ public abstract class KirikiroidLauncherBaseActivity extends KR2Activity {
 
     public abstract String soName();
 
-    private void applyKrkrRequestedOrientation() {
-        try {
-            setRequestedOrientation(currentKrkrRequestedOrientation());
-        } catch (Throwable t) {
-            Log.w(TAG, "apply KRKR orientation failed", t);
-        }
-    }
-
-    private int currentKrkrRequestedOrientation() {
-        int requested = getIntent() == null
-                ? ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-                : getIntent().getIntExtra(LaunchContract.ORIENTATION, ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
-        if (!launchOrientationGuardEnabled) return requested;
-        // Kirikiroid2/Cocos is fragile while startupFrom/doStartup is still loading XP3/TJS.
-        // During the launch mask, always use a concrete landscape orientation.  Do not use
-        // SCREEN_ORIENTATION_LOCKED here: some tablets lock the transient portrait state and
-        // leave the loading overlay mismatched with the touch/surface coordinates.
-        if (requested == ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE) {
-            return ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE;
-        }
-        return ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE;
-    }
 }

@@ -9,6 +9,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
@@ -43,6 +44,7 @@ import com.tyranor.next.core.game.save.RpgSaveFormat
 import com.tyranor.next.core.game.save.RpgSaveSync
 import com.tyranor.next.core.game.save.sync.SaveSyncException
 import com.tyranor.next.core.game.save.sync.SaveSyncRuntime
+import com.tyranor.next.core.game.save.sync.requiresExternalSaveExitConfirmation
 import com.tyranor.next.core.game.launch.EngineLauncher
 import com.tyranor.next.core.game.model.ScanGame
 import com.tyranor.next.core.game.model.ScanGameIntents
@@ -57,9 +59,18 @@ import com.tyranor.next.theme.AppComponentShape
 import com.tyranor.next.ui.common.AppAlertDialog
 import com.tyranor.next.ui.common.AppNavItem
 import com.tyranor.next.ui.common.AppScreenActivity
-import com.tyranor.next.ui.common.AppTopBar
+import com.tyranor.next.ui.common.AppSecondaryTopBar
 import com.tyranor.next.ui.common.BottomInsetSpacer
 import com.tyranor.next.ui.common.DialogTextButton
+import com.tyranor.next.ui.common.motion.BlurCrossfade
+import com.tyranor.next.ui.common.motion.ExpandVisibility
+import com.tyranor.next.ui.common.motion.listItemMotion
+import com.tyranor.next.ui.common.motion.ProvideEntrance
+import com.tyranor.next.ui.common.motion.RollingNumberText
+import com.tyranor.next.ui.common.motion.rememberLastNonNull
+import com.tyranor.next.ui.common.motion.pressSquishGroup
+import com.tyranor.next.ui.common.motion.skipEntranceOnDrag
+import com.tyranor.next.ui.common.motion.staggeredEntrance
 import com.tyranor.next.ui.common.toSaveSyncMessage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -68,6 +79,7 @@ import kotlinx.coroutines.withContext
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
 import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import com.tyranor.next.ui.common.notice.AppNotice
 
 class SaveManagementActivity : AppScreenActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -92,6 +104,10 @@ class SaveManagementActivity : AppScreenActivity() {
     }
 }
 
+/**
+ * Shows one game's save location and serializes import, export, deletion, and synchronization tasks.
+ * Refreshes file counts and version panels after an operation while preserving typed failure messages.
+ */
 @Composable
 private fun SaveManagementScreen(game: ScanGame) {
     val context = LocalContext.current
@@ -109,11 +125,14 @@ private fun SaveManagementScreen(game: ScanGame) {
     // 会话运行中/启动中：手动同步被拒绝的提示
     val saveBusyEngineRunningMessage = stringResource(R.string.save_busy_engine_running)
     val externalExitDoneMessage = stringResource(R.string.save_external_exit_done)
+    val clearImportedResourcesDone = stringResource(R.string.save_systemnnn_clear_resources_done)
     val manager = remember { GameSaveManager(context) }
     var location by remember { mutableStateOf<GameSaveManager.SaveLocation?>(null) }
     var fileCount by remember { mutableStateOf(0) }
     var refreshError by remember { mutableStateOf<String?>(null) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    var hasImportedResources by remember { mutableStateOf(false) }
+    var showClearImportedResources by remember { mutableStateOf(false) }
     var showExportFormatPicker by remember { mutableStateOf(false) }
     // CreateDocument 系统页期间进程重建后仍按用户所选格式导出。
     var exportFormat by rememberSaveable { mutableStateOf(GameSaveManager.ExportFormat.TYRANOR) }
@@ -131,11 +150,10 @@ private fun SaveManagementScreen(game: ScanGame) {
     // 目录解析与文件递归遍历均为磁盘 IO：统一切到 IO 线程，避免组合期/主线程卡顿
     suspend fun refresh() {
         try {
-            val snapshot = withContext(Dispatchers.IO) {
-                manager.resolveSaveLocation(game) to manager.listSaveFiles(game).size
-            }
-            location = snapshot.first
-            fileCount = snapshot.second
+            val snapshot = withContext(Dispatchers.IO) { manager.inspectSaves(game) }
+            location = snapshot.location
+            fileCount = snapshot.fileCount
+            hasImportedResources = snapshot.hasImportedResources
             refreshError = null
             versionsRevision++
         } catch (cancelled: CancellationException) {
@@ -143,6 +161,7 @@ private fun SaveManagementScreen(game: ScanGame) {
         } catch (failure: Exception) {
             location = null
             fileCount = 0
+            hasImportedResources = false
             refreshError = failure.toSaveErrorMessage(context, saveOperationFailedMessage)
         }
     }
@@ -185,7 +204,7 @@ private fun SaveManagementScreen(game: ScanGame) {
                 refresh()
                 if (message != null) {
                     val duration = if (shortFeedback) Toast.LENGTH_SHORT else Toast.LENGTH_LONG
-                    Toast.makeText(context, message, duration).show()
+                    AppNotice.makeText(context, message, duration, AppNotice.Kind.Info).show()
                 }
             } finally {
                 taskRunning = false
@@ -198,7 +217,7 @@ private fun SaveManagementScreen(game: ScanGame) {
     ) { uri: Uri? ->
         if (uri != null) {
             runSaveTask {
-                val count = manager.exportToZip(game, uri, exportFormat)
+                val count = manager.withManualSaveAccess(game) { manager.exportToZip(game, uri, exportFormat) }
                 saveExportedCountFormat.format(count)
             }
         }
@@ -206,19 +225,20 @@ private fun SaveManagementScreen(game: ScanGame) {
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         if (uri != null) {
             runSaveTask {
-                val count = manager.importFromZip(game, uri)
+                val count = manager.withManualSaveAccess(game) { manager.importFromZip(game, uri) }
                 saveImportedCountFormat.format(count)
             }
         }
     }
 
     MiuixSettingsTheme {
+        ProvideEntrance {
         MiuixScaffold(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().skipEntranceOnDrag(),
             containerColor = ComposeColor.Transparent,
             contentWindowInsets = WindowInsets(0.dp),
             topBar = {
-                AppTopBar(
+                AppSecondaryTopBar(
                     title = stringResource(R.string.save_management_title),
                     background = ComposeColor.Transparent,
                     contentColor = PageTextColor,
@@ -234,42 +254,58 @@ private fun SaveManagementScreen(game: ScanGame) {
             ) {
                 item {
                     Card(
-                        modifier = Modifier.fillMaxWidth().glassBorder(),
+                        modifier = Modifier.staggeredEntrance(0).fillMaxWidth().glassBorder(),
                         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                         colors = CardDefaults.cardColors(containerColor = NavWhite, contentColor = TextColor),
                         shape = AppComponentShape,
                     ) {
                         Column(Modifier.fillMaxWidth().padding(16.dp)) {
                             Text(game.title, style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            location?.let { loadedLocation ->
-                                Text(
-                                    loadedLocation.description,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(top = 8.dp),
-                                )
-                                if (loadedLocation.mirrorForced) {
+                            BlurCrossfade(targetState = location) { loadedLocation ->
+                                if (loadedLocation != null) Column {
                                     Text(
-                                        stringResource(R.string.krkr_mirror_save_import_hint),
+                                        loadedLocation.description(game.engine.displayName),
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.padding(top = 4.dp),
+                                        modifier = Modifier.padding(top = 8.dp),
+                                    )
+                                    if (loadedLocation.mirrorForced) {
+                                        Text(
+                                            stringResource(R.string.krkr_mirror_save_import_hint),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.padding(top = 4.dp),
+                                        )
+                                    }
+                                    if (loadedLocation.available) {
+                                        // 导入 / 导出 / 删除后文件数逐位滚动到新值（静止时就是同一段文字）
+                                        RollingNumberText(
+                                            stringResource(R.string.save_file_count, fileCount),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.padding(top = 4.dp),
+                                        )
+                                    } else {
+                                        Text(
+                                            stringResource(R.string.save_unmanageable),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.padding(top = 4.dp),
+                                        )
+                                    }
+                                }
+                            }
+                            // 刷新失败提示：原位展开 / 收回，收起过程中保留最后一条文案
+                            val shownRefreshError = rememberLastNonNull(refreshError)
+                            ExpandVisibility(visible = refreshError != null, label = "saveRefreshError") {
+                                shownRefreshError?.let { error ->
+                                    Text(
+                                        error,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.padding(top = 8.dp),
                                     )
                                 }
-                                Text(
-                                    if (loadedLocation.available) stringResource(R.string.save_file_count, fileCount) else stringResource(R.string.save_unmanageable),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(top = 4.dp),
-                                )
-                            }
-                            refreshError?.let { error ->
-                                Text(
-                                    error,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.error,
-                                    modifier = Modifier.padding(top = 8.dp),
-                                )
                             }
                         }
                     }
@@ -277,11 +313,11 @@ private fun SaveManagementScreen(game: ScanGame) {
 
                 item {
                     MiuixCard(
-                        modifier = Modifier.fillMaxWidth().glassBorder(),
+                        modifier = Modifier.pressSquishGroup().staggeredEntrance(1).fillMaxWidth().glassBorder(),
                         cornerRadius = AppComponentCornerRadius,
                     ) {
                         Column(Modifier.padding(vertical = 4.dp)) {
-                            if (game.engine == EngineType.YURIS) {
+                            if (requiresExternalSaveExitConfirmation(game.engine)) {
                                 AppNavItem(
                                     title = stringResource(R.string.save_external_exit_title),
                                     summary = stringResource(R.string.save_external_exit_summary),
@@ -310,7 +346,7 @@ private fun SaveManagementScreen(game: ScanGame) {
                                     }
                                 }),
                             )
-                            if (rpgWebGame && saveInteropEnabled) {
+                            ExpandVisibility(visible = rpgWebGame && saveInteropEnabled) {
                                 AppNavItem(
                                     title = stringResource(R.string.save_sync_now),
                                     showLeadingIcon = false,
@@ -345,18 +381,33 @@ private fun SaveManagementScreen(game: ScanGame) {
                                 drawSurface = false,
                                 onClick = if (taskRunning) null else ({ showDeleteConfirm = true }),
                             )
+                            ExpandVisibility(visible = hasImportedResources) {
+                                AppNavItem(
+                                    title = stringResource(R.string.save_systemnnn_clear_resources),
+                                    showLeadingIcon = false,
+                                    showArrow = false,
+                                    drawSurface = false,
+                                    onClick = if (taskRunning || !hasImportedResources) null else ({ showClearImportedResources = true }),
+                                )
+                            }
                         }
                     }
                 }
                 if (location?.available == true) {
-                    item {
-                        SaveVersionsPanel(game, taskRunning, versionsRevision) { block ->
-                            runSaveTask(block = block, shortFeedback = true)
+                    // 稳定 key：版本面板随存档位置可用而出现时淡入，下方留白平滑让位
+                    item(key = "saveVersions") {
+                        Column(
+                            listItemMotion().staggeredEntrance(2),
+                        ) {
+                            SaveVersionsPanel(game, taskRunning, versionsRevision) { block ->
+                                runSaveTask(block = block, shortFeedback = true)
+                            }
                         }
                     }
                 }
-                item { BottomInsetSpacer() }
+                item(key = "saveBottomInset") { BottomInsetSpacer() }
             }
+        }
         }
     }
 
@@ -394,8 +445,10 @@ private fun SaveManagementScreen(game: ScanGame) {
             title = { Text(stringResource(R.string.save_export_format_title), style = MaterialTheme.typography.titleMedium) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    // 两个格式条目在弹窗正文里再错开一拍升起（停稳后与原样一致）
                     AppNavItem(
                         title = stringResource(R.string.save_export_format_standard),
+                        modifier = Modifier.staggeredEntrance(2, distance = 10.dp, stepMillis = 45L),
                         summary = stringResource(R.string.save_export_format_standard_summary),
                         leadingIcon = R.drawable.ic_save_export_format,
                         containerColor = DialogItemSurface,
@@ -409,6 +462,7 @@ private fun SaveManagementScreen(game: ScanGame) {
                     )
                     AppNavItem(
                         title = stringResource(R.string.save_export_format_tyranor),
+                        modifier = Modifier.staggeredEntrance(3, distance = 10.dp, stepMillis = 45L),
                         summary = stringResource(R.string.save_export_format_tyranor_summary),
                         leadingIcon = R.drawable.ic_save_export_format,
                         containerColor = DialogItemSurface,
@@ -426,6 +480,29 @@ private fun SaveManagementScreen(game: ScanGame) {
         )
     }
 
+    if (showClearImportedResources) {
+        AppAlertDialog(
+            onDismissRequest = { showClearImportedResources = false },
+            title = { Text(stringResource(R.string.save_systemnnn_clear_resources), style = MaterialTheme.typography.titleMedium) },
+            text = { Text(stringResource(R.string.save_systemnnn_clear_resources_message), style = MaterialTheme.typography.bodyMedium) },
+            confirmButton = {
+                DialogTextButton(
+                    text = stringResource(R.string.common_confirm),
+                    enabled = !taskRunning,
+                    onClick = {
+                        showClearImportedResources = false
+                        runSaveTask {
+                            if (manager.clearImportedSystemNnnResources(game)) clearImportedResourcesDone else null
+                        }
+                    },
+                )
+            },
+            dismissButton = {
+                DialogTextButton(text = stringResource(R.string.common_cancel), onClick = { showClearImportedResources = false })
+            },
+        )
+    }
+
     if (showDeleteConfirm) {
         AppAlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
@@ -439,7 +516,7 @@ private fun SaveManagementScreen(game: ScanGame) {
                     onClick = {
                         showDeleteConfirm = false
                         runSaveTask {
-                            val count = manager.deleteSaves(game)
+                            val count = manager.withManualSaveAccess(game) { manager.deleteSaves(game) }
                             saveDeletedCountFormat.format(count)
                         }
                     },

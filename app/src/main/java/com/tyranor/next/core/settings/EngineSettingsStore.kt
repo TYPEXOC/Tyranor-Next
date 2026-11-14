@@ -39,6 +39,7 @@ object EngineSettingsStore {
     // Artemis 应用级默认
     const val KEY_ARTEMIS_ENGINE_VERSION = "artemis_engine_version"
     const val KEY_ARTEMIS_KERNEL = "artemis_kernel"
+    /** Legacy preference retained for stored-data compatibility; built-in launches ignore it. */
     const val KEY_ARTEMIS_ROTATE_SCREEN = "artemis_rotate_screen"
     const val KEY_ARTEMIS_AUTO_PATCH = "artemis_auto_patch"
     const val KEY_ARTEMIS_RESOLUTION = "artemis_resolution"
@@ -189,8 +190,18 @@ object EngineSettingsStore {
     const val RENDERER_SOFTWARE = "software"
     const val RENDERER_OPENGL = "opengl"
 
-    // 写入引擎 XML（Kirikiroid2Preference.xml/GlobalPreference.xml）的 Item 键名，
-    // 与 libgame.so 内 IndividualConfigManager 读取的键一致，键名不可改。
+    // 写入引擎 XML（GlobalPreference.xml/Kirikiroid2Preference.xml）的 Item 键名。
+    // 内核（libgame.so）按 Kirikiroid2 源码 PreferenceConfig.h 中各 tTVPPreferenceInfo*
+    // 构造参数的第二项（存储键）读取，并非 locale ID（preference_* 仅为界面文案 id）；
+    // 键名不可改。App 侧 prefs 键（kr_*）只是宿主自己的存储键，内核不认识。
+    const val ENGINE_RENDERER = "renderer"
+    const val ENGINE_SOFTWARE_DRAW_THREAD = "software_draw_thread"
+    const val ENGINE_SOFTWARE_COMPRESS_TEX = "software_compress_tex"
+    const val ENGINE_OGL_COMPRESS_TEX = "ogl_compress_tex"
+    const val ENGINE_MEM_USAGE = "memusage"
+    const val ENGINE_OGL_MAX_TEXSIZE = "ogl_max_texsize"
+    const val ENGINE_OGL_ACCURATE_RENDER = "ogl_accurate_render"
+    const val ENGINE_FPS_LIMIT = "fps_limit"
     const val ENGINE_VCURSOR_SCALE = "vcursor_scale"
     const val ENGINE_MENU_HANDLER_OPA = "menu_handler_opa"
     // 虚拟鼠标缩放比（0.01..1.50，引擎默认 1.00；0.50 与原版 Ty 一致，两位小数）
@@ -268,7 +279,12 @@ object EngineSettingsStore {
     // Ren'Py 版本取值常量
     const val RENPY_AUTO = "auto"
     const val RENPY_85 = "8.5"
+    const val RENPY_853 = "8.5.3"
     const val RENPY_77 = "7.7.1"
+
+    /** Migrates the former 8.5 selector value to the compatible upgraded 8.5.3 runtime. */
+    fun normalizeRenpyVersion(value: String?): String? =
+        if (value?.trim() == RENPY_85) RENPY_853 else value
 
     // Ruffle 外置模块取值域（对齐插件 RuffleConfiguration 的默认值）
     const val RUFFLE_SCREEN_TIMEOUT_DEFAULT = 0
@@ -592,6 +608,9 @@ object EngineSettingsStore {
                     if (it.isEmpty()) it else normalizeVcursorScale(it)
                 }
                 KEY_KR_MENU_HANDLER_OPA -> override?.let { if (it.isEmpty() || it in KR_MENU_HANDLER_OPAS) it else null }
+                // 布尔开关没有「引擎默认」语义：存量 "" 是旧版「跟随全局」的写法，按 null
+                // （跟随全局）处理，避免游戏级空值删项压过全局 XML 的当前值（PR #155 审查）
+                KEY_KR_OGL_ACCURATE_RENDER -> override?.takeIf { it.isNotEmpty() }
                 else -> override
             }
             val globalRaw = prefs(c).getString(key, null).orEmpty().trim()
@@ -693,8 +712,6 @@ object EngineSettingsStore {
     fun setArtKernel(c: Context, v: String) = prefs(c).edit().putString(KEY_ARTEMIS_KERNEL, normalizeArtKernel(v)).apply()
     fun normalizeArtKernel(v: String?): String =
         if (v?.trim() == ART_KERNEL_CLEAN) ART_KERNEL_CLEAN else ART_KERNEL_OFFICIAL
-    fun isArtRotateScreen(c: Context): Boolean = prefs(c).getBoolean(KEY_ARTEMIS_ROTATE_SCREEN, false)
-    fun setArtRotateScreen(c: Context, b: Boolean) = prefs(c).edit().putBoolean(KEY_ARTEMIS_ROTATE_SCREEN, b).apply()
     fun getArtAutoPatch(c: Context): String {
         val v = prefs(c).getString(KEY_ARTEMIS_AUTO_PATCH, ART_PATCH_DEFAULT)?.trim()
         return if (v != null && v in ART_PATCHES) v else ART_PATCH_DEFAULT
@@ -728,8 +745,9 @@ object EngineSettingsStore {
     // ---------- Ren'Py ----------
     fun getRenpyVersion(c: Context): String {
         val v = prefs(c).getString(KEY_RENPY_ENGINE_VERSION, RENPY_AUTO)
-        return when (v) {
-            RENPY_85, RENPY_77 -> v
+        return when (normalizeRenpyVersion(v)?.trim()) {
+            RENPY_853 -> RENPY_853
+            RENPY_77 -> RENPY_77
             else -> RENPY_AUTO
         }
     }

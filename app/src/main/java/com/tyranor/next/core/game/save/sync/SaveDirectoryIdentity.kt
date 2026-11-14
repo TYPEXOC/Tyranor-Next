@@ -1,5 +1,6 @@
 package com.tyranor.next.core.game.save.sync
 
+import android.os.Build
 import com.tyranor.next.core.engine.EngineType
 import com.tyranor.next.core.game.model.ScanGame
 import com.tyranor.next.core.game.save.EthornellSaveCapability
@@ -27,22 +28,28 @@ internal fun saveDirectoryScopesOverlap(first: String, second: String): Boolean 
     }
 }
 
+/** External players cannot report host-process lifetime to Tyranor and require explicit exit confirmation. */
+internal fun requiresExternalSaveExitConfirmation(
+    engine: EngineType,
+    sdkInt: Int = Build.VERSION.SDK_INT,
+): Boolean = engine == EngineType.YURIS || (engine == EngineType.RENPY && sdkInt >= Build.VERSION_CODES.R)
+
 /** Launch admission and whole-library sync only manage engines with a usable save interface. */
-internal fun supportsManagedSave(engine: EngineType): Boolean =
-    GameSaveManager.supportsFileSaves(engine) &&
+internal fun supportsManagedSave(engine: EngineType, sdkInt: Int = Build.VERSION.SDK_INT): Boolean =
+    GameSaveManager.supportsFileSaves(engine, sdkInt) &&
         (engine != EngineType.ETHORNELL || EthornellSaveCapability.available)
 
 internal sealed interface SaveSyncLaunchAdmission {
     data object Disabled : SaveSyncLaunchAdmission
     data object Unmanaged : SaveSyncLaunchAdmission
     data object Unresolved : SaveSyncLaunchAdmission
-    data class Directory(val key: String) : SaveSyncLaunchAdmission
+    data class Directory(val key: String, val exclusiveMutation: Boolean = false) : SaveSyncLaunchAdmission
 }
 
 /** Re-admit after waiting; every managed launch shares the save-replacement fence. */
 internal suspend fun <T> withSaveSyncLaunchAdmission(
     resolve: () -> SaveSyncLaunchAdmission,
-    managed: suspend (String?) -> T,
+    managed: suspend (SaveSyncLaunchAdmission.Directory?) -> T,
     unmanaged: suspend () -> T,
 ): T {
     class Completed(val value: T)
@@ -52,10 +59,13 @@ internal suspend fun <T> withSaveSyncLaunchAdmission(
         if (admission == SaveSyncLaunchAdmission.Unmanaged) return unmanaged()
         suspend fun admitted(): Completed? {
             if (resolve() != admission) return null
-            return Completed(managed((admission as? SaveSyncLaunchAdmission.Directory)?.key))
+            return Completed(managed(admission as? SaveSyncLaunchAdmission.Directory))
         }
         val completed = if (admission is SaveSyncLaunchAdmission.Directory) {
-            SaveSyncLocks.active(admission.key) { SaveSyncLocks.mutation(admission.key) { admitted() } }
+            SaveSyncLocks.active(admission.key) {
+                if (admission.exclusiveMutation) SaveSyncLocks.mutation { admitted() }
+                else SaveSyncLocks.mutation(admission.key) { admitted() }
+            }
         } else SaveSyncLocks.mutation { admitted() }
         if (completed != null) return completed.value
     }
