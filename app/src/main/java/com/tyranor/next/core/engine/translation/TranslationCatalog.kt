@@ -9,6 +9,7 @@ import com.tyranor.next.core.engine.runtime.RuntimeModuleDescriptor
 import com.tyranor.next.core.game.model.ScanGame
 import com.tyranor.next.core.settings.PerGameSettingsStore
 import java.io.File
+import org.json.JSONArray
 import org.json.JSONObject
 
 /** UI-safe description of a discovered translation file. It intentionally contains no [File]. */
@@ -53,18 +54,28 @@ internal object TranslationFormatRegistry {
 
             override fun readMapText(file: File): String? = readMap(file)?.toString()
 
+            /**
+             * MTool tables are flat source-to-target string maps. Reject nested JSON structures so
+             * ordinary manifests such as NW.js package.json are not mistaken for translation maps.
+             * Extra flat string entries remain valid, so adding a translation does not change the
+             * file's classification.
+             */
             private fun readMap(file: File): JSONObject? {
                 if (!file.isFile || file.length() !in 1L..MAX_SCAN_BYTES) return null
                 val text = runCatching { file.readText(Charsets.UTF_8) }.getOrNull() ?: return null
                 val trimmed = text.trim().removePrefix("\uFEFF").trim()
                 if (!trimmed.startsWith("{")) return null
                 val sourceMap = runCatching { JSONObject(trimmed) }.getOrNull() ?: return null
-                return JSONObject().also { normalized ->
-                    for (source in sourceMap.keys()) {
-                        val target = sourceMap.opt(source) as? String ?: continue
-                        if (source.isNotEmpty() && target.isNotEmpty()) normalized.put(source, target)
+                val normalized = JSONObject()
+                for (source in sourceMap.keys()) {
+                    val value = sourceMap.opt(source)
+                    if (value is JSONObject || value is JSONArray) return null
+                    val target = value as? String ?: continue
+                    if (source.isNotEmpty() && target.isNotEmpty()) {
+                        normalized.put(source, target)
                     }
                 }
+                return normalized.takeIf { it.length() > 0 }
             }
         },
     ).associateBy(TranslationFormat::id)
