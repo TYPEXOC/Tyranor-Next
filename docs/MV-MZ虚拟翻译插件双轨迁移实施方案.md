@@ -17,7 +17,8 @@ MV/MZ 默认由 RPG Maker 的 `PluginManager` 加载 TYN 提供的翻译脚本�
   └─ TranslationCandidate（只含 ID、展示名、格式 ID）
        └─ TranslationCatalog（主 App 的发现规则、格式解析器、单游戏选择）
             └─ TranslationMapProvider（只读 map URI、来源文件变化通知）
-                 ├─ TranslationSession（内置 Web 宿主的生命周期、推表、热更新）
+                 ├─ TranslationMapSubscription（订阅只读 URI、读取最新译表）
+                 │    └─ WebTranslationSession（内置 Web 宿主的页面生命周期与 JS 推表）
                  └─ RuntimeModuleLauncher（给声明翻译能力和规则的外置模块同类 URI）
 ```
 
@@ -32,12 +33,12 @@ MV/MZ 默认由 RPG Maker 的 `PluginManager` 加载 TYN 提供的翻译脚本�
 ```
 
 - UI 通过 `TranslationCandidate` DTO 读候选、当前候选 ID 并更新选择，不读 `File`、目录路径或底层 prefs 键；选定后由 `TranslationCatalog` 保存候选 ID。
-- `TranslationMapProvider` 为一次启动创建只读 URI。engine 宿主与外置模块读取的都是归一后 JSON map；源文件变化由 Provider 通知，并由 `TranslationSession` 以通知和 revision 轮询刷新。
+- `TranslationMapProvider` 为一次启动创建只读 URI。engine 宿主与外置模块读取的都是归一后 JSON map；源文件变化由 Provider 通知，`TranslationMapSubscription` 统一处理 URI 通知、最新译表读取和 revision 轮询兜底；Web 页面生命周期与 JS 推表由 `WebTranslationSession` 负责。
 
 ## 3. MV/MZ 虚拟插件链路
 
 1. App 启动 MV/MZ 游戏时创建已选 map 会话 URI，并传递 `virtualPlugin` 或手动选择的 `directInjection`。
-2. v0 游戏由 `TyranoActivity` 承载；TynMV/TynMZ 的 v1/v2 路线由 `RpgMakerActivity` 承载。两个 Web 宿主共用 `TranslationSession`。
+2. v0 游戏由 `TyranoActivity` 承载；TynMV/TynMZ 的 v1/v2 路线由 `RpgMakerActivity` 承载。两个 Web 宿主共用 `WebTranslationSession` 和 `TranslationMapSubscription`。
 3. 虚拟模式检查标准 `js/plugins.js` 是否存在、是否暴露 `$plugins`，并检查同名脚本/插件冲突。ASAR 游戏通过归档读取执行相同检查。
 4. 通过预检后，宿主仅对本地服务器响应追加插件登记；`js/plugins/TyranorNextTranslation.js` 的响应内容来自 APK 内 `__translation_runtime.js`。游戏 `PluginManager` 按其正常插件加载路径执行该脚本。
 5. 页面完成和译表变化时，宿主把 map 写入页面 pending queue；运行脚本由插件管理器加载后消费最新 map。直接注入模式继续由宿主执行运行时脚本，再使用原 setter 应用译表。

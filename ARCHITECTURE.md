@@ -100,9 +100,9 @@ Schema 导出到 `app/schemas/`。v1→v2 及降级仍允许破坏性恢复并�
 
 ### 翻译功能
 
-`core/engine/translation/TranslationCatalog` 集中注册源格式解析器、按引擎/模块选择发现规则、提供 UI 使用的候选 DTO，并持久化单游戏候选 ID。UI 不读取文件路径或偏好键。当前 MTool JSON 解析器把有效字符串键值归一成 map；`TranslationMapSessions` 为本次会话保存不透明来源描述，`TranslationMapProvider` 通过临时授权的只读 URI 提供 map，并监视源文件写入、替换、创建与删除，通知订阅者重新读取。游戏目录内原始文件不被复制或改写。
+`core/engine/translation/TranslationCatalog` 集中注册源格式解析器、按引擎/模块选择发现规则、提供 UI 使用的候选 DTO，并持久化单游戏候选 ID。UI 不读取文件路径或偏好键；译表私有存储路径由同层 `TranslationStorage` 管理，不依赖 engine。当前 MTool JSON 解析器把有效字符串键值归一成 map；`TranslationMapSessions` 为本次会话保存不透明来源描述，`TranslationMapProvider` 通过临时授权的只读 URI 提供 map，并监视源文件写入、替换、创建与删除，通知订阅者重新读取。engine 的 `TranslationMapSubscription` 订阅 URI、读取最新 map，并以 revision 轮询作为通知兜底；它不处理 Web 或其他引擎生命周期。游戏目录内原始文件不被复制或改写。
 
-内置 Web 宿主由 engine 的 `TranslationSession` 管理 JS 生命周期和热更新；MV/MZ 可显式选择虚拟插件方式，由游戏引擎的插件管理器执行同一翻译脚本，也可选宿主注入方式进行对照。虚拟插件模式识别标准 `js/main.js` 启动顺序；已有 `plugins.js` 时只改写内存响应追加 TYN，没有时由宿主虚拟提供清单，并在入口页中确保清单先于 `main.js` 执行。冲突或非标准启动结构会记录原因并停止该模式，不写入游戏文件，也不自动切换加载方式。第三方运行时模块在清单声明 `capabilities: ["translation"]` 与已注册的 `translationRule` 后，由主 App 交付同一 map URI；源格式与发现逻辑继续由主 App 维护。
+内置 Web 宿主由 `WebTranslationSession` 管理 JS 与页面生命周期，并消费 `TranslationMapSubscription` 提供的最新 map；Web 专属脚本和灌表表达式归 `WebTranslationRuntime`。MV/MZ 可显式选择虚拟插件方式，由游戏引擎的插件管理器执行同一翻译脚本，也可选宿主注入方式进行对照。虚拟插件模式识别标准 `js/main.js` 启动顺序；已有 `plugins.js` 时只改写内存响应追加 TYN，没有时由宿主虚拟提供清单，并在入口页中确保清单先于 `main.js` 执行。冲突或非标准启动结构会记录原因并停止该模式，不写入游戏文件，也不自动切换加载方式。第三方运行时模块在清单声明 `capabilities: ["translation"]` 与已注册的 `translationRule` 后，由主 App 交付同一 map URI；模块可以订阅该 URI 通知并读取最新 map，运行时专属的翻译接入仍由模块管理。
 
 [EngineSettingsResolver](app/src/main/java/com/tyranor/next/core/settings/EngineSettingsResolver.kt) 统一读取引擎全局与单游戏覆盖，`EffectiveEngineSettings` 处理归一化与回退。启动和存档消费同一份生效规则，页面不得另写优先级逻辑。
 
