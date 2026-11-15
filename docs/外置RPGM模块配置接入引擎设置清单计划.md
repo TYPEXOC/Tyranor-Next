@@ -10,7 +10,7 @@
 > - `cheats` 改发到 `app` 节（插件只从 `app.cheats` 读取）；
 > - `configuration.json` 改为与生效 `useRuby18` 联动（插件 `loadFromFile` 在 intent `settings` 之后加载，文件优先，旧值会覆盖用户意图）。
 
-> **当前实现（2026-11-14）**：RPG Maker RGSS 通过固定注册的 `RpgMakerExternalEngineModule` 启动包名 `com.tyranor.runtime.rgss` 的 TYN RGSS APK；此 APK 虽导出通用 v1 action，主 App 仍按固定适配器启动，并从第三方运行时模块动态发现中过滤该固定包。启动 Intent 传递游戏目录/标题、Ruby 运行时、RTP 根目录、RGSS 设置、按键方案 URI 与主题色。Ruby 运行时支持全局和单游戏覆盖；RTP 放在 TyranorNext 共享资源目录并做导入内容校验；不再向游戏目录或 JoiPlay 目录写 `configuration.json`。RGSS 设置默认值沿用上游（`640x480`、平滑缩放开启、路径缓存关闭），不新增 `animateAutotiles` 设置；游戏卡片显示 XP / VX / VX Ace 代际角标。下方 JoiPlay 盘点与旧方案条目保留作历史背景，不代表当前启动协议。
+> **当前实现（2026-11-15）**：RPG Maker RGSS 通过固定注册的 `RpgMakerExternalEngineModule` 显式启动包名 `com.tyranor.runtime.rgss` 的 TYN RGSS APK，并使用专用 action `com.tyranor.runtime.rgss.action.LAUNCH`；载荷协议版本为 1。通用 `com.tyranor.runtime.action.LAUNCH` 仍用于动态第三方模块发现，固定 RGSS 包继续从该发现流程中过滤。启动 Intent 传递游戏目录/标题、Ruby 运行时、RTP 根目录、RGSS 设置、按键方案 URI 与主题色。Ruby 运行时支持全局和单游戏覆盖；RTP 放在 TyranorNext 共享资源目录并做导入内容校验；不再向游戏目录或 JoiPlay 目录写 `configuration.json`。RGSS 设置默认值沿用上游（`640x480`、平滑缩放开启、路径缓存关闭），不新增 `animateAutotiles` 设置；游戏卡片显示 XP / VX / VX Ace 代际角标。下方 JoiPlay 盘点与旧方案条目保留作历史背景，不代表当前启动协议。
 
 ---
 

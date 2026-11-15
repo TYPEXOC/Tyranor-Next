@@ -29,8 +29,8 @@ object RpgMakerExternalEngineModule : ExternalEngineModule {
     private const val TYPE_RPGMVXACE = "rpgmvxace"
     private const val TYPE_MKXP_Z = "mkxp-z"
     private const val LEGACY_GAME_DIR_TARGET = "\u005B\u6E38\u620F\u76EE\u5F55\u005D"
-    // The fixed TYN adapter targets its known package directly; the APK currently exports the v1 action.
-    private const val TYN_RGSS_LAUNCH_ACTION = "com.tyranor.runtime.action.LAUNCH"
+    // The first-party RGSS APK has a dedicated entry point; the generic action remains for third-party discovery.
+    private const val TYN_RGSS_LAUNCH_ACTION = "com.tyranor.runtime.rgss.action.LAUNCH"
     private const val PROTOCOL_VERSION = 1
     private const val EXTRA_FOLDER_PATH = "com.tyranor.runtime.extra.FOLDER_PATH"
     private const val EXTRA_GAME_TITLE = "com.tyranor.runtime.extra.GAME_TITLE"
