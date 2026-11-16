@@ -102,7 +102,7 @@
 
 JoiPlay 外置模块（Ren'Py、Ruffle）和模拟器必须先安装；主 App 显示安装状态及获取入口。RPG Maker RGSS 由固定注册的适配器启动指定包名的 TYN RGSS 模块，并显示该模块的安装状态。第三方 APK 运行时模块同样由用户自行安装，但主 App 不提供下载/安装器，只在「引擎模块管理」中列出并管理启用状态。启动前检查目标、权限和目录，失败由类型化结果映射 UI 文案。设置中的“自动”按当前运行时规则解析，不承诺回退能修复不受支持的脚本或资源。
 
-RPG Maker RGSS 的游戏扫描仍由内置识别器完成，游戏启动经固定 `RpgMakerExternalEngineModule` 发送 TYN RGSS v1 Intent；该包不作为通用第三方运行时模块发现、启用或扫描。全局与单游戏设置可选择 Ruby 运行时并传递 RTP 根目录与 RGSS 配置，RTP 导入会校验代际和归档内容；设置默认值沿用上游（窗口 `640x480`、平滑缩放开启、路径缓存关闭），不新增 `animateAutotiles` 设置。游戏卡片显示 RPG Maker XP、VX 或 VX Ace 代际角标。
+RPG Maker RGSS 的游戏扫描仍由内置识别器完成，游戏启动经固定 `RpgMakerExternalEngineModule` 显式指定 TYN RGSS 包名，并发送专用 action `com.tyranor.runtime.rgss.action.LAUNCH`（载荷协议版本 1）；通用 action `com.tyranor.runtime.action.LAUNCH` 仅用于动态第三方模块发现，该固定包不参与发现、启用或扫描。全局与单游戏设置可选择 Ruby 运行时并传递 RTP 根目录与 RGSS 配置，RTP 导入会校验代际和归档内容；设置默认值沿用上游（窗口 `640x480`、平滑缩放开启、路径缓存关闭），不新增 `animateAutotiles` 设置。引擎页将该类型标为「RPG Maker RGSS」，并排在 MV/MZ 之后；其全局设置入口与 MV/MZ 分开。无封面卡片显示 RPG Maker XP、VX 或 VX Ace 完整代际名；有封面卡片的左上角代际角标由「卡片引擎角标」开关控制。
 
 **翻译文件**：游戏操作面板中的「翻译文件」入口读取 App 注册的发现规则，并以候选 DTO 展示；主 App 统一识别和解析译表，按游戏保存当前选择。MV/MZ 可从 App 私有译表目录或游戏根目录发现有效的 MTool JSON 字符串映射。启动时向内置 Web 宿主提供只读译表会话 URI；当前加载方式由用户显式选择宿主注入或虚拟插件，失败不自动切换方式。虚拟插件模式依赖标准 MV/MZ 插件启动链路而不要求游戏预先配置插件：已有 `js/plugins.js` 时在内存响应末尾追加 TYN；缺失时由宿主虚拟提供清单，并保证清单在标准 `js/main.js` 前执行。发现同名冲突或无法确认启动顺序时保留原内容并记录原因。译表文件的写入、替换、创建或删除可触发当前会话重新读取与热更新，游戏原始文件不被修改。第三方 APK 运行时模块可以在 `tyranor_runtime.json` 声明 `capabilities: ["translation"]` 与 `translationRule`，主 App 仍负责文件发现/解析，模块只接收临时授权的只读 map URI。
 

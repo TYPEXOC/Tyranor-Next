@@ -298,7 +298,8 @@
     <string name="engine_settings_krkr_title">KRKR engine settings</string>
     <string name="engine_settings_ons_title">ONS engine settings</string>
     <string name="engine_settings_artemis_title">Artemis engine settings</string>
-    <string name="engine_settings_rpg_maker_title">RPG Maker engine settings</string>
+    <string name="engine_settings_rpg_maker_title">RPG Maker MV/MZ engine settings</string>
+    <string name="engine_settings_rpgm_rgss_title">RPG Maker RGSS engine settings</string>
     <string name="engine_settings_tyrano_title">Tyrano engine settings</string>
     <string name="engine_settings_renpy_title">Ren’Py engine settings</string>
     <string name="engine_settings_ruffle_title">Ruffle engine settings</string>
@@ -1111,7 +1112,10 @@
     <string name="engine_badge_rpgmaker_vx_ace">VX Ace</string>
     <string name="engine_badge_rpgmaker_xp">XP</string>
     <string name="engine_module_installed_version">Module installed · Version: %1$s</string>
-    <string name="engine_name_rpgmaker">RPG Maker</string>
+    <string name="engine_name_rpgmaker">RPG Maker RGSS</string>
+    <string name="engine_name_rpgmaker_xp">RPG Maker XP</string>
+    <string name="engine_name_rpgmaker_vx">RPG Maker VX</string>
+    <string name="engine_name_rpgmaker_vx_ace">RPG Maker VX Ace</string>
     <string name="engine_name_tyn_rgss">TYN RGSS</string>
     <string name="engine_settings_rpgm_rtp_delete">Delete</string>
     <string name="engine_settings_rpgm_rtp_reject_invalid_package">No RTP resources matching the selected version were recognized</string>

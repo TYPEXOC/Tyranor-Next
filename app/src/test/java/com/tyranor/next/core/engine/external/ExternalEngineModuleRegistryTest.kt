@@ -110,7 +110,7 @@ class ExternalEngineModuleRegistryTest {
         assertSame(RpgMakerExternalEngineModule, ExternalEngineModuleRegistry.moduleForAlias(RpgMakerExternalEngineModule.packageName))
         assertTrue(ExternalEngineModuleRegistry.isExternalEngine(EngineType.RPGMAKER))
         assertEquals("com.tyranor.runtime.rgss", RpgMakerExternalEngineModule.packageName)
-        assertEquals("com.tyranor.runtime.action.LAUNCH", RpgMakerExternalEngineModule.action)
+        assertEquals("com.tyranor.runtime.rgss.action.LAUNCH", RpgMakerExternalEngineModule.action)
         assertTrue(RpgMakerExternalEngineModule.installUrl.orEmpty().contains("AnyPlay-Plugin-RGSS"))
         assertFalse(RpgMakerExternalEngineModule.launchEntryIsFile)
     }

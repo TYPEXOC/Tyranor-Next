@@ -10,6 +10,7 @@ enum class EngineSettingsKind(@param:StringRes val titleRes: Int) {
     ONS(R.string.engine_settings_ons_title),
     ARTEMIS(R.string.engine_settings_artemis_title),
     RPG_MAKER(R.string.engine_settings_rpg_maker_title),
+    RPG_MAKER_RGSS(R.string.engine_settings_rpgm_rgss_title),
     TYRANO(R.string.engine_settings_tyrano_title),
     RENPY(R.string.engine_settings_renpy_title),
     RUFFLE(R.string.engine_settings_ruffle_title),
@@ -33,7 +34,8 @@ internal fun engineSettingsKindOf(engine: EngineType): EngineSettingsKind? = whe
     EngineType.KIRIKIRI -> EngineSettingsKind.KRKR
     EngineType.ONS -> EngineSettingsKind.ONS
     EngineType.ARTEMIS -> EngineSettingsKind.ARTEMIS
-    EngineType.RPGMAKER, EngineType.RPG_MV, EngineType.RPG_MZ -> EngineSettingsKind.RPG_MAKER
+    EngineType.RPGMAKER -> EngineSettingsKind.RPG_MAKER_RGSS
+    EngineType.RPG_MV, EngineType.RPG_MZ -> EngineSettingsKind.RPG_MAKER
     EngineType.TYRANO, EngineType.VN, EngineType.WEB_OTHER -> EngineSettingsKind.TYRANO
     EngineType.RENPY -> EngineSettingsKind.RENPY
     EngineType.RUFFLE -> EngineSettingsKind.RUFFLE

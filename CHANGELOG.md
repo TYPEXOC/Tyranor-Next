@@ -54,7 +54,7 @@
 
 ### 新增
 
-- RPG Maker RGSS 改由固定 RPG Maker 适配器启动第一方 TYN RGSS APK，旧动态模块绑定会迁移回 RPG Maker 类型，且固定外置包从通用第三方模块发现中排除。补充全局/单游戏 Ruby 运行时选择、RTP 根目录传递与导入校验，并让游戏卡片显示 XP / VX / VX Ace 代际；RPG Maker 设置默认值继续沿用上游。
+- RPG Maker RGSS 改由固定 RPG Maker 适配器启动第一方 TYN RGSS APK，旧动态模块绑定会迁移回 RPG Maker 类型，且固定外置包从通用第三方模块发现中排除。补充全局/单游戏 Ruby 运行时选择、RTP 根目录传递与导入校验；无封面卡片显示 XP / VX / VX Ace 代际，有封面卡片可选显示代际角标。RGSS 与 MV/MZ 的全局设置入口分开，设置默认值继续沿用上游。
 
 - RPG Maker MV/MZ 翻译支持统一译表发现、格式解析与单游戏选择；内置 Web 宿主支持宿主注入或虚拟插件加载，译表变更可热更新，整个流程不修改游戏文件。第三方运行时模块可通过能力声明接收主 App 提供的只读译表会话 URI。
 - 分离译表 URI 订阅与 Web 页面/JS 会话；Web 宿主共用通用译表订阅 API，App 译表目录独立管理私有文件路径。

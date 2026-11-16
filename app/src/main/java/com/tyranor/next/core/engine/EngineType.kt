@@ -11,7 +11,7 @@ enum class EngineType(val displayName: String, val abbr: String, val isManual: B
     KIRIKIRI("Kirikiri", "KR2"),
     ONS("ONScripter", "ONS"),
     TYRANO("Tyrano", "TY"),
-    RPGMAKER("RPG Maker", "RPGM"),
+    RPGMAKER("RPG Maker RGSS", "RPGM"),
     RPG_MV("RPG Maker MV", "MV"),
     RPG_MZ("RPG Maker MZ", "MZ"),
     VN("VN", "VN"),

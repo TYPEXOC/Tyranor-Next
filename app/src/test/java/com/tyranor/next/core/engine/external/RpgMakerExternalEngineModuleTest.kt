@@ -13,7 +13,7 @@ class RpgMakerExternalEngineModuleTest {
     @Test
     fun targetsTheFixedTynRgssModule() {
         assertEquals("com.tyranor.runtime.rgss", RpgMakerExternalEngineModule.packageName)
-        assertEquals("com.tyranor.runtime.action.LAUNCH", RpgMakerExternalEngineModule.action)
+        assertEquals("com.tyranor.runtime.rgss.action.LAUNCH", RpgMakerExternalEngineModule.action)
     }
 
     @Test
