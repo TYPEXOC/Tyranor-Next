@@ -1,5 +1,7 @@
 package com.tyranor.next.core.engine.runtime
 
+import com.core.engine.TranslationMapContract
+
 /**
  * 第三方 APK 运行时模块的 v1 协议常量。
  *
@@ -26,7 +28,7 @@ object RuntimeModuleContract {
     const val EXTRA_PROTOCOL_VERSION = "com.tyranor.runtime.extra.PROTOCOL_VERSION"
 
     /** 可选 extra：主 App 解析后的规范化 JSON 翻译 map 会话 URI；模块获临时读取授权。 */
-    const val EXTRA_TRANSLATION_MAP_URI = "com.tyranor.runtime.extra.TRANSLATION_MAP_URI"
+    const val EXTRA_TRANSLATION_MAP_URI = TranslationMapContract.EXTRA_TRANSLATION_MAP_URI
 
     /** 当前主 App 支持的协议版本。 */
     const val PROTOCOL_VERSION = 1

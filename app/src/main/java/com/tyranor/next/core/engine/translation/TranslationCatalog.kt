@@ -3,6 +3,8 @@ package com.tyranor.next.core.engine.translation
 import android.content.Context
 import android.net.Uri
 import com.tyranor.next.core.engine.EngineType
+import com.tyranor.next.core.engine.external.ExternalEngineModule
+import com.tyranor.next.core.engine.external.ExternalEngineModuleRegistry
 import com.tyranor.next.core.engine.runtime.RuntimeModuleCapabilities
 import com.tyranor.next.core.engine.runtime.RuntimeModuleDescriptor
 import com.tyranor.next.core.game.model.ScanGame
@@ -93,13 +95,21 @@ object TranslationCatalog {
         MToolJsonDiscoveryRule,
     ).associateBy(TranslationDiscoveryRule::id)
 
-    fun supports(game: ScanGame, module: RuntimeModuleDescriptor? = null): Boolean =
-        ruleIdFor(game, module) != null
+    fun supports(
+        game: ScanGame,
+        module: RuntimeModuleDescriptor? = null,
+        externalModule: ExternalEngineModule? = null,
+    ): Boolean = ruleIdFor(game, module, externalModule) != null
 
     /**
-     * Runtime modules must declare an explicit rule ID. Unknown or missing rules are unsupported.
+     * Dynamic modules and fixed external adapters must declare an explicit rule ID. Unknown or
+     * missing rules are unsupported.
      */
-    fun ruleIdFor(game: ScanGame, module: RuntimeModuleDescriptor? = null): String? = when (game.engine) {
+    fun ruleIdFor(
+        game: ScanGame,
+        module: RuntimeModuleDescriptor? = null,
+        externalModule: ExternalEngineModule? = null,
+    ): String? = when (game.engine) {
         EngineType.RPG_MV, EngineType.RPG_MZ -> MTOOL_JSON_RULE
         EngineType.RUNTIME_MODULE -> {
             if (module == null || !module.enabled || module.packageName != game.runtimeModulePackage ||
@@ -110,7 +120,12 @@ object TranslationCatalog {
                 module.translationRuleId
             }
         }
-        else -> null
+        else -> {
+            val fixedModule = externalModule
+                ?.takeIf { it.engine == game.engine }
+                ?: ExternalEngineModuleRegistry.moduleForEngine(game.engine)
+            fixedModule?.translationRuleId
+        }
     }?.takeIf(rules::containsKey)
 
     fun availableCandidates(
@@ -118,8 +133,9 @@ object TranslationCatalog {
         game: ScanGame,
         gameDirectory: String?,
         module: RuntimeModuleDescriptor? = null,
+        externalModule: ExternalEngineModule? = null,
     ): List<TranslationCandidate> {
-        val rule = ruleIdFor(game, module)?.let(rules::get) ?: return emptyList()
+        val rule = ruleIdFor(game, module, externalModule)?.let(rules::get) ?: return emptyList()
         return rule.discover(context, game.uri, gameDirectory)
     }
 
@@ -143,8 +159,9 @@ object TranslationCatalog {
         gameDirectory: String?,
         candidateId: String,
         module: RuntimeModuleDescriptor? = null,
+        externalModule: ExternalEngineModule? = null,
     ): Boolean {
-        val rule = ruleIdFor(game, module)?.let(rules::get) ?: return false
+        val rule = ruleIdFor(game, module, externalModule)?.let(rules::get) ?: return false
         return rule.resolve(context, game.uri, gameDirectory, candidateId)?.isFile == true
     }
 
@@ -153,8 +170,9 @@ object TranslationCatalog {
         game: ScanGame,
         gameDirectory: String?,
         module: RuntimeModuleDescriptor? = null,
+        externalModule: ExternalEngineModule? = null,
     ): Uri? {
-        val rule = ruleIdFor(game, module)?.let(rules::get) ?: return null
+        val rule = ruleIdFor(game, module, externalModule)?.let(rules::get) ?: return null
         val selected = selectedCandidateId(context, game) ?: return null
         val file = rule.resolve(context, game.uri, gameDirectory, selected) ?: return null
         if (readMapText(file, rule.id) == null) return null
