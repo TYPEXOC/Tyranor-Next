@@ -56,6 +56,13 @@
 - [Web 壳固定端口与存档域（Tyrano / WebOther / VN）](Web壳固定端口与存档域.md)
 - [TyranorNext 应用持久化数据清单](应用持久化数据清单.md)
 
+## 翻译工具
+
+- [翻译工作台架构设计（草案）](翻译工作台架构设计.md)
+- [翻译文本提取开源参考](翻译文本提取开源参考.md)
+- [翻译任务开源项目参考](翻译任务开源项目参考.md)
+- [翻译服务接入架构参考](翻译服务接入架构参考.md)
+
 ## 工具与构建
 
 - [RPG Maker MV/MZ 游戏修改器实施方案](RPGMaker修改器实施方案.md)
@@ -72,6 +79,7 @@
 
 - [0001 SDL2 运行库由 System35 与 System4 共用（libSDL2x + app32）](adr/0001-sdl2-shared-libsdl2x-app32.md)
 - [0002 内置原生引擎库以预构建 .so 入库，源码与修改声明放 fork](adr/0002-prebuilt-engine-libs-source-in-fork.md)
+- [0003 翻译文本提取器按引擎隔离](adr/0003-translation-extractors-per-engine.md)
 
 ## 审核模板
 
