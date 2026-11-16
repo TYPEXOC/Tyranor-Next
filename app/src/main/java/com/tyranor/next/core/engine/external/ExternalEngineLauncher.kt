@@ -1,12 +1,15 @@
 package com.tyranor.next.core.engine.external
 
 import android.content.ActivityNotFoundException
+import android.content.ClipData
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import com.core.engine.TranslationMapContract
 import com.tyranor.next.core.engine.graphics.putDisabledGraphicsRequest
+import com.tyranor.next.core.engine.translation.TranslationCatalog
 
 /** 外置 APK 引擎启动与安装状态检查。 */
 object ExternalEngineLauncher {
@@ -63,11 +66,34 @@ object ExternalEngineLauncher {
         checkInstallation(context, module)?.let { return it }
         module.prepareForLaunch(context, request)?.let { return it }
 
-        val intent = module.buildLaunchIntent(request).addFlags(
-            Intent.FLAG_ACTIVITY_NEW_TASK or
-                Intent.FLAG_GRANT_READ_URI_PERMISSION or
-                Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
-        )
+        val translationMapUri = if (TranslationCatalog.supports(request.game, externalModule = module)) {
+            runCatching {
+                TranslationCatalog.createSelectedMapUri(
+                    context = context,
+                    game = request.game,
+                    gameDirectory = request.gameDirectoryPath,
+                    externalModule = module,
+                )
+            }.getOrNull()
+        } else {
+            null
+        }
+        val intent = module.buildLaunchIntent(request).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            translationMapUri?.let { uri ->
+                putExtra(TranslationMapContract.EXTRA_TRANSLATION_MAP_URI, uri.toString())
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                val existing = clipData
+                clipData = if (existing == null) {
+                    ClipData.newUri(context.contentResolver, "Tyranor translation map", uri)
+                } else {
+                    ClipData(existing.description, existing.getItemAt(0)).apply {
+                        for (index in 1 until existing.itemCount) addItem(existing.getItemAt(index))
+                        addItem(ClipData.Item(uri))
+                    }
+                }
+            }
+        }
         intent.putDisabledGraphicsRequest(onlyMissing = true)
         return try {
             context.applicationContext.startActivity(intent)
