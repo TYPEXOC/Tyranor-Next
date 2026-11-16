@@ -144,7 +144,7 @@ object EngineLauncher {
         EngineType.KIRIKIRI,
         EngineType.ONS,
         EngineType.TYRANO,
-        EngineType.RPGMAKER,
+        EngineType.RPG_RGSS,
         EngineType.RPG_MV,
         EngineType.RPG_MZ,
         EngineType.VN,
@@ -171,9 +171,9 @@ object EngineLauncher {
         EngineType.NINTENDO_SWITCH,
         // ANDROID_APP 为手动添加的直接跳转条目（无运行时/设置/存档），故不收录、不出现在引擎页
     ).sortedByDescending { it.displayName.length }.let { sorted ->
-        sorted.filterNot { it == EngineType.RPGMAKER }.toMutableList().apply {
+        sorted.filterNot { it == EngineType.RPG_RGSS }.toMutableList().apply {
             val rpgMakerMzIndex = indexOf(EngineType.RPG_MZ)
-            if (rpgMakerMzIndex >= 0) add(rpgMakerMzIndex + 1, EngineType.RPGMAKER)
+            if (rpgMakerMzIndex >= 0) add(rpgMakerMzIndex + 1, EngineType.RPG_RGSS)
         }
     }
 
@@ -1292,7 +1292,7 @@ object EngineLauncher {
             EngineType.ETHORNELL -> buildEthornellIntent(context, path, game, settings)
             EngineType.CMVS -> buildCmvsIntent(context, path, game)
 
-            EngineType.RPGMAKER,
+            EngineType.RPG_RGSS,
             EngineType.RENPY,
             EngineType.RUFFLE -> error("${engine.displayName} is handled by external engine launcher")
 

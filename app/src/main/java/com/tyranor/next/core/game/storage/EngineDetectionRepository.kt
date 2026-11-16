@@ -119,12 +119,12 @@ object EngineDetectionRepository {
                 } else {
                     mergedRow(existing, game.uri, EngineType.RENPY.name, now, renpyVersion = game.detectedRenpyVersion)
                 }
-                EngineType.RPGMAKER -> if (game.externalModuleAlias == null && existing == null) {
+                EngineType.RPG_RGSS -> if (game.externalModuleAlias == null && existing == null) {
                     null
                 } else {
                     // alias 为 null（如 SAF 查询瞬时失败）时 mkxpz 判定传 null 保留既有值
                     mergedRow(
-                        existing, game.uri, EngineType.RPGMAKER.name, now,
+                        existing, game.uri, EngineType.RPG_RGSS.name, now,
                         rpgmRuntime = game.externalModuleAlias,
                         mkxpzSupported = game.externalModuleAlias?.let { it == RPGM_RUNTIME_MKXPZ },
                     )

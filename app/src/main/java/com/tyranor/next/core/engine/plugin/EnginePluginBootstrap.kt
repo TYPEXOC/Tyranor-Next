@@ -103,7 +103,7 @@ object EnginePluginBootstrap {
             EngineType.CATSYSTEM2,
             EngineType.PC,
             EngineType.ANDROID_APP,
-            EngineType.RPGMAKER,
+            EngineType.RPG_RGSS,
             EngineType.RENPY,
             EngineType.RUFFLE,
             EngineType.PSP,

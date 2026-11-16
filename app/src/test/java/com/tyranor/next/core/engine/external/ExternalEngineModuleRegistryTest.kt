@@ -59,7 +59,7 @@ class ExternalEngineModuleRegistryTest {
         assertSame(RenPyExternalEngineModule, ExternalEngineModuleRegistry.resolveModule(EngineType.RENPY, null))
         assertSame(RenPyExternalEngineModule, ExternalEngineModuleRegistry.resolveModule(EngineType.RENPY, "unknown"))
         // 其余引擎返回其唯一模块，忽略版本
-        assertSame(RpgMakerExternalEngineModule, ExternalEngineModuleRegistry.resolveModule(EngineType.RPGMAKER, EngineSettingsStore.RENPY_77))
+        assertSame(RpgMakerExternalEngineModule, ExternalEngineModuleRegistry.resolveModule(EngineType.RPG_RGSS, EngineSettingsStore.RENPY_77))
         assertNull(ExternalEngineModuleRegistry.resolveModule(EngineType.KIRIKIRI))
     }
 
@@ -101,14 +101,15 @@ class ExternalEngineModuleRegistryTest {
 
     @Test
     fun resolvesRpgMakerByEngineAndAliases() {
-        assertSame(RpgMakerExternalEngineModule, ExternalEngineModuleRegistry.moduleForEngine(EngineType.RPGMAKER))
+        assertSame(RpgMakerExternalEngineModule, ExternalEngineModuleRegistry.moduleForEngine(EngineType.RPG_RGSS))
+        assertEquals("mtool-json", RpgMakerExternalEngineModule.translationRuleId)
         assertSame(RpgMakerExternalEngineModule, ExternalEngineModuleRegistry.moduleForAlias("internal.rpgmaker"))
         assertSame(RpgMakerExternalEngineModule, ExternalEngineModuleRegistry.moduleForAlias("internal.rpgmxp"))
         assertSame(RpgMakerExternalEngineModule, ExternalEngineModuleRegistry.moduleForAlias("internal.rpgmvx"))
         assertSame(RpgMakerExternalEngineModule, ExternalEngineModuleRegistry.moduleForAlias("internal.rpgmvxace"))
         assertSame(RpgMakerExternalEngineModule, ExternalEngineModuleRegistry.moduleForAlias("internal.mkxp-z"))
         assertSame(RpgMakerExternalEngineModule, ExternalEngineModuleRegistry.moduleForAlias(RpgMakerExternalEngineModule.packageName))
-        assertTrue(ExternalEngineModuleRegistry.isExternalEngine(EngineType.RPGMAKER))
+        assertTrue(ExternalEngineModuleRegistry.isExternalEngine(EngineType.RPG_RGSS))
         assertEquals("com.tyranor.runtime.rgss", RpgMakerExternalEngineModule.packageName)
         assertEquals("com.tyranor.runtime.rgss.action.LAUNCH", RpgMakerExternalEngineModule.action)
         assertTrue(RpgMakerExternalEngineModule.installUrl.orEmpty().contains("AnyPlay-Plugin-RGSS"))

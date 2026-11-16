@@ -1370,7 +1370,7 @@ fun PerGameSettingsScreen(game: ScanGame) {
                             }
                         }
                     }
-                    EngineType.RPGMAKER -> item {
+                    EngineType.RPG_RGSS -> item {
                         SectionCard("RPG Maker RGSS") {
                             Text(
                                 stringResource(R.string.engine_settings_rpgmaker_module_description),

@@ -17,6 +17,9 @@ interface ExternalEngineModule {
     val supportedAliases: Set<String>
     val installUrl: String?
 
+    /** Translation discovery rule implemented by this fixed adapter, if any. */
+    val translationRuleId: String? get() = null
+
     /** Minimum installed APK versionCode accepted by this module; zero means any version. */
     val minimumVersionCode: Long get() = 0L
 

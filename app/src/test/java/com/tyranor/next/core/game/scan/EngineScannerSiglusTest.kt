@@ -84,7 +84,7 @@ class EngineScannerSiglusTest {
         val rpgData = rpgMaker.resolve("Data")
         rpgData.mkdirs()
         rpgData.resolve("Scripts.rxdata").writeText("fake")
-        assertEquals(EngineType.RPGMAKER, EngineScanner.detectEngine(rpgMaker).engine)
+        assertEquals(EngineType.RPG_RGSS, EngineScanner.detectEngine(rpgMaker).engine)
 
         val artemis = temporaryFolder.newFolder("Artemis Game")
         artemis.resolve("root.pfs").writeText("fake")

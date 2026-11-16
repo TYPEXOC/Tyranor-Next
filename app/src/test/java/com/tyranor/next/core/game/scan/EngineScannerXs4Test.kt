@@ -309,7 +309,7 @@ class EngineScannerXs4Test {
 
     @Test
     fun straySystem40IniKeepsRpgMaker() {
-        assertStrayIniKeepsEngine(EngineType.RPGMAKER) { it.resolve("Game.rgss3a").writeText("fake") }
+        assertStrayIniKeepsEngine(EngineType.RPG_RGSS) { it.resolve("Game.rgss3a").writeText("fake") }
     }
 
     @Test

@@ -82,7 +82,7 @@ class RpgMakerExternalEngineModuleTest {
             game = ScanGame(
                 title = "测试 RPGM",
                 uri = "content://com.android.externalstorage.documents/tree/primary%3AGames%2FRPGM",
-                engine = EngineType.RPGMAKER,
+                engine = EngineType.RPG_RGSS,
                 launchTarget = launchTarget,
                 externalModuleAlias = alias,
             ),

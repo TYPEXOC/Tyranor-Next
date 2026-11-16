@@ -17,7 +17,7 @@ class EngineScannerRpgMakerTest {
 
         val detection = EngineScanner.detectEngine(gameRoot)
 
-        assertEquals(EngineType.RPGMAKER, detection.engine)
+        assertEquals(EngineType.RPG_RGSS, detection.engine)
         assertEquals("Game.rgssad".lowercase(), detection.launchTarget)
         assertEquals("internal.rpgmxp", detection.externalModuleAlias)
     }
@@ -29,7 +29,7 @@ class EngineScannerRpgMakerTest {
 
         val detection = EngineScanner.detectEngine(gameRoot)
 
-        assertEquals(EngineType.RPGMAKER, detection.engine)
+        assertEquals(EngineType.RPG_RGSS, detection.engine)
         assertEquals("internal.rpgmvx", detection.externalModuleAlias)
     }
 
@@ -40,7 +40,7 @@ class EngineScannerRpgMakerTest {
 
         val detection = EngineScanner.detectEngine(gameRoot)
 
-        assertEquals(EngineType.RPGMAKER, detection.engine)
+        assertEquals(EngineType.RPG_RGSS, detection.engine)
         assertEquals("internal.rpgmvxace", detection.externalModuleAlias)
     }
 
@@ -54,7 +54,7 @@ class EngineScannerRpgMakerTest {
 
         val detection = EngineScanner.detectEngine(gameRoot)
 
-        assertEquals(EngineType.RPGMAKER, detection.engine)
+        assertEquals(EngineType.RPG_RGSS, detection.engine)
         assertEquals(EngineScanner.LAUNCH_TARGET_GAME_DIR, detection.launchTarget)
         assertEquals("internal.rpgmxp", detection.externalModuleAlias)
     }
@@ -69,7 +69,7 @@ class EngineScannerRpgMakerTest {
 
         val detection = EngineScanner.detectEngine(gameRoot)
 
-        assertEquals(EngineType.RPGMAKER, detection.engine)
+        assertEquals(EngineType.RPG_RGSS, detection.engine)
         assertEquals("internal.rpgmvx", detection.externalModuleAlias)
     }
 
@@ -83,7 +83,7 @@ class EngineScannerRpgMakerTest {
 
         val detection = EngineScanner.detectEngine(gameRoot)
 
-        assertEquals(EngineType.RPGMAKER, detection.engine)
+        assertEquals(EngineType.RPG_RGSS, detection.engine)
         assertEquals("internal.rpgmvxace", detection.externalModuleAlias)
     }
 

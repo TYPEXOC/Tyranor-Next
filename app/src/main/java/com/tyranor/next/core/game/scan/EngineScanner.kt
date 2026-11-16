@@ -1444,25 +1444,25 @@ object EngineScanner {
             return Detection(EngineType.TYRANO, 80, LAUNCH_TARGET_GAME_DIR)
         }
         firstRgss3a?.let {
-            return Detection(EngineType.RPGMAKER, 96, it, "internal.rpgmvxace")
+            return Detection(EngineType.RPG_RGSS, 96, it, "internal.rpgmvxace")
         }
         firstRgss2a?.let {
-            return Detection(EngineType.RPGMAKER, 96, it, "internal.rpgmvx")
+            return Detection(EngineType.RPG_RGSS, 96, it, "internal.rpgmvx")
         }
         if (hasGameIni && hasRvdata2) {
-            return Detection(EngineType.RPGMAKER, 92, LAUNCH_TARGET_GAME_DIR, "internal.rpgmvxace")
+            return Detection(EngineType.RPG_RGSS, 92, LAUNCH_TARGET_GAME_DIR, "internal.rpgmvxace")
         }
         if (hasGameIni && hasRvdata) {
-            return Detection(EngineType.RPGMAKER, 92, LAUNCH_TARGET_GAME_DIR, "internal.rpgmvx")
+            return Detection(EngineType.RPG_RGSS, 92, LAUNCH_TARGET_GAME_DIR, "internal.rpgmvx")
         }
         if (hasMkxpZRubyRuntime) {
-            return Detection(EngineType.RPGMAKER, 92, LAUNCH_TARGET_GAME_DIR, "internal.mkxp-z")
+            return Detection(EngineType.RPG_RGSS, 92, LAUNCH_TARGET_GAME_DIR, "internal.mkxp-z")
         }
         firstRgssad?.let {
-            return Detection(EngineType.RPGMAKER, 96, it, "internal.rpgmxp")
+            return Detection(EngineType.RPG_RGSS, 96, it, "internal.rpgmxp")
         }
         if (hasGameIni && hasRxdata) {
-            return Detection(EngineType.RPGMAKER, 92, LAUNCH_TARGET_GAME_DIR, "internal.rpgmxp")
+            return Detection(EngineType.RPG_RGSS, 92, LAUNCH_TARGET_GAME_DIR, "internal.rpgmxp")
         }
         if (hasRpa || hasGameScriptRpy || hasGameOptionsRpy || (hasRenpyDir && (hasRpy || hasRpyc)) || (hasGameDir && hasRpy)) {
             val confidence = when {
