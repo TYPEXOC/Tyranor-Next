@@ -39,9 +39,9 @@ import com.core.engine.EngineStartupOverlay
 import com.core.engine.EngineThemeColors
 import com.core.engine.LaunchContract
 import com.core.engine.RpgMakerTranslationPlugin
-import com.core.engine.TranslationRuntimeDelivery
-import com.core.engine.TranslationSession
-import com.core.engine.TranslationTable
+import com.core.engine.WebTranslationDelivery
+import com.core.engine.WebTranslationSession
+import com.core.engine.WebTranslationRuntime
 import com.core.engine.R
 import com.core.input.InputRemapController
 import com.core.web.AsarWebRoot
@@ -79,8 +79,8 @@ class TyranoActivity : Activity() {
     private var rpgMakerModEnabled = false
     private var rpgMakerModGameId = ""
     private var translationMapUri: String? = null
-    private var translation: TranslationSession? = null
-    private var translationRuntimeDelivery = TranslationRuntimeDelivery.HOST_INJECTION
+    private var translation: WebTranslationSession? = null
+    private var webTranslationDelivery = WebTranslationDelivery.HOST_INJECTION
     private var registerVirtualTranslationPlugin = false
     private var virtualTranslationPluginList = false
     private var injectTranslationPluginScriptTag = false
@@ -182,7 +182,7 @@ class TyranoActivity : Activity() {
             }
         }
         webGameType = detectWebGameType(intent.getStringExtra(LaunchContract.TYPE), contentRoot, asarArchive)
-        translationRuntimeDelivery = selectTranslationRuntimeDelivery(contentRoot)
+        webTranslationDelivery = selectWebTranslationDelivery(contentRoot)
         rpgMakerModEnabled = intent.getBooleanExtra(LaunchContract.RPG_MAKER_MOD_ENABLED, true) &&
             (webGameType == WebGameType.RPG_MV || webGameType == WebGameType.RPG_MZ)
         rpgMakerModGameId = intent.getStringExtra(LaunchContract.RPG_MAKER_MOD_GAME_ID)
@@ -218,14 +218,14 @@ class TyranoActivity : Activity() {
                 // 追加补丁改为单帧迭代消费连续 text 标签；见 assets/__tyrano_tag_patch.js
                 scriptAppends[TYRANO_TAG_SCRIPT_PATH] = loadAsset(TYRANO_TAG_PATCH_ASSET)
             }
-            val translationRuntime = if (translationRuntimeDelivery == TranslationRuntimeDelivery.VIRTUAL_PLUGIN &&
+            val translationRuntime = if (webTranslationDelivery == WebTranslationDelivery.VIRTUAL_PLUGIN &&
                 registerVirtualTranslationPlugin
             ) {
-                runCatching { loadAsset(TranslationTable.RUNTIME_ASSET) }.getOrNull()
+                runCatching { loadAsset(WebTranslationRuntime.RUNTIME_ASSET) }.getOrNull()
             } else {
                 null
             }
-            if (translationRuntimeDelivery == TranslationRuntimeDelivery.VIRTUAL_PLUGIN &&
+            if (webTranslationDelivery == WebTranslationDelivery.VIRTUAL_PLUGIN &&
                 registerVirtualTranslationPlugin && translationRuntime == null
             ) {
                 Log.e(TAG, "virtual translation runtime asset missing; no automatic fallback")
@@ -233,7 +233,7 @@ class TyranoActivity : Activity() {
                 virtualTranslationPluginList = false
                 injectTranslationPluginScriptTag = false
             }
-            if (translationRuntimeDelivery == TranslationRuntimeDelivery.VIRTUAL_PLUGIN && registerVirtualTranslationPlugin) {
+            if (webTranslationDelivery == WebTranslationDelivery.VIRTUAL_PLUGIN && registerVirtualTranslationPlugin) {
                 if (!virtualTranslationPluginList) {
                     scriptAppends[RpgMakerTranslationPlugin.PLUGIN_LIST_PATH] =
                         RpgMakerTranslationPlugin.buildRegistrationAppend()
@@ -323,11 +323,11 @@ class TyranoActivity : Activity() {
         configureWebView(browser)
         // 译表注入：全 Web 类型可用（运行时 JS 自带 Tyrano 与 MV/MZ 挂载点）；
         // 恒开启，未检测到译表文件时控制器空转，行为与未集成前一致
-        translation = TranslationSession(
+        translation = WebTranslationSession(
             context = this,
             translationMapUri = translationMapUri,
             evaluateJs = { js, callback -> webView?.let { v -> runCatching { v.evaluateJavascript(js, callback) } } },
-            runtimeDelivery = translationRuntimeDelivery,
+            delivery = webTranslationDelivery,
         ).also { it.attach() }
         when (webGameType) {
             WebGameType.RPG_MV, WebGameType.RPG_MZ -> {
@@ -369,16 +369,16 @@ class TyranoActivity : Activity() {
 
     private fun loadAsset(name: String): ByteArray = assets.open(name).buffered().use { it.readBytes() }
 
-    private fun selectTranslationRuntimeDelivery(contentRoot: File): TranslationRuntimeDelivery {
+    private fun selectWebTranslationDelivery(contentRoot: File): WebTranslationDelivery {
         if (intent.getStringExtra(LaunchContract.RPG_TRANSLATION_BOOTSTRAP_MODE) !=
             LaunchContract.RPG_TRANSLATION_BOOTSTRAP_VIRTUAL_PLUGIN
         ) {
             Log.i(TAG, "translation runtime delivery=host-injection (explicitly selected)")
-            return TranslationRuntimeDelivery.HOST_INJECTION
+            return WebTranslationDelivery.HOST_INJECTION
         }
         if (webGameType != WebGameType.RPG_MV && webGameType != WebGameType.RPG_MZ) {
             Log.e(TAG, "virtual translation plugin not applicable to ${webGameType.intentValue}; no automatic fallback")
-            return TranslationRuntimeDelivery.VIRTUAL_PLUGIN
+            return WebTranslationDelivery.VIRTUAL_PLUGIN
         }
         val archive = asarArchive
         val prefix = archive?.let { current -> AsarWebRoot.prefixFor { path -> current.has(path) } }.orEmpty()
@@ -391,7 +391,7 @@ class TyranoActivity : Activity() {
             registerVirtualTranslationPlugin = false
             virtualTranslationPluginList = false
             injectTranslationPluginScriptTag = false
-            return TranslationRuntimeDelivery.VIRTUAL_PLUGIN
+            return WebTranslationDelivery.VIRTUAL_PLUGIN
         }
         registerVirtualTranslationPlugin = true
         virtualTranslationPluginList = preflight.virtualPluginList
@@ -401,7 +401,7 @@ class TyranoActivity : Activity() {
             "translation runtime delivery=virtual-plugin type=${webGameType.intentValue} asar=${archive != null} " +
                 "virtualPluginList=$virtualTranslationPluginList injectPluginTag=$injectTranslationPluginScriptTag reason=${preflight.reason}",
         )
-        return TranslationRuntimeDelivery.VIRTUAL_PLUGIN
+        return WebTranslationDelivery.VIRTUAL_PLUGIN
     }
 
     private fun cssColor(color: Int): String = String.format(Locale.US, "#%06X", color and 0xFFFFFF)

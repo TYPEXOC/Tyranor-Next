@@ -2,7 +2,6 @@ package com.tyranor.next.core.engine.translation
 
 import android.content.Context
 import android.net.Uri
-import com.core.engine.TranslationTable
 import com.tyranor.next.core.engine.EngineType
 import com.tyranor.next.core.engine.runtime.RuntimeModuleCapabilities
 import com.tyranor.next.core.engine.runtime.RuntimeModuleDescriptor
@@ -176,7 +175,7 @@ object TranslationCatalog {
             val files = mutableListOf<File>()
             val seenNames = mutableSetOf<String>()
 
-            TranslationTable.privateTranslationDir(context, gameId)
+            TranslationStorage.privateTranslationDir(context, gameId)
                 ?.listFiles { file -> file.isFile && file.name.endsWith(".json", ignoreCase = true) }
                 ?.filter(format::isCandidate)
                 ?.sortedBy { it.name.lowercase() }
@@ -188,7 +187,7 @@ object TranslationCatalog {
                 ?.takeIf { it.isDirectory }
             root?.listFiles { file -> file.isFile && file.name.endsWith(".json", ignoreCase = true) }
                 ?.filter(format::isCandidate)
-                ?.sortedWith(compareBy({ it.name != TranslationTable.TRANSLATION_FILE_NAME }, { it.name.lowercase() }))
+                ?.sortedWith(compareBy({ it.name != TranslationStorage.DEFAULT_TRANSLATION_FILE_NAME }, { it.name.lowercase() }))
                 ?.forEach { file ->
                     if (seenNames.add(file.name)) files += file
                 }
@@ -203,7 +202,7 @@ object TranslationCatalog {
         }
 
         override fun resolve(context: Context, gameId: String, gameDirectory: String?, candidateId: String): File? =
-            TranslationTable.resolveTranslationFile(context, gameId, gameDirectory, candidateId)
+            TranslationStorage.resolveTranslationFile(context, gameId, gameDirectory, candidateId)
     }
 }
 
