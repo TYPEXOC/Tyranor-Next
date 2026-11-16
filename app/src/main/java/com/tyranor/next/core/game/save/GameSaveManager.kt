@@ -183,7 +183,7 @@ class GameSaveManager(private val context: Context) {
                     )
                 }
             }
-            EngineType.VN, EngineType.WEB_OTHER, EngineType.RPGMAKER,
+            EngineType.VN, EngineType.WEB_OTHER, EngineType.RPG_RGSS,
             // Ren'Py returns its API-gated save location above; exhaustive fallback only.
             EngineType.RENPY,
             // RUFFLE 在函数开头已提前返回（外置模块无 App 可管理的文件存档接口），此分支仅为 when 完备性

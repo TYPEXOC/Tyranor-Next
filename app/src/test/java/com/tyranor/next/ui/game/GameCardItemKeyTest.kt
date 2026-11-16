@@ -36,7 +36,7 @@ class GameCardItemKeyTest {
         assertEquals(true, shouldShowSaveManagement(EngineType.RENPY, sdkInt = 36))
         // Ethornell 入口跟随验收门禁，capability 翻转时无需再改本断言。
         assertEquals(EthornellSaveCapability.available, shouldShowSaveManagement(EngineType.ETHORNELL))
-        assertEquals(false, shouldShowSaveManagement(EngineType.RPGMAKER))
+        assertEquals(false, shouldShowSaveManagement(EngineType.RPG_RGSS))
         assertEquals(false, shouldShowSaveManagement(EngineType.RUFFLE))
         assertEquals(true, shouldShowSaveManagement(EngineType.KIRIKIRI))
         assertEquals(true, shouldShowSaveManagement(EngineType.RPG_MV))

@@ -36,7 +36,7 @@ class ExternalEngineOrientationDeviceTest {
                     request(EngineType.RUFFLE, fixture, "game.swf", "external.flash"),
                 ),
                 RpgMakerExternalEngineModule.buildLaunchIntent(
-                    request(EngineType.RPGMAKER, fixture, "[游戏目录]", "internal.rpgmvxace"),
+                    request(EngineType.RPG_RGSS, fixture, "[游戏目录]", "internal.rpgmvxace"),
                 ),
                 RenPyExternalEngineModule.buildLaunchIntent(
                     request(EngineType.RENPY, fixture, "[游戏目录]", "internal.renpy"),

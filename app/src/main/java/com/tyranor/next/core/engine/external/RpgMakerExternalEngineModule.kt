@@ -47,11 +47,12 @@ object RpgMakerExternalEngineModule : ExternalEngineModule {
     private const val EXTRA_THEME_DARK_MODE = "com.tyranor.runtime.extra.THEME_DARK_MODE"
 
     override val id: String = "rpgmaker"
-    override val engine: EngineType = EngineType.RPGMAKER
+    override val engine: EngineType = EngineType.RPG_RGSS
     override val displayName: String = "TYN RGSS"
     override val displayNameRes: Int = R.string.engine_name_tyn_rgss
     override val packageName: String = "com.tyranor.runtime.rgss"
     override val action: String = TYN_RGSS_LAUNCH_ACTION
+    override val translationRuleId: String = "mtool-json"
     override val defaultAlias: String = "internal.rpgmaker"
     override val supportedAliases: Set<String> = setOf(
         "external.rpgmaker",

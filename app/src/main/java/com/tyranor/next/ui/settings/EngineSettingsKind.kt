@@ -34,7 +34,7 @@ internal fun engineSettingsKindOf(engine: EngineType): EngineSettingsKind? = whe
     EngineType.KIRIKIRI -> EngineSettingsKind.KRKR
     EngineType.ONS -> EngineSettingsKind.ONS
     EngineType.ARTEMIS -> EngineSettingsKind.ARTEMIS
-    EngineType.RPGMAKER -> EngineSettingsKind.RPG_MAKER_RGSS
+    EngineType.RPG_RGSS -> EngineSettingsKind.RPG_MAKER_RGSS
     EngineType.RPG_MV, EngineType.RPG_MZ -> EngineSettingsKind.RPG_MAKER
     EngineType.TYRANO, EngineType.VN, EngineType.WEB_OTHER -> EngineSettingsKind.TYRANO
     EngineType.RENPY -> EngineSettingsKind.RENPY

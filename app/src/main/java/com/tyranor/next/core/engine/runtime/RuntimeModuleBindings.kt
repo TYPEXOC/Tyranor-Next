@@ -28,7 +28,7 @@ object RuntimeModuleBindings {
         if (game.runtimeModulePackage == RpgMakerExternalEngineModule.packageName &&
             game.engine in setOf(EngineType.RUNTIME_MODULE, EngineType.UNKNOWN)
         ) {
-            game.copy(engine = EngineType.RPGMAKER, runtimeModulePackage = null)
+            game.copy(engine = EngineType.RPG_RGSS, runtimeModulePackage = null)
         } else game
 
     /** Migrate fixed-adapter identities while loading, including old Emberfall and TYN RGSS records. */

@@ -2151,7 +2151,7 @@ internal fun UniformGameCard(
 @Composable
 private fun gameCardEngineName(game: ScanGame): String = when (game.engine) {
     EngineType.UNKNOWN -> stringResource(R.string.engine_name_unknown)
-    EngineType.RPGMAKER -> when (game.externalModuleAlias?.lowercase()) {
+    EngineType.RPG_RGSS -> when (game.externalModuleAlias?.lowercase()) {
         "internal.rpgmxp", "external.rpgmxp" -> stringResource(R.string.engine_name_rpgmaker_xp)
         "internal.rpgmvx", "external.rpgmvx" -> stringResource(R.string.engine_name_rpgmaker_vx)
         "internal.rpgmvxace", "external.rpgmvxace" -> stringResource(R.string.engine_name_rpgmaker_vx_ace)
@@ -2377,7 +2377,7 @@ internal fun EngineType.coverColor(): Color = when (this) {
     EngineType.KIRIKIRI -> Color(0xFF3B5998)
     EngineType.ONS -> Color(0xFF43A047)
     EngineType.TYRANO -> Color(0xFFC6443C)
-    EngineType.RPGMAKER -> Color(0xFF8D6E63)
+    EngineType.RPG_RGSS -> Color(0xFF8D6E63)
     EngineType.RPG_MV -> Color(0xFF2E7D6E)
     EngineType.RPG_MZ -> Color(0xFF1976D2)
     EngineType.VN -> Color(0xFF8E5A9E)

@@ -962,7 +962,7 @@ private fun engineIconRes(engine: EngineType): Int = when (engine) {
     EngineType.KIRIKIRI -> R.drawable.ic_engine_card_kirikiri
     EngineType.ONS -> R.drawable.ic_engine_card_ons
     EngineType.TYRANO -> R.drawable.ic_engine_card_tyrano
-    EngineType.RPGMAKER -> R.drawable.ic_engine_card_rpgmaker
+    EngineType.RPG_RGSS -> R.drawable.ic_engine_card_rpgmaker
     EngineType.RPG_MV, EngineType.RPG_MZ -> R.drawable.ic_engine_card_rpg_mv_mz
     EngineType.VN, EngineType.WEB_OTHER -> R.drawable.ic_engine_card_web_vn
     EngineType.ARTEMIS -> R.drawable.ic_engine_card_artemis
@@ -1046,7 +1046,7 @@ internal fun EnginePageHost(
 private enum class EngineTab { GAL, RPGM, CONSOLE, WEB }
 
 private fun engineTabOf(engine: EngineType): EngineTab = when (engine) {
-    EngineType.RPGMAKER, EngineType.RPG_MV, EngineType.RPG_MZ -> EngineTab.RPGM
+    EngineType.RPG_RGSS, EngineType.RPG_MV, EngineType.RPG_MZ -> EngineTab.RPGM
     EngineType.KIRIKIRI, EngineType.ONS, EngineType.ARTEMIS, EngineType.SIGLUS,
     EngineType.REALLIVE, EngineType.AVG32, EngineType.XSYS35, EngineType.XSYS4, EngineType.UK2, EngineType.FVP,
     EngineType.ETHORNELL, EngineType.CMVS, EngineType.SYSTEMNNN,
