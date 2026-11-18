@@ -22,6 +22,7 @@ internal data class TranslationProjectEntity(
     @ColumnInfo(name = "source_tree_uri") val sourceTreeUri: String?,
     @ColumnInfo(name = "source_language") val sourceLanguage: String?,
     @ColumnInfo(name = "target_language") val targetLanguage: String?,
+    @ColumnInfo(name = "glossary_revision", defaultValue = "0") val glossaryRevision: Long = 0,
     val revision: Long,
     @ColumnInfo(name = "created_at") val createdAt: Long,
     @ColumnInfo(name = "updated_at") val updatedAt: Long,
@@ -49,6 +50,7 @@ internal data class TranslationEntryEntity(
     @ColumnInfo(name = "source_pointer") val sourcePointer: String?,
     @ColumnInfo(name = "text_type") val textType: String?,
     val status: String,
+    @ColumnInfo(name = "failure_code") val failureCode: String? = null,
 )
 
 @Entity(
@@ -75,6 +77,9 @@ internal data class TranslationTaskEntity(
     @ColumnInfo(name = "total_files") val totalFiles: Int,
     @ColumnInfo(name = "completed_files") val completedFiles: Int,
     @ColumnInfo(name = "entry_count") val entryCount: Int,
+    @ColumnInfo(name = "item_total", defaultValue = "0") val itemTotal: Int = 0,
+    @ColumnInfo(name = "completed_items", defaultValue = "0") val completedItems: Int = 0,
+    @ColumnInfo(name = "failed_items", defaultValue = "0") val failedItems: Int = 0,
     @ColumnInfo(name = "failure_code") val failureCode: String?,
     @ColumnInfo(name = "created_at") val createdAt: Long,
     @ColumnInfo(name = "updated_at") val updatedAt: Long,
@@ -99,6 +104,27 @@ internal data class TranslationExportEntity(
     @ColumnInfo(name = "destination_name") val destinationName: String?,
     @ColumnInfo(name = "entry_count") val entryCount: Int,
     @ColumnInfo(name = "created_at") val createdAt: Long,
+)
+
+@Entity(
+    tableName = "translation_glossary_terms",
+    foreignKeys = [
+        ForeignKey(
+            entity = TranslationProjectEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["project_id"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+    indices = [Index("project_id"), Index(value = ["project_id", "source_term"], unique = true)],
+)
+internal data class TranslationGlossaryTermEntity(
+    @PrimaryKey val id: String,
+    @ColumnInfo(name = "project_id") val projectId: String,
+    @ColumnInfo(name = "source_term") val sourceTerm: String,
+    @ColumnInfo(name = "target_term") val targetTerm: String,
+    val note: String?,
+    @ColumnInfo(name = "updated_at") val updatedAt: Long,
 )
 
 internal data class TranslationEntryRow(
@@ -126,6 +152,7 @@ internal data class TranslationProjectCardRow(
     @ColumnInfo(name = "engine_id") val engineId: String?,
     @ColumnInfo(name = "source_type") val sourceType: String,
     @ColumnInfo(name = "source_tree_uri") val sourceTreeUri: String?,
+    @ColumnInfo(name = "latest_task_type") val latestTaskType: String?,
     @ColumnInfo(name = "entry_count") val entryCount: Int,
     @ColumnInfo(name = "translated_count") val translatedCount: Int,
     @ColumnInfo(name = "latest_task_id") val latestTaskId: String?,
@@ -133,6 +160,9 @@ internal data class TranslationProjectCardRow(
     @ColumnInfo(name = "latest_task_failure_code") val latestTaskFailureCode: String?,
     @ColumnInfo(name = "completed_files") val completedFiles: Int,
     @ColumnInfo(name = "total_files") val totalFiles: Int,
+    @ColumnInfo(name = "item_total") val itemTotal: Int,
+    @ColumnInfo(name = "completed_items") val completedItems: Int,
+    @ColumnInfo(name = "failed_items") val failedItems: Int,
     @ColumnInfo(name = "updated_at") val updatedAt: Long,
 ) {
     fun toModel() = TranslationProjectCard(
@@ -149,6 +179,10 @@ internal data class TranslationProjectCardRow(
         latestTaskFailureCode = latestTaskFailureCode,
         completedFiles = completedFiles,
         totalFiles = totalFiles,
+        latestTaskType = latestTaskType,
+        itemTotal = itemTotal,
+        completedItems = completedItems,
+        failedItems = failedItems,
         updatedAt = updatedAt,
     )
 }

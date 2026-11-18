@@ -6,6 +6,7 @@ import com.tyranor.next.core.translation.storage.TranslationServiceProfileEntity
 import com.tyranor.next.core.translation.storage.TranslationWorkbenchDatabase
 import java.net.URI
 import java.util.UUID
+import org.json.JSONObject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -31,6 +32,14 @@ class TranslationServiceRepository(context: Context) {
 
     suspend fun getProfile(id: String): TranslationServiceProfile? =
         dao.getServiceProfile(id)?.toModel()
+
+    /** Holds the profile write lock until the caller has persisted any snapshot reference it uses. */
+    suspend fun <T> withProfileSnapshot(id: String, block: suspend (TranslationServiceProfile) -> T): T =
+        writeMutex.withLock {
+            val profile = dao.getServiceProfile(id)?.toModel()
+                ?: throw TranslationServiceException(TranslationServiceErrorCode.SERVICE_NOT_FOUND)
+            block(profile)
+        }
 
     suspend fun saveProfile(draft: TranslationServiceDraft): TranslationServiceProfile = writeMutex.withLock {
         val profileId = draft.id ?: UUID.randomUUID().toString()
@@ -93,6 +102,13 @@ class TranslationServiceRepository(context: Context) {
             if (nextSecretRef != null && nextSecretRef != old?.secretRef) secretStore.delete(nextSecretRef)
             throw TranslationServiceException(TranslationServiceErrorCode.STORAGE_FAILURE, failure)
         }
+        try {
+            cleanupUnusedSecretsLocked()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            // Configuration persistence has succeeded; an obsolete ciphertext can be pruned later.
+        }
         entity.toModel()
     }
 
@@ -122,7 +138,18 @@ class TranslationServiceRepository(context: Context) {
         if (dao.deleteServiceProfile(id) != 1) {
             throw TranslationServiceException(TranslationServiceErrorCode.STORAGE_FAILURE)
         }
-        if (!secretStore.deleteProfileSecrets(profile.id)) {
+        cleanupUnusedSecretsLocked()
+    }
+
+    suspend fun cleanupUnusedSecrets() = writeMutex.withLock { cleanupUnusedSecretsLocked() }
+
+    private suspend fun cleanupUnusedSecretsLocked() {
+        val profileReferences = dao.getServiceProfiles().mapNotNull { it.secretRef }.toSet()
+        val taskReferences = dao.getAllTasks().mapNotNull { task ->
+            runCatching { JSONObject(task.configSnapshotJson).optString("secretRef").takeIf(String::isNotBlank) }
+                .getOrNull()
+        }.toSet()
+        if (!secretStore.deleteUnreferencedSecrets(profileReferences + taskReferences)) {
             throw TranslationServiceException(TranslationServiceErrorCode.SECRET_STORAGE_FAILED)
         }
     }

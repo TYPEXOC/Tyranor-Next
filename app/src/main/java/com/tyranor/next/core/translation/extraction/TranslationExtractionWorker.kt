@@ -5,6 +5,8 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.tyranor.next.core.translation.TranslationTaskNotification
+import com.tyranor.next.core.translation.TranslationBatchTaskProcessor
+import com.tyranor.next.core.translation.TranslationWorkbenchError
 import com.tyranor.next.core.translation.storage.TranslationEntryEntity
 import com.tyranor.next.core.translation.storage.TranslationTaskEntity
 import com.tyranor.next.core.translation.storage.TranslationWorkbenchDatabase
@@ -40,6 +42,24 @@ class TranslationExtractionWorker(
     }
 
     private suspend fun processTask(task: TranslationTaskEntity) {
+        when (task.type) {
+            TASK_TYPE_EXTRACT -> processExtractionTask(task)
+            TASK_TYPE_TRANSLATE -> TranslationBatchTaskProcessor(applicationContext, dao) { completed, total ->
+                setForeground(TranslationTaskNotification.foregroundInfo(applicationContext, completed, total))
+                setProgress(workDataOf(
+                    PROGRESS_COMPLETED_ITEMS to completed,
+                    PROGRESS_TOTAL_ITEMS to total,
+                ))
+            }.process(task)
+            else -> {
+                if (dao.markTaskRunning(task.id, System.currentTimeMillis()) == 1) {
+                    dao.failTaskAndFailProject(task.id, TranslationWorkbenchError.STORAGE_FAILURE.name, System.currentTimeMillis())
+                }
+            }
+        }
+    }
+
+    private suspend fun processExtractionTask(task: TranslationTaskEntity) {
         val taskId = task.id
         if (dao.markTaskRunning(taskId, System.currentTimeMillis()) != 1) return
         try {
@@ -137,6 +157,10 @@ class TranslationExtractionWorker(
     companion object {
         const val PROGRESS_COMPLETED_FILES = "completed_files"
         const val PROGRESS_TOTAL_FILES = "total_files"
+        const val PROGRESS_COMPLETED_ITEMS = "completed_items"
+        const val PROGRESS_TOTAL_ITEMS = "total_items"
+        const val TASK_TYPE_EXTRACT = "EXTRACT"
+        const val TASK_TYPE_TRANSLATE = "TRANSLATE"
         const val GLOBAL_QUEUE_NAME = "translation-workbench-content-tasks"
     }
 }

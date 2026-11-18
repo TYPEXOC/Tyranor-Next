@@ -66,6 +66,12 @@ internal class TranslationSecretStore(context: Context) {
         return editor.commit()
     }
 
+    fun deleteUnreferencedSecrets(referencedSecrets: Set<String>): Boolean {
+        val editor = prefs.edit()
+        prefs.all.keys.filterNot(referencedSecrets::contains).forEach(editor::remove)
+        return editor.commit()
+    }
+
     private fun secretKey(): SecretKey {
         val keyStore = KeyStore.getInstance(KEYSTORE).apply { load(null) }
         (keyStore.getKey(KEY_ALIAS, null) as? SecretKey)?.let { return it }

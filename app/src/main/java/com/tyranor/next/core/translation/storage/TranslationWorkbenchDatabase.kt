@@ -15,8 +15,9 @@ import com.tyranor.next.core.settings.AppStorageNames
         TranslationTaskEntity::class,
         TranslationExportEntity::class,
         TranslationServiceProfileEntity::class,
+        TranslationGlossaryTermEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = true,
 )
 internal abstract class TranslationWorkbenchDatabase : RoomDatabase() {
@@ -95,13 +96,44 @@ internal abstract class TranslationWorkbenchDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE translation_projects ADD COLUMN glossary_revision INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE translation_entries ADD COLUMN failure_code TEXT")
+                db.execSQL("ALTER TABLE translation_tasks ADD COLUMN item_total INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE translation_tasks ADD COLUMN completed_items INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE translation_tasks ADD COLUMN failed_items INTEGER NOT NULL DEFAULT 0")
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `translation_glossary_terms` (
+                        `id` TEXT NOT NULL,
+                        `project_id` TEXT NOT NULL,
+                        `source_term` TEXT NOT NULL,
+                        `target_term` TEXT NOT NULL,
+                        `note` TEXT,
+                        `updated_at` INTEGER NOT NULL,
+                        PRIMARY KEY(`id`),
+                        FOREIGN KEY(`project_id`) REFERENCES `translation_projects`(`id`)
+                            ON UPDATE NO ACTION ON DELETE CASCADE
+                    )""".trimIndent(),
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_translation_glossary_terms_project_id` " +
+                        "ON `translation_glossary_terms` (`project_id`)",
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS `index_translation_glossary_terms_project_id_source_term` " +
+                        "ON `translation_glossary_terms` (`project_id`, `source_term`)",
+                )
+            }
+        }
+
         fun get(context: Context): TranslationWorkbenchDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(
                 context.applicationContext,
                 TranslationWorkbenchDatabase::class.java,
                 AppStorageNames.TRANSLATION_WORKBENCH_DATABASE,
             )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                 .fallbackToDestructiveMigrationOnDowngrade(dropAllTables = true)
                 .build()
                 .also { instance = it }

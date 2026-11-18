@@ -25,6 +25,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -51,6 +52,8 @@ import com.tyranor.next.core.translation.TranslationWorkbenchError
 import com.tyranor.next.core.translation.TranslationWorkbenchException
 import com.tyranor.next.core.translation.TranslationWorkbenchRepository
 import com.tyranor.next.core.translation.TranslationProjectCard
+import com.tyranor.next.core.translation.TranslationGlossaryTerm
+import com.tyranor.next.core.translation.service.TranslationServiceProfile
 import com.tyranor.next.theme.AppComponentCornerRadius
 import com.tyranor.next.theme.MiuixSettingsTheme
 import com.tyranor.next.theme.PageSecondaryTextColor
@@ -90,6 +93,9 @@ private fun TranslationWorkbenchScreen() {
     val scope = rememberCoroutineScope()
     val repository = remember(appContext) { TranslationWorkbenchRepository(appContext) }
     val projects by repository.observeProjects().collectAsStateWithLifecycle(initialValue = emptyList())
+    val enabledTranslationServices by remember(repository) {
+        repository.observeEnabledTranslationServices()
+    }.collectAsStateWithLifecycle(initialValue = emptyList())
     var showAddDialog by remember { mutableStateOf(false) }
     var deleteProjectId by remember { mutableStateOf<String?>(null) }
     var errorCode by remember { mutableStateOf<TranslationWorkbenchError?>(null) }
@@ -98,10 +104,26 @@ private fun TranslationWorkbenchScreen() {
     var pendingRelinkProjectId by remember { mutableStateOf<String?>(null) }
     var pendingExportProjectId by remember { mutableStateOf<String?>(null) }
     var exportHistoryProjectId by remember { mutableStateOf<String?>(null) }
+    var translationProjectId by remember { mutableStateOf<String?>(null) }
+    var selectedTranslationServiceId by remember { mutableStateOf<String?>(null) }
+    var translationSourceLanguage by remember { mutableStateOf("") }
+    var translationTargetLanguage by remember { mutableStateOf("") }
+    var glossaryProjectId by remember { mutableStateOf<String?>(null) }
+    var glossaryText by remember { mutableStateOf("") }
     val exportHistory by remember(repository, exportHistoryProjectId) {
         exportHistoryProjectId?.let(repository::observeExportHistory)
             ?: flowOf<List<TranslationExportRecord>>(emptyList())
     }.collectAsStateWithLifecycle(initialValue = emptyList())
+    val glossaryTerms by remember(repository, glossaryProjectId) {
+        glossaryProjectId?.let(repository::observeGlossary)
+            ?: flowOf<List<TranslationGlossaryTerm>>(emptyList())
+    }.collectAsStateWithLifecycle(initialValue = emptyList())
+
+    LaunchedEffect(glossaryProjectId, glossaryTerms) {
+        if (glossaryProjectId != null) {
+            glossaryText = glossaryTerms.joinToString("\n") { "${it.sourceTerm} = ${it.targetTerm}" }
+        }
+    }
 
     fun showFailure(failure: Throwable) {
         if (failure is CancellationException) throw failure
@@ -138,6 +160,9 @@ private fun TranslationWorkbenchScreen() {
     }
     val exportJson = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
         exportTo(uri, TranslationProjectFormat.JSON)
+    }
+    val exportMToolJson = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        exportTo(uri, TranslationProjectFormat.MTOOL_JSON)
     }
     val importProject = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
@@ -223,6 +248,19 @@ private fun TranslationWorkbenchScreen() {
                                     runOperation { repository.continueExtraction(project.id, taskId) }
                                 },
                                 onCancel = { taskId -> runOperation { repository.cancelExtraction(taskId) } },
+                                onTranslate = {
+                                    translationProjectId = project.id
+                                    selectedTranslationServiceId = enabledTranslationServices.firstOrNull()?.id
+                                    translationSourceLanguage = ""
+                                    translationTargetLanguage = ""
+                                },
+                                onContinueTranslation = { taskId ->
+                                    runOperation { repository.continueTranslation(project.id, taskId) }
+                                },
+                                onGlossary = {
+                                    glossaryText = ""
+                                    glossaryProjectId = project.id
+                                },
                                 onRelink = {
                                     pendingRelinkProjectId = project.id
                                     chooseGameDirectory.launch(null)
@@ -235,6 +273,10 @@ private fun TranslationWorkbenchScreen() {
                                     pendingExportProjectId = project.id
                                     exportJson.launch(exportName(project.title, ".json"))
                                 },
+                                onExportMToolJson = {
+                                    pendingExportProjectId = project.id
+                                    exportMToolJson.launch(exportName(project.title, "-mtool.json"))
+                                },
                                 onExportHistory = { exportHistoryProjectId = project.id },
                                 onDelete = { deleteProjectId = project.id },
                                 modifier = listItemMotion(),
@@ -244,6 +286,74 @@ private fun TranslationWorkbenchScreen() {
                 }
             }
         }
+    }
+
+    translationProjectId?.let { projectId ->
+        TranslationStartDialog(
+            services = enabledTranslationServices,
+            selectedServiceId = selectedTranslationServiceId,
+            sourceLanguage = translationSourceLanguage,
+            targetLanguage = translationTargetLanguage,
+            onSelectService = { selectedTranslationServiceId = it },
+            onSourceLanguageChange = { translationSourceLanguage = it },
+            onTargetLanguageChange = { translationTargetLanguage = it },
+            onDismiss = { translationProjectId = null },
+            onStart = {
+                val serviceId = selectedTranslationServiceId
+                translationProjectId = null
+                if (serviceId != null) {
+                    runOperation {
+                        repository.startTranslation(
+                            projectId = projectId,
+                            serviceId = serviceId,
+                            sourceLanguage = translationSourceLanguage,
+                            targetLanguage = translationTargetLanguage,
+                        )
+                    }
+                }
+            },
+        )
+    }
+
+    glossaryProjectId?.let { projectId ->
+        AppAlertDialog(
+            onDismissRequest = { glossaryProjectId = null },
+            title = { Text(stringResource(R.string.translation_glossary_title), style = MaterialTheme.typography.titleMedium) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        stringResource(R.string.translation_glossary_hint),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = PageSecondaryTextColor,
+                    )
+                    OutlinedTextField(
+                        value = glossaryText,
+                        onValueChange = { glossaryText = it },
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 180.dp, max = 360.dp),
+                        minLines = 6,
+                        maxLines = 12,
+                    )
+                }
+            },
+            confirmButton = {
+                DialogTextButton(
+                    text = stringResource(R.string.common_save),
+                    onClick = {
+                        val terms = glossaryText.lineSequence().filter(String::isNotBlank).map { line ->
+                            val separator = line.indexOf('=')
+                            if (separator < 0) TranslationGlossaryTerm(line.trim(), "") else {
+                                TranslationGlossaryTerm(line.substring(0, separator).trim(), line.substring(separator + 1).trim())
+                            }
+                        }.toList()
+                        glossaryProjectId = null
+                        runOperation { repository.saveGlossary(projectId, terms) }
+                    },
+                )
+            },
+            dismissButton = {
+                DialogTextButton(text = stringResource(R.string.common_cancel), onClick = { glossaryProjectId = null })
+            },
+        )
     }
 
     if (showAddDialog) {
@@ -345,6 +455,7 @@ private fun TranslationWorkbenchScreen() {
                             val formatText = when (record.format) {
                                 TranslationProjectFormat.CSV -> stringResource(R.string.translation_format_csv)
                                 TranslationProjectFormat.JSON -> stringResource(R.string.translation_format_json)
+                                TranslationProjectFormat.MTOOL_JSON -> stringResource(R.string.translation_format_mtool_json)
                             }
                             Text(
                                 stringResource(
@@ -386,14 +497,95 @@ private fun TranslationWorkbenchScreen() {
 }
 
 @Composable
+private fun TranslationStartDialog(
+    services: List<TranslationServiceProfile>,
+    selectedServiceId: String?,
+    sourceLanguage: String,
+    targetLanguage: String,
+    onSelectService: (String) -> Unit,
+    onSourceLanguageChange: (String) -> Unit,
+    onTargetLanguageChange: (String) -> Unit,
+    onDismiss: () -> Unit,
+    onStart: () -> Unit,
+) {
+    AppAlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.translation_start_translation_title), style = MaterialTheme.typography.titleMedium) },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth().heightIn(max = 420.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                if (services.isEmpty()) {
+                    Text(
+                        stringResource(R.string.translation_no_enabled_service),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = PageSecondaryTextColor,
+                    )
+                } else {
+                    Text(stringResource(R.string.translation_service_label), style = MaterialTheme.typography.labelMedium)
+                    LazyColumn(
+                        modifier = Modifier.fillMaxWidth().heightIn(max = 150.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                    ) {
+                        items(services, key = TranslationServiceProfile::id) { service ->
+                            NoRippleTextButton(
+                                text = buildString {
+                                    if (service.id == selectedServiceId) append("✓  ")
+                                    append(service.displayName)
+                                    if (service.modelId.isNotBlank()) append(" · ${service.modelId}")
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                contentColor = if (service.id == selectedServiceId) MaterialTheme.colorScheme.primary
+                                else PageTextColor,
+                                onClick = { onSelectService(service.id) },
+                            )
+                        }
+                    }
+                    OutlinedTextField(
+                        value = sourceLanguage,
+                        onValueChange = onSourceLanguageChange,
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        label = { Text(stringResource(R.string.translation_source_language)) },
+                    )
+                    OutlinedTextField(
+                        value = targetLanguage,
+                        onValueChange = onTargetLanguageChange,
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        label = { Text(stringResource(R.string.translation_target_language)) },
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            DialogTextButton(
+                text = stringResource(R.string.translation_start_translation),
+                enabled = services.isNotEmpty() && selectedServiceId != null &&
+                    sourceLanguage.isNotBlank() && targetLanguage.isNotBlank(),
+                onClick = onStart,
+            )
+        },
+        dismissButton = {
+            DialogTextButton(text = stringResource(R.string.common_cancel), onClick = onDismiss)
+        },
+    )
+}
+
+@Composable
 private fun TranslationProjectCardView(
     project: TranslationProjectCard,
     onStart: () -> Unit,
     onContinue: (String) -> Unit,
     onCancel: (String) -> Unit,
+    onTranslate: () -> Unit,
+    onContinueTranslation: (String) -> Unit,
+    onGlossary: () -> Unit,
     onRelink: () -> Unit,
     onExportCsv: () -> Unit,
     onExportJson: () -> Unit,
+    onExportMToolJson: () -> Unit,
     onExportHistory: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
@@ -401,15 +593,22 @@ private fun TranslationProjectCardView(
     val isGameDirectory = project.sourceType == TranslationProjectSource.GAME_DIRECTORY.name
     val isActive = project.latestTaskState == "QUEUED" || project.latestTaskState == "RUNNING"
     val canContinue = project.latestTaskState == "CANCELLED" || project.latestTaskState == "FAILED"
+    val canContinueTranslation = project.latestTaskState in setOf("CANCELLED", "FAILED", "COMPLETED_WITH_ERRORS")
     val statusRes = when (project.projectState) {
         TranslationProjectState.PROCESSING.name -> if (project.latestTaskState == "QUEUED") {
             R.string.translation_task_queued
+        } else if (project.latestTaskType == "TRANSLATE") {
+            R.string.translation_task_translating
         } else {
             R.string.translation_task_running
         }
-        TranslationProjectState.FAILED.name -> R.string.translation_task_failed
+        TranslationProjectState.FAILED.name -> if (project.latestTaskType == "TRANSLATE") {
+            R.string.translation_task_translation_failed
+        } else R.string.translation_task_failed
         TranslationProjectState.PAUSED.name -> R.string.translation_task_cancelled
         TranslationProjectState.READY.name -> when {
+            project.latestTaskState == "COMPLETED_WITH_ERRORS" -> R.string.translation_task_completed_with_errors
+            project.latestTaskState == "COMPLETED" && project.latestTaskType == "TRANSLATE" -> R.string.translation_task_translation_completed
             project.latestTaskState == "COMPLETED" -> R.string.translation_extraction_completed
             project.entryCount > 0 && project.translatedCount == project.entryCount -> R.string.translation_project_has_translations
             project.entryCount > 0 -> R.string.translation_project_ready
@@ -450,7 +649,17 @@ private fun TranslationProjectCardView(
                 color = PageSecondaryTextColor,
             )
             if (isActive) {
-                if (project.totalFiles > 0) {
+                if (project.latestTaskType == "TRANSLATE" && project.itemTotal > 0) {
+                    LinearProgressIndicator(
+                        progress = { (project.completedItems.toFloat() / project.itemTotal).coerceIn(0f, 1f) },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Text(
+                        stringResource(R.string.translation_item_progress, project.completedItems, project.itemTotal),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = PageSecondaryTextColor,
+                    )
+                } else if (project.latestTaskType != "TRANSLATE" && project.totalFiles > 0) {
                     LinearProgressIndicator(
                         progress = { (project.completedFiles.toFloat() / project.totalFiles).coerceIn(0f, 1f) },
                         modifier = Modifier.fillMaxWidth(),
@@ -471,6 +680,13 @@ private fun TranslationProjectCardView(
                     color = MaterialTheme.colorScheme.error,
                 )
             }
+            if (project.latestTaskState == "COMPLETED_WITH_ERRORS" && project.failedItems > 0) {
+                Text(
+                    stringResource(R.string.translation_failed_items, project.failedItems),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -481,7 +697,7 @@ private fun TranslationProjectCardView(
                         contentColor = MaterialTheme.colorScheme.error,
                         onClick = { onCancel(taskId) },
                     )
-                } else if (isGameDirectory && canContinue && taskId != null) {
+                } else if (isGameDirectory && project.latestTaskType == "EXTRACT" && canContinue && taskId != null) {
                     NoRippleTextButton(
                         text = stringResource(R.string.translation_continue_extraction),
                         onClick = { onContinue(taskId) },
@@ -493,6 +709,22 @@ private fun TranslationProjectCardView(
                         onClick = onStart,
                     )
                 }
+                if (!isActive && project.entryCount > project.translatedCount &&
+                    project.latestTaskType == "TRANSLATE" && canContinueTranslation && taskId != null
+                ) {
+                    NoRippleButton(
+                        text = stringResource(R.string.translation_retry_translation),
+                        tonal = true,
+                        onClick = { onContinueTranslation(taskId) },
+                    )
+                }
+                if (!isActive && project.entryCount > project.translatedCount) {
+                    NoRippleTextButton(
+                        text = stringResource(R.string.translation_start_translation),
+                        onClick = onTranslate,
+                    )
+                }
+                NoRippleTextButton(text = stringResource(R.string.translation_glossary_open), onClick = onGlossary)
                 if (isGameDirectory && project.latestTaskFailureCode == TranslationWorkbenchError.DIRECTORY_PERMISSION_LOST.name) {
                     NoRippleTextButton(text = stringResource(R.string.translation_reauthorize_directory), onClick = onRelink)
                 }
@@ -506,6 +738,13 @@ private fun TranslationProjectCardView(
                     enabled = project.entryCount > 0,
                     onClick = onExportJson,
                 )
+                if (project.engineId == EngineType.RPG_MV.name || project.engineId == EngineType.RPG_MZ.name) {
+                    NoRippleTextButton(
+                        text = stringResource(R.string.translation_export_mtool_json),
+                        enabled = project.translatedCount > 0,
+                        onClick = onExportMToolJson,
+                    )
+                }
                 NoRippleTextButton(
                     text = stringResource(R.string.translation_export_history_open),
                     onClick = onExportHistory,
@@ -531,7 +770,7 @@ private fun TranslationProjectCard.failureResource(): Int = when (latestTaskFail
     TranslationWorkbenchError.NO_TEXT_FOUND.name -> R.string.translation_error_no_text_found
     TranslationWorkbenchError.RESOURCE_TOO_LARGE.name -> R.string.translation_error_resource_too_large
     TranslationWorkbenchError.UNSUPPORTED_ENGINE.name -> R.string.translation_error_unsupported_engine
-    else -> R.string.translation_error_storage_failure
+    else -> if (latestTaskType == "TRANSLATE") R.string.translation_error_translation_failed else R.string.translation_error_storage_failure
 }
 
 private fun TranslationWorkbenchError.messageResource(): Int = when (this) {
@@ -551,6 +790,15 @@ private fun TranslationWorkbenchError.messageResource(): Int = when (this) {
     TranslationWorkbenchError.RESOURCE_TOO_LARGE -> R.string.translation_error_resource_too_large
     TranslationWorkbenchError.TASK_ALREADY_ACTIVE -> R.string.translation_error_task_already_active
     TranslationWorkbenchError.TASK_NOT_ACTIVE -> R.string.translation_error_task_not_active
+    TranslationWorkbenchError.TRANSLATION_SERVICE_UNAVAILABLE -> R.string.translation_error_translation_service_unavailable
+    TranslationWorkbenchError.INVALID_LANGUAGE_PAIR -> R.string.translation_error_invalid_language_pair
+    TranslationWorkbenchError.NO_TRANSLATION_CANDIDATES -> R.string.translation_error_no_translation_candidates
+    TranslationWorkbenchError.INVALID_GLOSSARY -> R.string.translation_error_invalid_glossary
+    TranslationWorkbenchError.DUPLICATE_GLOSSARY_TERM -> R.string.translation_error_duplicate_glossary_term
+    TranslationWorkbenchError.PROJECT_CONFIGURATION_CHANGED -> R.string.translation_error_project_configuration_changed
+    TranslationWorkbenchError.MTOOL_ENGINE_UNSUPPORTED -> R.string.translation_error_mtool_engine_unsupported
+    TranslationWorkbenchError.MTOOL_SOURCE_CONFLICT -> R.string.translation_error_mtool_source_conflict
+    TranslationWorkbenchError.NO_TRANSLATED_ENTRIES -> R.string.translation_error_no_translated_entries
     TranslationWorkbenchError.EXPORT_FAILED -> R.string.translation_error_export_failed
     TranslationWorkbenchError.EXPORT_HISTORY_FAILED -> R.string.translation_error_export_history_failed
     TranslationWorkbenchError.STORAGE_FAILURE -> R.string.translation_error_storage_failure

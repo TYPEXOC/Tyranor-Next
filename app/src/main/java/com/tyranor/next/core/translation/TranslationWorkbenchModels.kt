@@ -6,6 +6,7 @@ import androidx.room.ColumnInfo
 enum class TranslationProjectFormat {
     CSV,
     JSON,
+    MTOOL_JSON,
 }
 
 /** 项目来源。目录项目保留 SAF tree URI；文件导入项目只保存导入后的工作台数据。 */
@@ -32,6 +33,7 @@ data class TranslationProjectCard(
     @ColumnInfo(name = "engine_id") val engineId: String?,
     @ColumnInfo(name = "source_type") val sourceType: String,
     @ColumnInfo(name = "source_tree_uri") val sourceTreeUri: String?,
+    @ColumnInfo(name = "latest_task_type") val latestTaskType: String?,
     @ColumnInfo(name = "entry_count") val entryCount: Int,
     @ColumnInfo(name = "translated_count") val translatedCount: Int,
     @ColumnInfo(name = "latest_task_id") val latestTaskId: String?,
@@ -39,7 +41,16 @@ data class TranslationProjectCard(
     @ColumnInfo(name = "latest_task_failure_code") val latestTaskFailureCode: String?,
     @ColumnInfo(name = "completed_files") val completedFiles: Int,
     @ColumnInfo(name = "total_files") val totalFiles: Int,
+    @ColumnInfo(name = "item_total") val itemTotal: Int,
+    @ColumnInfo(name = "completed_items") val completedItems: Int,
+    @ColumnInfo(name = "failed_items") val failedItems: Int,
     @ColumnInfo(name = "updated_at") val updatedAt: Long,
+)
+
+data class TranslationGlossaryTerm(
+    val sourceTerm: String,
+    val targetTerm: String,
+    val note: String? = null,
 )
 
 /** 项目条目供列表预览和导出使用。每个来源位置独立保存，不按原文合并。 */
@@ -97,6 +108,15 @@ enum class TranslationWorkbenchError {
     RESOURCE_TOO_LARGE,
     TASK_ALREADY_ACTIVE,
     TASK_NOT_ACTIVE,
+    TRANSLATION_SERVICE_UNAVAILABLE,
+    INVALID_LANGUAGE_PAIR,
+    NO_TRANSLATION_CANDIDATES,
+    INVALID_GLOSSARY,
+    DUPLICATE_GLOSSARY_TERM,
+    PROJECT_CONFIGURATION_CHANGED,
+    MTOOL_ENGINE_UNSUPPORTED,
+    MTOOL_SOURCE_CONFLICT,
+    NO_TRANSLATED_ENTRIES,
     EXPORT_FAILED,
     EXPORT_HISTORY_FAILED,
     STORAGE_FAILURE,
