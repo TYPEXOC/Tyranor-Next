@@ -68,6 +68,12 @@ internal abstract class TranslationWorkbenchDao {
     )
     abstract suspend fun getActiveTask(projectId: String): TranslationTaskEntity?
 
+    @Query("SELECT * FROM translation_tasks WHERE state IN ('QUEUED', 'RUNNING') ORDER BY created_at ASC LIMIT 1")
+    abstract suspend fun getNextRunnableTask(): TranslationTaskEntity?
+
+    @Query("SELECT EXISTS(SELECT 1 FROM translation_tasks WHERE state IN ('QUEUED', 'RUNNING'))")
+    abstract suspend fun hasRunnableTasks(): Boolean
+
     @Insert(onConflict = OnConflictStrategy.ABORT)
     abstract suspend fun insertTask(task: TranslationTaskEntity)
 
@@ -79,6 +85,12 @@ internal abstract class TranslationWorkbenchDao {
             "WHERE id = :taskId AND state IN ('QUEUED', 'RUNNING')",
     )
     abstract suspend fun cancelTask(taskId: String, updatedAt: Long): Int
+
+    @Query(
+        "UPDATE translation_tasks SET state = 'CANCELLED', updated_at = :updatedAt " +
+            "WHERE project_id = :projectId AND state IN ('QUEUED', 'RUNNING')",
+    )
+    abstract suspend fun cancelProjectTasks(projectId: String, updatedAt: Long): Int
 
     @Query(
         "UPDATE translation_tasks SET state = 'FAILED', failure_code = :failureCode, updated_at = :updatedAt " +

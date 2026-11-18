@@ -5,6 +5,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.tyranor.next.core.translation.storage.TranslationEntryEntity
+import com.tyranor.next.core.translation.storage.TranslationTaskEntity
 import com.tyranor.next.core.translation.storage.TranslationWorkbenchDatabase
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
@@ -12,7 +13,7 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import org.json.JSONArray
 
-/** Resumable MV/MZ extraction. Room checkpoints and entry writes commit in the same transaction. */
+/** Drains durable extraction tasks serially across projects. Room remains the progress authority. */
 class TranslationExtractionWorker(
     appContext: Context,
     params: WorkerParameters,
@@ -20,15 +21,31 @@ class TranslationExtractionWorker(
     private val dao = TranslationWorkbenchDatabase.get(appContext).translationDao()
 
     override suspend fun doWork(): Result {
-        val taskId = inputData.getString(KEY_TASK_ID) ?: return Result.failure()
         try {
-            val task = dao.getTask(taskId) ?: return Result.failure()
-            if (task.state == "CANCELLED") return Result.success()
-            if (dao.markTaskRunning(taskId, System.currentTimeMillis()) != 1) return Result.success()
+            while (true) {
+                currentCoroutineContext().ensureActive()
+                val task = dao.getNextRunnableTask() ?: return Result.success()
+                processTask(task)
+            }
+        } catch (cancelled: CancellationException) {
+            // WorkManager may recreate this drain after process/OS interruption. A RUNNING task is
+            // deliberately left recoverable; user cancellation is already persisted in Room.
+            throw cancelled
+        } catch (failure: Exception) {
+            return Result.retry()
+        }
+    }
 
-            val project = dao.getProject(task.projectId) ?: return fail(taskId, "PROJECT_NOT_FOUND")
-            val treeUri = task.sourceTreeUri ?: return fail(taskId, "INVALID_GAME_DIRECTORY")
-            val extractorId = task.extractorId ?: return fail(taskId, "UNSUPPORTED_ENGINE")
+    private suspend fun processTask(task: TranslationTaskEntity) {
+        val taskId = task.id
+        if (dao.markTaskRunning(taskId, System.currentTimeMillis()) != 1) return
+        try {
+            val project = dao.getProject(task.projectId)
+                ?: return fail(taskId, "PROJECT_NOT_FOUND")
+            val treeUri = task.sourceTreeUri
+                ?: return fail(taskId, "INVALID_GAME_DIRECTORY")
+            val extractorId = task.extractorId
+                ?: return fail(taskId, "UNSUPPORTED_ENGINE")
             val extractor = TextExtractorRegistry.registeredDescriptors()
                 .firstOrNull { it.extractorId == extractorId }
                 ?.let { TextExtractorRegistry.find(it.engineId) }
@@ -52,6 +69,7 @@ class TranslationExtractionWorker(
 
             for (file in files) {
                 currentCoroutineContext().ensureActive()
+                if (dao.getTask(taskId)?.state != "RUNNING") return
                 if (file in completed) continue
                 val extracted = extractor.extractFile(source, file)
                 val rows = extracted.map { entry ->
@@ -76,7 +94,7 @@ class TranslationExtractionWorker(
                     entries = rows,
                     updatedAt = System.currentTimeMillis(),
                 )
-                if (!committed) return Result.success()
+                if (!committed) return
                 completed += file
                 setProgress(
                     workDataOf(
@@ -86,24 +104,22 @@ class TranslationExtractionWorker(
                 )
             }
 
-            if (dao.getEntries(task.projectId).isEmpty()) return fail(taskId, ExtractionErrorCode.NO_TEXT_FOUND.name)
-            dao.completeTask(taskId, System.currentTimeMillis())
-            return Result.success()
+            if (dao.getEntries(task.projectId).isEmpty()) {
+                fail(taskId, ExtractionErrorCode.NO_TEXT_FOUND.name)
+            } else {
+                dao.completeTask(taskId, System.currentTimeMillis())
+            }
         } catch (cancelled: CancellationException) {
-            // A user cancellation is already persisted by the repository. OS/process stops leave RUNNING
-            // untouched so WorkManager can rerun the same task and continue from its last committed file.
             throw cancelled
         } catch (failure: TranslationExtractionException) {
-            return fail(taskId, failure.code.name)
+            fail(taskId, failure.code.name)
         } catch (failure: Exception) {
-            return fail(taskId, ExtractionErrorCode.STORAGE_FAILURE.name)
+            fail(taskId, ExtractionErrorCode.STORAGE_FAILURE.name)
         }
     }
 
-    private suspend fun fail(taskId: String, code: String): Result {
+    private suspend fun fail(taskId: String, code: String) {
         dao.failTask(taskId, code, System.currentTimeMillis())
-        dao.failQueuedTask(taskId, code, System.currentTimeMillis())
-        return Result.failure(workDataOf(OUTPUT_FAILURE_CODE to code))
     }
 
     private fun decodeCheckpoint(json: String): Set<String> = try {
@@ -114,8 +130,6 @@ class TranslationExtractionWorker(
     }
 
     companion object {
-        const val KEY_TASK_ID = "translation_task_id"
-        const val OUTPUT_FAILURE_CODE = "translation_failure_code"
         const val PROGRESS_COMPLETED_FILES = "completed_files"
         const val PROGRESS_TOTAL_FILES = "total_files"
         const val GLOBAL_QUEUE_NAME = "translation-workbench-content-tasks"

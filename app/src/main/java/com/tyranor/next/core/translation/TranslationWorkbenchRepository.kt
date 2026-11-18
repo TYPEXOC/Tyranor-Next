@@ -4,7 +4,6 @@ import android.content.Context
 import android.net.Uri
 import android.provider.DocumentsContract
 import androidx.documentfile.provider.DocumentFile
-import androidx.work.Data
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
@@ -189,6 +188,7 @@ class TranslationWorkbenchRepository(context: Context) {
         }
 
     suspend fun deleteProject(projectId: String) {
+        dao.cancelProjectTasks(projectId, System.currentTimeMillis())
         if (dao.deleteProject(projectId) == 0) {
             throw TranslationWorkbenchException(TranslationWorkbenchError.PROJECT_NOT_FOUND)
         }
@@ -219,7 +219,18 @@ class TranslationWorkbenchRepository(context: Context) {
         if (dao.cancelTask(taskId, System.currentTimeMillis()) != 1) {
             throw TranslationWorkbenchException(TranslationWorkbenchError.TASK_NOT_ACTIVE)
         }
-        WorkManager.getInstance(appContext).cancelAllWorkByTag(taskTag(taskId))
+    }
+
+    /** Reschedules a drain worker when durable queued/running tasks outlive a previous app process. */
+    suspend fun ensureExtractionQueue() {
+        if (!dao.hasRunnableTasks()) return
+        try {
+            enqueueQueueWorker()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            throw TranslationWorkbenchException(TranslationWorkbenchError.STORAGE_FAILURE, failure)
+        }
     }
 
     private suspend fun scheduleExtraction(
@@ -272,15 +283,7 @@ class TranslationWorkbenchRepository(context: Context) {
             )
         }
         try {
-            val request = OneTimeWorkRequestBuilder<TranslationExtractionWorker>()
-                .setInputData(Data.Builder().putString(TranslationExtractionWorker.KEY_TASK_ID, taskId).build())
-                .addTag(taskTag(taskId))
-                .build()
-            WorkManager.getInstance(appContext).enqueueUniqueWork(
-                TranslationExtractionWorker.GLOBAL_QUEUE_NAME,
-                ExistingWorkPolicy.APPEND_OR_REPLACE,
-                request,
-            )
+            enqueueQueueWorker()
         } catch (cancelled: CancellationException) {
             dao.failQueuedTask(taskId, TranslationWorkbenchError.STORAGE_FAILURE.name, System.currentTimeMillis())
             throw cancelled
@@ -317,7 +320,14 @@ class TranslationWorkbenchRepository(context: Context) {
         return output.toString(StandardCharsets.UTF_8.name())
     }
 
-    private fun taskTag(taskId: String) = "translation-task:$taskId"
+    private fun enqueueQueueWorker() {
+        val request = OneTimeWorkRequestBuilder<TranslationExtractionWorker>().build()
+        WorkManager.getInstance(appContext).enqueueUniqueWork(
+            TranslationExtractionWorker.GLOBAL_QUEUE_NAME,
+            ExistingWorkPolicy.APPEND_OR_REPLACE,
+            request,
+        )
+    }
 }
 
 data class ProjectCreation(val projectId: String, val created: Boolean)
