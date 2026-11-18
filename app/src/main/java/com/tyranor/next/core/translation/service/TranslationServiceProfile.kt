@@ -3,7 +3,10 @@ package com.tyranor.next.core.translation.service
 /** TYN-owned protocols; adding a provider label does not add protocol support. */
 enum class TranslationProtocolId(val wireId: String) {
     OPENAI_COMPATIBLE_CHAT("openai-compatible-chat-v1"),
+    GEMINI_INTERACTIONS("gemini-interactions-v1"),
 }
+
+const val GEMINI_API_BASE_URL = "https://generativelanguage.googleapis.com"
 
 enum class TranslationServiceCapability {
     TRANSLATE,

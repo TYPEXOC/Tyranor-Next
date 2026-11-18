@@ -2,6 +2,7 @@ package com.tyranor.next.core.translation.service
 
 import android.content.Context
 import com.tyranor.next.core.translation.service.protocol.openai.OpenAiCompatibleChatAdapter
+import com.tyranor.next.core.translation.service.protocol.gemini.GeminiInteractionsAdapter
 
 /** Resolves the profile revision and secret reference before crossing into a protocol adapter. */
 class TranslationServiceClient(
@@ -11,14 +12,14 @@ class TranslationServiceClient(
     suspend fun listModels(serviceId: String): List<TranslationModelInfo> {
         val profile = repository.getProfile(serviceId)
             ?: throw TranslationServiceException(TranslationServiceErrorCode.SERVICE_NOT_FOUND)
-        if (runCatching { TranslationServiceRepository.normalizeBaseUrl(profile.baseUrl) }.isFailure) {
+        if (runCatching { TranslationServiceRepository.normalizeBaseUrl(profile.baseUrl, profile.protocolId) }.isFailure) {
             throw TranslationServiceException(TranslationServiceErrorCode.SERVICE_NOT_CONFIGURED)
         }
         return adapter(profile).listModels(profile, resolveSecret(profile.secretRef))
     }
 
     suspend fun listModels(draft: TranslationServiceDraft): List<TranslationModelInfo> {
-        val baseUrl = TranslationServiceRepository.normalizeBaseUrl(draft.baseUrl)
+        val baseUrl = TranslationServiceRepository.normalizeBaseUrl(draft.baseUrl, draft.protocolId)
         val existing = draft.id?.let { repository.getProfile(it) }
         if (draft.id != null && existing == null) {
             throw TranslationServiceException(TranslationServiceErrorCode.SERVICE_NOT_FOUND)
@@ -90,6 +91,7 @@ class TranslationServiceClient(
 internal object TranslationProtocolRegistry {
     private val adapters: Map<TranslationProtocolId, TranslationProtocolAdapter> = listOf(
         OpenAiCompatibleChatAdapter(),
+        GeminiInteractionsAdapter(),
     ).associateBy(TranslationProtocolAdapter::protocolId)
 
     fun adapter(protocolId: TranslationProtocolId): TranslationProtocolAdapter =

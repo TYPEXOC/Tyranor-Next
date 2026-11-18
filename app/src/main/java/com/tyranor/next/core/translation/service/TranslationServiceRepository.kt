@@ -46,21 +46,27 @@ class TranslationServiceRepository(context: Context) {
         if (draft.id != null && old == null) {
             throw TranslationServiceException(TranslationServiceErrorCode.SERVICE_NOT_FOUND)
         }
-        if (draft.protocolId != TranslationProtocolId.OPENAI_COMPATIBLE_CHAT) {
+        if (!TranslationProtocolRegistry.supports(draft.protocolId, TranslationServiceCapability.TRANSLATE)) {
             throw TranslationServiceException(TranslationServiceErrorCode.UNSUPPORTED_PROTOCOL)
         }
         val displayName = draft.displayName.trim()
         val modelId = draft.modelId.trim()
         val translationPrompt = draft.translationPrompt.trim()
         val proofreadingPrompt = draft.proofreadingPrompt.trim().ifBlank { DEFAULT_PROOFREADING_PROMPT }
-        val baseUrl = normalizeBaseUrl(draft.baseUrl)
+        val baseUrl = normalizeBaseUrl(draft.baseUrl, draft.protocolId)
         if (displayName.isBlank() || displayName.length > MAX_DISPLAY_NAME || modelId.length > MAX_MODEL_ID ||
             translationPrompt.isBlank() || translationPrompt.length > MAX_PROMPT_LENGTH ||
             proofreadingPrompt.length > MAX_PROMPT_LENGTH
         ) {
             throw TranslationServiceException(TranslationServiceErrorCode.INVALID_CONFIGURATION)
         }
-        val configured = modelId.isNotBlank()
+        val hasSecret = when (draft.secretChange) {
+            TranslationSecretChange.Keep -> old?.secretRef != null
+            is TranslationSecretChange.Replace -> draft.secretChange.value.isNotBlank()
+            TranslationSecretChange.Remove -> false
+        }
+        val configured = modelId.isNotBlank() &&
+            (draft.protocolId != TranslationProtocolId.GEMINI_INTERACTIONS || hasSecret)
         if (draft.enabled && !configured) {
             throw TranslationServiceException(TranslationServiceErrorCode.SERVICE_NOT_CONFIGURED)
         }
@@ -169,7 +175,7 @@ class TranslationServiceRepository(context: Context) {
     private fun TranslationServiceProfileEntity.toModel(): TranslationServiceProfile {
         val protocol = TranslationProtocolId.entries.firstOrNull { it.wireId == protocolId }
             ?: throw TranslationServiceException(TranslationServiceErrorCode.UNSUPPORTED_PROTOCOL)
-        val validUrl = runCatching { normalizeBaseUrl(baseUrl) }.isSuccess
+        val validUrl = runCatching { normalizeBaseUrl(baseUrl, protocol) }.isSuccess
         return TranslationServiceProfile(
             id = id,
             displayName = displayName,
@@ -177,7 +183,8 @@ class TranslationServiceRepository(context: Context) {
             baseUrl = baseUrl,
             modelId = modelId,
             enabled = enabled,
-            configured = validUrl && modelId.isNotBlank(),
+            configured = validUrl && modelId.isNotBlank() &&
+                (protocol != TranslationProtocolId.GEMINI_INTERACTIONS || secretRef != null),
             hasSecret = secretRef != null,
             revision = revision,
             translationPrompt = translationPrompt,
@@ -206,6 +213,26 @@ class TranslationServiceRepository(context: Context) {
             }
             val absolute = uri.normalize().toASCIIString().trimEnd('/')
             return absolute.replaceFirst(Regex("^[A-Za-z][A-Za-z0-9+.-]*:"), "$scheme:")
+        }
+
+        fun normalizeBaseUrl(value: String, protocolId: TranslationProtocolId): String = when (protocolId) {
+            TranslationProtocolId.OPENAI_COMPATIBLE_CHAT -> normalizeBaseUrl(value)
+            TranslationProtocolId.GEMINI_INTERACTIONS -> normalizeGeminiBaseUrl(value)
+        }
+
+        private fun normalizeGeminiBaseUrl(value: String): String {
+            val trimmed = value.trim().trimEnd('/')
+            val uri = runCatching { URI(trimmed) }.getOrNull()
+                ?: throw TranslationServiceException(TranslationServiceErrorCode.INVALID_CONFIGURATION)
+            if (trimmed.length > 256 || uri.scheme?.lowercase() != "https" ||
+                !uri.host.equals("generativelanguage.googleapis.com", ignoreCase = true) ||
+                uri.rawUserInfo != null || uri.rawQuery != null || uri.rawFragment != null ||
+                uri.port !in setOf(-1, 443) ||
+                (uri.path.orEmpty().isNotEmpty() && uri.path != "/")
+            ) {
+                throw TranslationServiceException(TranslationServiceErrorCode.INVALID_CONFIGURATION)
+            }
+            return GEMINI_API_BASE_URL
         }
     }
 }

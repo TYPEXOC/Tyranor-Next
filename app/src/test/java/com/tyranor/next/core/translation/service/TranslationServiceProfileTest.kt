@@ -34,6 +34,29 @@ class TranslationServiceProfileTest {
     }
 
     @Test
+    fun acceptsOnlyOfficialGeminiDeveloperApiOrigin() {
+        assertEquals(
+            GEMINI_API_BASE_URL,
+            TranslationServiceRepository.normalizeBaseUrl(
+                "$GEMINI_API_BASE_URL/",
+                TranslationProtocolId.GEMINI_INTERACTIONS,
+            ),
+        )
+        listOf(
+            "http://generativelanguage.googleapis.com",
+            "https://proxy.example.test",
+            "$GEMINI_API_BASE_URL/v1",
+            "$GEMINI_API_BASE_URL?key=secret",
+            "https://generativelanguage.googleapis.com:8443",
+        ).forEach { value ->
+            val failure = assertThrows(TranslationServiceException::class.java) {
+                TranslationServiceRepository.normalizeBaseUrl(value, TranslationProtocolId.GEMINI_INTERACTIONS)
+            }
+            assertEquals(TranslationServiceErrorCode.INVALID_CONFIGURATION, failure.code)
+        }
+    }
+
+    @Test
     fun secretValuesAreRedactedFromAccidentalStringFormatting() {
         val secret = "sk-test-secret-do-not-print"
         val draft = TranslationServiceDraft(

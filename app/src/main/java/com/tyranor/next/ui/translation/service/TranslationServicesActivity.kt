@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tyranor.next.R
 import com.tyranor.next.core.translation.service.TranslationProtocolId
+import com.tyranor.next.core.translation.service.GEMINI_API_BASE_URL
 import com.tyranor.next.core.translation.service.TranslationSecretChange
 import com.tyranor.next.core.translation.service.TranslationServiceDraft
 import com.tyranor.next.core.translation.service.TranslationServiceClient
@@ -107,18 +108,32 @@ private fun TranslationServicesScreen() {
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 item(key = "add-service") {
-                    NoRippleButton(
-                        text = stringResource(R.string.translation_services_add_openai),
-                        modifier = Modifier.fillMaxWidth(),
-                        onClick = {
-                            fetchedModels = emptyList()
-                            modelSearch = ""
-                            showFetchedModels = false
-                            modelFetchError = null
-                            modelListEmpty = false
-                            editor = ServiceEditor.newProfile()
-                        },
-                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        NoRippleButton(
+                            text = stringResource(R.string.translation_services_add_openai),
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {
+                                fetchedModels = emptyList()
+                                modelSearch = ""
+                                showFetchedModels = false
+                                modelFetchError = null
+                                modelListEmpty = false
+                                editor = ServiceEditor.newProfile()
+                            },
+                        )
+                        NoRippleButton(
+                            text = stringResource(R.string.translation_services_add_gemini),
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {
+                                fetchedModels = emptyList()
+                                modelSearch = ""
+                                showFetchedModels = false
+                                modelFetchError = null
+                                modelListEmpty = false
+                                editor = ServiceEditor.newGeminiProfile()
+                            },
+                        )
+                    }
                 }
                 if (profiles.isEmpty()) {
                     item(key = "empty-services") {
@@ -162,7 +177,13 @@ private fun TranslationServicesScreen() {
                             SwitchPreference(
                                 title = stringResource(R.string.translation_services_enabled),
                                 summary = if (profile.configured) null else {
-                                    stringResource(R.string.translation_services_complete_before_enable)
+                                    stringResource(
+                                        if (profile.protocolId == TranslationProtocolId.GEMINI_INTERACTIONS) {
+                                            R.string.translation_services_gemini_complete_before_enable
+                                        } else {
+                                            R.string.translation_services_complete_before_enable
+                                        },
+                                    )
                                 },
                                 checked = profile.enabled,
                                 onCheckedChange = { enabled ->
@@ -228,7 +249,16 @@ private fun TranslationServicesScreen() {
                         value = state.baseUrl,
                         onValueChange = { editor = state.copy(baseUrl = it) },
                         label = { Text(stringResource(R.string.translation_services_base_url)) },
-                        supportingText = { Text(stringResource(R.string.translation_services_base_url_hint)) },
+                        supportingText = {
+                            Text(stringResource(
+                                if (state.protocolId == TranslationProtocolId.GEMINI_INTERACTIONS) {
+                                    R.string.translation_services_gemini_base_url_hint
+                                } else {
+                                    R.string.translation_services_base_url_hint
+                                },
+                            ))
+                        },
+                        readOnly = state.protocolId == TranslationProtocolId.GEMINI_INTERACTIONS,
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
@@ -303,12 +333,24 @@ private fun TranslationServicesScreen() {
                     OutlinedTextField(
                         value = state.apiKey,
                         onValueChange = { editor = state.copy(apiKey = it, clearSecret = false) },
-                        label = { Text(stringResource(R.string.translation_services_api_key)) },
+                        label = {
+                            Text(stringResource(
+                                if (state.protocolId == TranslationProtocolId.GEMINI_INTERACTIONS) {
+                                    R.string.translation_services_api_key_required
+                                } else {
+                                    R.string.translation_services_api_key
+                                },
+                            ))
+                        },
                         supportingText = {
                             Text(
                                 stringResource(
-                                    if (state.hasSavedSecret && !state.clearSecret) R.string.translation_services_key_keep_hint
-                                    else R.string.translation_services_key_optional_hint,
+                                    when {
+                                        state.hasSavedSecret && !state.clearSecret -> R.string.translation_services_key_keep_hint
+                                        state.protocolId == TranslationProtocolId.GEMINI_INTERACTIONS ->
+                                            R.string.translation_services_gemini_key_hint
+                                        else -> R.string.translation_services_key_optional_hint
+                                    },
                                 ),
                             )
                         },
@@ -326,7 +368,13 @@ private fun TranslationServicesScreen() {
                         )
                     }
                     Text(
-                        stringResource(R.string.translation_services_protocol_note),
+                        stringResource(
+                            if (state.protocolId == TranslationProtocolId.GEMINI_INTERACTIONS) {
+                                R.string.translation_services_gemini_protocol_note
+                            } else {
+                                R.string.translation_services_protocol_note
+                            },
+                        ),
                         style = MaterialTheme.typography.bodySmall,
                         color = PageSecondaryTextColor,
                     )
@@ -421,6 +469,7 @@ private fun TranslationServicesScreen() {
 
 private data class ServiceEditor(
     val id: String?,
+    val protocolId: TranslationProtocolId,
     val displayName: String,
     val baseUrl: String,
     val modelId: String,
@@ -435,7 +484,7 @@ private data class ServiceEditor(
     fun toDraft() = TranslationServiceDraft(
         id = id,
         displayName = displayName,
-        protocolId = TranslationProtocolId.OPENAI_COMPATIBLE_CHAT,
+        protocolId = protocolId,
         baseUrl = baseUrl,
         modelId = modelId,
         enabled = enabled,
@@ -451,6 +500,7 @@ private data class ServiceEditor(
     companion object {
         fun newProfile() = ServiceEditor(
             id = null,
+            protocolId = TranslationProtocolId.OPENAI_COMPATIBLE_CHAT,
             displayName = "",
             baseUrl = "https://api.openai.com/v1",
             modelId = "",
@@ -463,8 +513,24 @@ private data class ServiceEditor(
             proofreadingPrompt = DEFAULT_PROOFREADING_PROMPT,
         )
 
+        fun newGeminiProfile() = ServiceEditor(
+            id = null,
+            protocolId = TranslationProtocolId.GEMINI_INTERACTIONS,
+            displayName = "Google Gemini API",
+            baseUrl = GEMINI_API_BASE_URL,
+            modelId = "",
+            apiKey = "",
+            hasSavedSecret = false,
+            clearSecret = false,
+            enabled = false,
+            showPrompt = false,
+            prompt = DEFAULT_TRANSLATION_PROMPT,
+            proofreadingPrompt = DEFAULT_PROOFREADING_PROMPT,
+        )
+
         fun from(profile: TranslationServiceProfile) = ServiceEditor(
             id = profile.id,
+            protocolId = profile.protocolId,
             displayName = profile.displayName,
             baseUrl = profile.baseUrl,
             modelId = profile.modelId,

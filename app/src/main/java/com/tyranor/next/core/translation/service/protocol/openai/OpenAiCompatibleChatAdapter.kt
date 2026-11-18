@@ -3,18 +3,15 @@ package com.tyranor.next.core.translation.service.protocol.openai
 import com.tyranor.next.core.translation.service.TranslationBatchResponse
 import com.tyranor.next.core.translation.service.ProofreadBatchResponse
 import com.tyranor.next.core.translation.service.ProofreadInput
-import com.tyranor.next.core.translation.service.ProofreadOutput
 import com.tyranor.next.core.translation.service.TranslationInput
-import com.tyranor.next.core.translation.service.TranslationItemFailureCode
 import com.tyranor.next.core.translation.service.TranslationModelInfo
-import com.tyranor.next.core.translation.service.TranslationOutput
 import com.tyranor.next.core.translation.service.TranslationProtocolAdapter
 import com.tyranor.next.core.translation.service.TranslationProtocolId
+import com.tyranor.next.core.translation.service.TranslationProtocolStructuredResultParser
 import com.tyranor.next.core.translation.service.TranslationServiceErrorCode
 import com.tyranor.next.core.translation.service.TranslationServiceException
 import com.tyranor.next.core.translation.service.TranslationServiceProfile
 import com.tyranor.next.core.translation.service.TranslationServiceCapability
-import com.tyranor.next.core.translation.service.TranslationTextIntegrity
 import com.tyranor.next.core.translation.service.transport.TranslationHttpTransport
 import java.net.HttpURLConnection
 import okhttp3.MediaType.Companion.toMediaType
@@ -270,103 +267,10 @@ internal class OpenAiCompatibleChatAdapter(
         internal fun parseBatchContent(
             content: String,
             inputs: List<TranslationInput>,
-        ): TranslationBatchResponse {
-            val normalized = content.trim()
-                .removePrefix("```json")
-                .removePrefix("```")
-                .removeSuffix("```")
-                .trim()
-            val results = try {
-                JSONObject(normalized).optJSONArray("results")
-                    ?: throw TranslationServiceException(TranslationServiceErrorCode.INVALID_RESPONSE)
-            } catch (failure: JSONException) {
-                throw TranslationServiceException(TranslationServiceErrorCode.INVALID_RESPONSE)
-            }
-            val requested = inputs.associateBy(TranslationInput::entryId)
-            val returned = mutableMapOf<String, MutableList<String?>>()
-            val unknown = mutableSetOf<String>()
-            for (index in 0 until results.length()) {
-                val result = results.optJSONObject(index) ?: continue
-                val id = result.optString("id").trim()
-                if (id.isBlank()) continue
-                if (id !in requested) unknown += id
-                val translation = result.optString("translation").takeIf { result.has("translation") }
-                returned.getOrPut(id, ::mutableListOf).add(translation)
-            }
+        ): TranslationBatchResponse = TranslationProtocolStructuredResultParser.parseTranslations(content, inputs)
 
-            val successes = mutableListOf<TranslationOutput>()
-            val failures = mutableMapOf<String, TranslationItemFailureCode>()
-            for (input in inputs) {
-                val candidates = returned[input.entryId].orEmpty()
-                when {
-                    candidates.isEmpty() -> failures[input.entryId] = TranslationItemFailureCode.MISSING_RESPONSE
-                    candidates.size > 1 -> failures[input.entryId] = TranslationItemFailureCode.DUPLICATE_RESPONSE
-                    candidates.single().isNullOrBlank() -> failures[input.entryId] = TranslationItemFailureCode.INVALID_TRANSLATION
-                    else -> {
-                        val translated = candidates.single()!!
-                        when {
-                            TranslationTextIntegrity.compare(input.sourceText, translated).isNotEmpty() ->
-                                failures[input.entryId] = TranslationItemFailureCode.PLACEHOLDER_MISMATCH
-                            else -> successes += TranslationOutput(input.entryId, translated)
-                        }
-                    }
-                }
-            }
-            return TranslationBatchResponse(successes, failures, unknown)
-        }
-
-        internal fun parseProofreadContent(content: String, inputs: List<ProofreadInput>): ProofreadBatchResponse {
-            val normalized = content.trim().removePrefix("```json").removePrefix("```").removeSuffix("```").trim()
-            val results = try {
-                JSONObject(normalized).optJSONArray("results")
-                    ?: throw TranslationServiceException(TranslationServiceErrorCode.INVALID_RESPONSE)
-            } catch (failure: JSONException) {
-                throw TranslationServiceException(TranslationServiceErrorCode.INVALID_RESPONSE)
-            }
-            val requested = inputs.associateBy(ProofreadInput::entryId)
-            val returned = mutableMapOf<String, MutableList<Pair<String?, Set<String>?>>>()
-            val unknown = mutableSetOf<String>()
-            for (index in 0 until results.length()) {
-                val result = results.optJSONObject(index) ?: continue
-                val id = result.optString("id").trim()
-                if (id.isBlank()) continue
-                if (id !in requested) unknown += id
-                val suggestion = result.optString("suggestedTranslation").takeIf { result.has("suggestedTranslation") }
-                val rawIssues = result.optJSONArray("issues")
-                val issues = rawIssues?.let { array ->
-                    buildSet {
-                        for (issueIndex in 0 until array.length()) {
-                            val code = array.optString(issueIndex)
-                            if (code !in PROOFREAD_ISSUE_CODES) return@let null
-                            add(code)
-                        }
-                    }
-                }
-                returned.getOrPut(id, ::mutableListOf).add(suggestion to issues)
-            }
-            val successes = mutableListOf<ProofreadOutput>()
-            val failures = mutableMapOf<String, TranslationItemFailureCode>()
-            for (input in inputs) {
-                val candidates = returned[input.entryId].orEmpty()
-                when {
-                    candidates.isEmpty() -> failures[input.entryId] = TranslationItemFailureCode.MISSING_RESPONSE
-                    candidates.size > 1 -> failures[input.entryId] = TranslationItemFailureCode.DUPLICATE_RESPONSE
-                    candidates.single().first.isNullOrBlank() || candidates.single().second == null ->
-                        failures[input.entryId] = TranslationItemFailureCode.INVALID_TRANSLATION
-                    else -> {
-                        val suggestion = candidates.single().first!!
-                        when {
-                            TranslationTextIntegrity.compare(input.sourceText, suggestion).isNotEmpty() ->
-                                failures[input.entryId] = TranslationItemFailureCode.PLACEHOLDER_MISMATCH
-                            else -> successes += ProofreadOutput(input.entryId, suggestion, candidates.single().second!!)
-                        }
-                    }
-                }
-            }
-            return ProofreadBatchResponse(successes, failures, unknown)
-        }
-
-        private val PROOFREAD_ISSUE_CODES = setOf("GRAMMAR", "MEANING", "TERMINOLOGY", "CONSISTENCY", "TONE", "OTHER")
+        internal fun parseProofreadContent(content: String, inputs: List<ProofreadInput>): ProofreadBatchResponse =
+            TranslationProtocolStructuredResultParser.parseProofreadSuggestions(content, inputs)
 
     }
 }
