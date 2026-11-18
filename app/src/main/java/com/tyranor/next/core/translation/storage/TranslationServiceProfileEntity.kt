@@ -19,6 +19,7 @@ internal data class TranslationServiceProfileEntity(
     val enabled: Boolean,
     val revision: Long,
     @ColumnInfo(name = "translation_prompt") val translationPrompt: String,
+    @ColumnInfo(name = "proofreading_prompt", defaultValue = "''") val proofreadingPrompt: String = "",
     @ColumnInfo(name = "secret_ref") val secretRef: String?,
     @ColumnInfo(name = "created_at") val createdAt: Long,
     @ColumnInfo(name = "updated_at") val updatedAt: Long,

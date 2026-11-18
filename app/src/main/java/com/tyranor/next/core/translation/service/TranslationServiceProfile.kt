@@ -7,6 +7,7 @@ enum class TranslationProtocolId(val wireId: String) {
 
 enum class TranslationServiceCapability {
     TRANSLATE,
+    AI_PROOFREAD,
 }
 
 data class TranslationServiceProfile(
@@ -22,6 +23,7 @@ data class TranslationServiceProfile(
     val translationPrompt: String,
     val secretRef: String?,
     val updatedAt: Long,
+    val proofreadingPrompt: String = DEFAULT_PROOFREADING_PROMPT,
 )
 
 data class TranslationServiceDraft(
@@ -32,11 +34,12 @@ data class TranslationServiceDraft(
     val modelId: String,
     val enabled: Boolean = false,
     val translationPrompt: String = DEFAULT_TRANSLATION_PROMPT,
+    val proofreadingPrompt: String = DEFAULT_PROOFREADING_PROMPT,
     val secretChange: TranslationSecretChange = TranslationSecretChange.Keep,
 ) {
     override fun toString(): String =
         "TranslationServiceDraft(id=$id, displayName=$displayName, protocolId=$protocolId, " +
-            "baseUrl=$baseUrl, modelId=$modelId, enabled=$enabled, " +
+        "baseUrl=$baseUrl, modelId=$modelId, enabled=$enabled, " +
             "secretChange=${if (secretChange is TranslationSecretChange.Replace) "Replace([redacted])" else secretChange})"
 }
 
@@ -86,4 +89,7 @@ sealed interface TranslationSecretResult {
 
 const val DEFAULT_TRANSLATION_PROMPT =
     "Translate the provided game text into the target language. Preserve every control code, placeholder, and line break. Return only a JSON object with a results array; each result must contain the given id and its translation."
+
+const val DEFAULT_PROOFREADING_PROMPT =
+    "Review each provided game translation against its source and glossary. Return only a JSON object with a results array; each result must contain the given id, a suggestedTranslation, and issue codes chosen from GRAMMAR, MEANING, TERMINOLOGY, CONSISTENCY, TONE, OTHER. Never omit ids. Preserve every control code, placeholder, and line break in suggestions. Do not claim an issue when the current translation is acceptable."
 

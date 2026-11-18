@@ -8,10 +8,6 @@ class TranslationServiceClient(
     context: Context,
     private val repository: TranslationServiceRepository = TranslationServiceRepository(context),
 ) {
-    private val adapters: Map<TranslationProtocolId, TranslationProtocolAdapter> = listOf(
-        OpenAiCompatibleChatAdapter(),
-    ).associateBy(TranslationProtocolAdapter::protocolId)
-
     suspend fun listModels(serviceId: String): List<TranslationModelInfo> {
         val profile = repository.getProfile(serviceId)
             ?: throw TranslationServiceException(TranslationServiceErrorCode.SERVICE_NOT_FOUND)
@@ -44,6 +40,7 @@ class TranslationServiceClient(
             hasSecret = apiKey != null,
             revision = existing?.revision ?: 0L,
             translationPrompt = draft.translationPrompt,
+            proofreadingPrompt = draft.proofreadingPrompt,
             secretRef = existing?.secretRef,
             updatedAt = existing?.updatedAt ?: 0L,
         )
@@ -64,9 +61,22 @@ class TranslationServiceClient(
         inputs = inputs,
     )
 
+    internal suspend fun proofreadBatch(
+        profile: TranslationServiceProfile,
+        secretRef: String?,
+        sourceLanguage: String,
+        targetLanguage: String,
+        inputs: List<ProofreadInput>,
+    ): ProofreadBatchResponse = adapter(profile).proofreadBatch(
+        profile = profile,
+        apiKey = resolveSecret(secretRef),
+        sourceLanguage = sourceLanguage,
+        targetLanguage = targetLanguage,
+        inputs = inputs,
+    )
+
     private fun adapter(profile: TranslationServiceProfile): TranslationProtocolAdapter =
-        adapters[profile.protocolId]
-            ?: throw TranslationServiceException(TranslationServiceErrorCode.UNSUPPORTED_PROTOCOL)
+        TranslationProtocolRegistry.adapter(profile.protocolId)
 
     private fun resolveSecret(reference: String?): String? = when (val result = repository.readSecret(reference)) {
         is TranslationSecretResult.Available -> result.value
@@ -75,4 +85,16 @@ class TranslationServiceClient(
         }
         TranslationSecretResult.Unavailable -> throw TranslationServiceException(TranslationServiceErrorCode.SECRET_UNAVAILABLE)
     }
+}
+
+internal object TranslationProtocolRegistry {
+    private val adapters: Map<TranslationProtocolId, TranslationProtocolAdapter> = listOf(
+        OpenAiCompatibleChatAdapter(),
+    ).associateBy(TranslationProtocolAdapter::protocolId)
+
+    fun adapter(protocolId: TranslationProtocolId): TranslationProtocolAdapter =
+        adapters[protocolId] ?: throw TranslationServiceException(TranslationServiceErrorCode.UNSUPPORTED_PROTOCOL)
+
+    fun supports(protocolId: TranslationProtocolId, capability: TranslationServiceCapability): Boolean =
+        adapters[protocolId]?.capabilities?.contains(capability) == true
 }

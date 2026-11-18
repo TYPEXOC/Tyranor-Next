@@ -43,6 +43,7 @@ import com.tyranor.next.core.translation.service.TranslationModelInfo
 import com.tyranor.next.core.translation.service.TranslationServiceProfile
 import com.tyranor.next.core.translation.service.TranslationServiceRepository
 import com.tyranor.next.core.translation.service.DEFAULT_TRANSLATION_PROMPT
+import com.tyranor.next.core.translation.service.DEFAULT_PROOFREADING_PROMPT
 import com.tyranor.next.theme.AppComponentCornerRadius
 import com.tyranor.next.theme.MiuixSettingsTheme
 import com.tyranor.next.theme.PageSecondaryTextColor
@@ -344,6 +345,13 @@ private fun TranslationServicesScreen() {
                             minLines = 3,
                             modifier = Modifier.fillMaxWidth(),
                         )
+                        OutlinedTextField(
+                            value = state.proofreadingPrompt,
+                            onValueChange = { editor = state.copy(proofreadingPrompt = it) },
+                            label = { Text(stringResource(R.string.translation_services_proofreading_prompt)) },
+                            minLines = 3,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
                     }
                     if (state.id != null) {
                         DialogTextButton(
@@ -422,6 +430,7 @@ private data class ServiceEditor(
     val enabled: Boolean,
     val showPrompt: Boolean,
     val prompt: String,
+    val proofreadingPrompt: String,
 ) {
     fun toDraft() = TranslationServiceDraft(
         id = id,
@@ -431,6 +440,7 @@ private data class ServiceEditor(
         modelId = modelId,
         enabled = enabled,
         translationPrompt = prompt.ifBlank { DEFAULT_TRANSLATION_PROMPT },
+        proofreadingPrompt = proofreadingPrompt.ifBlank { DEFAULT_PROOFREADING_PROMPT },
         secretChange = when {
             clearSecret -> TranslationSecretChange.Remove
             apiKey.isNotBlank() -> TranslationSecretChange.Replace(apiKey)
@@ -450,6 +460,7 @@ private data class ServiceEditor(
             enabled = false,
             showPrompt = false,
             prompt = DEFAULT_TRANSLATION_PROMPT,
+            proofreadingPrompt = DEFAULT_PROOFREADING_PROMPT,
         )
 
         fun from(profile: TranslationServiceProfile) = ServiceEditor(
@@ -463,6 +474,7 @@ private data class ServiceEditor(
             enabled = profile.enabled,
             showPrompt = false,
             prompt = profile.translationPrompt,
+            proofreadingPrompt = profile.proofreadingPrompt,
         )
     }
 }

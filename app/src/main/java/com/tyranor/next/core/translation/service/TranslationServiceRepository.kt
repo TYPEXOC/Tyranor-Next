@@ -25,8 +25,7 @@ class TranslationServiceRepository(context: Context) {
     fun observeEnabled(capability: TranslationServiceCapability): Flow<List<TranslationServiceProfile>> =
         observeProfiles().map { profiles ->
             profiles.filter { profile ->
-                profile.enabled && profile.configured && capability == TranslationServiceCapability.TRANSLATE &&
-                    profile.protocolId == TranslationProtocolId.OPENAI_COMPATIBLE_CHAT
+                profile.enabled && profile.configured && TranslationProtocolRegistry.supports(profile.protocolId, capability)
             }
         }
 
@@ -53,9 +52,11 @@ class TranslationServiceRepository(context: Context) {
         val displayName = draft.displayName.trim()
         val modelId = draft.modelId.trim()
         val translationPrompt = draft.translationPrompt.trim()
+        val proofreadingPrompt = draft.proofreadingPrompt.trim().ifBlank { DEFAULT_PROOFREADING_PROMPT }
         val baseUrl = normalizeBaseUrl(draft.baseUrl)
         if (displayName.isBlank() || displayName.length > MAX_DISPLAY_NAME || modelId.length > MAX_MODEL_ID ||
-            translationPrompt.isBlank() || translationPrompt.length > MAX_PROMPT_LENGTH
+            translationPrompt.isBlank() || translationPrompt.length > MAX_PROMPT_LENGTH ||
+            proofreadingPrompt.length > MAX_PROMPT_LENGTH
         ) {
             throw TranslationServiceException(TranslationServiceErrorCode.INVALID_CONFIGURATION)
         }
@@ -89,6 +90,7 @@ class TranslationServiceRepository(context: Context) {
             enabled = draft.enabled,
             revision = revision,
             translationPrompt = translationPrompt,
+            proofreadingPrompt = proofreadingPrompt,
             secretRef = nextSecretRef,
             createdAt = old?.createdAt ?: now,
             updatedAt = now,
@@ -127,6 +129,7 @@ class TranslationServiceRepository(context: Context) {
                 modelId = current.modelId,
                 enabled = enabled,
                 translationPrompt = current.translationPrompt,
+                proofreadingPrompt = current.proofreadingPrompt,
                 secretChange = TranslationSecretChange.Keep,
             ),
         )
@@ -178,6 +181,7 @@ class TranslationServiceRepository(context: Context) {
             hasSecret = secretRef != null,
             revision = revision,
             translationPrompt = translationPrompt,
+            proofreadingPrompt = proofreadingPrompt.ifBlank { DEFAULT_PROOFREADING_PROMPT },
             secretRef = secretRef,
             updatedAt = updatedAt,
         )

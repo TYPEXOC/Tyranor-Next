@@ -17,12 +17,18 @@ import com.tyranor.next.core.translation.storage.TranslationTaskEntity
 import com.tyranor.next.core.translation.storage.TranslationExportEntity
 import com.tyranor.next.core.translation.storage.TranslationExportRow
 import com.tyranor.next.core.translation.storage.TranslationGlossaryTermEntity
+import com.tyranor.next.core.translation.storage.TranslationProofreadSuggestionEntity
+import com.tyranor.next.core.translation.storage.TranslationReviewIssueEntity
+import com.tyranor.next.core.translation.storage.TranslationReviewIssueRow
 import com.tyranor.next.core.translation.extraction.TextExtractorRegistry
 import com.tyranor.next.core.translation.extraction.TranslationExtractionWorker
 import com.tyranor.next.core.translation.service.TranslationProtocolId
 import com.tyranor.next.core.translation.service.TranslationServiceCapability
+import com.tyranor.next.core.translation.service.TranslationServiceException
 import com.tyranor.next.core.translation.service.TranslationServiceProfile
 import com.tyranor.next.core.translation.service.TranslationServiceRepository
+import com.tyranor.next.core.translation.service.TranslationTextIntegrity
+import com.tyranor.next.core.translation.service.TranslationProtocolRegistry
 import com.tyranor.next.core.translation.export.mtool.MToolJsonExporter
 import java.io.ByteArrayOutputStream
 import java.io.IOException
@@ -33,6 +39,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -77,6 +84,105 @@ class TranslationWorkbenchRepository(context: Context) {
 
     fun observeEnabledTranslationServices(): Flow<List<TranslationServiceProfile>> =
         serviceRepository.observeEnabled(TranslationServiceCapability.TRANSLATE)
+
+    fun observeEnabledProofreadingServices(): Flow<List<TranslationServiceProfile>> =
+        serviceRepository.observeEnabled(TranslationServiceCapability.AI_PROOFREAD)
+
+    fun observeReviewEntries(projectId: String): Flow<List<TranslationReviewEntry>> =
+        combine(dao.observeEntries(projectId), dao.observeReviewIssues(projectId)) { rows, issues ->
+            val issuesByEntry = issues.groupBy(TranslationReviewIssueRow::entryId)
+            rows.map { row ->
+                TranslationReviewEntry(
+                    id = row.id,
+                    sourceKey = row.sourceKey,
+                    sourceText = row.sourceText,
+                    translatedText = row.translatedText,
+                    sourceFile = row.sourceFile,
+                    sourcePointer = row.sourcePointer,
+                    textType = row.textType,
+                    reviewState = runCatching { TranslationReviewState.valueOf(row.reviewState) }
+                        .getOrDefault(TranslationReviewState.UNREVIEWED),
+                    suggestionId = row.suggestionId,
+                    suggestedTranslation = row.suggestedTranslation,
+                    issues = issuesByEntry[row.id].orEmpty().mapNotNull { issue ->
+                        val code = runCatching { TranslationReviewIssueCode.valueOf(issue.code) }.getOrNull()
+                            ?: return@mapNotNull null
+                        TranslationReviewIssue(issue.id, code, issue.source, issue.severity, issue.state)
+                    },
+                )
+            }
+        }
+
+    suspend fun runLocalRules(projectId: String): Int {
+        if (dao.getProject(projectId) == null) throw TranslationWorkbenchException(TranslationWorkbenchError.PROJECT_NOT_FOUND)
+        val findings = TranslationLocalRuleChecker().inspect(dao.getEntries(projectId))
+        val now = System.currentTimeMillis()
+        val rows = findings.map { finding ->
+            TranslationReviewIssueEntity(
+                id = UUID.randomUUID().toString(),
+                projectId = projectId,
+                entryId = finding.entryId,
+                taskId = null,
+                source = "RULE",
+                code = finding.code.name,
+                severity = if (finding.code == TranslationReviewIssueCode.MISSING_TRANSLATION) "ERROR" else "WARNING",
+                state = "OPEN",
+                updatedAt = now,
+            )
+        }
+        dao.replaceOpenRuleIssues(projectId, rows, now)
+        return rows.size
+    }
+
+    suspend fun saveManualTranslation(projectId: String, entryId: String, translatedText: String) {
+        if (translatedText.length > MAX_MANUAL_TRANSLATION_LENGTH) {
+            throw TranslationWorkbenchException(TranslationWorkbenchError.INVALID_REVIEW_ENTRY)
+        }
+        if (dao.getProject(projectId) == null) throw TranslationWorkbenchException(TranslationWorkbenchError.PROJECT_NOT_FOUND)
+        if (dao.getActiveTask(projectId) != null) throw TranslationWorkbenchException(TranslationWorkbenchError.TASK_ALREADY_ACTIVE)
+        if (!dao.saveManualTranslation(projectId, entryId, translatedText)) {
+            throw TranslationWorkbenchException(TranslationWorkbenchError.INVALID_REVIEW_ENTRY)
+        }
+    }
+
+    suspend fun confirmCurrentTranslation(projectId: String, entryId: String) {
+        if (!dao.confirmEntry(projectId, entryId, System.currentTimeMillis())) {
+            if (dao.getActiveTask(projectId) != null) throw TranslationWorkbenchException(TranslationWorkbenchError.TASK_ALREADY_ACTIVE)
+            throw TranslationWorkbenchException(TranslationWorkbenchError.INVALID_REVIEW_ENTRY)
+        }
+    }
+
+    suspend fun updateReviewIssue(projectId: String, issueId: String, ignore: Boolean) {
+        val nextState = if (ignore) "IGNORED" else "RESOLVED"
+        if (!dao.changeReviewIssueState(projectId, issueId, nextState, System.currentTimeMillis())) {
+            if (dao.getActiveTask(projectId) != null) throw TranslationWorkbenchException(TranslationWorkbenchError.TASK_ALREADY_ACTIVE)
+            throw TranslationWorkbenchException(TranslationWorkbenchError.INVALID_REVIEW_ENTRY)
+        }
+    }
+
+    suspend fun applyProofreadSuggestion(projectId: String, entryId: String, suggestionId: String) {
+        val suggestion = dao.getProofreadSuggestion(suggestionId)
+            ?: throw TranslationWorkbenchException(TranslationWorkbenchError.INVALID_REVIEW_ENTRY)
+        val entry = dao.getEntry(entryId)
+            ?: throw TranslationWorkbenchException(TranslationWorkbenchError.INVALID_REVIEW_ENTRY)
+        if (suggestion.projectId != projectId || suggestion.entryId != entryId ||
+            suggestion.state != "PENDING" || suggestion.suggestedTranslation.isBlank() ||
+            TranslationTextIntegrity.compare(entry.sourceText, suggestion.suggestedTranslation).isNotEmpty()
+        ) {
+            throw TranslationWorkbenchException(TranslationWorkbenchError.INVALID_REVIEW_ENTRY)
+        }
+        if (!dao.applySuggestion(projectId, entryId, suggestionId, suggestion.suggestedTranslation)) {
+            if (dao.getActiveTask(projectId) != null) throw TranslationWorkbenchException(TranslationWorkbenchError.TASK_ALREADY_ACTIVE)
+            throw TranslationWorkbenchException(TranslationWorkbenchError.INVALID_REVIEW_ENTRY)
+        }
+    }
+
+    suspend fun completeReviewRound(projectId: String) {
+        if (!dao.completeReviewRound(projectId, System.currentTimeMillis())) {
+            if (dao.getActiveTask(projectId) != null) throw TranslationWorkbenchException(TranslationWorkbenchError.TASK_ALREADY_ACTIVE)
+            throw TranslationWorkbenchException(TranslationWorkbenchError.PROJECT_NOT_FOUND)
+        }
+    }
 
     fun observeGlossary(projectId: String): Flow<List<TranslationGlossaryTerm>> =
         dao.observeGlossary(projectId).map { terms ->
@@ -341,7 +447,7 @@ class TranslationWorkbenchRepository(context: Context) {
         ) {
             throw TranslationWorkbenchException(TranslationWorkbenchError.INVALID_LANGUAGE_PAIR)
         }
-        val schedule = serviceRepository.withProfileSnapshot(serviceId) { service ->
+        val schedule = withServiceProfileSnapshot(serviceId) { service ->
             if (!service.enabled || !service.configured ||
                 service.protocolId != TranslationProtocolId.OPENAI_COMPATIBLE_CHAT
             ) {
@@ -351,7 +457,7 @@ class TranslationWorkbenchRepository(context: Context) {
                 val project = dao.getProject(projectId)
                     ?: throw TranslationWorkbenchException(TranslationWorkbenchError.PROJECT_NOT_FOUND)
                 val active = dao.getActiveTask(projectId)
-                if (active != null) return@withProfileSnapshot TranslationTaskScheduleResult.AlreadyActive(active.id)
+                if (active != null) return@withServiceProfileSnapshot TranslationTaskScheduleResult.AlreadyActive(active.id)
                 if (dao.countTranslationCandidates(projectId, retryFailed = false) == 0) {
                     throw TranslationWorkbenchException(TranslationWorkbenchError.NO_TRANSLATION_CANDIDATES)
                 }
@@ -392,10 +498,10 @@ class TranslationWorkbenchRepository(context: Context) {
                     updatedAt = now,
                 )
                 if (dao.createTranslationTaskIfProjectIdle(task, source, target, project.glossaryRevision)) {
-                    return@withProfileSnapshot TranslationTaskScheduleResult.Started(taskId)
+                    return@withServiceProfileSnapshot TranslationTaskScheduleResult.Started(taskId)
                 }
                 val queuedTask = dao.getActiveTask(projectId)
-                if (queuedTask != null) return@withProfileSnapshot TranslationTaskScheduleResult.AlreadyActive(queuedTask.id)
+                if (queuedTask != null) return@withServiceProfileSnapshot TranslationTaskScheduleResult.AlreadyActive(queuedTask.id)
                 if (dao.getProject(projectId)?.glossaryRevision != project.glossaryRevision) return@repeat
                 throw TranslationWorkbenchException(TranslationWorkbenchError.PROJECT_NOT_FOUND)
             }
@@ -433,6 +539,116 @@ class TranslationWorkbenchRepository(context: Context) {
             val active = dao.getActiveTask(projectId)
             if (active != null) return TranslationTaskScheduleResult.AlreadyActive(active.id)
             throw TranslationWorkbenchException(TranslationWorkbenchError.TASK_NOT_ACTIVE)
+        }
+        enqueueTaskQueueOrFail(taskId)
+        return TranslationTaskScheduleResult.Started(taskId)
+    }
+
+    suspend fun startProofreading(
+        projectId: String,
+        serviceId: String,
+        sourceLanguage: String,
+        targetLanguage: String,
+        scope: TranslationProofreadScope,
+    ): TranslationTaskScheduleResult {
+        val source = sourceLanguage.trim()
+        val target = targetLanguage.trim()
+        if (source.isBlank() || target.isBlank() || source.length > MAX_LANGUAGE_LENGTH ||
+            target.length > MAX_LANGUAGE_LENGTH || source.equals(target, ignoreCase = true)
+        ) throw TranslationWorkbenchException(TranslationWorkbenchError.INVALID_LANGUAGE_PAIR)
+
+        val schedule = withServiceProfileSnapshot(serviceId) { service ->
+            if (!service.enabled || !service.configured ||
+                !TranslationProtocolRegistry.supports(service.protocolId, TranslationServiceCapability.AI_PROOFREAD)
+            ) throw TranslationWorkbenchException(TranslationWorkbenchError.TRANSLATION_SERVICE_UNAVAILABLE)
+            val project = dao.getProject(projectId)
+                ?: throw TranslationWorkbenchException(TranslationWorkbenchError.PROJECT_NOT_FOUND)
+            val active = dao.getActiveTask(projectId)
+            if (active != null) return@withServiceProfileSnapshot TranslationTaskScheduleResult.AlreadyActive(active.id)
+            if (dao.countProofreadCandidates(projectId, scope.name, retryFailed = false) == 0) {
+                throw TranslationWorkbenchException(TranslationWorkbenchError.NO_PROOFREAD_CANDIDATES)
+            }
+            val snapshot = TranslationProofreadTaskSnapshot(
+                serviceId = service.id,
+                serviceRevision = service.revision,
+                protocolId = service.protocolId,
+                baseUrl = service.baseUrl,
+                modelId = service.modelId,
+                secretRef = service.secretRef,
+                sourceLanguage = source,
+                targetLanguage = target,
+                prompt = service.proofreadingPrompt,
+                glossaryRevision = project.glossaryRevision,
+                glossary = dao.getGlossary(projectId).map {
+                    TranslationGlossaryTerm(it.sourceTerm, it.targetTerm, it.note)
+                },
+                scope = scope,
+            )
+            val snapshotJson = snapshot.encode()
+            if (snapshotJson.toByteArray(StandardCharsets.UTF_8).size > MAX_TASK_SNAPSHOT_BYTES) {
+                throw TranslationWorkbenchException(TranslationWorkbenchError.INVALID_GLOSSARY)
+            }
+            val now = System.currentTimeMillis()
+            val taskId = UUID.randomUUID().toString()
+            val task = TranslationTaskEntity(
+                id = taskId,
+                projectId = projectId,
+                type = TranslationExtractionWorker.TASK_TYPE_AI_PROOFREAD,
+                state = "QUEUED",
+                extractorId = null,
+                sourceTreeUri = null,
+                configSnapshotJson = snapshotJson,
+                checkpointJson = "{}",
+                totalFiles = 0,
+                completedFiles = 0,
+                entryCount = 0,
+                failureCode = null,
+                createdAt = now,
+                updatedAt = now,
+            )
+            if (!dao.createProofreadTaskIfProjectIdle(task, scope.name)) {
+                val queued = dao.getActiveTask(projectId)
+                if (queued != null) return@withServiceProfileSnapshot TranslationTaskScheduleResult.AlreadyActive(queued.id)
+                if (dao.getProject(projectId)?.glossaryRevision != project.glossaryRevision) {
+                    throw TranslationWorkbenchException(TranslationWorkbenchError.PROJECT_CONFIGURATION_CHANGED)
+                }
+                throw TranslationWorkbenchException(TranslationWorkbenchError.NO_PROOFREAD_CANDIDATES)
+            }
+            TranslationTaskScheduleResult.Started(taskId)
+        }
+        if (schedule is TranslationTaskScheduleResult.Started) enqueueTaskQueueOrFail(schedule.taskId)
+        return schedule
+    }
+
+    suspend fun continueProofreading(projectId: String, previousTaskId: String): TranslationTaskScheduleResult {
+        val previous = dao.getTask(previousTaskId)
+            ?: throw TranslationWorkbenchException(TranslationWorkbenchError.TASK_NOT_ACTIVE)
+        if (previous.projectId != projectId || previous.type != TranslationExtractionWorker.TASK_TYPE_AI_PROOFREAD) {
+            throw TranslationWorkbenchException(TranslationWorkbenchError.TASK_NOT_ACTIVE)
+        }
+        val retrySnapshot = TranslationProofreadTaskSnapshot.decode(previous.configSnapshotJson).copy(retryFailed = true)
+        val taskId = UUID.randomUUID().toString()
+        val now = System.currentTimeMillis()
+        val task = TranslationTaskEntity(
+            id = taskId,
+            projectId = projectId,
+            type = TranslationExtractionWorker.TASK_TYPE_AI_PROOFREAD,
+            state = "QUEUED",
+            extractorId = null,
+            sourceTreeUri = null,
+            configSnapshotJson = retrySnapshot.encode(),
+            checkpointJson = "{}",
+            totalFiles = 0,
+            completedFiles = 0,
+            entryCount = 0,
+            failureCode = null,
+            createdAt = now,
+            updatedAt = now,
+        )
+        if (!dao.createProofreadRetryTask(task, previousTaskId)) {
+            val active = dao.getActiveTask(projectId)
+            if (active != null) return TranslationTaskScheduleResult.AlreadyActive(active.id)
+            throw TranslationWorkbenchException(TranslationWorkbenchError.NO_PROOFREAD_CANDIDATES)
         }
         enqueueTaskQueueOrFail(taskId)
         return TranslationTaskScheduleResult.Started(taskId)
@@ -524,6 +740,17 @@ class TranslationWorkbenchRepository(context: Context) {
         }
     }
 
+    private suspend fun <T> withServiceProfileSnapshot(
+        serviceId: String,
+        block: suspend (TranslationServiceProfile) -> T,
+    ): T = try {
+        serviceRepository.withProfileSnapshot(serviceId, block)
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (failure: TranslationServiceException) {
+        throw TranslationWorkbenchException(TranslationWorkbenchError.TRANSLATION_SERVICE_UNAVAILABLE, failure)
+    }
+
     private suspend fun cancelQueueWorkerAndRestart(enqueueAfterCancel: Boolean = true) {
         try {
             withContext(Dispatchers.IO) {
@@ -597,6 +824,7 @@ class TranslationWorkbenchRepository(context: Context) {
         private const val MAX_GLOSSARY_CHARS = 8_000
         private const val MAX_TASK_SNAPSHOT_BYTES = 64 * 1024
         private const val MAX_TRANSLATION_SNAPSHOT_ATTEMPTS = 3
+        private const val MAX_MANUAL_TRANSLATION_LENGTH = 100_000
     }
 }
 

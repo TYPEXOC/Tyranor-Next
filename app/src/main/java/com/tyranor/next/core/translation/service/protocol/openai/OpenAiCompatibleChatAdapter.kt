@@ -1,6 +1,9 @@
 package com.tyranor.next.core.translation.service.protocol.openai
 
 import com.tyranor.next.core.translation.service.TranslationBatchResponse
+import com.tyranor.next.core.translation.service.ProofreadBatchResponse
+import com.tyranor.next.core.translation.service.ProofreadInput
+import com.tyranor.next.core.translation.service.ProofreadOutput
 import com.tyranor.next.core.translation.service.TranslationInput
 import com.tyranor.next.core.translation.service.TranslationItemFailureCode
 import com.tyranor.next.core.translation.service.TranslationModelInfo
@@ -10,6 +13,8 @@ import com.tyranor.next.core.translation.service.TranslationProtocolId
 import com.tyranor.next.core.translation.service.TranslationServiceErrorCode
 import com.tyranor.next.core.translation.service.TranslationServiceException
 import com.tyranor.next.core.translation.service.TranslationServiceProfile
+import com.tyranor.next.core.translation.service.TranslationServiceCapability
+import com.tyranor.next.core.translation.service.TranslationTextIntegrity
 import com.tyranor.next.core.translation.service.transport.TranslationHttpTransport
 import java.net.HttpURLConnection
 import okhttp3.MediaType.Companion.toMediaType
@@ -26,6 +31,7 @@ internal class OpenAiCompatibleChatAdapter(
     private val transport: TranslationHttpTransport = TranslationHttpTransport(),
 ) : TranslationProtocolAdapter {
     override val protocolId = TranslationProtocolId.OPENAI_COMPATIBLE_CHAT
+    override val capabilities = setOf(TranslationServiceCapability.TRANSLATE, TranslationServiceCapability.AI_PROOFREAD)
 
     override suspend fun listModels(
         profile: TranslationServiceProfile,
@@ -94,6 +100,74 @@ internal class OpenAiCompatibleChatAdapter(
             throw TranslationServiceException(TranslationServiceErrorCode.INVALID_RESPONSE)
         }
         return parseBatchContent(content, inputs)
+    }
+
+    override suspend fun proofreadBatch(
+        profile: TranslationServiceProfile,
+        apiKey: String?,
+        sourceLanguage: String,
+        targetLanguage: String,
+        inputs: List<ProofreadInput>,
+    ): ProofreadBatchResponse {
+        requireProtocol(profile)
+        if (!profile.configured || profile.modelId.isBlank() || sourceLanguage.isBlank() || targetLanguage.isBlank() ||
+            inputs.isEmpty() || inputs.size > MAX_BATCH_SIZE ||
+            inputs.any { it.entryId.isBlank() || it.sourceText.isBlank() || it.translatedText.isBlank() } ||
+            inputs.map(ProofreadInput::entryId).distinct().size != inputs.size
+        ) {
+            throw TranslationServiceException(TranslationServiceErrorCode.INVALID_CONFIGURATION)
+        }
+        val requestBody = createProofreadRequestBody(profile, sourceLanguage, targetLanguage, inputs)
+        if (requestBody.toByteArray(Charsets.UTF_8).size > MAX_REQUEST_BYTES) {
+            throw TranslationServiceException(TranslationServiceErrorCode.REQUEST_REJECTED)
+        }
+        val request = requestBuilder(profile, apiKey, endpoint(profile, listOf("chat", "completions")))
+            .post(requestBody.toRequestBody(JSON_MEDIA_TYPE))
+            .build()
+        val response = transport.execute(request)
+        requireSuccess(response.statusCode, response.body, response.retryAfterMillis, modelList = false)
+        val content = try {
+            JSONObject(response.body)
+                .optJSONArray("choices")
+                ?.optJSONObject(0)
+                ?.optJSONObject("message")
+                ?.optString("content")
+                ?.takeIf(String::isNotBlank)
+                ?: throw TranslationServiceException(TranslationServiceErrorCode.INVALID_RESPONSE)
+        } catch (failure: JSONException) {
+            throw TranslationServiceException(TranslationServiceErrorCode.INVALID_RESPONSE)
+        }
+        return parseProofreadContent(content, inputs)
+    }
+
+    private fun createProofreadRequestBody(
+        profile: TranslationServiceProfile,
+        sourceLanguage: String,
+        targetLanguage: String,
+        inputs: List<ProofreadInput>,
+    ): String {
+        val messages = JSONArray()
+            .put(JSONObject().put("role", "system").put("content", profile.proofreadingPrompt))
+            .put(
+                JSONObject().put("role", "user").put(
+                    "content",
+                    JSONObject()
+                        .put("sourceLanguage", sourceLanguage)
+                        .put("targetLanguage", targetLanguage)
+                        .put("results", JSONArray().apply {
+                            inputs.forEach { input ->
+                                put(
+                                    JSONObject()
+                                        .put("id", input.entryId)
+                                        .put("source", input.sourceText)
+                                        .put("translation", input.translatedText),
+                                )
+                            }
+                        })
+                        .toString(),
+                ),
+            )
+        return JSONObject().put("model", profile.modelId).put("messages", messages).put("stream", false).toString()
     }
 
     private fun createRequestBody(
@@ -193,11 +267,6 @@ internal class OpenAiCompatibleChatAdapter(
         private const val MAX_MODEL_COUNT = 2_000
         private const val MAX_MODEL_ID = 256
         private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
-        private val FORMAT_TOKEN = Regex(
-            """\\(?:[A-Za-z]+(?:\[[^\]\r\n]*\])?|[{}!>|^])|%(?:\d+\$)?[-+#0-9.]*[A-Za-z]|\{[A-Za-z0-9_.-]+}|</?[A-Za-z][^>\r\n]*>""",
-        )
-        private val NEWLINE_TOKEN = Regex("\\r\\n|\\r|\\n")
-
         internal fun parseBatchContent(
             content: String,
             inputs: List<TranslationInput>,
@@ -236,8 +305,7 @@ internal class OpenAiCompatibleChatAdapter(
                     else -> {
                         val translated = candidates.single()!!
                         when {
-                            formatTokens(input.sourceText) != formatTokens(translated) ||
-                                newlineTokens(input.sourceText) != newlineTokens(translated) ->
+                            TranslationTextIntegrity.compare(input.sourceText, translated).isNotEmpty() ->
                                 failures[input.entryId] = TranslationItemFailureCode.PLACEHOLDER_MISMATCH
                             else -> successes += TranslationOutput(input.entryId, translated)
                         }
@@ -247,7 +315,58 @@ internal class OpenAiCompatibleChatAdapter(
             return TranslationBatchResponse(successes, failures, unknown)
         }
 
-        private fun formatTokens(text: String): List<String> = FORMAT_TOKEN.findAll(text).map { it.value }.toList()
-        private fun newlineTokens(text: String): List<String> = NEWLINE_TOKEN.findAll(text).map { it.value }.toList()
+        internal fun parseProofreadContent(content: String, inputs: List<ProofreadInput>): ProofreadBatchResponse {
+            val normalized = content.trim().removePrefix("```json").removePrefix("```").removeSuffix("```").trim()
+            val results = try {
+                JSONObject(normalized).optJSONArray("results")
+                    ?: throw TranslationServiceException(TranslationServiceErrorCode.INVALID_RESPONSE)
+            } catch (failure: JSONException) {
+                throw TranslationServiceException(TranslationServiceErrorCode.INVALID_RESPONSE)
+            }
+            val requested = inputs.associateBy(ProofreadInput::entryId)
+            val returned = mutableMapOf<String, MutableList<Pair<String?, Set<String>?>>>()
+            val unknown = mutableSetOf<String>()
+            for (index in 0 until results.length()) {
+                val result = results.optJSONObject(index) ?: continue
+                val id = result.optString("id").trim()
+                if (id.isBlank()) continue
+                if (id !in requested) unknown += id
+                val suggestion = result.optString("suggestedTranslation").takeIf { result.has("suggestedTranslation") }
+                val rawIssues = result.optJSONArray("issues")
+                val issues = rawIssues?.let { array ->
+                    buildSet {
+                        for (issueIndex in 0 until array.length()) {
+                            val code = array.optString(issueIndex)
+                            if (code !in PROOFREAD_ISSUE_CODES) return@let null
+                            add(code)
+                        }
+                    }
+                }
+                returned.getOrPut(id, ::mutableListOf).add(suggestion to issues)
+            }
+            val successes = mutableListOf<ProofreadOutput>()
+            val failures = mutableMapOf<String, TranslationItemFailureCode>()
+            for (input in inputs) {
+                val candidates = returned[input.entryId].orEmpty()
+                when {
+                    candidates.isEmpty() -> failures[input.entryId] = TranslationItemFailureCode.MISSING_RESPONSE
+                    candidates.size > 1 -> failures[input.entryId] = TranslationItemFailureCode.DUPLICATE_RESPONSE
+                    candidates.single().first.isNullOrBlank() || candidates.single().second == null ->
+                        failures[input.entryId] = TranslationItemFailureCode.INVALID_TRANSLATION
+                    else -> {
+                        val suggestion = candidates.single().first!!
+                        when {
+                            TranslationTextIntegrity.compare(input.sourceText, suggestion).isNotEmpty() ->
+                                failures[input.entryId] = TranslationItemFailureCode.PLACEHOLDER_MISMATCH
+                            else -> successes += ProofreadOutput(input.entryId, suggestion, candidates.single().second!!)
+                        }
+                    }
+                }
+            }
+            return ProofreadBatchResponse(successes, failures, unknown)
+        }
+
+        private val PROOFREAD_ISSUE_CODES = setOf("GRAMMAR", "MEANING", "TERMINOLOGY", "CONSISTENCY", "TONE", "OTHER")
+
     }
 }

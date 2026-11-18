@@ -23,6 +23,7 @@ internal data class TranslationProjectEntity(
     @ColumnInfo(name = "source_language") val sourceLanguage: String?,
     @ColumnInfo(name = "target_language") val targetLanguage: String?,
     @ColumnInfo(name = "glossary_revision", defaultValue = "0") val glossaryRevision: Long = 0,
+    @ColumnInfo(name = "review_completed_at") val reviewCompletedAt: Long? = null,
     val revision: Long,
     @ColumnInfo(name = "created_at") val createdAt: Long,
     @ColumnInfo(name = "updated_at") val updatedAt: Long,
@@ -51,6 +52,8 @@ internal data class TranslationEntryEntity(
     @ColumnInfo(name = "text_type") val textType: String?,
     val status: String,
     @ColumnInfo(name = "failure_code") val failureCode: String? = null,
+    @ColumnInfo(name = "review_state", defaultValue = "'UNREVIEWED'") val reviewState: String = "UNREVIEWED",
+    @ColumnInfo(name = "last_proofread_task_id") val lastProofreadTaskId: String? = null,
 )
 
 @Entity(
@@ -127,6 +130,46 @@ internal data class TranslationGlossaryTermEntity(
     @ColumnInfo(name = "updated_at") val updatedAt: Long,
 )
 
+@Entity(
+    tableName = "translation_proofread_suggestions",
+    foreignKeys = [
+        ForeignKey(entity = TranslationProjectEntity::class, parentColumns = ["id"], childColumns = ["project_id"], onDelete = ForeignKey.CASCADE),
+        ForeignKey(entity = TranslationEntryEntity::class, parentColumns = ["id"], childColumns = ["entry_id"], onDelete = ForeignKey.CASCADE),
+        ForeignKey(entity = TranslationTaskEntity::class, parentColumns = ["id"], childColumns = ["task_id"], onDelete = ForeignKey.CASCADE),
+    ],
+    indices = [Index("project_id"), Index("entry_id"), Index("task_id"), Index(value = ["entry_id", "created_at"])],
+)
+internal data class TranslationProofreadSuggestionEntity(
+    @PrimaryKey val id: String,
+    @ColumnInfo(name = "project_id") val projectId: String,
+    @ColumnInfo(name = "entry_id") val entryId: String,
+    @ColumnInfo(name = "task_id") val taskId: String,
+    @ColumnInfo(name = "suggested_translation") val suggestedTranslation: String,
+    val state: String,
+    @ColumnInfo(name = "created_at") val createdAt: Long,
+)
+
+@Entity(
+    tableName = "translation_review_issues",
+    foreignKeys = [
+        ForeignKey(entity = TranslationProjectEntity::class, parentColumns = ["id"], childColumns = ["project_id"], onDelete = ForeignKey.CASCADE),
+        ForeignKey(entity = TranslationEntryEntity::class, parentColumns = ["id"], childColumns = ["entry_id"], onDelete = ForeignKey.CASCADE),
+        ForeignKey(entity = TranslationTaskEntity::class, parentColumns = ["id"], childColumns = ["task_id"], onDelete = ForeignKey.SET_NULL),
+    ],
+    indices = [Index("project_id"), Index("entry_id"), Index("task_id"), Index(value = ["project_id", "state"])],
+)
+internal data class TranslationReviewIssueEntity(
+    @PrimaryKey val id: String,
+    @ColumnInfo(name = "project_id") val projectId: String,
+    @ColumnInfo(name = "entry_id") val entryId: String,
+    @ColumnInfo(name = "task_id") val taskId: String?,
+    val source: String,
+    val code: String,
+    val severity: String,
+    val state: String,
+    @ColumnInfo(name = "updated_at") val updatedAt: Long,
+)
+
 internal data class TranslationEntryRow(
     val id: String,
     @ColumnInfo(name = "source_key") val sourceKey: String,
@@ -135,6 +178,18 @@ internal data class TranslationEntryRow(
     @ColumnInfo(name = "source_file") val sourceFile: String?,
     @ColumnInfo(name = "source_pointer") val sourcePointer: String?,
     @ColumnInfo(name = "text_type") val textType: String?,
+    @ColumnInfo(name = "review_state") val reviewState: String,
+    @ColumnInfo(name = "suggestion_id") val suggestionId: String?,
+    @ColumnInfo(name = "suggested_translation") val suggestedTranslation: String?,
+)
+
+internal data class TranslationReviewIssueRow(
+    val id: String,
+    @ColumnInfo(name = "entry_id") val entryId: String,
+    val source: String,
+    val code: String,
+    val severity: String,
+    val state: String,
 )
 
 internal data class TranslationExportRow(
@@ -152,6 +207,8 @@ internal data class TranslationProjectCardRow(
     @ColumnInfo(name = "engine_id") val engineId: String?,
     @ColumnInfo(name = "source_type") val sourceType: String,
     @ColumnInfo(name = "source_tree_uri") val sourceTreeUri: String?,
+    @ColumnInfo(name = "source_language") val sourceLanguage: String?,
+    @ColumnInfo(name = "target_language") val targetLanguage: String?,
     @ColumnInfo(name = "latest_task_type") val latestTaskType: String?,
     @ColumnInfo(name = "entry_count") val entryCount: Int,
     @ColumnInfo(name = "translated_count") val translatedCount: Int,
@@ -163,6 +220,7 @@ internal data class TranslationProjectCardRow(
     @ColumnInfo(name = "item_total") val itemTotal: Int,
     @ColumnInfo(name = "completed_items") val completedItems: Int,
     @ColumnInfo(name = "failed_items") val failedItems: Int,
+    @ColumnInfo(name = "review_completed_at") val reviewCompletedAt: Long?,
     @ColumnInfo(name = "updated_at") val updatedAt: Long,
 ) {
     fun toModel() = TranslationProjectCard(
@@ -172,6 +230,8 @@ internal data class TranslationProjectCardRow(
         engineId = engineId,
         sourceType = sourceType,
         sourceTreeUri = sourceTreeUri,
+        sourceLanguage = sourceLanguage,
+        targetLanguage = targetLanguage,
         entryCount = entryCount,
         translatedCount = translatedCount,
         latestTaskId = latestTaskId,
@@ -183,6 +243,7 @@ internal data class TranslationProjectCardRow(
         itemTotal = itemTotal,
         completedItems = completedItems,
         failedItems = failedItems,
+        reviewCompletedAt = reviewCompletedAt,
         updatedAt = updatedAt,
     )
 }

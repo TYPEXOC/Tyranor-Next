@@ -16,8 +16,10 @@ import com.tyranor.next.core.settings.AppStorageNames
         TranslationExportEntity::class,
         TranslationServiceProfileEntity::class,
         TranslationGlossaryTermEntity::class,
+        TranslationProofreadSuggestionEntity::class,
+        TranslationReviewIssueEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = true,
 )
 internal abstract class TranslationWorkbenchDatabase : RoomDatabase() {
@@ -127,13 +129,63 @@ internal abstract class TranslationWorkbenchDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE translation_projects ADD COLUMN review_completed_at INTEGER")
+                db.execSQL("ALTER TABLE translation_entries ADD COLUMN review_state TEXT NOT NULL DEFAULT 'UNREVIEWED'")
+                db.execSQL("ALTER TABLE translation_entries ADD COLUMN last_proofread_task_id TEXT")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_translation_entries_project_id_last_proofread_task_id` ON `translation_entries` (`project_id`, `last_proofread_task_id`)")
+                db.execSQL("ALTER TABLE translation_service_profiles ADD COLUMN proofreading_prompt TEXT NOT NULL DEFAULT ''")
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `translation_proofread_suggestions` (
+                        `id` TEXT NOT NULL,
+                        `project_id` TEXT NOT NULL,
+                        `entry_id` TEXT NOT NULL,
+                        `task_id` TEXT NOT NULL,
+                        `suggested_translation` TEXT NOT NULL,
+                        `state` TEXT NOT NULL,
+                        `created_at` INTEGER NOT NULL,
+                        PRIMARY KEY(`id`),
+                        FOREIGN KEY(`project_id`) REFERENCES `translation_projects`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE,
+                        FOREIGN KEY(`entry_id`) REFERENCES `translation_entries`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE,
+                        FOREIGN KEY(`task_id`) REFERENCES `translation_tasks`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )""".trimIndent(),
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_translation_proofread_suggestions_project_id` ON `translation_proofread_suggestions` (`project_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_translation_proofread_suggestions_entry_id` ON `translation_proofread_suggestions` (`entry_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_translation_proofread_suggestions_task_id` ON `translation_proofread_suggestions` (`task_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_translation_proofread_suggestions_entry_id_created_at` ON `translation_proofread_suggestions` (`entry_id`, `created_at`)")
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `translation_review_issues` (
+                        `id` TEXT NOT NULL,
+                        `project_id` TEXT NOT NULL,
+                        `entry_id` TEXT NOT NULL,
+                        `task_id` TEXT,
+                        `source` TEXT NOT NULL,
+                        `code` TEXT NOT NULL,
+                        `severity` TEXT NOT NULL,
+                        `state` TEXT NOT NULL,
+                        `updated_at` INTEGER NOT NULL,
+                        PRIMARY KEY(`id`),
+                        FOREIGN KEY(`project_id`) REFERENCES `translation_projects`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE,
+                        FOREIGN KEY(`entry_id`) REFERENCES `translation_entries`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE,
+                        FOREIGN KEY(`task_id`) REFERENCES `translation_tasks`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL
+                    )""".trimIndent(),
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_translation_review_issues_project_id` ON `translation_review_issues` (`project_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_translation_review_issues_entry_id` ON `translation_review_issues` (`entry_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_translation_review_issues_task_id` ON `translation_review_issues` (`task_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_translation_review_issues_project_id_state` ON `translation_review_issues` (`project_id`, `state`)")
+            }
+        }
+
         fun get(context: Context): TranslationWorkbenchDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(
                 context.applicationContext,
                 TranslationWorkbenchDatabase::class.java,
                 AppStorageNames.TRANSLATION_WORKBENCH_DATABASE,
             )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                 .fallbackToDestructiveMigrationOnDowngrade(dropAllTables = true)
                 .build()
                 .also { instance = it }
