@@ -59,6 +59,7 @@
 
 ## 工具与构建
 
+- [翻译工作台首期实现说明](翻译工作台首期实现说明.md)
 - [RPG Maker MV/MZ 游戏修改器实施方案](RPGMaker修改器实施方案.md)
 - [XP3 拆封包功能方案（解包 / 封包独立工具页）](XP3拆封包功能方案.md)
 - [Native Plugin Release Hardening Plan](native-plugin-release-hardening-plan.md)
