@@ -8,6 +8,7 @@
   var justDragged = false; // pointerup 设 true，click 消费后复位
   var userDragged = false; // 用户手动拖拽过，positionLauncher 不再覆盖
   var LAUNCHER_POS_KEY = "tyranor_mod_fab_pos";
+  var LAUNCHER_LAYOUT_VERSION_KEY = "tyranor_mod_fab_layout";
   var activeTab = "quick";
   var context = { actorId: 0, itemKind: "item", systemKind: "switch" };
   var tabs = [
@@ -260,8 +261,12 @@
     launcher.addEventListener("pointerup", endDrag);
     launcher.addEventListener("pointercancel", function () { dragState = null; });
     document.body.appendChild(launcher);
-    // 恢复上次拖拽位置
+    // 首次升级时将启动钮迁移到左侧竖列底部；之后仍恢复用户拖动保存的位置。
     try {
+      if (localStorage.getItem(LAUNCHER_LAYOUT_VERSION_KEY) !== "left-stack-v1") {
+        localStorage.removeItem(LAUNCHER_POS_KEY);
+        localStorage.setItem(LAUNCHER_LAYOUT_VERSION_KEY, "left-stack-v1");
+      }
       var saved = localStorage.getItem(LAUNCHER_POS_KEY);
       if (saved) {
         var parts = saved.split(",");
@@ -278,11 +283,15 @@
     window.addEventListener("resize", positionLauncher);
   }
   // 虚拟按键已改为原生实现（左侧 FAB + 覆盖层），不再发布 __touchPadMetrics；
-  // 悬浮球默认停靠右侧，用户可拖拽到任意位置并持久化。
+  // 启动钮默认位于左侧纵列底部，用户仍可拖拽并持久化新位置。
   function positionLauncher() {
     if (!launcher || userDragged) return;
-    launcher.style.left = "";
-    launcher.style.right = "10px";
+    var size = launcher.offsetWidth || 46;
+    var left = window.innerWidth * 0.055 - size / 2;
+    var top = window.innerHeight * 0.82 - size / 2;
+    launcher.style.left = Math.max(8, Math.min(window.innerWidth - size - 8, left)) + "px";
+    launcher.style.top = Math.max(8, Math.min(window.innerHeight - size - 8, top)) + "px";
+    launcher.style.right = "auto";
   }
   window.TyranorModUI = { open: open, close: close, toggle: toggle, isOpen: isOpen };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", installLauncher); else installLauncher();

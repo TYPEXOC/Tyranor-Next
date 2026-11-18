@@ -10,6 +10,7 @@ import android.graphics.RectF
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
+import com.core.input.InputConfigStore
 import java.util.Locale
 
 /**
@@ -150,10 +151,11 @@ class VirtualMouseLayer(
     override fun onSizeChanged(w: Int, h: Int, ow: Int, oh: Int) {
         super.onSizeChanged(w, h, ow, oh)
         if (w <= 0 || h <= 0) return
+        InputConfigStore.migrateOverlayControlsToLeftStack(context)
         if (hx < 0f) {
             hx = prefs.getFloat(KEY_HANDLE_X, 0.055f) * w
-            // 默认 0.48：避开触屏手柄左上开关区（~0-36%）与左下摇杆区（~60%+）
-            hy = prefs.getFloat(KEY_HANDLE_Y, 0.48f) * h
+            // 默认在左侧纵列中部，与手柄开关和作弊面板入口上下排开。
+            hy = prefs.getFloat(KEY_HANDLE_Y, 0.50f) * h
         }
         hx = hx.coerceIn(handleR, w - handleR)
         hy = hy.coerceIn(handleR, h - handleR)

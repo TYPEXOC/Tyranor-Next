@@ -1,4 +1,4 @@
-#tyranor-mod-launcher{position:fixed;right:10px;top:42%;z-index:2147483644;width:46px;height:46px;padding:9px;border:0;border-radius:50%;background:var(--tm-primary,#2e7d6e);color:var(--tm-on-primary,#fff);box-shadow:0 3px 14px #0008;opacity:.9;touch-action:none;transition:none}
+#tyranor-mod-launcher{position:fixed;left:calc(5.5% - 23px);right:auto;top:calc(82% - 23px);z-index:2147483644;width:46px;height:46px;padding:9px;border:0;border-radius:50%;background:var(--tm-primary,#2e7d6e);color:var(--tm-on-primary,#fff);box-shadow:0 3px 14px #0008;opacity:.9;touch-action:none;transition:none}
 #tyranor-mod-launcher .tm-launcher-icon{display:block;width:100%;height:100%;background:currentColor;-webkit-mask:url('/__tyranor__/rpgmaker_mod_icon.png') center/contain no-repeat;mask:url('/__tyranor__/rpgmaker_mod_icon.png') center/contain no-repeat}
 #tyranor-mod-root{position:fixed;inset:0;z-index:2147483645;background:#0009;color:#17211d;font:14px/1.45 system-ui,-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;touch-action:manipulation}
 #tyranor-mod-root *{box-sizing:border-box}

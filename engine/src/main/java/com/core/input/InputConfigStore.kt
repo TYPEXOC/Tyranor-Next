@@ -40,6 +40,8 @@ object InputConfigStore {
     private const val KEY_FAB_X = "fab_x"
     private const val KEY_FAB_Y = "fab_y"
     private const val KEY_PAD_VISIBLE = "pad_visible"
+    private const val KEY_OVERLAY_LAYOUT_VERSION = "overlay_control_layout_version"
+    private const val OVERLAY_LAYOUT_VERSION = 1
 
     private val ID_PATTERN = Regex("[A-Za-z0-9_-]{1,32}")
 
@@ -248,8 +250,25 @@ object InputConfigStore {
     // ---------- FAB / 显隐偏好（引擎自用） ----------
 
     fun fabPosition(context: Context): Pair<Float, Float> {
+        migrateOverlayControlsToLeftStack(context)
         val prefs = context.getSharedPreferences(FAB_PREFS, Context.MODE_PRIVATE)
-        return prefs.getFloat(KEY_FAB_X, 0.055f) to prefs.getFloat(KEY_FAB_Y, 0.48f)
+        return prefs.getFloat(KEY_FAB_X, 0.055f) to prefs.getFloat(KEY_FAB_Y, 0.18f)
+    }
+
+    /** 首次升级时把三枚游戏悬浮入口排成左侧纵列；之后继续尊重用户拖动保存的位置。 */
+    fun migrateOverlayControlsToLeftStack(context: Context) {
+        val inputPrefs = context.getSharedPreferences(FAB_PREFS, Context.MODE_PRIVATE)
+        if (inputPrefs.getInt(KEY_OVERLAY_LAYOUT_VERSION, 0) >= OVERLAY_LAYOUT_VERSION) return
+        inputPrefs.edit()
+            .putFloat(KEY_FAB_X, 0.055f)
+            .putFloat(KEY_FAB_Y, 0.18f)
+            .putInt(KEY_OVERLAY_LAYOUT_VERSION, OVERLAY_LAYOUT_VERSION)
+            .apply()
+        context.getSharedPreferences("tyrano_virtual_mouse", Context.MODE_PRIVATE)
+            .edit()
+            .putFloat("handle_nx", 0.055f)
+            .putFloat("handle_ny", 0.50f)
+            .apply()
     }
 
     fun saveFabPosition(context: Context, x: Float, y: Float) {
