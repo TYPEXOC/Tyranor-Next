@@ -37,6 +37,10 @@
     <string name="translation_task_running">抽出中</string>
     <string name="translation_task_failed">抽出失敗</string>
     <string name="translation_task_cancelled">中止済み</string>
+    <string name="translation_task_channel_name">翻訳ワークベンチのタスク</string>
+    <string name="translation_task_channel_description">翻訳ワークベンチのバックグラウンドタスクの進行状況</string>
+    <string name="translation_task_notification_title">翻訳ワークベンチを実行中</string>
+    <string name="translation_task_notification_body">プロジェクトの内容を処理しています。完了した進捗は自動的に保存されます。</string>
     <string name="translation_extraction_completed">抽出済み</string>
     <string name="translation_project_has_translations">訳文あり</string>
     <string name="translation_project_ready">準備完了</string>

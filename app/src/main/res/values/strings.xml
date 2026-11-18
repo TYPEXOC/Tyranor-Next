@@ -37,6 +37,10 @@
     <string name="translation_task_running">提取中</string>
     <string name="translation_task_failed">提取失败</string>
     <string name="translation_task_cancelled">已中止</string>
+    <string name="translation_task_channel_name">翻译工作台任务</string>
+    <string name="translation_task_channel_description">翻译工作台后台任务进度</string>
+    <string name="translation_task_notification_title">翻译工作台正在运行</string>
+    <string name="translation_task_notification_body">正在处理项目内容，已完成的进度会自动保存</string>
     <string name="translation_extraction_completed">已提取</string>
     <string name="translation_project_has_translations">已有译文</string>
     <string name="translation_project_ready">项目就绪</string>

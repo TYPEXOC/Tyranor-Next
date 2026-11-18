@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
+import com.tyranor.next.core.translation.TranslationTaskNotification
 import com.tyranor.next.core.translation.storage.TranslationEntryEntity
 import com.tyranor.next.core.translation.storage.TranslationTaskEntity
 import com.tyranor.next.core.translation.storage.TranslationWorkbenchDatabase
@@ -22,10 +23,12 @@ class TranslationExtractionWorker(
 
     override suspend fun doWork(): Result {
         try {
+            var task = dao.getNextRunnableTask() ?: return Result.success()
+            setForeground(TranslationTaskNotification.foregroundInfo(applicationContext, 0, 0))
             while (true) {
                 currentCoroutineContext().ensureActive()
-                val task = dao.getNextRunnableTask() ?: return Result.success()
                 processTask(task)
+                task = dao.getNextRunnableTask() ?: return Result.success()
             }
         } catch (cancelled: CancellationException) {
             // WorkManager may recreate this drain after process/OS interruption. A RUNNING task is
@@ -57,6 +60,7 @@ class TranslationExtractionWorker(
 
             val savedCheckpoint = decodeCheckpoint(task.checkpointJson)
             val completed = savedCheckpoint.intersect(files.toSet()).toMutableSet()
+            setForeground(TranslationTaskNotification.foregroundInfo(applicationContext, completed.size, files.size))
             if (completed != savedCheckpoint) {
                 dao.updateTaskCheckpoint(
                     taskId = taskId,
@@ -96,6 +100,7 @@ class TranslationExtractionWorker(
                 )
                 if (!committed) return
                 completed += file
+                setForeground(TranslationTaskNotification.foregroundInfo(applicationContext, completed.size, files.size))
                 setProgress(
                     workDataOf(
                         PROGRESS_COMPLETED_FILES to completed.size,

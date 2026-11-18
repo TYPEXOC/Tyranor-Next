@@ -37,6 +37,10 @@
     <string name="translation_task_running">Extracting</string>
     <string name="translation_task_failed">Extraction failed</string>
     <string name="translation_task_cancelled">Stopped</string>
+    <string name="translation_task_channel_name">Translation workbench tasks</string>
+    <string name="translation_task_channel_description">Background task progress for the translation workbench</string>
+    <string name="translation_task_notification_title">Translation workbench is running</string>
+    <string name="translation_task_notification_body">Processing project content. Completed progress is saved automatically.</string>
     <string name="translation_extraction_completed">Extracted</string>
     <string name="translation_project_has_translations">Has translations</string>
     <string name="translation_project_ready">Project ready</string>
