@@ -237,6 +237,13 @@ class RpgMakerActivity : Activity() {
     )
 
     private fun selectWebTranslationDelivery(contentRoot: File): WebTranslationDelivery {
+        if (translationMapUri.isNullOrBlank()) {
+            registerVirtualTranslationPlugin = false
+            virtualTranslationPluginList = false
+            injectTranslationPluginScriptTag = false
+            Log.i(TAG, "translation runtime disabled: no selected translation map")
+            return WebTranslationDelivery.HOST_INJECTION
+        }
         if (intent.getStringExtra(LaunchContract.RPG_TRANSLATION_BOOTSTRAP_MODE) !=
             LaunchContract.RPG_TRANSLATION_BOOTSTRAP_VIRTUAL_PLUGIN
         ) {
@@ -483,13 +490,15 @@ class RpgMakerActivity : Activity() {
                 browser.addJavascriptInterface(it.Bridge(), InputRemapController.BRIDGE_NAME)
             }
         }
-        // 译表注入（恒开启；未检测到译表文件时控制器空转，行为与未集成前一致）
-        translation = WebTranslationSession(
-            context = this,
-            translationMapUri = translationMapUri,
-            evaluateJs = { js, callback -> webView?.let { v -> runCatching { v.evaluateJavascript(js, callback) } } },
-            delivery = webTranslationDelivery,
-        ).also { it.attach() }
+        // 无译表 URI 时不创建翻译会话，避免注入空转的翻译运行时。
+        translationMapUri?.let { mapUri ->
+            translation = WebTranslationSession(
+                context = this,
+                translationMapUri = mapUri,
+                evaluateJs = { js, callback -> webView?.let { v -> runCatching { v.evaluateJavascript(js, callback) } } },
+                delivery = webTranslationDelivery,
+            ).also { it.attach() }
+        }
         // PIXI legacy 兼容渲染（?android-legacy=1，__rpg_v12.js 的既定开关）：
         // 由设置页开关经 rpgLegacyRenderer extra 控制，规避部分 Android GPU
         // 上 WebGL 正常初始化却整屏渲染为黑的问题；默认关闭不影响既有行为。

@@ -2184,11 +2184,12 @@ object EngineLauncher {
             scopedSaveRoot?.let { putExtra(LaunchContract.SCOPED_SAVE_ROOT, it) }
             putExtra(LaunchContract.RPG_MAKER_MOD_ENABLED, rpgMakerModEnabled)
             putExtra(LaunchContract.RPG_MAKER_MOD_GAME_ID, game.uri)
-            TranslationCatalog.createSelectedMapUri(context, game, path)?.let { mapUri ->
+            val translationMapUri = TranslationCatalog.createSelectedMapUri(context, game, path)
+            translationMapUri?.let { mapUri ->
                 putExtra(LaunchContract.RPG_TRANSLATION_MAP_URI, mapUri.toString())
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
-            if (rpgSession) {
+            if (rpgSession && translationMapUri != null) {
                 putExtra(LaunchContract.RPG_TRANSLATION_BOOTSTRAP_MODE, RPG_TRANSLATION_BOOTSTRAP_MODE)
             }
             if (useRpgMakerRuntime) {

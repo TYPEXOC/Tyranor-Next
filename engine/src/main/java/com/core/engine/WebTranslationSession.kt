@@ -25,6 +25,7 @@ class WebTranslationSession(
     private val appContext = context.applicationContext
     private val mainHandler = Handler(Looper.getMainLooper())
     private val destroyed = AtomicBoolean(false)
+    private val enabled = !translationMapUri.isNullOrBlank()
 
     @Volatile
     private var mapText: String? = null
@@ -52,17 +53,17 @@ class WebTranslationSession(
 
     /** Start map observation; the host calls page lifecycle methods as WebView navigates. */
     fun attach() {
-        if (!destroyed.get()) mapSubscription?.start()
+        if (enabled && !destroyed.get()) mapSubscription?.start()
     }
 
     /** Page start: host-injected mode installs early; plugin mode is loaded by PluginManager. */
     fun onPageStarted() {
-        if (!destroyed.get() && delivery == WebTranslationDelivery.HOST_INJECTION) injectRuntime()
+        if (enabled && !destroyed.get() && delivery == WebTranslationDelivery.HOST_INJECTION) injectRuntime()
     }
 
     /** Page finish: retry host injection if needed, then deliver the latest map. */
     fun onPageFinished() {
-        if (destroyed.get()) return
+        if (!enabled || destroyed.get()) return
         if (delivery == WebTranslationDelivery.HOST_INJECTION) injectRuntime()
         pushTranslations("pageFinished")
     }

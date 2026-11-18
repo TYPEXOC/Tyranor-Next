@@ -321,14 +321,15 @@ class TyranoActivity : Activity() {
         startupOverlay = EngineStartupOverlay(this).also { it.attachTo(root) }
 
         configureWebView(browser)
-        // 译表注入：全 Web 类型可用（运行时 JS 自带 Tyrano 与 MV/MZ 挂载点）；
-        // 恒开启，未检测到译表文件时控制器空转，行为与未集成前一致
-        translation = WebTranslationSession(
-            context = this,
-            translationMapUri = translationMapUri,
-            evaluateJs = { js, callback -> webView?.let { v -> runCatching { v.evaluateJavascript(js, callback) } } },
-            delivery = webTranslationDelivery,
-        ).also { it.attach() }
+        // 译表运行时仅在启动参数包含有效译表 URI 时创建。
+        translationMapUri?.let { mapUri ->
+            translation = WebTranslationSession(
+                context = this,
+                translationMapUri = mapUri,
+                evaluateJs = { js, callback -> webView?.let { v -> runCatching { v.evaluateJavascript(js, callback) } } },
+                delivery = webTranslationDelivery,
+            ).also { it.attach() }
+        }
         when (webGameType) {
             WebGameType.RPG_MV, WebGameType.RPG_MZ -> {
                 browser.addJavascriptInterface(RpgMakerSaveBridge(saves), RPG_MAKER_SAVE_BRIDGE_NAME)
