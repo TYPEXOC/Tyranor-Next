@@ -16,6 +16,7 @@ internal data class TranslationProjectEntity(
     val identity: String,
     @ColumnInfo(name = "exchange_key") val exchangeKey: String,
     val title: String,
+    @ColumnInfo(name = "project_state", defaultValue = "'NEW'") val projectState: String,
     @ColumnInfo(name = "engine_id") val engineId: String?,
     @ColumnInfo(name = "source_type") val sourceType: String,
     @ColumnInfo(name = "source_tree_uri") val sourceTreeUri: String?,
@@ -79,6 +80,27 @@ internal data class TranslationTaskEntity(
     @ColumnInfo(name = "updated_at") val updatedAt: Long,
 )
 
+@Entity(
+    tableName = "translation_exports",
+    foreignKeys = [
+        ForeignKey(
+            entity = TranslationProjectEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["project_id"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+    indices = [Index(value = ["project_id", "created_at"])],
+)
+internal data class TranslationExportEntity(
+    @PrimaryKey val id: String,
+    @ColumnInfo(name = "project_id") val projectId: String,
+    val format: String,
+    @ColumnInfo(name = "destination_name") val destinationName: String?,
+    @ColumnInfo(name = "entry_count") val entryCount: Int,
+    @ColumnInfo(name = "created_at") val createdAt: Long,
+)
+
 internal data class TranslationEntryRow(
     val id: String,
     @ColumnInfo(name = "source_key") val sourceKey: String,
@@ -89,9 +111,18 @@ internal data class TranslationEntryRow(
     @ColumnInfo(name = "text_type") val textType: String?,
 )
 
+internal data class TranslationExportRow(
+    val id: String,
+    val format: String,
+    @ColumnInfo(name = "destination_name") val destinationName: String?,
+    @ColumnInfo(name = "entry_count") val entryCount: Int,
+    @ColumnInfo(name = "created_at") val createdAt: Long,
+)
+
 internal data class TranslationProjectCardRow(
     val id: String,
     val title: String,
+    @ColumnInfo(name = "project_state") val projectState: String,
     @ColumnInfo(name = "engine_id") val engineId: String?,
     @ColumnInfo(name = "source_type") val sourceType: String,
     @ColumnInfo(name = "source_tree_uri") val sourceTreeUri: String?,
@@ -107,6 +138,7 @@ internal data class TranslationProjectCardRow(
     fun toModel() = TranslationProjectCard(
         id = id,
         title = title,
+        projectState = projectState,
         engineId = engineId,
         sourceType = sourceType,
         sourceTreeUri = sourceTreeUri,

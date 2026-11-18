@@ -8,19 +8,20 @@ import androidx.room.Transaction
 import androidx.room.Upsert
 import com.tyranor.next.core.translation.TranslationWorkbenchError
 import com.tyranor.next.core.translation.TranslationWorkbenchException
+import com.tyranor.next.core.translation.TranslationProjectState
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 internal abstract class TranslationWorkbenchDao {
     @Query(
-        """SELECT p.id, p.title, p.engine_id, p.source_type, p.source_tree_uri,
+        """SELECT p.id, p.title, p.project_state, p.engine_id, p.source_type, p.source_tree_uri,
             (SELECT COUNT(*) FROM translation_entries e WHERE e.project_id = p.id) AS entry_count,
             (SELECT COUNT(*) FROM translation_entries e WHERE e.project_id = p.id AND e.translated_text IS NOT NULL AND e.translated_text != '') AS translated_count,
-            (SELECT t.id FROM translation_tasks t WHERE t.project_id = p.id ORDER BY t.created_at DESC LIMIT 1) AS latest_task_id,
-            (SELECT t.state FROM translation_tasks t WHERE t.project_id = p.id ORDER BY t.created_at DESC LIMIT 1) AS latest_task_state,
-            (SELECT t.failure_code FROM translation_tasks t WHERE t.project_id = p.id ORDER BY t.created_at DESC LIMIT 1) AS latest_task_failure_code,
-            COALESCE((SELECT t.completed_files FROM translation_tasks t WHERE t.project_id = p.id ORDER BY t.created_at DESC LIMIT 1), 0) AS completed_files,
-            COALESCE((SELECT t.total_files FROM translation_tasks t WHERE t.project_id = p.id ORDER BY t.created_at DESC LIMIT 1), 0) AS total_files,
+            (SELECT t.id FROM translation_tasks t WHERE t.project_id = p.id ORDER BY t.created_at DESC, t.id DESC LIMIT 1) AS latest_task_id,
+            (SELECT t.state FROM translation_tasks t WHERE t.project_id = p.id ORDER BY t.created_at DESC, t.id DESC LIMIT 1) AS latest_task_state,
+            (SELECT t.failure_code FROM translation_tasks t WHERE t.project_id = p.id ORDER BY t.created_at DESC, t.id DESC LIMIT 1) AS latest_task_failure_code,
+            COALESCE((SELECT t.completed_files FROM translation_tasks t WHERE t.project_id = p.id ORDER BY t.created_at DESC, t.id DESC LIMIT 1), 0) AS completed_files,
+            COALESCE((SELECT t.total_files FROM translation_tasks t WHERE t.project_id = p.id ORDER BY t.created_at DESC, t.id DESC LIMIT 1), 0) AS total_files,
             p.updated_at
             FROM translation_projects p ORDER BY p.updated_at DESC""",
     )
@@ -47,6 +48,12 @@ internal abstract class TranslationWorkbenchDao {
     )
     abstract fun observeEntries(projectId: String): Flow<List<TranslationEntryRow>>
 
+    @Query(
+        "SELECT id, format, destination_name, entry_count, created_at FROM translation_exports " +
+            "WHERE project_id = :projectId ORDER BY created_at DESC, id DESC",
+    )
+    abstract fun observeExportHistory(projectId: String): Flow<List<TranslationExportRow>>
+
     @Query("SELECT * FROM translation_entries WHERE project_id = :projectId ORDER BY source_key")
     abstract suspend fun getEntries(projectId: String): List<TranslationEntryEntity>
 
@@ -59,16 +66,28 @@ internal abstract class TranslationWorkbenchDao {
     @Insert(onConflict = OnConflictStrategy.ABORT)
     abstract suspend fun insertEntries(entries: List<TranslationEntryEntity>)
 
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    abstract suspend fun insertExportRecord(record: TranslationExportEntity)
+
+    @Query("UPDATE translation_projects SET updated_at = :updatedAt WHERE id = :projectId")
+    abstract suspend fun touchProject(projectId: String, updatedAt: Long): Int
+
+    @Transaction
+    open suspend fun recordExport(record: TranslationExportEntity) {
+        insertExportRecord(record)
+        touchProject(record.projectId, record.createdAt)
+    }
+
     @Query("SELECT * FROM translation_tasks WHERE id = :id LIMIT 1")
     abstract suspend fun getTask(id: String): TranslationTaskEntity?
 
     @Query(
         "SELECT * FROM translation_tasks WHERE project_id = :projectId " +
-            "AND state IN ('QUEUED', 'RUNNING') ORDER BY created_at DESC LIMIT 1",
+            "AND state IN ('QUEUED', 'RUNNING') ORDER BY created_at DESC, id DESC LIMIT 1",
     )
     abstract suspend fun getActiveTask(projectId: String): TranslationTaskEntity?
 
-    @Query("SELECT * FROM translation_tasks WHERE state IN ('QUEUED', 'RUNNING') ORDER BY created_at ASC LIMIT 1")
+    @Query("SELECT * FROM translation_tasks WHERE state IN ('QUEUED', 'RUNNING') ORDER BY created_at ASC, id ASC LIMIT 1")
     abstract suspend fun getNextRunnableTask(): TranslationTaskEntity?
 
     @Query("SELECT EXISTS(SELECT 1 FROM translation_tasks WHERE state IN ('QUEUED', 'RUNNING'))")
@@ -80,11 +99,22 @@ internal abstract class TranslationWorkbenchDao {
     @Query("UPDATE translation_tasks SET state = :state, updated_at = :updatedAt WHERE id = :taskId")
     abstract suspend fun updateTaskState(taskId: String, state: String, updatedAt: Long): Int
 
+    @Query("UPDATE translation_projects SET project_state = :projectState, updated_at = :updatedAt WHERE id = :projectId")
+    abstract suspend fun updateProjectState(projectId: String, projectState: String, updatedAt: Long): Int
+
     @Query(
         "UPDATE translation_tasks SET state = 'CANCELLED', updated_at = :updatedAt " +
             "WHERE id = :taskId AND state IN ('QUEUED', 'RUNNING')",
     )
     abstract suspend fun cancelTask(taskId: String, updatedAt: Long): Int
+
+    @Transaction
+    open suspend fun cancelTaskAndPauseProject(taskId: String, updatedAt: Long): Int {
+        val task = getTask(taskId) ?: return 0
+        val changed = cancelTask(taskId, updatedAt)
+        if (changed == 1) updateProjectState(task.projectId, TranslationProjectState.PAUSED.name, updatedAt)
+        return changed
+    }
 
     @Query(
         "UPDATE translation_tasks SET state = 'CANCELLED', updated_at = :updatedAt " +
@@ -97,6 +127,14 @@ internal abstract class TranslationWorkbenchDao {
             "WHERE id = :taskId AND state = 'QUEUED'",
     )
     abstract suspend fun failQueuedTask(taskId: String, failureCode: String, updatedAt: Long): Int
+
+    @Transaction
+    open suspend fun failQueuedTaskAndFailProject(taskId: String, failureCode: String, updatedAt: Long): Int {
+        val task = getTask(taskId) ?: return 0
+        val changed = failQueuedTask(taskId, failureCode, updatedAt)
+        if (changed == 1) updateProjectState(task.projectId, TranslationProjectState.FAILED.name, updatedAt)
+        return changed
+    }
 
     @Query(
         "UPDATE translation_tasks SET state = 'RUNNING', updated_at = :updatedAt " +
@@ -113,8 +151,24 @@ internal abstract class TranslationWorkbenchDao {
     @Query("UPDATE translation_tasks SET state = 'FAILED', failure_code = :failureCode, updated_at = :updatedAt WHERE id = :taskId AND state = 'RUNNING'")
     abstract suspend fun failTask(taskId: String, failureCode: String, updatedAt: Long): Int
 
+    @Transaction
+    open suspend fun failTaskAndFailProject(taskId: String, failureCode: String, updatedAt: Long): Int {
+        val task = getTask(taskId) ?: return 0
+        val changed = failTask(taskId, failureCode, updatedAt)
+        if (changed == 1) updateProjectState(task.projectId, TranslationProjectState.FAILED.name, updatedAt)
+        return changed
+    }
+
     @Query("UPDATE translation_tasks SET state = 'COMPLETED', failure_code = NULL, updated_at = :updatedAt WHERE id = :taskId AND state = 'RUNNING'")
     abstract suspend fun completeTask(taskId: String, updatedAt: Long): Int
+
+    @Transaction
+    open suspend fun completeTaskAndReadyProject(taskId: String, updatedAt: Long): Int {
+        val task = getTask(taskId) ?: return 0
+        val changed = completeTask(taskId, updatedAt)
+        if (changed == 1) updateProjectState(task.projectId, TranslationProjectState.READY.name, updatedAt)
+        return changed
+    }
 
     @Query(
         "UPDATE translation_tasks SET checkpoint_json = :checkpointJson, completed_files = :completedFiles, " +
@@ -133,6 +187,7 @@ internal abstract class TranslationWorkbenchDao {
     open suspend fun createTaskIfProjectIdle(task: TranslationTaskEntity): Boolean {
         if (getProject(task.projectId) == null || getActiveTask(task.projectId) != null) return false
         insertTask(task)
+        updateProjectState(task.projectId, TranslationProjectState.PROCESSING.name, task.createdAt)
         return true
     }
 
@@ -149,6 +204,7 @@ internal abstract class TranslationWorkbenchDao {
                 entryCount = previous.entryCount,
             ),
         )
+        updateProjectState(task.projectId, TranslationProjectState.PROCESSING.name, task.createdAt)
         return true
     }
 

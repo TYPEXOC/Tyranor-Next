@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.text.format.DateFormat as AndroidDateFormat
 import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
@@ -42,6 +44,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tyranor.next.R
 import com.tyranor.next.core.engine.EngineType
 import com.tyranor.next.core.translation.TranslationProjectFormat
+import com.tyranor.next.core.translation.TranslationProjectState
+import com.tyranor.next.core.translation.TranslationExportRecord
 import com.tyranor.next.core.translation.TranslationProjectSource
 import com.tyranor.next.core.translation.TranslationWorkbenchError
 import com.tyranor.next.core.translation.TranslationWorkbenchException
@@ -64,6 +68,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.flowOf
+import java.util.Date
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
 
 class TranslationWorkbenchActivity : AppScreenActivity() {
@@ -91,6 +97,11 @@ private fun TranslationWorkbenchScreen() {
     var pendingImportFormat by remember { mutableStateOf<TranslationProjectFormat?>(null) }
     var pendingRelinkProjectId by remember { mutableStateOf<String?>(null) }
     var pendingExportProjectId by remember { mutableStateOf<String?>(null) }
+    var exportHistoryProjectId by remember { mutableStateOf<String?>(null) }
+    val exportHistory by remember(repository, exportHistoryProjectId) {
+        exportHistoryProjectId?.let(repository::observeExportHistory)
+            ?: flowOf<List<TranslationExportRecord>>(emptyList())
+    }.collectAsStateWithLifecycle(initialValue = emptyList())
 
     fun showFailure(failure: Throwable) {
         if (failure is CancellationException) throw failure
@@ -224,6 +235,7 @@ private fun TranslationWorkbenchScreen() {
                                     pendingExportProjectId = project.id
                                     exportJson.launch(exportName(project.title, ".json"))
                                 },
+                                onExportHistory = { exportHistoryProjectId = project.id },
                                 onDelete = { deleteProjectId = project.id },
                                 modifier = listItemMotion(),
                             )
@@ -314,6 +326,50 @@ private fun TranslationWorkbenchScreen() {
         )
     }
 
+    if (exportHistoryProjectId != null) {
+        AppAlertDialog(
+            onDismissRequest = { exportHistoryProjectId = null },
+            title = { Text(stringResource(R.string.translation_export_history_title), style = MaterialTheme.typography.titleMedium) },
+            text = {
+                if (exportHistory.isEmpty()) {
+                    Text(stringResource(R.string.translation_export_history_empty), style = MaterialTheme.typography.bodyMedium)
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxWidth().heightIn(max = 360.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        items(exportHistory, key = TranslationExportRecord::id) { record ->
+                            val date = Date(record.createdAt)
+                            val dateText = "${AndroidDateFormat.getDateFormat(context).format(date)} " +
+                                AndroidDateFormat.getTimeFormat(context).format(date)
+                            val formatText = when (record.format) {
+                                TranslationProjectFormat.CSV -> stringResource(R.string.translation_format_csv)
+                                TranslationProjectFormat.JSON -> stringResource(R.string.translation_format_json)
+                            }
+                            Text(
+                                stringResource(
+                                    R.string.translation_export_history_row,
+                                    dateText,
+                                    formatText,
+                                    record.destinationName ?: stringResource(R.string.translation_export_filename_unknown),
+                                    record.entryCount,
+                                ),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = PageSecondaryTextColor,
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                DialogTextButton(
+                    text = stringResource(R.string.common_confirm),
+                    onClick = { exportHistoryProjectId = null },
+                )
+            },
+        )
+    }
+
     errorCode?.let { code ->
         AppAlertDialog(
             onDismissRequest = { errorCode = null },
@@ -338,20 +394,27 @@ private fun TranslationProjectCardView(
     onRelink: () -> Unit,
     onExportCsv: () -> Unit,
     onExportJson: () -> Unit,
+    onExportHistory: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val isGameDirectory = project.sourceType == TranslationProjectSource.GAME_DIRECTORY.name
     val isActive = project.latestTaskState == "QUEUED" || project.latestTaskState == "RUNNING"
     val canContinue = project.latestTaskState == "CANCELLED" || project.latestTaskState == "FAILED"
-    val statusRes = when {
-        project.latestTaskState == "QUEUED" -> R.string.translation_task_queued
-        project.latestTaskState == "RUNNING" -> R.string.translation_task_running
-        project.latestTaskState == "FAILED" -> R.string.translation_task_failed
-        project.latestTaskState == "CANCELLED" -> R.string.translation_task_cancelled
-        project.latestTaskState == "COMPLETED" -> R.string.translation_extraction_completed
-        project.entryCount > 0 && project.translatedCount == project.entryCount -> R.string.translation_project_has_translations
-        project.entryCount > 0 -> R.string.translation_project_ready
+    val statusRes = when (project.projectState) {
+        TranslationProjectState.PROCESSING.name -> if (project.latestTaskState == "QUEUED") {
+            R.string.translation_task_queued
+        } else {
+            R.string.translation_task_running
+        }
+        TranslationProjectState.FAILED.name -> R.string.translation_task_failed
+        TranslationProjectState.PAUSED.name -> R.string.translation_task_cancelled
+        TranslationProjectState.READY.name -> when {
+            project.latestTaskState == "COMPLETED" -> R.string.translation_extraction_completed
+            project.entryCount > 0 && project.translatedCount == project.entryCount -> R.string.translation_project_has_translations
+            project.entryCount > 0 -> R.string.translation_project_ready
+            else -> R.string.translation_project_waiting
+        }
         else -> R.string.translation_project_waiting
     }
     val engineLabel = project.engineId?.let(::engineDisplayName) ?: stringResource(R.string.translation_engine_unknown)
@@ -444,6 +507,10 @@ private fun TranslationProjectCardView(
                     onClick = onExportJson,
                 )
                 NoRippleTextButton(
+                    text = stringResource(R.string.translation_export_history_open),
+                    onClick = onExportHistory,
+                )
+                NoRippleTextButton(
                     text = stringResource(R.string.translation_delete_project),
                     contentColor = MaterialTheme.colorScheme.error,
                     onClick = onDelete,
@@ -485,6 +552,7 @@ private fun TranslationWorkbenchError.messageResource(): Int = when (this) {
     TranslationWorkbenchError.TASK_ALREADY_ACTIVE -> R.string.translation_error_task_already_active
     TranslationWorkbenchError.TASK_NOT_ACTIVE -> R.string.translation_error_task_not_active
     TranslationWorkbenchError.EXPORT_FAILED -> R.string.translation_error_export_failed
+    TranslationWorkbenchError.EXPORT_HISTORY_FAILED -> R.string.translation_error_export_history_failed
     TranslationWorkbenchError.STORAGE_FAILURE -> R.string.translation_error_storage_failure
 }
 

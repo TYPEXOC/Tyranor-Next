@@ -51,6 +51,13 @@
     <string name="translation_reauthorize_directory">Reauthorize folder</string>
     <string name="translation_export_csv">Export CSV</string>
     <string name="translation_export_json">Export standard JSON</string>
+    <string name="translation_export_history_open">Export history</string>
+    <string name="translation_export_history_title">Export history</string>
+    <string name="translation_export_history_empty">This project has no export history yet.</string>
+    <string name="translation_export_history_row">%1$s · %2$s · %3$s · %4$d entries</string>
+    <string name="translation_export_filename_unknown">Unknown file name</string>
+    <string name="translation_format_csv">CSV</string>
+    <string name="translation_format_json">Standard JSON</string>
     <string name="translation_delete_project">Delete project</string>
     <string name="translation_delete_project_title">Delete translation project?</string>
     <string name="translation_delete_project_message">Only private TYN workbench data will be removed. The game folder and imported files will remain untouched.</string>
@@ -72,6 +79,7 @@
     <string name="translation_error_task_already_active">An extraction task for this project is queued or running.</string>
     <string name="translation_error_task_not_active">The task has ended and cannot be stopped.</string>
     <string name="translation_error_export_failed">The selected export location could not be written.</string>
+    <string name="translation_error_export_history_failed">The file may have been exported, but its history could not be saved.</string>
     <string name="translation_error_storage_failure">The workbench could not read or write local data.</string>
     <string name="nav_settings">Settings</string>
     <string name="nav_floating_expand">Expand navigation</string>

@@ -15,10 +15,20 @@ enum class TranslationProjectSource {
     IMPORTED_JSON,
 }
 
+/** Durable lifecycle state for a project, separate from its most recent task state. */
+enum class TranslationProjectState {
+    NEW,
+    PROCESSING,
+    READY,
+    PAUSED,
+    FAILED,
+}
+
 /** 工具页项目卡片使用的只读汇总，不向 UI 暴露 Room 实体。 */
 data class TranslationProjectCard(
     val id: String,
     val title: String,
+    @ColumnInfo(name = "project_state") val projectState: String,
     @ColumnInfo(name = "engine_id") val engineId: String?,
     @ColumnInfo(name = "source_type") val sourceType: String,
     @ColumnInfo(name = "source_tree_uri") val sourceTreeUri: String?,
@@ -41,6 +51,14 @@ data class TranslationTextEntry(
     val sourceFile: String?,
     val sourcePointer: String?,
     val textType: String?,
+)
+
+data class TranslationExportRecord(
+    val id: String,
+    val format: TranslationProjectFormat,
+    val destinationName: String?,
+    val entryCount: Int,
+    val createdAt: Long,
 )
 
 /** 受支持的标准项目 JSON/CSV 在导入与导出之间共用的数据形状。 */
@@ -80,6 +98,7 @@ enum class TranslationWorkbenchError {
     TASK_ALREADY_ACTIVE,
     TASK_NOT_ACTIVE,
     EXPORT_FAILED,
+    EXPORT_HISTORY_FAILED,
     STORAGE_FAILURE,
 }
 

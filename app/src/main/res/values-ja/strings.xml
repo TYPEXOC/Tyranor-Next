@@ -51,6 +51,13 @@
     <string name="translation_reauthorize_directory">フォルダーを再許可</string>
     <string name="translation_export_csv">CSV を書き出す</string>
     <string name="translation_export_json">標準 JSON を書き出す</string>
+    <string name="translation_export_history_open">書き出し履歴</string>
+    <string name="translation_export_history_title">書き出し履歴</string>
+    <string name="translation_export_history_empty">このプロジェクトの書き出し履歴はありません。</string>
+    <string name="translation_export_history_row">%1$s · %2$s · %3$s · %4$d 件</string>
+    <string name="translation_export_filename_unknown">ファイル名不明</string>
+    <string name="translation_format_csv">CSV</string>
+    <string name="translation_format_json">標準 JSON</string>
     <string name="translation_delete_project">プロジェクトを削除</string>
     <string name="translation_delete_project_title">翻訳プロジェクトを削除しますか？</string>
     <string name="translation_delete_project_message">TYN の非公開ワークベンチデータのみを削除します。ゲームフォルダーや読み込んだファイルは削除しません。</string>
@@ -72,6 +79,7 @@
     <string name="translation_error_task_already_active">このプロジェクトの抽出タスクは待機中または実行中です。</string>
     <string name="translation_error_task_not_active">タスクは終了しているため中止できません。</string>
     <string name="translation_error_export_failed">選択した保存先に書き込めません。</string>
+    <string name="translation_error_export_history_failed">ファイルは出力済みの可能性がありますが、履歴を保存できませんでした。</string>
     <string name="translation_error_storage_failure">ワークベンチのデータを読み書きできません。</string>
     <string name="nav_settings">設定</string>
     <string name="nav_floating_expand">ナビゲーションを展開</string>

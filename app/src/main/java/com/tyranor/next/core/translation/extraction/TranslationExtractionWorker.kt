@@ -112,7 +112,7 @@ class TranslationExtractionWorker(
             if (dao.getEntries(task.projectId).isEmpty()) {
                 fail(taskId, ExtractionErrorCode.NO_TEXT_FOUND.name)
             } else {
-                dao.completeTask(taskId, System.currentTimeMillis())
+                dao.completeTaskAndReadyProject(taskId, System.currentTimeMillis())
             }
         } catch (cancelled: CancellationException) {
             throw cancelled
@@ -124,7 +124,7 @@ class TranslationExtractionWorker(
     }
 
     private suspend fun fail(taskId: String, code: String) {
-        dao.failTask(taskId, code, System.currentTimeMillis())
+        dao.failTaskAndFailProject(taskId, code, System.currentTimeMillis())
     }
 
     private fun decodeCheckpoint(json: String): Set<String> = try {

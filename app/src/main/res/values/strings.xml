@@ -51,6 +51,13 @@
     <string name="translation_reauthorize_directory">重新授权目录</string>
     <string name="translation_export_csv">导出 CSV</string>
     <string name="translation_export_json">导出标准 JSON</string>
+    <string name="translation_export_history_open">导出记录</string>
+    <string name="translation_export_history_title">导出记录</string>
+    <string name="translation_export_history_empty">该项目还没有导出记录。</string>
+    <string name="translation_export_history_row">%1$s · %2$s · %3$s · %4$d 条</string>
+    <string name="translation_export_filename_unknown">未知文件名</string>
+    <string name="translation_format_csv">CSV</string>
+    <string name="translation_format_json">标准 JSON</string>
     <string name="translation_delete_project">删除项目</string>
     <string name="translation_delete_project_title">删除翻译项目？</string>
     <string name="translation_delete_project_message">只会清理 TYN 私有工作台数据，不会删除游戏原目录或导入文件。</string>
@@ -72,6 +79,7 @@
     <string name="translation_error_task_already_active">该项目已有提取任务正在排队或运行。</string>
     <string name="translation_error_task_not_active">任务已结束，无法中止。</string>
     <string name="translation_error_export_failed">无法写入所选导出位置。</string>
+    <string name="translation_error_export_history_failed">文件可能已导出，但工作台未能保存导出记录。</string>
     <string name="translation_error_storage_failure">工作台本地数据读写失败。</string>
     <string name="nav_settings">设置</string>
     <string name="nav_floating_expand">展开导航</string>

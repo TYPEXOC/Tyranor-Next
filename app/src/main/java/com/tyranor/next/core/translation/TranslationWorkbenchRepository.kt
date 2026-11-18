@@ -3,6 +3,7 @@ package com.tyranor.next.core.translation
 import android.content.Context
 import android.net.Uri
 import android.provider.DocumentsContract
+import android.provider.OpenableColumns
 import androidx.documentfile.provider.DocumentFile
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
@@ -13,6 +14,8 @@ import com.tyranor.next.core.translation.storage.TranslationProjectEntity
 import com.tyranor.next.core.translation.storage.TranslationProjectCardRow
 import com.tyranor.next.core.translation.storage.TranslationWorkbenchDatabase
 import com.tyranor.next.core.translation.storage.TranslationTaskEntity
+import com.tyranor.next.core.translation.storage.TranslationExportEntity
+import com.tyranor.next.core.translation.storage.TranslationExportRow
 import com.tyranor.next.core.translation.extraction.TextExtractorRegistry
 import com.tyranor.next.core.translation.extraction.TranslationExtractionWorker
 import java.io.ByteArrayOutputStream
@@ -21,6 +24,7 @@ import java.nio.charset.StandardCharsets
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
@@ -49,6 +53,20 @@ class TranslationWorkbenchRepository(context: Context) {
             }
         }
 
+    fun observeExportHistory(projectId: String): Flow<List<TranslationExportRecord>> =
+        dao.observeExportHistory(projectId).map { rows ->
+            rows.map { row ->
+                TranslationExportRecord(
+                    id = row.id,
+                    format = runCatching { TranslationProjectFormat.valueOf(row.format) }
+                        .getOrDefault(TranslationProjectFormat.JSON),
+                    destinationName = row.destinationName,
+                    entryCount = row.entryCount,
+                    createdAt = row.createdAt,
+                )
+            }
+        }
+
     /** Creates one project for the selected SAF tree; an existing tree returns its existing project id. */
     suspend fun createGameDirectoryProject(treeUri: Uri, engineId: String): ProjectCreation {
         val engine = runCatching { EngineType.valueOf(engineId) }.getOrNull()
@@ -67,6 +85,7 @@ class TranslationWorkbenchRepository(context: Context) {
             identity = sourceIdentity,
             exchangeKey = UUID.randomUUID().toString(),
             title = title,
+            projectState = TranslationProjectState.NEW.name,
             engineId = engine.name,
             sourceType = TranslationProjectSource.GAME_DIRECTORY.name,
             sourceTreeUri = normalized.toString(),
@@ -112,6 +131,7 @@ class TranslationWorkbenchRepository(context: Context) {
                 identity = identity,
                 exchangeKey = archive.projectKey?.takeIf(String::isNotBlank) ?: UUID.randomUUID().toString(),
                 title = archive.title.ifBlank { fallbackTitle },
+                projectState = TranslationProjectState.READY.name,
                 engineId = engine,
                 sourceType = sourceType.name,
                 sourceTreeUri = null,
@@ -185,6 +205,25 @@ class TranslationWorkbenchRepository(context: Context) {
             } catch (failure: Exception) {
                 throw TranslationWorkbenchException(TranslationWorkbenchError.EXPORT_FAILED, failure)
             }
+            val exportedAt = System.currentTimeMillis()
+            try {
+                withContext(NonCancellable) {
+                    dao.recordExport(
+                        TranslationExportEntity(
+                            id = UUID.randomUUID().toString(),
+                            projectId = projectId,
+                            format = format.name,
+                            destinationName = queryDocumentName(uri),
+                            entryCount = entries.size,
+                            createdAt = exportedAt,
+                        ),
+                    )
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                throw TranslationWorkbenchException(TranslationWorkbenchError.EXPORT_HISTORY_FAILED, failure)
+            }
         }
 
     suspend fun deleteProject(projectId: String) {
@@ -216,7 +255,7 @@ class TranslationWorkbenchRepository(context: Context) {
         scheduleExtraction(projectId, continueFromTaskId = previousTaskId)
 
     suspend fun cancelExtraction(taskId: String) {
-        if (dao.cancelTask(taskId, System.currentTimeMillis()) != 1) {
+        if (dao.cancelTaskAndPauseProject(taskId, System.currentTimeMillis()) != 1) {
             throw TranslationWorkbenchException(TranslationWorkbenchError.TASK_NOT_ACTIVE)
         }
     }
@@ -285,10 +324,10 @@ class TranslationWorkbenchRepository(context: Context) {
         try {
             enqueueQueueWorker()
         } catch (cancelled: CancellationException) {
-            dao.failQueuedTask(taskId, TranslationWorkbenchError.STORAGE_FAILURE.name, System.currentTimeMillis())
+            dao.failQueuedTaskAndFailProject(taskId, TranslationWorkbenchError.STORAGE_FAILURE.name, System.currentTimeMillis())
             throw cancelled
         } catch (failure: Exception) {
-            dao.failQueuedTask(taskId, TranslationWorkbenchError.STORAGE_FAILURE.name, System.currentTimeMillis())
+            dao.failQueuedTaskAndFailProject(taskId, TranslationWorkbenchError.STORAGE_FAILURE.name, System.currentTimeMillis())
             throw TranslationWorkbenchException(TranslationWorkbenchError.STORAGE_FAILURE, failure)
         }
         return TranslationTaskScheduleResult.Started(taskId)
@@ -319,6 +358,13 @@ class TranslationWorkbenchRepository(context: Context) {
         }
         return output.toString(StandardCharsets.UTF_8.name())
     }
+
+    private fun queryDocumentName(uri: Uri): String? = runCatching {
+        appContext.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+            val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+            if (index >= 0 && cursor.moveToFirst()) cursor.getString(index) else null
+        }
+    }.getOrNull()
 
     private fun enqueueQueueWorker() {
         val request = OneTimeWorkRequestBuilder<TranslationExtractionWorker>().build()
