@@ -77,6 +77,10 @@
             android:exported="false"
             android:configChanges="uiMode" />
         <activity
+            android:name=".ui.translation.TranslationWorkbenchActivity"
+            android:exported="false"
+            android:configChanges="uiMode" />
+        <activity
             android:name=".ui.save.SaveManagementActivity"
             android:exported="false"
             android:configChanges="uiMode" />
