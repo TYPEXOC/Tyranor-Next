@@ -1,0 +1,89 @@
+package com.tyranor.next.core.translation
+
+import androidx.room.ColumnInfo
+
+/** 文件导入的受支持格式；格式版本由 [TranslationProjectCodec] 管理。 */
+enum class TranslationProjectFormat {
+    CSV,
+    JSON,
+}
+
+/** 项目来源。目录项目保留 SAF tree URI；文件导入项目只保存导入后的工作台数据。 */
+enum class TranslationProjectSource {
+    GAME_DIRECTORY,
+    IMPORTED_CSV,
+    IMPORTED_JSON,
+}
+
+/** 工具页项目卡片使用的只读汇总，不向 UI 暴露 Room 实体。 */
+data class TranslationProjectCard(
+    val id: String,
+    val title: String,
+    @ColumnInfo(name = "engine_id") val engineId: String?,
+    @ColumnInfo(name = "source_type") val sourceType: String,
+    @ColumnInfo(name = "source_tree_uri") val sourceTreeUri: String?,
+    @ColumnInfo(name = "entry_count") val entryCount: Int,
+    @ColumnInfo(name = "translated_count") val translatedCount: Int,
+    @ColumnInfo(name = "latest_task_id") val latestTaskId: String?,
+    @ColumnInfo(name = "latest_task_state") val latestTaskState: String?,
+    @ColumnInfo(name = "latest_task_failure_code") val latestTaskFailureCode: String?,
+    @ColumnInfo(name = "completed_files") val completedFiles: Int,
+    @ColumnInfo(name = "total_files") val totalFiles: Int,
+    @ColumnInfo(name = "updated_at") val updatedAt: Long,
+)
+
+/** 项目条目供列表预览和导出使用。每个来源位置独立保存，不按原文合并。 */
+data class TranslationTextEntry(
+    val id: String,
+    val sourceKey: String,
+    val sourceText: String,
+    val translatedText: String?,
+    val sourceFile: String?,
+    val sourcePointer: String?,
+    val textType: String?,
+)
+
+/** 受支持的标准项目 JSON/CSV 在导入与导出之间共用的数据形状。 */
+data class TranslationProjectArchive(
+    val projectKey: String?,
+    val title: String,
+    val engineId: String?,
+    val sourceLanguage: String?,
+    val targetLanguage: String?,
+    val entries: List<TranslationArchiveEntry>,
+)
+
+data class TranslationArchiveEntry(
+    val sourceKey: String,
+    val sourceText: String,
+    val translatedText: String? = null,
+    val sourceFile: String? = null,
+    val sourcePointer: String? = null,
+    val textType: String? = null,
+)
+
+enum class TranslationWorkbenchError {
+    INVALID_PROJECT_FILE,
+    UNSUPPORTED_PROJECT_FORMAT,
+    PROJECT_TOO_LARGE,
+    EMPTY_PROJECT,
+    DUPLICATE_SOURCE_KEY,
+    PROJECT_NOT_FOUND,
+    PROJECT_ALREADY_EXISTS,
+    UNSUPPORTED_ENGINE,
+    UNSUPPORTED_FORMAT,
+    DIRECTORY_PERMISSION_LOST,
+    INVALID_GAME_DIRECTORY,
+    CORRUPT_RESOURCE,
+    NO_TEXT_FOUND,
+    RESOURCE_TOO_LARGE,
+    TASK_ALREADY_ACTIVE,
+    TASK_NOT_ACTIVE,
+    EXPORT_FAILED,
+    STORAGE_FAILURE,
+}
+
+class TranslationWorkbenchException(
+    val code: TranslationWorkbenchError,
+    cause: Throwable? = null,
+) : Exception(code.name, cause)
