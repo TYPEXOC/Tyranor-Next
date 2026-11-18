@@ -78,6 +78,18 @@ internal abstract class TranslationWorkbenchDao {
         touchProject(record.projectId, record.createdAt)
     }
 
+    @Query("SELECT * FROM translation_service_profiles ORDER BY updated_at DESC, id")
+    abstract fun observeServiceProfiles(): Flow<List<TranslationServiceProfileEntity>>
+
+    @Query("SELECT * FROM translation_service_profiles WHERE id = :id LIMIT 1")
+    abstract suspend fun getServiceProfile(id: String): TranslationServiceProfileEntity?
+
+    @Upsert
+    abstract suspend fun upsertServiceProfile(profile: TranslationServiceProfileEntity)
+
+    @Query("DELETE FROM translation_service_profiles WHERE id = :id")
+    abstract suspend fun deleteServiceProfile(id: String): Int
+
     @Query("SELECT * FROM translation_tasks WHERE id = :id LIMIT 1")
     abstract suspend fun getTask(id: String): TranslationTaskEntity?
 

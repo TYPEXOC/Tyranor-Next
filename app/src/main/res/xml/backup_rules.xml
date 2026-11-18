@@ -14,6 +14,8 @@
     <exclude domain="sharedpref" path="bangumi_auth_secure.xml" />
     <exclude domain="sharedpref" path="vndb_auth_secure.xml" />
     <exclude domain="sharedpref" path="nextmoe_auth_secure.xml" />
+    <!-- Translation API keys use a translation-domain Keystore alias and cannot move to another device. -->
+    <exclude domain="sharedpref" path="translation_service_secrets.xml" />
     <!-- 游戏库 DB 整体排除：WAL 未合并进主文件的云备份快照会静默丢失增量且令修复导入
          失效（countGames>0 即跳过）；DB 可由 prefs 镜像 + 启动修复完整重建，恢复后
          首次启动自动从 game_scanner/tyranor_game_overrides 镜像重导入（迁移方案第十节） -->

@@ -1,0 +1,78 @@
+package com.tyranor.next.core.translation.service
+
+import android.content.Context
+import com.tyranor.next.core.translation.service.protocol.openai.OpenAiCompatibleChatAdapter
+
+/** Resolves the profile revision and secret reference before crossing into a protocol adapter. */
+class TranslationServiceClient(
+    context: Context,
+    private val repository: TranslationServiceRepository = TranslationServiceRepository(context),
+) {
+    private val adapters: Map<TranslationProtocolId, TranslationProtocolAdapter> = listOf(
+        OpenAiCompatibleChatAdapter(),
+    ).associateBy(TranslationProtocolAdapter::protocolId)
+
+    suspend fun listModels(serviceId: String): List<TranslationModelInfo> {
+        val profile = repository.getProfile(serviceId)
+            ?: throw TranslationServiceException(TranslationServiceErrorCode.SERVICE_NOT_FOUND)
+        if (runCatching { TranslationServiceRepository.normalizeBaseUrl(profile.baseUrl) }.isFailure) {
+            throw TranslationServiceException(TranslationServiceErrorCode.SERVICE_NOT_CONFIGURED)
+        }
+        return adapter(profile).listModels(profile, resolveSecret(profile.secretRef))
+    }
+
+    suspend fun listModels(draft: TranslationServiceDraft): List<TranslationModelInfo> {
+        val baseUrl = TranslationServiceRepository.normalizeBaseUrl(draft.baseUrl)
+        val existing = draft.id?.let { repository.getProfile(it) }
+        if (draft.id != null && existing == null) {
+            throw TranslationServiceException(TranslationServiceErrorCode.SERVICE_NOT_FOUND)
+        }
+        val apiKey = when (val change = draft.secretChange) {
+            is TranslationSecretChange.Replace -> change.value.takeIf(String::isNotBlank)
+                ?: throw TranslationServiceException(TranslationServiceErrorCode.INVALID_CONFIGURATION)
+            TranslationSecretChange.Remove -> null
+            TranslationSecretChange.Keep -> resolveSecret(existing?.secretRef)
+        }
+        val preview = TranslationServiceProfile(
+            id = draft.id.orEmpty(),
+            displayName = draft.displayName,
+            protocolId = draft.protocolId,
+            baseUrl = baseUrl,
+            modelId = draft.modelId,
+            enabled = false,
+            configured = true,
+            hasSecret = apiKey != null,
+            revision = existing?.revision ?: 0L,
+            translationPrompt = draft.translationPrompt,
+            secretRef = existing?.secretRef,
+            updatedAt = existing?.updatedAt ?: 0L,
+        )
+        return adapter(preview).listModels(preview, apiKey)
+    }
+
+    internal suspend fun translateBatch(
+        profile: TranslationServiceProfile,
+        secretRef: String?,
+        sourceLanguage: String,
+        targetLanguage: String,
+        inputs: List<TranslationInput>,
+    ): TranslationBatchResponse = adapter(profile).translateBatch(
+        profile = profile,
+        apiKey = resolveSecret(secretRef),
+        sourceLanguage = sourceLanguage,
+        targetLanguage = targetLanguage,
+        inputs = inputs,
+    )
+
+    private fun adapter(profile: TranslationServiceProfile): TranslationProtocolAdapter =
+        adapters[profile.protocolId]
+            ?: throw TranslationServiceException(TranslationServiceErrorCode.UNSUPPORTED_PROTOCOL)
+
+    private fun resolveSecret(reference: String?): String? = when (val result = repository.readSecret(reference)) {
+        is TranslationSecretResult.Available -> result.value
+        TranslationSecretResult.Missing -> if (reference == null) null else {
+            throw TranslationServiceException(TranslationServiceErrorCode.SECRET_UNAVAILABLE)
+        }
+        TranslationSecretResult.Unavailable -> throw TranslationServiceException(TranslationServiceErrorCode.SECRET_UNAVAILABLE)
+    }
+}

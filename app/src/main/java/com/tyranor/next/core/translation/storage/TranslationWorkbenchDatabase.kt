@@ -14,8 +14,9 @@ import com.tyranor.next.core.settings.AppStorageNames
         TranslationEntryEntity::class,
         TranslationTaskEntity::class,
         TranslationExportEntity::class,
+        TranslationServiceProfileEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 internal abstract class TranslationWorkbenchDatabase : RoomDatabase() {
@@ -69,13 +70,38 @@ internal abstract class TranslationWorkbenchDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `translation_service_profiles` (
+                        `id` TEXT NOT NULL,
+                        `display_name` TEXT NOT NULL,
+                        `protocol_id` TEXT NOT NULL,
+                        `base_url` TEXT NOT NULL,
+                        `model_id` TEXT NOT NULL,
+                        `enabled` INTEGER NOT NULL,
+                        `revision` INTEGER NOT NULL,
+                        `translation_prompt` TEXT NOT NULL,
+                        `secret_ref` TEXT,
+                        `created_at` INTEGER NOT NULL,
+                        `updated_at` INTEGER NOT NULL,
+                        PRIMARY KEY(`id`)
+                    )""".trimIndent(),
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_translation_service_profiles_updated_at` " +
+                        "ON `translation_service_profiles` (`updated_at`)",
+                )
+            }
+        }
+
         fun get(context: Context): TranslationWorkbenchDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(
                 context.applicationContext,
                 TranslationWorkbenchDatabase::class.java,
                 AppStorageNames.TRANSLATION_WORKBENCH_DATABASE,
             )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                 .fallbackToDestructiveMigrationOnDowngrade(dropAllTables = true)
                 .build()
                 .also { instance = it }

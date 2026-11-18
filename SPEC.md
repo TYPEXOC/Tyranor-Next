@@ -306,14 +306,15 @@ App 存档管理与 native 共用 `<游戏根>/savedata` user-root。宿主和 n
 
 游戏目录 `savedata/` user-root、文件白名单与回退行为仍按 native FilePolicy 约束。通过别名查找的用户槽位若在 `savedata` 中缺失，不会回退读取资源中的同名槽位；普通资源及命名归档继续走原路径。验收范围包括槽位保存、界面识别、立即读回与退出后重开读回；宿主文件打开钩子不是此修复的一部分。
 
-### 10.1 翻译工作台首期
+### 10.1 翻译工作台项目基础与服务配置
 
 - 入口位于一级「工具」页；工作台通过 `AppScreenActivity` / `AppSecondaryTopBar` 展示项目卡片。游戏目录按 SAF tree URI 唯一对应一个项目；CSV/标准 JSON 导入项目按交换键去重，无交换键时按标题与引擎去重。
-- 项目数据保存在独立 Room 数据库 `translation_workbench.db`（schema v3），与游戏库及 `core/engine/translation` 的运行时译表发现、订阅和交付分离。项目、条目、提取任务和成功导出记录分别落库；项目删除只删除 TYN 项目数据，不改游戏目录。目录提取只经持久 SAF 只读授权读取相对路径；导出由用户通过系统文件选择器指定位置，卡片可查看导出格式、目标文件名、条目数和时间。
+- 项目数据保存在独立 Room 数据库 `translation_workbench.db`（schema v4），与游戏库及 `core/engine/translation` 的运行时译表发现、订阅和交付分离。项目、条目、提取任务、成功导出记录与非敏感服务档案分别落库；项目删除只删除 TYN 项目数据，不改游戏目录。目录提取只经持久 SAF 只读授权读取相对路径；导出由用户通过系统文件选择器指定位置，卡片可查看导出格式、目标文件名、条目数和时间。
 - 当前项目来源为 RPG Maker MV/MZ 游戏目录与标准 CSV/JSON 文本项目。首期提取器各自注册 MV、MZ 标识，但只解析 `data/` 或 `www/data/` 内的兼容 JSON 文件；详细资源清单、格式代际、插件/归档限制及证据见 [翻译工作台首期实现说明](docs/翻译工作台首期实现说明.md)。
 - 标准 JSON 使用 `format=tyranor-translation-project`、`version=1`，包含项目元数据和稳定 `sourceKey` 条目；CSV 使用表头列名交换。导入限制为 32 MiB 文档、最多 200,000 条且来源键唯一。任务快照、内部检查点、SAF URI 和服务秘密不进入导出。
 - 提取任务由 WorkManager 的全局串行 drain 队列执行，Room 中的任务状态、文件检查点和已提交条目是进度事实源。Worker 使用前台 `dataSync` 通知；进入工作台会补排可运行队列。取消或进程中断保留已提交结果，取消/失败任务可从文件检查点继续。
-- 当前尚未实现翻译服务档案/安全密钥、OpenAI 兼容 API、批量翻译、术语表编辑、MTool JSON exporter、规则检查、AI 校对、人工译文编辑确认或其它引擎提取器。工作台目前不显示这些能力。没有真实游戏样本或设备导出验收证据。
+- 应用设置提供 OpenAI 兼容 Chat Completions 服务档案编辑、启停、手动填写模型 ID 和调用 `GET /models` 获取目录。翻译域自行维护 OkHttp transport，禁用重定向并限制响应体；请求取消传递到底层 `Call.cancel()`。服务档案不保存密钥，API Key 以 Android Keystore AES/GCM 密文保存在独立且备份排除的偏好文件。当前没有将协议 adapter 接入持久化翻译任务，任务选择器也尚未展示该服务。
+- 尚未实现持久化批量翻译任务、项目术语表、MTool JSON exporter、规则检查、AI 校对、人工译文编辑确认或其它引擎提取器。OpenAI 兼容服务尚未用真实供应商验收；没有真实游戏样本或手机/平板设备验收证据。
 
 ## 11. 回归验收清单
 

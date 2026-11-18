@@ -72,6 +72,8 @@ import com.tyranor.next.ui.common.motion.pressSquishGroup
 import com.tyranor.next.ui.common.motion.shakeOnTrigger
 import com.tyranor.next.ui.common.motion.staggeredEntrance
 import com.tyranor.next.core.settings.AppSettingsStore
+import com.tyranor.next.ui.common.motion.startActivityWithPageTransition
+import com.tyranor.next.ui.translation.service.TranslationServicesActivity
 import com.tyranor.next.core.settings.DefaultThemeParticleStyle
 import com.tyranor.next.core.settings.HomeWebUrls
 import com.tyranor.next.theme.PageTextColor
@@ -514,6 +516,13 @@ internal fun AppSettingsScreen() {
                                 checked = engineCardIcon,
                                 onCheckedChange = { checked ->
                                     AppSettingsStore.setEngineCardIconEnabled(ctx, checked)
+                                },
+                            )
+                            ArrowPreference(
+                                title = stringResource(R.string.translation_services_settings_title),
+                                summary = stringResource(R.string.translation_services_settings_summary),
+                                onClick = {
+                                    startActivityWithPageTransition(ctx, TranslationServicesActivity.createIntent(ctx))
                                 },
                             )
                         }

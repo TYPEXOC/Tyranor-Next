@@ -82,6 +82,10 @@
             android:name=".ui.translation.TranslationWorkbenchActivity"
             android:exported="false"
             android:configChanges="uiMode" />
+        <activity
+            android:name=".ui.translation.service.TranslationServicesActivity"
+            android:exported="false"
+            android:configChanges="uiMode" />
         <service
             android:name="androidx.work.impl.foreground.SystemForegroundService"
             android:foregroundServiceType="dataSync"
