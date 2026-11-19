@@ -36,16 +36,6 @@ internal fun archivePaneTransition(target: ArchiveMode): ContentTransform {
 
 internal class ArchiveSelectionColors(val background: State<Color>, val foreground: State<Color>)
 
-/** 模式标签在普通档也有默认的颜色过渡；和列表行的增强动效分开。 */
-@Composable
-internal fun rememberArchiveTabColors(selected: Boolean): ArchiveSelectionColors {
-    val scheme = MaterialTheme.colorScheme
-    return ArchiveSelectionColors(
-        animateColorAsState(if (selected) scheme.primary.copy(alpha = 0.14f) else Color.Transparent, label = "modeTabBg"),
-        animateColorAsState(if (selected) scheme.primary else scheme.onSurfaceVariant, label = "modeTabFg"),
-    )
-}
-
 /** 列表行仅增强档有选中色过渡；返回状态，让背景可以在绘制阶段取色。 */
 @Composable
 internal fun rememberArchiveRowColors(selected: Boolean): ArchiveSelectionColors {
