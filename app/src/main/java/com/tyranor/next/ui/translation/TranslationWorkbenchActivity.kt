@@ -14,7 +14,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -24,13 +23,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -43,7 +43,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -77,6 +79,7 @@ import com.tyranor.next.ui.common.DialogTextButton
 import com.tyranor.next.ui.common.NoRippleButton
 import com.tyranor.next.ui.common.NoRippleTextButton
 import com.tyranor.next.ui.common.OverlayDropdownPreference
+import com.tyranor.next.ui.common.MotionLinearProgressIndicator
 import com.tyranor.next.ui.common.glassNavBottomInset
 import com.tyranor.next.ui.common.motion.listItemMotion
 import kotlinx.coroutines.CancellationException
@@ -88,6 +91,8 @@ import java.util.Date
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
 import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
 import top.yukonga.miuix.kmp.basic.TabRowWithContour
+import top.yukonga.miuix.kmp.basic.TextField as MiuixTextField
+import androidx.compose.foundation.Image
 
 class TranslationWorkbenchActivity : AppScreenActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -151,7 +156,11 @@ private fun TranslationWorkbenchScreen() {
     var errorCode by remember { mutableStateOf<TranslationWorkbenchError?>(null) }
     var pendingImportFormat by remember { mutableStateOf<TranslationProjectFormat?>(null) }
     var pendingRelinkProjectId by remember { mutableStateOf<String?>(null) }
-    var pendingExportProjectId by remember { mutableStateOf<String?>(null) }
+    var exportProjectId by remember { mutableStateOf<String?>(null) }
+    var exportFormat by remember { mutableStateOf(TranslationProjectFormat.CSV) }
+    var exportDestinationUri by remember { mutableStateOf<Uri?>(null) }
+    var exportDestinationPath by remember { mutableStateOf("") }
+    var exporting by remember { mutableStateOf(false) }
     var exportHistoryProjectId by remember { mutableStateOf<String?>(null) }
     var translationProjectId by remember { mutableStateOf<String?>(null) }
     var selectedTranslationServiceId by remember { mutableStateOf<String?>(null) }
@@ -192,21 +201,51 @@ private fun TranslationWorkbenchScreen() {
         }
     }
 
-    fun exportTo(uri: Uri?, format: TranslationProjectFormat) {
-        val projectId = pendingExportProjectId
-        pendingExportProjectId = null
-        if (uri == null || projectId == null) return
-        runOperation { repository.exportProject(projectId, uri, format) }
+    val chooseExportDestination = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        exportDestinationUri = uri
+        scope.launch {
+            val displayName = withContext(Dispatchers.IO) {
+                DocumentFile.fromTreeUri(appContext, uri)?.name
+                    ?: uri.lastPathSegment?.substringAfterLast(':')?.substringAfterLast('/')
+                    ?: ""
+            }
+            exportDestinationPath = querySelectedSourcePath(
+                appContext,
+                uri,
+                isTree = true,
+                fallbackName = displayName,
+            )
+        }
     }
 
-    val exportCsv = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
-        exportTo(uri, TranslationProjectFormat.CSV)
-    }
-    val exportJson = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
-        exportTo(uri, TranslationProjectFormat.JSON)
-    }
-    val exportMToolJson = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
-        exportTo(uri, TranslationProjectFormat.MTOOL_JSON)
+    fun beginExport() {
+        val projectId = exportProjectId ?: return
+        val destinationUri = exportDestinationUri ?: return
+        if (exporting) return
+        exporting = true
+        scope.launch {
+            var outputDocument: DocumentFile? = null
+            try {
+                val createdDocument = withContext(Dispatchers.IO) {
+                    val title = projects.firstOrNull { it.id == projectId }?.title ?: "translation-project"
+                    createExportDocument(appContext, destinationUri, title, exportFormat)
+                }
+                outputDocument = createdDocument
+                repository.exportProject(projectId, createdDocument.uri, exportFormat)
+                exportProjectId = null
+                exportDestinationUri = null
+                exportDestinationPath = ""
+            } catch (failure: Throwable) {
+                if (failure is CancellationException) throw failure
+                val exportHistoryFailed = (failure as? TranslationWorkbenchException)?.code ==
+                    TranslationWorkbenchError.EXPORT_HISTORY_FAILED
+                if (!exportHistoryFailed) outputDocument?.delete()
+                showFailure(failure)
+            } finally {
+                exporting = false
+            }
+        }
     }
     val importProject = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
@@ -385,23 +424,21 @@ private fun TranslationWorkbenchScreen() {
                             )
                         }
                     }
-                    if (projects.isNotEmpty()) {
-                        item(key = "project-filter") {
-                            val filterLabels = listOf(
-                                stringResource(R.string.translation_project_filter_all, projects.size),
-                                stringResource(R.string.translation_project_filter_in_progress, inProgressProjectCount),
-                                stringResource(R.string.translation_project_filter_continuable, projects.size - inProgressProjectCount),
-                                stringResource(R.string.translation_project_filter_translated, fullyTranslatedProjectCount),
-                            )
-                            TabRowWithContour(
-                                tabs = filterLabels,
-                                selectedTabIndex = projectFilter.ordinal,
-                                onTabSelected = { index ->
-                                    projectFilter = ProjectListFilter.entries.getOrNull(index) ?: ProjectListFilter.ALL
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                        }
+                    item(key = "project-filter") {
+                        val filterLabels = listOf(
+                            stringResource(R.string.translation_project_filter_all, projects.size),
+                            stringResource(R.string.translation_project_filter_in_progress, inProgressProjectCount),
+                            stringResource(R.string.translation_project_filter_continuable, projects.size - inProgressProjectCount),
+                            stringResource(R.string.translation_project_filter_translated, fullyTranslatedProjectCount),
+                        )
+                        TabRowWithContour(
+                            tabs = filterLabels,
+                            selectedTabIndex = projectFilter.ordinal,
+                            onTabSelected = { index ->
+                                projectFilter = ProjectListFilter.entries.getOrNull(index) ?: ProjectListFilter.ALL
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
                     }
                     if (projects.isEmpty()) {
                         item(key = "empty") {
@@ -459,25 +496,34 @@ private fun TranslationWorkbenchScreen() {
                                     pendingRelinkProjectId = project.id
                                     chooseGameDirectory.launch(null)
                                 },
-                                onExportCsv = {
-                                    pendingExportProjectId = project.id
-                                    exportCsv.launch(exportName(project.title, ".csv"))
+                                onExport = {
+                                    exportProjectId = project.id
+                                    exportFormat = TranslationProjectFormat.CSV
+                                    exportDestinationUri = null
+                                    exportDestinationPath = ""
                                 },
-                                onExportJson = {
-                                    pendingExportProjectId = project.id
-                                    exportJson.launch(exportName(project.title, ".json"))
-                                },
-                                onExportMToolJson = {
-                                    pendingExportProjectId = project.id
-                                    exportMToolJson.launch(exportName(project.title, "-mtool.json"))
-                                },
-                                onExportHistory = { exportHistoryProjectId = project.id },
                                 onDelete = { deleteProjectId = project.id },
                                 modifier = listItemMotion(),
                             )
                         }
                     }
                 }
+            }
+            deleteProjectId?.let { projectId ->
+                TranslationConfirmationDialog(
+                    title = stringResource(R.string.translation_delete_project_title),
+                    summary = stringResource(R.string.translation_delete_project_message),
+                    primaryLabel = stringResource(R.string.translation_card_delete),
+                    secondaryLabel = stringResource(R.string.common_cancel),
+                    onDismissRequest = { deleteProjectId = null },
+                    onPrimaryClick = {
+                        deleteProjectId = null
+                        runOperation { repository.deleteProject(projectId) }
+                    },
+                    onSecondaryClick = { deleteProjectId = null },
+                    primaryContainerColor = MaterialTheme.colorScheme.error,
+                    primaryContentColor = MaterialTheme.colorScheme.onError,
+                )
             }
         }
     }
@@ -664,25 +710,114 @@ private fun TranslationWorkbenchScreen() {
         )
     }
 
-    deleteProjectId?.let { projectId ->
+    exportProjectId?.let { projectId ->
+        val project = projects.firstOrNull { it.id == projectId }
+        val exportFormats = buildList {
+            add(TranslationProjectFormat.CSV)
+            add(TranslationProjectFormat.JSON)
+            if (project != null &&
+                project.engineId in setOf(EngineType.RPG_MV.name, EngineType.RPG_MZ.name) &&
+                project.translatedCount > 0
+            ) {
+                add(TranslationProjectFormat.MTOOL_JSON)
+            }
+        }
+        LaunchedEffect(projectId, exportFormats) {
+            if (exportFormat !in exportFormats) exportFormat = exportFormats.first()
+        }
         AppAlertDialog(
-            onDismissRequest = { deleteProjectId = null },
-            title = { Text(stringResource(R.string.translation_delete_project_title), style = MaterialTheme.typography.titleMedium) },
-            text = { Text(stringResource(R.string.translation_delete_project_message), style = MaterialTheme.typography.bodyMedium) },
+            onDismissRequest = { if (!exporting) exportProjectId = null },
+            title = { Text(stringResource(R.string.translation_export_title), style = MaterialTheme.typography.titleMedium) },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth().heightIn(max = 460.dp).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    project?.let {
+                        Text(
+                            stringResource(R.string.translation_export_subtitle, it.title),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = PageSecondaryTextColor,
+                        )
+                    }
+                    OverlayDropdownPreference(
+                        items = exportFormats.map { format ->
+                            stringResource(
+                                when (format) {
+                                    TranslationProjectFormat.CSV -> R.string.translation_format_csv
+                                    TranslationProjectFormat.JSON -> R.string.translation_format_json
+                                    TranslationProjectFormat.MTOOL_JSON -> R.string.translation_format_mtool_json
+                                },
+                            )
+                        },
+                        selectedIndex = exportFormats.indexOf(exportFormat).coerceAtLeast(0),
+                        title = stringResource(R.string.translation_export_format),
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !exporting,
+                        renderInRootScaffold = false,
+                        onSelectedIndexChange = { index ->
+                            exportFormat = exportFormats.getOrNull(index) ?: TranslationProjectFormat.CSV
+                        },
+                    )
+                    Text(
+                        stringResource(R.string.translation_export_destination),
+                        style = MaterialTheme.typography.labelMedium,
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        MiuixCard(
+                            modifier = Modifier.weight(1f).heightIn(min = 48.dp).glassBorder(),
+                            cornerRadius = AppComponentCornerRadius,
+                        ) {
+                            Text(
+                                exportDestinationPath.ifBlank {
+                                    stringResource(R.string.translation_export_location_not_selected)
+                                },
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = if (exportDestinationPath.isBlank()) PageSecondaryTextColor else PageTextColor,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        NoRippleButton(
+                            text = stringResource(R.string.translation_export_choose_location),
+                            tonal = true,
+                            enabled = !exporting,
+                            onClick = { chooseExportDestination.launch(null) },
+                        )
+                    }
+                    Text(
+                        stringResource(R.string.translation_export_location_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = PageSecondaryTextColor,
+                    )
+                    NoRippleTextButton(
+                        text = stringResource(R.string.translation_export_history_open),
+                        enabled = !exporting,
+                        modifier = Modifier.align(Alignment.End),
+                        onClick = {
+                            exportProjectId = null
+                            exportHistoryProjectId = projectId
+                        },
+                    )
+                }
+            },
             confirmButton = {
                 DialogTextButton(
-                    text = stringResource(R.string.translation_delete_project),
-                    contentColor = MaterialTheme.colorScheme.error,
-                    onClick = {
-                        deleteProjectId = null
-                        runOperation { repository.deleteProject(projectId) }
-                    },
+                    text = stringResource(if (exporting) R.string.translation_exporting else R.string.translation_export_confirm),
+                    enabled = !exporting && exportDestinationUri != null && project != null,
+                    onClick = ::beginExport,
                 )
             },
             dismissButton = {
                 DialogTextButton(
                     text = stringResource(R.string.common_cancel),
-                    onClick = { deleteProjectId = null },
+                    enabled = !exporting,
+                    onClick = { exportProjectId = null },
                 )
             },
         )
@@ -821,19 +956,19 @@ private fun TranslationStartDialog(
                                 onSelectGlossary(glossaries.getOrNull(index - 1)?.id)
                             },
                         )
-                        OutlinedTextField(
+                        MiuixTextField(
                             value = sourceLanguage,
                             onValueChange = onSourceLanguageChange,
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
-                            label = { Text(stringResource(R.string.translation_source_language)) },
+                            label = stringResource(R.string.translation_source_language),
                         )
-                        OutlinedTextField(
+                        MiuixTextField(
                             value = targetLanguage,
                             onValueChange = onTargetLanguageChange,
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
-                            label = { Text(stringResource(R.string.translation_target_language)) },
+                            label = stringResource(R.string.translation_target_language),
                         )
                     }
                 }
@@ -863,41 +998,43 @@ private fun TranslationProjectCardView(
     onTranslate: () -> Unit,
     onContinueTranslation: (String) -> Unit,
     onRelink: () -> Unit,
-    onExportCsv: () -> Unit,
-    onExportJson: () -> Unit,
-    onExportMToolJson: () -> Unit,
-    onExportHistory: () -> Unit,
+    onExport: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
     val isGameDirectory = project.sourceType == TranslationProjectSource.GAME_DIRECTORY.name
-    val isActive = project.latestTaskState == "QUEUED" || project.latestTaskState == "RUNNING"
+    val isActive = project.isInProgress()
     val canContinue = project.latestTaskState == "CANCELLED" || project.latestTaskState == "FAILED"
     val canContinueTranslation = project.latestTaskState in setOf("CANCELLED", "FAILED", "COMPLETED_WITH_ERRORS")
-    val statusRes = when (project.projectState) {
-        TranslationProjectState.PROCESSING.name -> if (project.latestTaskState == "QUEUED") {
-            R.string.translation_task_queued
-        } else if (project.latestTaskType == "TRANSLATE") {
-            R.string.translation_task_translating
-        } else if (project.latestTaskType == "AI_PROOFREAD") {
-            R.string.translation_task_proofreading
-        } else {
-            R.string.translation_task_running
+    val fullyTranslated = project.isFullyTranslated()
+    val extractionActive = isActive && project.latestTaskType == "EXTRACT"
+    val translationActive = isActive && project.latestTaskType == "TRANSLATE"
+    val proofreadingActive = isActive && project.latestTaskType == "AI_PROOFREAD"
+    val extractionComplete = project.entryCount > 0
+    val reviewComplete = project.reviewCompletedAt != null
+    val statusRes = when {
+        isActive && project.latestTaskState == "QUEUED" -> R.string.translation_task_queued
+        isActive && project.latestTaskType == "TRANSLATE" -> R.string.translation_task_translating
+        isActive && project.latestTaskType == "AI_PROOFREAD" -> R.string.translation_task_proofreading
+        isActive -> R.string.translation_task_running
+        project.projectState == TranslationProjectState.FAILED.name -> when (project.latestTaskType) {
+            "TRANSLATE" -> R.string.translation_task_translation_failed
+            "AI_PROOFREAD" -> R.string.translation_task_proofread_failed
+            else -> R.string.translation_task_failed
         }
-        TranslationProjectState.FAILED.name -> if (project.latestTaskType == "TRANSLATE") {
-            R.string.translation_task_translation_failed
-        } else if (project.latestTaskType == "AI_PROOFREAD") R.string.translation_task_proofread_failed
-        else R.string.translation_task_failed
-        TranslationProjectState.PAUSED.name -> R.string.translation_task_cancelled
-        TranslationProjectState.READY.name -> when {
-            project.latestTaskState == "COMPLETED_WITH_ERRORS" -> R.string.translation_task_completed_with_errors
-            project.latestTaskState == "COMPLETED" && project.latestTaskType == "TRANSLATE" -> R.string.translation_task_translation_completed
-            project.latestTaskState == "COMPLETED" && project.latestTaskType == "AI_PROOFREAD" -> R.string.translation_task_proofread_completed
-            project.latestTaskState == "COMPLETED" -> R.string.translation_extraction_completed
-            project.entryCount > 0 && project.translatedCount == project.entryCount -> R.string.translation_project_has_translations
-            project.entryCount > 0 -> R.string.translation_project_ready
-            else -> R.string.translation_project_waiting
-        }
+        project.projectState == TranslationProjectState.PAUSED.name -> R.string.translation_task_cancelled
+        project.pendingSuggestionCount > 0 -> R.string.translation_card_review_pending_count
+        fullyTranslated && !reviewComplete -> R.string.translation_card_review_pending
+        reviewComplete -> R.string.translation_card_review_completed
+        project.latestTaskState == "COMPLETED_WITH_ERRORS" -> R.string.translation_task_completed_with_errors
+        project.latestTaskState == "COMPLETED" && project.latestTaskType == "AI_PROOFREAD" ->
+            R.string.translation_task_proofread_completed
+        project.latestTaskState == "COMPLETED" && project.latestTaskType == "TRANSLATE" ->
+            R.string.translation_task_translation_completed
+        project.latestTaskState == "COMPLETED" -> R.string.translation_extraction_completed
+        project.entryCount > 0 && project.translatedCount > 0 -> R.string.translation_project_has_translations
+        project.entryCount > 0 -> R.string.translation_project_ready
         else -> R.string.translation_project_waiting
     }
     val engineLabel = when (project.engineId) {
@@ -907,145 +1044,309 @@ private fun TranslationProjectCardView(
             ?: stringResource(R.string.translation_engine_unknown)
     }
     val taskId = project.latestTaskId
+    var sourcePath by remember(project.id, project.sourceTreeUri) { mutableStateOf("") }
+    LaunchedEffect(project.id, project.sourceTreeUri) {
+        val sourceUri = project.sourceTreeUri?.let(Uri::parse)
+        sourcePath = if (sourceUri != null) {
+            querySelectedSourcePath(
+                context,
+                sourceUri,
+                isTree = true,
+                fallbackName = project.title,
+            )
+        } else {
+            context.getString(R.string.translation_card_imported_source)
+        }
+    }
+
+    val extractionPhase = when {
+        extractionComplete -> ProjectPhase.COMPLETE
+        else -> ProjectPhase.CURRENT
+    }
+    val translationPhase = when {
+        fullyTranslated -> ProjectPhase.COMPLETE
+        extractionComplete -> ProjectPhase.CURRENT
+        else -> ProjectPhase.WAITING
+    }
+    val reviewPhase = when {
+        reviewComplete -> ProjectPhase.COMPLETE
+        fullyTranslated || project.pendingSuggestionCount > 0 || proofreadingActive -> ProjectPhase.CURRENT
+        else -> ProjectPhase.WAITING
+    }
+    val progress = when {
+        extractionActive && project.totalFiles > 0 ->
+            (project.completedFiles.toFloat() / project.totalFiles).coerceIn(0f, 1f)
+        extractionActive -> null
+        isActive && project.latestTaskType in setOf("TRANSLATE", "AI_PROOFREAD") && project.itemTotal > 0 ->
+            (project.completedItems.toFloat() / project.itemTotal).coerceIn(0f, 1f)
+        isActive -> null
+        project.latestTaskType == "EXTRACT" && project.latestTaskState in setOf("FAILED", "CANCELLED") && project.totalFiles > 0 ->
+            (project.completedFiles.toFloat() / project.totalFiles).coerceIn(0f, 1f)
+        project.entryCount > 0 && project.translatedCount > 0 ->
+            (project.translatedCount.toFloat() / project.entryCount).coerceIn(0f, 1f)
+        project.entryCount > 0 -> 1f
+        else -> 0f
+    }
+    val progressLabel = when {
+        extractionActive && project.totalFiles > 0 -> stringResource(
+            R.string.translation_card_progress_files,
+            project.completedFiles,
+            project.totalFiles,
+        )
+        extractionActive -> stringResource(R.string.translation_card_progress_extracting)
+        isActive && project.latestTaskType in setOf("TRANSLATE", "AI_PROOFREAD") && project.itemTotal > 0 ->
+            stringResource(R.string.translation_item_progress, project.completedItems, project.itemTotal)
+        isActive && project.latestTaskType == "TRANSLATE" -> stringResource(R.string.translation_task_translating)
+        isActive && project.latestTaskType == "AI_PROOFREAD" -> stringResource(R.string.translation_task_proofreading)
+        isActive -> stringResource(R.string.translation_task_queued)
+        project.latestTaskFailureCode != null -> stringResource(project.failureResource())
+        project.latestTaskState == "COMPLETED_WITH_ERRORS" && project.failedItems > 0 -> stringResource(
+            R.string.translation_failed_items,
+            project.failedItems,
+        )
+        project.latestTaskType == "EXTRACT" && project.latestTaskState in setOf("FAILED", "CANCELLED") && project.totalFiles > 0 ->
+            stringResource(R.string.translation_card_progress_files, project.completedFiles, project.totalFiles)
+        project.entryCount > 0 && project.translatedCount > 0 -> stringResource(
+            R.string.translation_card_progress_translated,
+            project.translatedCount,
+            project.entryCount,
+        )
+        project.entryCount > 0 -> stringResource(R.string.translation_card_progress_extracted, project.entryCount)
+        else -> stringResource(R.string.translation_card_progress_waiting)
+    }
+    val progressLabelColor = if (
+        !isActive && (project.latestTaskFailureCode != null ||
+            project.latestTaskState == "COMPLETED_WITH_ERRORS" && project.failedItems > 0)
+    ) {
+        MaterialTheme.colorScheme.error
+    } else {
+        PageSecondaryTextColor
+    }
+    val primaryAction = when {
+        isActive && taskId != null -> ProjectCardAction(
+            R.string.translation_cancel_task,
+            MaterialTheme.colorScheme.error,
+        ) { onCancel(taskId) }
+        isGameDirectory && project.latestTaskFailureCode == TranslationWorkbenchError.DIRECTORY_PERMISSION_LOST.name ->
+            ProjectCardAction(R.string.translation_reauthorize_directory, MaterialTheme.colorScheme.primary, onRelink)
+        isGameDirectory && project.latestTaskType == "EXTRACT" && canContinue && taskId != null ->
+            ProjectCardAction(R.string.translation_continue_extraction, MaterialTheme.colorScheme.primary) { onContinue(taskId) }
+        isGameDirectory && project.entryCount == 0 ->
+            ProjectCardAction(R.string.translation_start_extraction, MaterialTheme.colorScheme.primary, onStart)
+        project.entryCount > project.translatedCount && project.latestTaskType == "TRANSLATE" &&
+            canContinueTranslation && taskId != null ->
+            ProjectCardAction(R.string.translation_retry_translation, MaterialTheme.colorScheme.primary) {
+                onContinueTranslation(taskId)
+            }
+        project.entryCount > project.translatedCount ->
+            ProjectCardAction(R.string.translation_start_translation, MaterialTheme.colorScheme.primary, onTranslate)
+        project.translatedCount > 0 -> ProjectCardAction(
+            if (reviewComplete) R.string.translation_review_open else R.string.translation_start_manual_review,
+            MaterialTheme.colorScheme.primary,
+            onReview,
+        )
+        else -> null
+    }
 
     MiuixCard(
         modifier = modifier.fillMaxWidth().glassBorder(),
         cornerRadius = AppComponentCornerRadius,
     ) {
         Column(
-            Modifier.fillMaxWidth().padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            Modifier.fillMaxWidth().padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(9.dp),
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    project.title,
+            Row(horizontalArrangement = Arrangement.spacedBy(9.dp), verticalAlignment = Alignment.CenterVertically) {
+                Surface(shape = RoundedCornerShape(10.dp), color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)) {
+                    Image(
+                        painter = painterResource(R.drawable.ic_translation_workbench),
+                        contentDescription = null,
+                        colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.primary),
+                        modifier = Modifier.size(28.dp).padding(5.dp),
+                    )
+                }
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                    Text(
+                        project.title,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        engineLabel,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = PageSecondaryTextColor,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                Surface(
+                    shape = RoundedCornerShape(50),
+                    color = if (project.projectState == TranslationProjectState.FAILED.name) {
+                        MaterialTheme.colorScheme.errorContainer
+                    } else {
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                    },
+                ) {
+                    Text(
+                        if (statusRes == R.string.translation_card_review_pending_count) {
+                            stringResource(statusRes, project.pendingSuggestionCount)
+                        } else {
+                            stringResource(statusRes)
+                        },
+                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (project.projectState == TranslationProjectState.FAILED.name) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.primary
+                        },
+                        maxLines = 1,
+                    )
+                }
+            }
+            Text(
+                sourcePath.ifBlank { stringResource(R.string.translation_card_imported_source) },
+                style = MaterialTheme.typography.bodySmall,
+                color = PageSecondaryTextColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                ProjectPhaseChip(
+                    text = stringResource(
+                        when {
+                            extractionComplete -> R.string.translation_card_stage_extracted
+                            extractionActive -> R.string.translation_card_stage_extracting
+                            else -> R.string.translation_card_stage_waiting_extraction
+                        },
+                    ),
+                    phase = extractionPhase,
                     modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 2,
+                )
+                Text("›", color = PageSecondaryTextColor, style = MaterialTheme.typography.labelSmall)
+                ProjectPhaseChip(
+                    text = stringResource(
+                        when {
+                            fullyTranslated -> R.string.translation_card_stage_translated
+                            translationActive -> R.string.translation_card_stage_translating
+                            extractionComplete -> R.string.translation_card_stage_waiting_translation
+                            else -> R.string.translation_card_stage_waiting_translation
+                        },
+                    ),
+                    phase = translationPhase,
+                    modifier = Modifier.weight(1f),
+                )
+                Text("›", color = PageSecondaryTextColor, style = MaterialTheme.typography.labelSmall)
+                ProjectPhaseChip(
+                    text = stringResource(
+                        when {
+                            reviewComplete -> R.string.translation_card_stage_reviewed
+                            proofreadingActive -> R.string.translation_card_stage_proofreading
+                            else -> R.string.translation_card_stage_waiting_review
+                        },
+                    ),
+                    phase = reviewPhase,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    progressLabel,
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = progressLabelColor,
+                    maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Text(stringResource(statusRes), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
-            }
-            Text(
-                stringResource(R.string.translation_project_metadata, engineLabel),
-                style = MaterialTheme.typography.bodyMedium,
-                color = PageSecondaryTextColor,
-            )
-            Text(
-                stringResource(R.string.translation_entry_summary, project.entryCount, project.translatedCount),
-                style = MaterialTheme.typography.bodyMedium,
-                color = PageSecondaryTextColor,
-            )
-            if (isActive) {
-                if (project.latestTaskType in setOf("TRANSLATE", "AI_PROOFREAD") && project.itemTotal > 0) {
-                    LinearProgressIndicator(
-                        progress = { (project.completedItems.toFloat() / project.itemTotal).coerceIn(0f, 1f) },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Text(
-                        stringResource(R.string.translation_item_progress, project.completedItems, project.itemTotal),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = PageSecondaryTextColor,
-                    )
-                } else if (project.latestTaskType != "TRANSLATE" && project.totalFiles > 0) {
-                    LinearProgressIndicator(
-                        progress = { (project.completedFiles.toFloat() / project.totalFiles).coerceIn(0f, 1f) },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Text(
-                        stringResource(R.string.translation_file_progress, project.completedFiles, project.totalFiles),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = PageSecondaryTextColor,
-                    )
-                } else {
-                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                }
-            }
-            if (project.latestTaskFailureCode != null) {
                 Text(
-                    stringResource(project.failureResource()),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.error,
+                    progress?.let { stringResource(R.string.translation_card_progress_percent, (it * 100).toInt()) }
+                        ?: stringResource(R.string.translation_card_progress_indeterminate),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = PageSecondaryTextColor,
                 )
             }
-            if (project.latestTaskState == "COMPLETED_WITH_ERRORS" && project.failedItems > 0) {
-                Text(
-                    stringResource(R.string.translation_failed_items, project.failedItems),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.error,
-                )
-            }
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+            MotionLinearProgressIndicator(progress, Modifier.fillMaxWidth())
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(7.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                if (isActive && taskId != null) {
-                    NoRippleTextButton(
-                        text = stringResource(R.string.translation_cancel_task),
-                        contentColor = MaterialTheme.colorScheme.error,
-                        onClick = { onCancel(taskId) },
-                    )
-                } else if (isGameDirectory && project.latestTaskType == "EXTRACT" && canContinue && taskId != null) {
-                    NoRippleTextButton(
-                        text = stringResource(R.string.translation_continue_extraction),
-                        onClick = { onContinue(taskId) },
-                    )
-                } else if (isGameDirectory && project.entryCount == 0) {
+                primaryAction?.let { action ->
                     NoRippleButton(
-                        text = stringResource(R.string.translation_start_extraction),
-                        tonal = true,
-                        onClick = onStart,
+                        text = stringResource(action.label),
+                        modifier = Modifier.weight(1f),
+                        containerColorOverride = if (action.color == MaterialTheme.colorScheme.error) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            null
+                        },
+                        onClick = action.onClick,
                     )
                 }
-                if (!isActive && project.entryCount > project.translatedCount &&
-                    project.latestTaskType == "TRANSLATE" && canContinueTranslation && taskId != null
-                ) {
-                    NoRippleButton(
-                        text = stringResource(R.string.translation_retry_translation),
-                        tonal = true,
-                        onClick = { onContinueTranslation(taskId) },
-                    )
-                }
-                if (!isActive && project.entryCount > project.translatedCount) {
-                    NoRippleTextButton(
-                        text = stringResource(R.string.translation_start_translation),
-                        onClick = onTranslate,
-                    )
-                }
-                if (project.translatedCount > 0) {
-                    NoRippleTextButton(text = stringResource(R.string.translation_review_open), onClick = onReview)
-                }
-                if (isGameDirectory && project.latestTaskFailureCode == TranslationWorkbenchError.DIRECTORY_PERMISSION_LOST.name) {
-                    NoRippleTextButton(text = stringResource(R.string.translation_reauthorize_directory), onClick = onRelink)
-                }
-                NoRippleTextButton(
-                    text = stringResource(R.string.translation_export_csv),
-                    enabled = project.entryCount > 0,
-                    onClick = onExportCsv,
+                val canExport = project.entryCount > 0 && !isActive
+                NoRippleButton(
+                    text = stringResource(R.string.translation_card_export),
+                    enabled = canExport,
+                    tonal = true,
+                    containerColorOverride = if (canExport) null else MaterialTheme.colorScheme.surfaceVariant,
+                    contentColorOverride = if (canExport) null else MaterialTheme.colorScheme.onSurfaceVariant,
+                    onClick = onExport,
                 )
-                NoRippleTextButton(
-                    text = stringResource(R.string.translation_export_json),
-                    enabled = project.entryCount > 0,
-                    onClick = onExportJson,
-                )
-                if (project.engineId == EngineType.RPG_MV.name || project.engineId == EngineType.RPG_MZ.name) {
-                    NoRippleTextButton(
-                        text = stringResource(R.string.translation_export_mtool_json),
-                        enabled = project.translatedCount > 0,
-                        onClick = onExportMToolJson,
-                    )
-                }
-                NoRippleTextButton(
-                    text = stringResource(R.string.translation_export_history_open),
-                    onClick = onExportHistory,
-                )
-                NoRippleTextButton(
-                    text = stringResource(R.string.translation_delete_project),
-                    contentColor = MaterialTheme.colorScheme.error,
+                NoRippleButton(
+                    text = stringResource(R.string.translation_card_delete),
+                    tonal = true,
+                    containerColorOverride = MaterialTheme.colorScheme.errorContainer,
+                    contentColorOverride = MaterialTheme.colorScheme.error,
                     onClick = onDelete,
                 )
             }
+        }
+    }
+}
+
+private enum class ProjectPhase {
+    COMPLETE,
+    CURRENT,
+    WAITING,
+}
+
+private data class ProjectCardAction(
+    val label: Int,
+    val color: Color,
+    val onClick: () -> Unit,
+)
+
+@Composable
+private fun ProjectPhaseChip(text: String, phase: ProjectPhase, modifier: Modifier = Modifier) {
+    val container = when (phase) {
+        ProjectPhase.COMPLETE -> MaterialTheme.colorScheme.secondaryContainer
+        ProjectPhase.CURRENT -> MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
+        ProjectPhase.WAITING -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f)
+    }
+    val content = when (phase) {
+        ProjectPhase.COMPLETE -> MaterialTheme.colorScheme.onSecondaryContainer
+        ProjectPhase.CURRENT -> MaterialTheme.colorScheme.primary
+        ProjectPhase.WAITING -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Surface(modifier = modifier.heightIn(min = 30.dp), shape = RoundedCornerShape(9.dp), color = container) {
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 5.dp)) {
+            Text(
+                text = text,
+                style = MaterialTheme.typography.labelSmall,
+                color = content,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }
@@ -1106,4 +1407,34 @@ private suspend fun queryDisplayName(context: Context, uri: Uri): String = withC
 private fun exportName(title: String, extension: String): String {
     val safe = title.trim().replace(Regex("[<>:\"/\\\\|?*]"), "_").take(80).ifBlank { "translation-project" }
     return safe + extension
+}
+
+private fun createExportDocument(
+    context: Context,
+    directoryUri: Uri,
+    title: String,
+    format: TranslationProjectFormat,
+): DocumentFile {
+    val directory = DocumentFile.fromTreeUri(context, directoryUri)
+        ?.takeIf(DocumentFile::isDirectory)
+        ?: throw TranslationWorkbenchException(TranslationWorkbenchError.EXPORT_FAILED)
+    val extension = when (format) {
+        TranslationProjectFormat.CSV -> ".csv"
+        TranslationProjectFormat.JSON -> ".json"
+        TranslationProjectFormat.MTOOL_JSON -> "-mtool.json"
+    }
+    val preferredName = exportName(title, extension)
+    val existingNames = directory.listFiles().mapNotNull(DocumentFile::getName).toHashSet()
+    val dot = preferredName.lastIndexOf('.')
+    val stem = if (dot > 0) preferredName.substring(0, dot) else preferredName
+    val suffix = if (dot > 0) preferredName.substring(dot) else ""
+    var candidate = preferredName
+    var index = 2
+    while (candidate in existingNames) {
+        candidate = "$stem ($index)$suffix"
+        index++
+    }
+    val mimeType = if (format == TranslationProjectFormat.CSV) "text/csv" else "application/json"
+    return directory.createFile(mimeType, candidate)
+        ?: throw TranslationWorkbenchException(TranslationWorkbenchError.EXPORT_FAILED)
 }

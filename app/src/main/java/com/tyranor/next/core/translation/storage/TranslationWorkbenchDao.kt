@@ -27,7 +27,9 @@ internal abstract class TranslationWorkbenchDao {
             COALESCE((SELECT t.item_total FROM translation_tasks t WHERE t.project_id = p.id ORDER BY t.created_at DESC, t.id DESC LIMIT 1), 0) AS item_total,
             COALESCE((SELECT t.completed_items FROM translation_tasks t WHERE t.project_id = p.id ORDER BY t.created_at DESC, t.id DESC LIMIT 1), 0) AS completed_items,
             COALESCE((SELECT t.failed_items FROM translation_tasks t WHERE t.project_id = p.id ORDER BY t.created_at DESC, t.id DESC LIMIT 1), 0) AS failed_items,
-            p.review_completed_at, p.updated_at
+            p.review_completed_at,
+            COALESCE((SELECT COUNT(*) FROM translation_proofread_suggestions s WHERE s.project_id = p.id AND s.state = 'PENDING'), 0) AS pending_suggestion_count,
+            p.updated_at
             FROM translation_projects p ORDER BY p.updated_at DESC""",
     )
     abstract fun observeProjectCards(): Flow<List<TranslationProjectCardRow>>

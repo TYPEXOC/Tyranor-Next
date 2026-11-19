@@ -16,7 +16,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -56,6 +55,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
 import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
+import top.yukonga.miuix.kmp.basic.TextField as MiuixTextField
 
 class TranslationGlossariesActivity : AppScreenActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -78,6 +78,7 @@ private fun TranslationGlossariesScreen() {
     var deleting by remember { mutableStateOf<TranslationGlossary?>(null) }
     var error by remember { mutableStateOf<TranslationWorkbenchError?>(null) }
     var creating by remember { mutableStateOf(false) }
+    var deletingNow by remember { mutableStateOf(false) }
 
     fun reportFailure(failure: Throwable) {
         if (failure is CancellationException) throw failure
@@ -190,7 +191,7 @@ private fun TranslationGlossariesScreen() {
                         }
                     }
                 }
-                error?.let { code ->
+                error?.takeIf { deleting == null }?.let { code ->
                     item(key = "glossary-error") {
                         Text(
                             stringResource(code.messageResource()),
@@ -200,6 +201,35 @@ private fun TranslationGlossariesScreen() {
                         )
                     }
                 }
+            }
+            deleting?.let { glossary ->
+                TranslationConfirmationDialog(
+                    title = stringResource(R.string.translation_glossary_delete_title),
+                    summary = stringResource(R.string.translation_glossary_delete_message, glossary.name),
+                    primaryLabel = stringResource(R.string.common_delete),
+                    secondaryLabel = stringResource(R.string.common_cancel),
+                    errorMessage = error?.let { stringResource(it.messageResource()) },
+                    primaryEnabled = !deletingNow,
+                    secondaryEnabled = !deletingNow,
+                    onDismissRequest = { if (!deletingNow) deleting = null },
+                    onPrimaryClick = {
+                        deletingNow = true
+                        scope.launch {
+                            try {
+                                repository.deleteReusableGlossary(glossary.id)
+                                deleting = null
+                                error = null
+                            } catch (failure: Throwable) {
+                                reportFailure(failure)
+                            } finally {
+                                deletingNow = false
+                            }
+                        }
+                    },
+                    onSecondaryClick = { deleting = null },
+                    primaryContainerColor = MaterialTheme.colorScheme.error,
+                    primaryContentColor = MaterialTheme.colorScheme.onError,
+                )
             }
         }
     }
@@ -215,10 +245,10 @@ private fun TranslationGlossariesScreen() {
             },
             text = {
                 Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
+                    MiuixTextField(
                         value = current.name,
                         onValueChange = { editor = current.copy(name = it) },
-                        label = { Text(stringResource(R.string.translation_glossary_name)) },
+                        label = stringResource(R.string.translation_glossary_name),
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                         enabled = !creating,
@@ -266,43 +296,6 @@ private fun TranslationGlossariesScreen() {
         )
     }
 
-    deleting?.let { glossary ->
-        AppAlertDialog(
-            onDismissRequest = { deleting = null },
-            title = { Text(stringResource(R.string.translation_glossary_delete_title), style = MaterialTheme.typography.titleMedium) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(stringResource(R.string.translation_glossary_delete_message, glossary.name))
-                    error?.let { code ->
-                        Text(
-                            stringResource(code.messageResource()),
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    }
-                }
-            },
-            confirmButton = {
-                DialogTextButton(
-                    text = stringResource(R.string.common_delete),
-                    onClick = {
-                        scope.launch {
-                            try {
-                                repository.deleteReusableGlossary(glossary.id)
-                                deleting = null
-                                error = null
-                            } catch (failure: Throwable) {
-                                reportFailure(failure)
-                            }
-                        }
-                    },
-                )
-            },
-            dismissButton = {
-                DialogTextButton(text = stringResource(R.string.common_cancel), onClick = { deleting = null })
-            },
-        )
-    }
 }
 
 private data class GlossaryNameEditor(

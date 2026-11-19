@@ -20,7 +20,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -52,11 +51,11 @@ import com.tyranor.next.ui.common.AppScreenActivity
 import com.tyranor.next.ui.common.AppSecondaryTopBar
 import com.tyranor.next.ui.common.DialogTextButton
 import com.tyranor.next.ui.common.NoRippleButton
-import com.tyranor.next.ui.common.NoRippleButton
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
 import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
+import top.yukonga.miuix.kmp.basic.TextField as MiuixTextField
 
 class TranslationGlossaryDetailActivity : AppScreenActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -99,27 +98,25 @@ private fun TranslationGlossaryDetailScreen(
     var name by remember(glossaryId, initialName) { mutableStateOf(initialName) }
     var terms by remember(glossaryId) { mutableStateOf(emptyList<TranslationGlossaryTerm>()) }
     var savedName by remember(glossaryId, initialName) { mutableStateOf(initialName) }
-    var savedTerms by remember(glossaryId) { mutableStateOf(emptyList<TranslationGlossaryTerm>()) }
     var loaded by remember(glossaryId) { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
     var termEditor by remember { mutableStateOf<TermEditor?>(null) }
-    var showSaveChangesDialog by remember { mutableStateOf(false) }
+    var deletingTermIndex by remember { mutableStateOf<Int?>(null) }
     var error by remember { mutableStateOf<TranslationWorkbenchError?>(null) }
-    val hasChanges = loaded && (name != savedName || terms != savedTerms)
+    val hasNameChanges = loaded && name != savedName
 
     fun reportFailure(failure: Throwable) {
         if (failure is CancellationException) throw failure
         error = (failure as? TranslationWorkbenchException)?.code ?: TranslationWorkbenchError.STORAGE_FAILURE
     }
 
-    fun saveChangesAndReturn() {
+    fun saveNameAndReturn() {
         saving = true
         scope.launch {
             try {
                 val saved = repository.saveReusableGlossary(glossaryId, name, terms)
                 name = saved.name
                 savedName = saved.name
-                savedTerms = terms
                 error = null
                 onFinish()
             } catch (failure: Throwable) {
@@ -134,15 +131,21 @@ private fun TranslationGlossaryDetailScreen(
         try {
             val currentTerms = repository.getReusableGlossaryTerms(glossaryId)
             terms = currentTerms
-            savedTerms = currentTerms
             loaded = true
         } catch (failure: Throwable) {
             reportFailure(failure)
         }
     }
 
-    BackHandler(enabled = hasChanges && !saving) {
-        showSaveChangesDialog = true
+    BackHandler(enabled = saving || hasNameChanges) {
+        if (!saving) {
+            if (name.isBlank()) {
+                name = savedName
+                onFinish()
+            } else {
+                saveNameAndReturn()
+            }
+        }
     }
 
     MiuixSettingsTheme {
@@ -174,10 +177,10 @@ private fun TranslationGlossaryDetailScreen(
                             modifier = Modifier.fillMaxWidth().glassBorder(),
                             cornerRadius = AppComponentCornerRadius,
                         ) {
-                            OutlinedTextField(
+                            MiuixTextField(
                                 value = name,
                                 onValueChange = { name = it },
-                                label = { Text(stringResource(R.string.translation_glossary_name)) },
+                                label = stringResource(R.string.translation_glossary_name),
                                 singleLine = true,
                                 enabled = loaded && !saving,
                                 modifier = Modifier.fillMaxWidth().padding(12.dp),
@@ -235,7 +238,10 @@ private fun TranslationGlossaryDetailScreen(
                                 onEdit = {
                                     termEditor = TermEditor(index, term.sourceTerm, term.targetTerm, term.note.orEmpty())
                                 },
-                                onDelete = { terms = terms.filterIndexed { termIndex, _ -> termIndex != index } },
+                                onDelete = {
+                                    error = null
+                                    deletingTermIndex = index
+                                },
                             )
                         }
                     }
@@ -254,21 +260,48 @@ private fun TranslationGlossaryDetailScreen(
                 ) {
                     NoRippleButton(
                         text = stringResource(R.string.translation_glossary_add_entry),
-                        modifier = Modifier.weight(1f),
-                        enabled = loaded && !saving,
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = loaded && !saving && name.isNotBlank(),
                         onClick = { termEditor = TermEditor(index = null, source = "", target = "", note = "") },
                     )
-                    NoRippleButton(
-                        text = stringResource(R.string.translation_glossary_save_return),
-                        modifier = Modifier.weight(1f),
-                        enabled = loaded && !saving && name.isNotBlank(),
-                        onClick = {
-                            if (!hasChanges) {
-                                onFinish()
-                            } else {
-                                saveChangesAndReturn()
+                }
+            }
+            deletingTermIndex?.let { index ->
+                terms.getOrNull(index)?.let { term ->
+                    TranslationConfirmationDialog(
+                        title = stringResource(R.string.translation_glossary_delete_term_title),
+                        summary = stringResource(
+                            R.string.translation_glossary_delete_term_message,
+                            term.sourceTerm,
+                            term.targetTerm,
+                        ),
+                        primaryLabel = stringResource(R.string.common_delete),
+                        secondaryLabel = stringResource(R.string.common_cancel),
+                        errorMessage = error?.let { stringResource(it.messageResource()) },
+                        primaryEnabled = !saving && name.isNotBlank(),
+                        secondaryEnabled = !saving,
+                        primaryContainerColor = MaterialTheme.colorScheme.error,
+                        primaryContentColor = MaterialTheme.colorScheme.onError,
+                        onDismissRequest = { if (!saving) deletingTermIndex = null },
+                        onPrimaryClick = {
+                            val updatedTerms = terms.filterIndexed { termIndex, _ -> termIndex != index }
+                            saving = true
+                            scope.launch {
+                                try {
+                                    val saved = repository.saveReusableGlossary(glossaryId, name, updatedTerms)
+                                    name = saved.name
+                                    savedName = saved.name
+                                    terms = repository.getReusableGlossaryTerms(glossaryId)
+                                    deletingTermIndex = null
+                                    error = null
+                                } catch (failure: Throwable) {
+                                    reportFailure(failure)
+                                } finally {
+                                    saving = false
+                                }
                             }
-                        }
+                        },
+                        onSecondaryClick = { if (!saving) deletingTermIndex = null },
                     )
                 }
             }
@@ -277,7 +310,7 @@ private fun TranslationGlossaryDetailScreen(
 
     termEditor?.let { current ->
         AppAlertDialog(
-            onDismissRequest = { termEditor = null },
+            onDismissRequest = { if (!saving) termEditor = null },
             title = {
                 Text(
                     stringResource(
@@ -289,83 +322,86 @@ private fun TranslationGlossaryDetailScreen(
             },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
+                    MiuixTextField(
                         value = current.source,
                         onValueChange = { termEditor = current.copy(source = it) },
-                        label = { Text(stringResource(R.string.translation_glossary_source_term)) },
+                        label = stringResource(R.string.translation_glossary_source_term),
                         singleLine = true,
+                        enabled = !saving,
                         modifier = Modifier.fillMaxWidth(),
                     )
-                    OutlinedTextField(
+                    MiuixTextField(
                         value = current.target,
                         onValueChange = { termEditor = current.copy(target = it) },
-                        label = { Text(stringResource(R.string.translation_glossary_target_term)) },
+                        label = stringResource(R.string.translation_glossary_target_term),
                         singleLine = true,
+                        enabled = !saving,
                         modifier = Modifier.fillMaxWidth(),
                     )
-                    OutlinedTextField(
+                    MiuixTextField(
                         value = current.note,
                         onValueChange = { termEditor = current.copy(note = it) },
-                        label = { Text(stringResource(R.string.translation_glossary_note_optional)) },
+                        label = stringResource(R.string.translation_glossary_note_optional),
                         minLines = 2,
+                        maxLines = 4,
+                        enabled = !saving,
                         modifier = Modifier.fillMaxWidth(),
                     )
+                    error?.let { code ->
+                        Text(
+                            stringResource(code.messageResource()),
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
                 }
             },
             confirmButton = {
                 DialogTextButton(
                     text = stringResource(R.string.common_save),
-                    enabled = current.source.isNotBlank() && current.target.isNotBlank(),
+                    enabled = current.source.isNotBlank() && current.target.isNotBlank() &&
+                        name.isNotBlank() && !saving,
                     onClick = {
                         val term = TranslationGlossaryTerm(
                             current.source,
                             current.target,
                             current.note.takeIf(String::isNotBlank),
                         )
-                        terms = terms.toMutableList().apply {
+                        val updatedTerms = terms.toMutableList().apply {
                             if (current.index == null) {
                                 add(term)
                             } else if (current.index in indices) {
                                 this[current.index] = term
                             }
                         }
-                        termEditor = null
+                        saving = true
+                        scope.launch {
+                            try {
+                                val saved = repository.saveReusableGlossary(glossaryId, name, updatedTerms)
+                                name = saved.name
+                                savedName = saved.name
+                                terms = repository.getReusableGlossaryTerms(glossaryId)
+                                error = null
+                                termEditor = null
+                            } catch (failure: Throwable) {
+                                reportFailure(failure)
+                            } finally {
+                                saving = false
+                            }
+                        }
                     },
                 )
             },
             dismissButton = {
-                DialogTextButton(text = stringResource(R.string.common_cancel), onClick = { termEditor = null })
+                DialogTextButton(
+                    text = stringResource(R.string.common_cancel),
+                    enabled = !saving,
+                    onClick = { termEditor = null },
+                )
             },
         )
     }
 
-    if (showSaveChangesDialog) {
-        AppAlertDialog(
-            onDismissRequest = { showSaveChangesDialog = false },
-            title = { Text(stringResource(R.string.translation_glossary_save_changes_title), style = MaterialTheme.typography.titleMedium) },
-            text = { Text(stringResource(R.string.translation_glossary_save_changes_message)) },
-            confirmButton = {
-                DialogTextButton(
-                    text = stringResource(R.string.common_save),
-                    enabled = !saving && name.isNotBlank(),
-                    onClick = {
-                        showSaveChangesDialog = false
-                        saveChangesAndReturn()
-                    },
-                )
-            },
-            dismissButton = {
-                DialogTextButton(
-                    text = stringResource(R.string.translation_glossary_discard),
-                    enabled = !saving,
-                    onClick = {
-                        showSaveChangesDialog = false
-                        onFinish()
-                    },
-                )
-            },
-        )
-    }
 }
 
 @Composable

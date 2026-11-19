@@ -48,6 +48,7 @@ data class TranslationProjectCard(
     @ColumnInfo(name = "failed_items") val failedItems: Int,
     @ColumnInfo(name = "review_completed_at") val reviewCompletedAt: Long?,
     @ColumnInfo(name = "updated_at") val updatedAt: Long,
+    @ColumnInfo(name = "pending_suggestion_count") val pendingSuggestionCount: Int = 0,
 )
 
 data class TranslationGlossaryTerm(
