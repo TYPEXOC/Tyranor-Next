@@ -3,6 +3,13 @@ package com.tyranor.next.core.translation.service
 import android.content.Context
 import com.tyranor.next.core.translation.service.protocol.openai.OpenAiCompatibleChatAdapter
 import com.tyranor.next.core.translation.service.protocol.gemini.GeminiInteractionsAdapter
+import com.tyranor.next.core.translation.service.protocol.deepl.DeepLTranslateAdapter
+import com.tyranor.next.core.translation.service.protocol.machine.AzureTranslatorV3Adapter
+import com.tyranor.next.core.translation.service.protocol.machine.BaiduTranslateVipAdapter
+import com.tyranor.next.core.translation.service.protocol.machine.BingWebTranslationAdapter
+import com.tyranor.next.core.translation.service.protocol.machine.NiuTransAdapter
+import com.tyranor.next.core.translation.service.protocol.machine.TencentTmtTextTranslateAdapter
+import com.tyranor.next.core.translation.service.protocol.machine.VolcEngineTranslateTextAdapter
 
 /** Resolves the profile revision and secret reference before crossing into a protocol adapter. */
 class TranslationServiceClient(
@@ -54,13 +61,18 @@ class TranslationServiceClient(
         sourceLanguage: String,
         targetLanguage: String,
         inputs: List<TranslationInput>,
+        glossary: List<TranslationGlossaryEntry> = emptyList(),
     ): TranslationBatchResponse = adapter(profile).translateBatch(
         profile = profile,
         apiKey = resolveSecret(secretRef),
         sourceLanguage = sourceLanguage,
         targetLanguage = targetLanguage,
         inputs = inputs,
+        glossary = glossary,
     )
+
+    internal fun maxBatchSize(protocolId: TranslationProtocolId): Int =
+        TranslationProtocolRegistry.adapter(protocolId).maxBatchSize
 
     internal suspend fun proofreadBatch(
         profile: TranslationServiceProfile,
@@ -92,6 +104,13 @@ internal object TranslationProtocolRegistry {
     private val adapters: Map<TranslationProtocolId, TranslationProtocolAdapter> = listOf(
         OpenAiCompatibleChatAdapter(),
         GeminiInteractionsAdapter(),
+        BingWebTranslationAdapter(),
+        NiuTransAdapter(),
+        VolcEngineTranslateTextAdapter(),
+        AzureTranslatorV3Adapter(),
+        DeepLTranslateAdapter(),
+        BaiduTranslateVipAdapter(),
+        TencentTmtTextTranslateAdapter(),
     ).associateBy(TranslationProtocolAdapter::protocolId)
 
     fun adapter(protocolId: TranslationProtocolId): TranslationProtocolAdapter =

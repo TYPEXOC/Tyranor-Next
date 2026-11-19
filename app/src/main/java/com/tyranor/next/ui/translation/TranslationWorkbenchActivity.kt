@@ -55,6 +55,7 @@ import com.tyranor.next.core.translation.TranslationProjectCard
 import com.tyranor.next.core.translation.TranslationGlossaryTerm
 import com.tyranor.next.core.translation.extraction.TranslationExtractorEngineIds
 import com.tyranor.next.core.translation.service.TranslationServiceProfile
+import com.tyranor.next.core.translation.service.TranslationServiceCategory
 import com.tyranor.next.theme.AppComponentCornerRadius
 import com.tyranor.next.theme.MiuixSettingsTheme
 import com.tyranor.next.theme.PageSecondaryTextColor
@@ -552,9 +553,17 @@ private fun TranslationStartDialog(
                         verticalArrangement = Arrangement.spacedBy(2.dp),
                     ) {
                         items(services, key = TranslationServiceProfile::id) { service ->
+                            val categoryName = stringResource(
+                                if (service.protocolId.category == TranslationServiceCategory.MACHINE_TRANSLATION) {
+                                    R.string.translation_services_machine_category
+                                } else {
+                                    R.string.translation_services_ai_category
+                                },
+                            )
                             NoRippleTextButton(
                                 text = buildString {
                                     if (service.id == selectedServiceId) append("✓  ")
+                                    append(categoryName).append(" · ")
                                     append(service.displayName)
                                     if (service.modelId.isNotBlank()) append(" · ${service.modelId}")
                                 },

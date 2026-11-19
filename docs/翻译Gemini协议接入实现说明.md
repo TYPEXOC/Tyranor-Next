@@ -15,7 +15,7 @@
 
 - `GeminiInteractionsAdapterTest` 使用合成 HTTP 响应覆盖请求路径、API Key header、无 query 鉴权、`store=false`、提示词分流、模型分页/能力过滤、结构化建议解析、鉴权错误映射和官方 host 限制；`OpenAiCompatibleChatAdapterTest` 验证共享解析器继续覆盖稳定 ID、部分失败与格式令牌校验。
 - 合成测试与 Android 构建不会证明真实账户权限、具体模型可用性、Google 服务端结构差异、配额/限流策略或真实游戏翻译质量。仍需真实 API 账户验证模型目录、翻译、校对、鉴权失败、限流、超时和取消；未在手机/平板上验收 UI、后台任务和网络行为。
-- 该接入没有加入新的 SDK 或第三方依赖。Anthropic Messages、Vertex AI、Gemini 自定义代理、传统机器翻译和其它引擎提取器/导出器仍未接入。
+- 该接入没有加入新的 SDK 或第三方依赖。本文记录 Gemini 接入时的单协议范围；后续七种机器翻译由独立 adapter 接入，当前仍未接入 Anthropic Messages、Vertex AI、Gemini 自定义代理和本地翻译模型。完整当前服务清单以[服务配置与协议适配实现说明](翻译服务配置与协议适配实现说明.md)为准。
 
 ## 官方协议资料
 

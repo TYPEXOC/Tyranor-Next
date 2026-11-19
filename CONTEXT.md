@@ -220,8 +220,12 @@ _Avoid_: 全局词库（当前术语只属于单个翻译项目）
 _Avoid_: 导出任务（导出不创建后台任务）
 
 **翻译服务档案（Translation Service Profile）**:
-用户保存的服务配置实例，包含协议、端点、模型和启停状态；API 密钥只通过 `secretRef` 关联到翻译域加密存储。
+用户保存的服务配置实例，包含协议、端点、协议所需的模型或供应商凭据、启停状态及能力；凭据只通过 `secretRef` 关联到翻译域加密存储。
 _Avoid_: 服务模板（模板只是初始配置建议，不代表已经支持对应协议）
+
+**翻译服务类别（Translation Service Category）**:
+工作台区分「机器翻译」与「AI 翻译」两类服务；当前机器翻译接入必应、小牛、火山、Azure、DeepL、百度和腾讯，AI 翻译接入 OpenAI-compatible 与 Gemini Interactions。具体任务资格仍由协议 adapter 声明的能力决定。
+_Avoid_: 把传统机器翻译作为 AI 校对服务、仅凭服务商名称判断协议支持
 
 **翻译服务协议（Translation Service Protocol）**:
 由 TYN 实现并维护的请求/响应格式适配器；同一协议可服务于多个服务商档案，服务商名称本身不代表协议兼容。

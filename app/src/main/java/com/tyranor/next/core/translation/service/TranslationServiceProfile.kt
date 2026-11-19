@@ -1,12 +1,46 @@
 package com.tyranor.next.core.translation.service
 
+enum class TranslationServiceCategory {
+    MACHINE_TRANSLATION,
+    AI_TRANSLATION,
+}
+
 /** TYN-owned protocols; adding a provider label does not add protocol support. */
-enum class TranslationProtocolId(val wireId: String) {
-    OPENAI_COMPATIBLE_CHAT("openai-compatible-chat-v1"),
-    GEMINI_INTERACTIONS("gemini-interactions-v1"),
+enum class TranslationProtocolId(val wireId: String, val category: TranslationServiceCategory) {
+    OPENAI_COMPATIBLE_CHAT("openai-compatible-chat-v1", TranslationServiceCategory.AI_TRANSLATION),
+    GEMINI_INTERACTIONS("gemini-interactions-v1", TranslationServiceCategory.AI_TRANSLATION),
+    BING_TRANSLATOR_WEB("bing-translator-web-v1", TranslationServiceCategory.MACHINE_TRANSLATION),
+    NIUTRANS_TRANSLATION_V1("niutrans-translation-v1", TranslationServiceCategory.MACHINE_TRANSLATION),
+    VOLCENGINE_TRANSLATE_TEXT_V1("volcengine-translate-text-v1", TranslationServiceCategory.MACHINE_TRANSLATION),
+    AZURE_TRANSLATOR_V3("azure-translator-v3", TranslationServiceCategory.MACHINE_TRANSLATION),
+    DEEPL_TRANSLATE_V2("deepl-translate-v2", TranslationServiceCategory.MACHINE_TRANSLATION),
+    BAIDU_TRANSLATE_VIP_V1("baidu-translate-vip-v1", TranslationServiceCategory.MACHINE_TRANSLATION),
+    TENCENT_TMT_TEXT_TRANSLATE_V1("tencent-tmt-text-translate-v1", TranslationServiceCategory.MACHINE_TRANSLATION),
 }
 
 const val GEMINI_API_BASE_URL = "https://generativelanguage.googleapis.com"
+
+internal val TranslationProtocolId.requiresModel: Boolean
+    get() = category == TranslationServiceCategory.AI_TRANSLATION
+
+internal val TranslationProtocolId.requiresSecret: Boolean
+    get() = when (this) {
+        TranslationProtocolId.OPENAI_COMPATIBLE_CHAT,
+        TranslationProtocolId.BING_TRANSLATOR_WEB -> false
+        else -> true
+    }
+
+internal fun TranslationProtocolId.defaultBaseUrl(): String = when (this) {
+    TranslationProtocolId.OPENAI_COMPATIBLE_CHAT -> "https://api.openai.com/v1"
+    TranslationProtocolId.GEMINI_INTERACTIONS -> GEMINI_API_BASE_URL
+    TranslationProtocolId.BING_TRANSLATOR_WEB -> "https://cn.bing.com"
+    TranslationProtocolId.NIUTRANS_TRANSLATION_V1 -> "https://api.niutrans.com"
+    TranslationProtocolId.VOLCENGINE_TRANSLATE_TEXT_V1 -> "https://translate.volcengineapi.com"
+    TranslationProtocolId.AZURE_TRANSLATOR_V3 -> "https://api.cognitive.microsofttranslator.com"
+    TranslationProtocolId.DEEPL_TRANSLATE_V2 -> "https://api.deepl.com"
+    TranslationProtocolId.BAIDU_TRANSLATE_VIP_V1 -> "https://fanyi-api.baidu.com"
+    TranslationProtocolId.TENCENT_TMT_TEXT_TRANSLATE_V1 -> "https://tmt.tencentcloudapi.com"
+}
 
 enum class TranslationServiceCapability {
     TRANSLATE,
@@ -91,7 +125,7 @@ sealed interface TranslationSecretResult {
 }
 
 const val DEFAULT_TRANSLATION_PROMPT =
-    "Translate the provided game text into the target language. Preserve every control code, placeholder, and line break. Return only a JSON object with a results array; each result must contain the given id and its translation."
+    "Translate the provided game text into the target language. Use the provided glossary consistently when choosing translations. Preserve every control code, placeholder, and line break. Return only a JSON object with a results array; each result must contain the given id and its translation."
 
 const val DEFAULT_PROOFREADING_PROMPT =
     "Review each provided game translation against its source and glossary. Return only a JSON object with a results array; each result must contain the given id, a suggestedTranslation, and issue codes chosen from GRAMMAR, MEANING, TERMINOLOGY, CONSISTENCY, TONE, OTHER. Never omit ids. Preserve every control code, placeholder, and line break in suggestions. Do not claim an issue when the current translation is acceptable."

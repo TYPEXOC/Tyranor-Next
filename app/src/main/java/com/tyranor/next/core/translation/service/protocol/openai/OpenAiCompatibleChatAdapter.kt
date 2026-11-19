@@ -4,6 +4,7 @@ import com.tyranor.next.core.translation.service.TranslationBatchResponse
 import com.tyranor.next.core.translation.service.ProofreadBatchResponse
 import com.tyranor.next.core.translation.service.ProofreadInput
 import com.tyranor.next.core.translation.service.TranslationInput
+import com.tyranor.next.core.translation.service.TranslationGlossaryEntry
 import com.tyranor.next.core.translation.service.TranslationModelInfo
 import com.tyranor.next.core.translation.service.TranslationProtocolAdapter
 import com.tyranor.next.core.translation.service.TranslationProtocolId
@@ -67,6 +68,7 @@ internal class OpenAiCompatibleChatAdapter(
         sourceLanguage: String,
         targetLanguage: String,
         inputs: List<TranslationInput>,
+        glossary: List<TranslationGlossaryEntry>,
     ): TranslationBatchResponse {
         requireProtocol(profile)
         if (!profile.configured || profile.modelId.isBlank() || sourceLanguage.isBlank() || targetLanguage.isBlank() ||
@@ -76,7 +78,7 @@ internal class OpenAiCompatibleChatAdapter(
         ) {
             throw TranslationServiceException(TranslationServiceErrorCode.INVALID_CONFIGURATION)
         }
-        val requestBody = createRequestBody(profile, sourceLanguage, targetLanguage, inputs)
+        val requestBody = createRequestBody(profile, sourceLanguage, targetLanguage, inputs, glossary)
         if (requestBody.toByteArray(Charsets.UTF_8).size > MAX_REQUEST_BYTES) {
             throw TranslationServiceException(TranslationServiceErrorCode.REQUEST_REJECTED)
         }
@@ -172,6 +174,7 @@ internal class OpenAiCompatibleChatAdapter(
         sourceLanguage: String,
         targetLanguage: String,
         inputs: List<TranslationInput>,
+        glossary: List<TranslationGlossaryEntry>,
     ): String {
         val messages = JSONArray()
             .put(
@@ -187,6 +190,17 @@ internal class OpenAiCompatibleChatAdapter(
                         JSONObject()
                             .put("sourceLanguage", sourceLanguage)
                             .put("targetLanguage", targetLanguage)
+                            .put(
+                                "glossary",
+                                JSONArray().apply {
+                                    glossary.forEach { term ->
+                                        put(JSONObject()
+                                            .put("source", term.sourceTerm)
+                                            .put("target", term.targetTerm)
+                                            .put("note", term.note))
+                                    }
+                                },
+                            )
                             .put(
                                 "results",
                                 JSONArray().apply {

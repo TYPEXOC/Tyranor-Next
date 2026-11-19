@@ -1,10 +1,28 @@
 package com.tyranor.next.core.translation.service.protocol.openai
 
 import com.tyranor.next.core.translation.service.TranslationInput
+import com.tyranor.next.core.translation.service.TranslationGlossaryEntry
 import com.tyranor.next.core.translation.service.ProofreadInput
+import com.tyranor.next.core.translation.service.TranslationProtocolId
 import com.tyranor.next.core.translation.service.TranslationItemFailureCode
 import com.tyranor.next.core.translation.service.TranslationServiceErrorCode
 import com.tyranor.next.core.translation.service.TranslationServiceException
+import com.tyranor.next.core.translation.service.TranslationServiceProfile
+import com.tyranor.next.core.translation.service.defaultBaseUrl
+import com.tyranor.next.core.translation.service.transport.TranslationHttpTransport
+import java.io.IOException
+import kotlinx.coroutines.runBlocking
+import okhttp3.Call
+import okhttp3.Callback
+import okhttp3.EventListener
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.Protocol
+import okhttp3.Request
+import okhttp3.Response
+import okhttp3.ResponseBody.Companion.toResponseBody
+import okio.Buffer
+import okio.Timeout
+import kotlin.reflect.KClass
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
@@ -71,6 +89,27 @@ class OpenAiCompatibleChatAdapterTest {
     }
 
     @Test
+    fun sendsProjectGlossaryAlongsideTranslationEntries() = runBlocking {
+        val callFactory = SingleCallFactory(
+            """{"choices":[{"message":{"content":"{\"results\":[{\"id\":\"entry\",\"translation\":\"勇者\"}]}"}}]}""",
+        )
+        val adapter = OpenAiCompatibleChatAdapter(TranslationHttpTransport(callFactory))
+        adapter.translateBatch(
+            profile(),
+            apiKey = null,
+            sourceLanguage = "en",
+            targetLanguage = "ja",
+            inputs = listOf(input("entry", "Hero")),
+            glossary = listOf(TranslationGlossaryEntry("Hero", "勇者", "title")),
+        )
+
+        val body = JSONObject(readBody(callFactory.requests.single()))
+        val messages = body.getJSONArray("messages")
+        val userPayload = JSONObject(messages.getJSONObject(1).getString("content"))
+        assertEquals("勇者", userPayload.getJSONArray("glossary").getJSONObject(0).getString("target"))
+    }
+
+    @Test
     fun parsesProofreadSuggestionsByStableIdWithoutOverwritingValidItems() {
         val inputs = listOf(
             ProofreadInput("entry-1", "\\V[1] Hello", "\\V[1] 你好"),
@@ -123,4 +162,57 @@ class OpenAiCompatibleChatAdapterTest {
     private fun input(id: String, text: String) = TranslationInput(id, text, "ja", "zh-Hans")
     private fun result(id: String, translated: String) =
         JSONObject().put("id", id).put("translation", translated)
+
+    private fun profile() = TranslationServiceProfile(
+        id = "openai-profile",
+        displayName = "OpenAI",
+        protocolId = TranslationProtocolId.OPENAI_COMPATIBLE_CHAT,
+        baseUrl = TranslationProtocolId.OPENAI_COMPATIBLE_CHAT.defaultBaseUrl(),
+        modelId = "gpt-test",
+        enabled = true,
+        configured = true,
+        hasSecret = false,
+        revision = 1,
+        translationPrompt = "Translate.",
+        secretRef = null,
+        updatedAt = 0,
+    )
+
+    private fun readBody(request: Request): String = Buffer().also { buffer ->
+        request.body!!.writeTo(buffer)
+    }.readUtf8()
+
+    private class SingleCallFactory(private val responseBody: String) : Call.Factory {
+        val requests = mutableListOf<Request>()
+
+        override fun newCall(request: Request): Call {
+            requests += request
+            return object : Call {
+                override fun request(): Request = request
+                override fun execute(): Response = throw IOException("synchronous execution is not used")
+                override fun enqueue(responseCallback: Callback) {
+                    responseCallback.onResponse(
+                        this,
+                        Response.Builder()
+                            .request(request)
+                            .protocol(Protocol.HTTP_1_1)
+                            .code(200)
+                            .message("test")
+                            .body(responseBody.toResponseBody("application/json".toMediaType()))
+                            .build(),
+                    )
+                }
+                override fun cancel() = Unit
+                override fun isExecuted(): Boolean = true
+                override fun isCanceled(): Boolean = false
+                override fun timeout(): Timeout = Timeout.NONE
+                override fun clone(): Call = error("not needed")
+                override fun addEventListener(eventListener: EventListener) = Unit
+                override fun <T : Any> tag(type: KClass<T>): T? = null
+                override fun <T> tag(type: Class<out T>): T? = null
+                override fun <T : Any> tag(type: KClass<T>, computeIfAbsent: () -> T): T = computeIfAbsent()
+                override fun <T : Any> tag(type: Class<T>, computeIfAbsent: () -> T): T = computeIfAbsent()
+            }
+        }
+    }
 }

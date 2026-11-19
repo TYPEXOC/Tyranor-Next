@@ -47,6 +47,7 @@ internal class TranslationHttpTransport(
                                 statusCode = current.code,
                                 body = bodyText,
                                 retryAfterMillis = parseRetryAfterMillis(current.header("Retry-After")),
+                                setCookieHeaders = current.headers.values("Set-Cookie"),
                             )
                         }
                         if (continuation.isActive) continuation.resume(result)
@@ -100,6 +101,7 @@ internal class TranslationHttpTransport(
         val statusCode: Int,
         val body: String,
         val retryAfterMillis: Long?,
+        val setCookieHeaders: List<String> = emptyList(),
     )
 
     companion object {

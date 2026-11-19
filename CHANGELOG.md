@@ -2,11 +2,13 @@
 
 ## 未发布
 
+- 翻译工作台接入必应、小牛、火山、Azure Translator、DeepL、百度翻译和腾讯云 TMT 七种机器翻译 adapter；按服务类别与能力筛选任务服务，多字段供应商凭据仅以翻译域加密 bundle 保存，批次结果按供应商上限和返回顺序逐项提交。AI adapter 与 DeepL 使用项目术语表，其他机器翻译协议暂不发送术语表。必应依赖易变网页接口，腾讯 TMT 有供应商退市时间表。JVM 合成协议回归通过；真实供应商凭据、网络区域、翻译质量及 Android 设备验收尚未完成。
+
 - 翻译工作台提取器扩展至 RPG Maker 2000/2003 LCF 与 RGSS（XP/VX/VX Ace/mkxp-z）数据代际：按代际独立注册，2000/2003 读取数据库、地图树和地图，RGSS 读取白名单 Marshal 数据并支持在内存中解密标准 RGSS 归档；归档不解析脚本/插件资源、不写回游戏目录。增加 arm64 Rust JNI 解码桥和上限保护。合成解析/提取回归与 Android arm64 交叉编译通过；真实旧版游戏样本、SAF 设备和归档游戏验收尚未完成。
 
 - 翻译工作台 schema v6 完成校对闭环：新增缺少译文、占位符/控制码、换行规则检查；OpenAI 兼容 AI 校对按稳定条目 ID 生成独立建议和问题记录，使用批次事务、持久进度、取消和未完成项重试；工作台支持人工编辑/确认、应用建议、问题解决/忽略和手动完成校对轮次。AI 校对范围每次由用户选择规则命中项或全部已翻译项，不预设待产品确认的默认值。MTool exporter 仅生成用户选择位置的 JSON 文件，当前分支仍无应用内运行时译表加载通路。真实供应商、游戏样本及手机/平板设备验收尚未完成。
 
-- 翻译服务阶段四接入独立 Gemini Interactions API v1 adapter：固定 Google 官方 HTTPS 主机，API Key 经 `x-goog-api-key` 请求头发送，模型目录分页读取 Gemini API，结构化翻译与 AI 校对请求关闭远端存储并复用稳定条目 ID/文本完整性校验。服务档案由能力声明控制选择器资格；当前未接入 Vertex AI、Gemini 自定义代理、Anthropic 或传统机器翻译。合成接口回归通过，真实 Gemini 供应商与 Android 网络验收尚未完成。
+- 翻译服务阶段四接入独立 Gemini Interactions API v1 adapter：固定 Google 官方 HTTPS 主机，API Key 经 `x-goog-api-key` 请求头发送，模型目录分页读取 Gemini API，结构化翻译与 AI 校对请求关闭远端存储并复用稳定条目 ID/文本完整性校验。此阶段提交时尚未接入机器翻译；后续工作已增加必应、小牛、火山、Azure、DeepL、百度和腾讯七个独立 adapter。Vertex AI、Gemini 自定义代理与 Anthropic 仍未接入。真实 Gemini 供应商与 Android 网络验收尚未完成。
 
 - 网页首页新增「小鸟游」地址预设。
 

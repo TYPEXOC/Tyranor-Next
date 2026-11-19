@@ -12,6 +12,12 @@ data class TranslationInput(
     val targetLanguage: String,
 )
 
+data class TranslationGlossaryEntry(
+    val sourceTerm: String,
+    val targetTerm: String,
+    val note: String? = null,
+)
+
 data class TranslationOutput(
     val entryId: String,
     val translatedText: String,
@@ -51,6 +57,7 @@ data class ProofreadBatchResponse(
 interface TranslationProtocolAdapter {
     val protocolId: TranslationProtocolId
     val capabilities: Set<TranslationServiceCapability>
+    val maxBatchSize: Int get() = 30
 
     suspend fun listModels(
         profile: TranslationServiceProfile,
@@ -63,6 +70,7 @@ interface TranslationProtocolAdapter {
         sourceLanguage: String,
         targetLanguage: String,
         inputs: List<TranslationInput>,
+        glossary: List<TranslationGlossaryEntry> = emptyList(),
     ): TranslationBatchResponse
 
     suspend fun proofreadBatch(

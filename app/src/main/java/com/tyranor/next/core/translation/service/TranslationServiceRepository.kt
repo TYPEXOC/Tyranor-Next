@@ -65,7 +65,15 @@ class TranslationServiceRepository(context: Context) {
             is TranslationSecretChange.Replace -> draft.secretChange.value.isNotBlank()
             TranslationSecretChange.Remove -> false
         }
-        val configured = modelId.isNotBlank() &&
+        if (draft.protocolId.category == TranslationServiceCategory.MACHINE_TRANSLATION &&
+            draft.protocolId.requiresSecret && draft.secretChange is TranslationSecretChange.Replace &&
+            !TranslationProviderCredentialBundle.isComplete(draft.protocolId, draft.secretChange.value)
+        ) {
+            throw TranslationServiceException(TranslationServiceErrorCode.INVALID_CONFIGURATION)
+        }
+        val modelConfigured = !draft.protocolId.requiresModel || modelId.isNotBlank()
+        val configured = modelConfigured &&
+            (!draft.protocolId.requiresSecret || hasSecret) &&
             (draft.protocolId != TranslationProtocolId.GEMINI_INTERACTIONS || hasSecret)
         if (draft.enabled && !configured) {
             throw TranslationServiceException(TranslationServiceErrorCode.SERVICE_NOT_CONFIGURED)
@@ -183,7 +191,8 @@ class TranslationServiceRepository(context: Context) {
             baseUrl = baseUrl,
             modelId = modelId,
             enabled = enabled,
-            configured = validUrl && modelId.isNotBlank() &&
+            configured = validUrl && (!protocol.requiresModel || modelId.isNotBlank()) &&
+                (!protocol.requiresSecret || secretRef != null) &&
                 (protocol != TranslationProtocolId.GEMINI_INTERACTIONS || secretRef != null),
             hasSecret = secretRef != null,
             revision = revision,
@@ -218,6 +227,29 @@ class TranslationServiceRepository(context: Context) {
         fun normalizeBaseUrl(value: String, protocolId: TranslationProtocolId): String = when (protocolId) {
             TranslationProtocolId.OPENAI_COMPATIBLE_CHAT -> normalizeBaseUrl(value)
             TranslationProtocolId.GEMINI_INTERACTIONS -> normalizeGeminiBaseUrl(value)
+            TranslationProtocolId.BING_TRANSLATOR_WEB,
+            TranslationProtocolId.NIUTRANS_TRANSLATION_V1,
+            TranslationProtocolId.VOLCENGINE_TRANSLATE_TEXT_V1,
+            TranslationProtocolId.AZURE_TRANSLATOR_V3,
+            TranslationProtocolId.DEEPL_TRANSLATE_V2,
+            TranslationProtocolId.BAIDU_TRANSLATE_VIP_V1,
+            TranslationProtocolId.TENCENT_TMT_TEXT_TRANSLATE_V1 -> normalizeFixedProviderUrl(value, protocolId)
+        }
+
+        private fun normalizeFixedProviderUrl(value: String, protocolId: TranslationProtocolId): String {
+            val expected = protocolId.defaultBaseUrl()
+            val trimmed = value.trim().trimEnd('/')
+            val uri = runCatching { URI(trimmed) }.getOrNull()
+                ?: throw TranslationServiceException(TranslationServiceErrorCode.INVALID_CONFIGURATION)
+            val expectedUri = URI(expected)
+            if (trimmed.length > 256 || uri.scheme?.lowercase() != "https" ||
+                !uri.host.equals(expectedUri.host, ignoreCase = true) || uri.rawUserInfo != null ||
+                uri.rawQuery != null || uri.rawFragment != null || uri.port !in setOf(-1, 443) ||
+                uri.path.orEmpty().isNotEmpty() && uri.path != "/"
+            ) {
+                throw TranslationServiceException(TranslationServiceErrorCode.INVALID_CONFIGURATION)
+            }
+            return expected
         }
 
         private fun normalizeGeminiBaseUrl(value: String): String {

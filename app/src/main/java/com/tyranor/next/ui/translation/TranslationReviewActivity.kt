@@ -362,7 +362,9 @@ private fun ProofreadStartDialog(
                     Text(stringResource(R.string.translation_review_service_label), style = MaterialTheme.typography.labelMedium)
                     services.forEach { service ->
                         NoRippleTextButton(
-                            text = (if (service.id == selectedServiceId) "✓  " else "") + service.displayName + " · " + service.modelId,
+                                text = (if (service.id == selectedServiceId) "✓  " else "") +
+                                    stringResource(R.string.translation_services_ai_category) + " · " +
+                                    service.displayName + " · " + service.modelId,
                             modifier = Modifier.fillMaxWidth(),
                             onClick = { onSelectService(service.id) },
                         )

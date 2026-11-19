@@ -34,7 +34,11 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tyranor.next.R
 import com.tyranor.next.core.translation.service.TranslationProtocolId
+import com.tyranor.next.core.translation.service.TranslationServiceCategory
 import com.tyranor.next.core.translation.service.GEMINI_API_BASE_URL
+import com.tyranor.next.core.translation.service.TranslationProviderCredentialBundle
+import com.tyranor.next.core.translation.service.TranslationProviderCredentials
+import com.tyranor.next.core.translation.service.defaultBaseUrl
 import com.tyranor.next.core.translation.service.TranslationSecretChange
 import com.tyranor.next.core.translation.service.TranslationServiceDraft
 import com.tyranor.next.core.translation.service.TranslationServiceClient
@@ -109,6 +113,51 @@ private fun TranslationServicesScreen() {
             ) {
                 item(key = "add-service") {
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(
+                            stringResource(R.string.translation_services_machine_category),
+                            modifier = Modifier.padding(start = 8.dp, top = 4.dp),
+                            style = MaterialTheme.typography.titleSmall,
+                        )
+                        NoRippleButton(
+                            text = stringResource(R.string.translation_services_add_bing),
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { editor = ServiceEditor.newMachine(TranslationProtocolId.BING_TRANSLATOR_WEB) },
+                        )
+                        NoRippleButton(
+                            text = stringResource(R.string.translation_services_add_niutrans),
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { editor = ServiceEditor.newMachine(TranslationProtocolId.NIUTRANS_TRANSLATION_V1) },
+                        )
+                        NoRippleButton(
+                            text = stringResource(R.string.translation_services_add_volcengine),
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { editor = ServiceEditor.newMachine(TranslationProtocolId.VOLCENGINE_TRANSLATE_TEXT_V1) },
+                        )
+                        NoRippleButton(
+                            text = stringResource(R.string.translation_services_add_azure),
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { editor = ServiceEditor.newMachine(TranslationProtocolId.AZURE_TRANSLATOR_V3) },
+                        )
+                        NoRippleButton(
+                            text = stringResource(R.string.translation_services_add_deepl),
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { editor = ServiceEditor.newMachine(TranslationProtocolId.DEEPL_TRANSLATE_V2) },
+                        )
+                        NoRippleButton(
+                            text = stringResource(R.string.translation_services_add_baidu),
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { editor = ServiceEditor.newMachine(TranslationProtocolId.BAIDU_TRANSLATE_VIP_V1) },
+                        )
+                        NoRippleButton(
+                            text = stringResource(R.string.translation_services_add_tencent),
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { editor = ServiceEditor.newMachine(TranslationProtocolId.TENCENT_TMT_TEXT_TRANSLATE_V1) },
+                        )
+                        Text(
+                            stringResource(R.string.translation_services_ai_category),
+                            modifier = Modifier.padding(start = 8.dp, top = 12.dp),
+                            style = MaterialTheme.typography.titleSmall,
+                        )
                         NoRippleButton(
                             text = stringResource(R.string.translation_services_add_openai),
                             modifier = Modifier.fillMaxWidth(),
@@ -151,8 +200,16 @@ private fun TranslationServicesScreen() {
                     }
                 }
                 items(profiles, key = TranslationServiceProfile::id) { profile ->
-                    val modelName = profile.modelId.ifBlank {
-                        stringResource(R.string.translation_services_model_not_set)
+                    val summary = if (profile.protocolId.category == TranslationServiceCategory.MACHINE_TRANSLATION) {
+                        stringResource(
+                            if (profile.configured) R.string.translation_services_machine_configured
+                            else R.string.translation_services_machine_needs_credentials,
+                        )
+                    } else {
+                        val modelName = profile.modelId.ifBlank {
+                            stringResource(R.string.translation_services_model_not_set)
+                        }
+                        stringResource(R.string.translation_services_profile_summary, profile.baseUrl, modelName)
                     }
                     MiuixCard(
                         modifier = Modifier.fillMaxWidth().glassBorder(),
@@ -165,11 +222,7 @@ private fun TranslationServicesScreen() {
                                 style = MaterialTheme.typography.titleMedium,
                             )
                             Text(
-                                stringResource(
-                                    R.string.translation_services_profile_summary,
-                                    profile.baseUrl,
-                                    modelName,
-                                ),
+                                summary,
                                 modifier = Modifier.padding(horizontal = 16.dp),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = PageSecondaryTextColor,
@@ -178,10 +231,12 @@ private fun TranslationServicesScreen() {
                                 title = stringResource(R.string.translation_services_enabled),
                                 summary = if (profile.configured) null else {
                                     stringResource(
-                                        if (profile.protocolId == TranslationProtocolId.GEMINI_INTERACTIONS) {
-                                            R.string.translation_services_gemini_complete_before_enable
-                                        } else {
-                                            R.string.translation_services_complete_before_enable
+                                        when {
+                                            profile.protocolId.category == TranslationServiceCategory.MACHINE_TRANSLATION ->
+                                                R.string.translation_services_machine_complete_before_enable
+                                            profile.protocolId == TranslationProtocolId.GEMINI_INTERACTIONS ->
+                                                R.string.translation_services_gemini_complete_before_enable
+                                            else -> R.string.translation_services_complete_before_enable
                                         },
                                     )
                                 },
@@ -222,6 +277,7 @@ private fun TranslationServicesScreen() {
     }
 
     editor?.let { state ->
+        val isMachineTranslation = state.protocolId.category == TranslationServiceCategory.MACHINE_TRANSLATION
         AppAlertDialog(
             onDismissRequest = { if (!isSaving) editor = null },
             title = {
@@ -245,147 +301,158 @@ private fun TranslationServicesScreen() {
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
-                    OutlinedTextField(
-                        value = state.baseUrl,
-                        onValueChange = { editor = state.copy(baseUrl = it) },
-                        label = { Text(stringResource(R.string.translation_services_base_url)) },
-                        supportingText = {
-                            Text(stringResource(
-                                if (state.protocolId == TranslationProtocolId.GEMINI_INTERACTIONS) {
-                                    R.string.translation_services_gemini_base_url_hint
-                                } else {
-                                    R.string.translation_services_base_url_hint
-                                },
-                            ))
-                        },
-                        readOnly = state.protocolId == TranslationProtocolId.GEMINI_INTERACTIONS,
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    OutlinedTextField(
-                        value = state.modelId,
-                        onValueChange = { editor = state.copy(modelId = it) },
-                        label = { Text(stringResource(R.string.translation_services_model_id)) },
-                        supportingText = { Text(stringResource(R.string.translation_services_manual_model_hint)) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    DialogTextButton(
-                        text = stringResource(
-                            if (isFetchingModels) R.string.common_loading
-                            else R.string.translation_services_fetch_models,
-                        ),
-                        enabled = !isFetchingModels,
-                        onClick = {
-                            scope.launch {
-                                isFetchingModels = true
-                                modelFetchError = null
-                                modelListEmpty = false
-                                try {
-                                    fetchedModels = client.listModels(state.toDraft())
-                                    modelListEmpty = fetchedModels.isEmpty()
-                                    showFetchedModels = fetchedModels.isNotEmpty()
-                                } catch (failure: Throwable) {
-                                    if (failure is CancellationException) throw failure
-                                    modelFetchError = (failure as? TranslationServiceException)?.code
-                                        ?: TranslationServiceErrorCode.NETWORK_UNAVAILABLE
-                                } finally {
-                                    isFetchingModels = false
-                                }
-                            }
-                        },
-                    )
-                    if (modelFetchError != null) {
-                        Text(
-                            stringResource(modelFetchError!!.messageResource()),
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    } else if (modelListEmpty) {
-                        Text(
-                            stringResource(R.string.translation_services_no_models),
-                            color = PageSecondaryTextColor,
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    }
-                    if (showFetchedModels) {
+                    if (!isMachineTranslation) {
                         OutlinedTextField(
-                            value = modelSearch,
-                            onValueChange = { modelSearch = it },
-                            label = { Text(stringResource(R.string.translation_services_search_models)) },
+                            value = state.baseUrl,
+                            onValueChange = { editor = state.copy(baseUrl = it) },
+                            label = { Text(stringResource(R.string.translation_services_base_url)) },
+                            supportingText = {
+                                Text(stringResource(
+                                    if (state.protocolId == TranslationProtocolId.GEMINI_INTERACTIONS) {
+                                        R.string.translation_services_gemini_base_url_hint
+                                    } else {
+                                        R.string.translation_services_base_url_hint
+                                    },
+                                ))
+                            },
+                            readOnly = state.protocolId == TranslationProtocolId.GEMINI_INTERACTIONS,
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                         )
-                        fetchedModels.asSequence()
-                            .filter { it.id.contains(modelSearch, ignoreCase = true) }
-                            .take(30)
-                            .forEach { model ->
-                                ArrowPreference(
-                                    title = model.id,
-                                    summary = model.ownedBy,
-                                    onClick = {
-                                        editor = state.copy(modelId = model.id)
-                                        showFetchedModels = false
-                                    },
-                                )
-                            }
-                    }
-                    OutlinedTextField(
-                        value = state.apiKey,
-                        onValueChange = { editor = state.copy(apiKey = it, clearSecret = false) },
-                        label = {
-                            Text(stringResource(
-                                if (state.protocolId == TranslationProtocolId.GEMINI_INTERACTIONS) {
-                                    R.string.translation_services_api_key_required
-                                } else {
-                                    R.string.translation_services_api_key
-                                },
-                            ))
-                        },
-                        supportingText = {
+                        OutlinedTextField(
+                            value = state.modelId,
+                            onValueChange = { editor = state.copy(modelId = it) },
+                            label = { Text(stringResource(R.string.translation_services_model_id)) },
+                            supportingText = { Text(stringResource(R.string.translation_services_manual_model_hint)) },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        DialogTextButton(
+                            text = stringResource(
+                                if (isFetchingModels) R.string.common_loading
+                                else R.string.translation_services_fetch_models,
+                            ),
+                            enabled = !isFetchingModels,
+                            onClick = {
+                                scope.launch {
+                                    isFetchingModels = true
+                                    modelFetchError = null
+                                    modelListEmpty = false
+                                    try {
+                                        fetchedModels = client.listModels(state.toDraft())
+                                        modelListEmpty = fetchedModels.isEmpty()
+                                        showFetchedModels = fetchedModels.isNotEmpty()
+                                    } catch (failure: Throwable) {
+                                        if (failure is CancellationException) throw failure
+                                        modelFetchError = (failure as? TranslationServiceException)?.code
+                                            ?: TranslationServiceErrorCode.NETWORK_UNAVAILABLE
+                                    } finally {
+                                        isFetchingModels = false
+                                    }
+                                }
+                            },
+                        )
+                        if (modelFetchError != null) {
                             Text(
-                                stringResource(
-                                    when {
-                                        state.hasSavedSecret && !state.clearSecret -> R.string.translation_services_key_keep_hint
-                                        state.protocolId == TranslationProtocolId.GEMINI_INTERACTIONS ->
-                                            R.string.translation_services_gemini_key_hint
-                                        else -> R.string.translation_services_key_optional_hint
-                                    },
-                                ),
+                                stringResource(modelFetchError!!.messageResource()),
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall,
                             )
-                        },
-                        visualTransformation = PasswordVisualTransformation(),
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
+                        } else if (modelListEmpty) {
+                            Text(
+                                stringResource(R.string.translation_services_no_models),
+                                color = PageSecondaryTextColor,
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                        if (showFetchedModels) {
+                            OutlinedTextField(
+                                value = modelSearch,
+                                onValueChange = { modelSearch = it },
+                                label = { Text(stringResource(R.string.translation_services_search_models)) },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            fetchedModels.asSequence()
+                                .filter { it.id.contains(modelSearch, ignoreCase = true) }
+                                .take(30)
+                                .forEach { model ->
+                                    ArrowPreference(
+                                        title = model.id,
+                                        summary = model.ownedBy,
+                                        onClick = {
+                                            editor = state.copy(modelId = model.id)
+                                            showFetchedModels = false
+                                        },
+                                    )
+                                }
+                        }
+                        OutlinedTextField(
+                            value = state.apiKey,
+                            onValueChange = { editor = state.copy(apiKey = it, clearSecret = false) },
+                            label = {
+                                Text(stringResource(
+                                    if (state.protocolId == TranslationProtocolId.GEMINI_INTERACTIONS) {
+                                        R.string.translation_services_api_key_required
+                                    } else {
+                                        R.string.translation_services_api_key
+                                    },
+                                ))
+                            },
+                            supportingText = {
+                                Text(
+                                    stringResource(
+                                        when {
+                                            state.hasSavedSecret && !state.clearSecret -> R.string.translation_services_key_keep_hint
+                                            state.protocolId == TranslationProtocolId.GEMINI_INTERACTIONS ->
+                                                R.string.translation_services_gemini_key_hint
+                                            else -> R.string.translation_services_key_optional_hint
+                                        },
+                                    ),
+                                )
+                            },
+                            visualTransformation = PasswordVisualTransformation(),
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    } else {
+                        MachineProviderCredentialsFields(state = state, onChange = { editor = it })
+                    }
                     if (state.hasSavedSecret) {
                         DialogTextButton(
                             text = stringResource(
                                 if (state.clearSecret) R.string.translation_services_key_will_clear
                                 else R.string.translation_services_clear_key,
                             ),
-                            onClick = { editor = state.copy(clearSecret = !state.clearSecret, apiKey = "") },
+                            onClick = {
+                                editor = state.copy(
+                                    clearSecret = !state.clearSecret,
+                                    apiKey = "",
+                                    credentialSecond = "",
+                                    credentialRegion = "",
+                                )
+                            },
                         )
                     }
                     Text(
-                        stringResource(
+                        stringResource(if (isMachineTranslation) state.protocolId.machineProtocolNote() else {
                             if (state.protocolId == TranslationProtocolId.GEMINI_INTERACTIONS) {
                                 R.string.translation_services_gemini_protocol_note
                             } else {
                                 R.string.translation_services_protocol_note
-                            },
-                        ),
+                            }
+                        }),
                         style = MaterialTheme.typography.bodySmall,
                         color = PageSecondaryTextColor,
                     )
-                    DialogTextButton(
+                    if (!isMachineTranslation) DialogTextButton(
                         text = stringResource(
                             if (state.showPrompt) R.string.translation_services_hide_prompt
                             else R.string.translation_services_edit_prompt,
                         ),
                         onClick = { editor = state.copy(showPrompt = !state.showPrompt) },
                     )
-                    if (state.showPrompt) {
+                    if (!isMachineTranslation && state.showPrompt) {
                         OutlinedTextField(
                             value = state.prompt,
                             onValueChange = { editor = state.copy(prompt = it) },
@@ -467,6 +534,52 @@ private fun TranslationServicesScreen() {
     }
 }
 
+@Composable
+private fun MachineProviderCredentialsFields(
+    state: ServiceEditor,
+    onChange: (ServiceEditor) -> Unit,
+) {
+    if (state.protocolId == TranslationProtocolId.BING_TRANSLATOR_WEB) return
+    OutlinedTextField(
+        value = state.apiKey,
+        onValueChange = { onChange(state.copy(apiKey = it, clearSecret = false)) },
+        label = { Text(stringResource(state.protocolId.machinePrimaryCredentialLabel())) },
+        supportingText = {
+            Text(
+                stringResource(
+                    if (state.hasSavedSecret && !state.clearSecret) {
+                        R.string.translation_services_machine_secret_keep_hint
+                    } else {
+                        R.string.translation_services_machine_secret_hint
+                    },
+                ),
+            )
+        },
+        visualTransformation = PasswordVisualTransformation(),
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    state.protocolId.machineSecondCredentialLabel()?.let { label ->
+        OutlinedTextField(
+            value = state.credentialSecond,
+            onValueChange = { onChange(state.copy(credentialSecond = it, clearSecret = false)) },
+            label = { Text(stringResource(label)) },
+            visualTransformation = PasswordVisualTransformation(),
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+    state.protocolId.machineRegionLabel()?.let { label ->
+        OutlinedTextField(
+            value = state.credentialRegion,
+            onValueChange = { onChange(state.copy(credentialRegion = it, clearSecret = false)) },
+            label = { Text(stringResource(label)) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
 private data class ServiceEditor(
     val id: String?,
     val protocolId: TranslationProtocolId,
@@ -474,6 +587,8 @@ private data class ServiceEditor(
     val baseUrl: String,
     val modelId: String,
     val apiKey: String,
+    val credentialSecond: String,
+    val credentialRegion: String,
     val hasSavedSecret: Boolean,
     val clearSecret: Boolean,
     val enabled: Boolean,
@@ -492,7 +607,17 @@ private data class ServiceEditor(
         proofreadingPrompt = proofreadingPrompt.ifBlank { DEFAULT_PROOFREADING_PROMPT },
         secretChange = when {
             clearSecret -> TranslationSecretChange.Remove
-            apiKey.isNotBlank() -> TranslationSecretChange.Replace(apiKey)
+            protocolId.category == TranslationServiceCategory.MACHINE_TRANSLATION &&
+                protocolId != TranslationProtocolId.BING_TRANSLATOR_WEB &&
+                listOf(apiKey, credentialSecond, credentialRegion).any(String::isNotBlank) ->
+                TranslationSecretChange.Replace(
+                    TranslationProviderCredentialBundle.encode(
+                        protocolId,
+                        TranslationProviderCredentials(apiKey, credentialSecond, credentialRegion),
+                    ),
+                )
+            protocolId.category == TranslationServiceCategory.AI_TRANSLATION && apiKey.isNotBlank() ->
+                TranslationSecretChange.Replace(apiKey)
             else -> TranslationSecretChange.Keep
         },
     )
@@ -505,6 +630,8 @@ private data class ServiceEditor(
             baseUrl = "https://api.openai.com/v1",
             modelId = "",
             apiKey = "",
+            credentialSecond = "",
+            credentialRegion = "",
             hasSavedSecret = false,
             clearSecret = false,
             enabled = false,
@@ -520,6 +647,25 @@ private data class ServiceEditor(
             baseUrl = GEMINI_API_BASE_URL,
             modelId = "",
             apiKey = "",
+            credentialSecond = "",
+            credentialRegion = "",
+            hasSavedSecret = false,
+            clearSecret = false,
+            enabled = false,
+            showPrompt = false,
+            prompt = DEFAULT_TRANSLATION_PROMPT,
+            proofreadingPrompt = DEFAULT_PROOFREADING_PROMPT,
+        )
+
+        fun newMachine(protocolId: TranslationProtocolId) = ServiceEditor(
+            id = null,
+            protocolId = protocolId,
+            displayName = protocolId.machineDefaultName(),
+            baseUrl = protocolId.defaultBaseUrl(),
+            modelId = "",
+            apiKey = "",
+            credentialSecond = "",
+            credentialRegion = "",
             hasSavedSecret = false,
             clearSecret = false,
             enabled = false,
@@ -535,6 +681,8 @@ private data class ServiceEditor(
             baseUrl = profile.baseUrl,
             modelId = profile.modelId,
             apiKey = "",
+            credentialSecond = "",
+            credentialRegion = "",
             hasSavedSecret = profile.hasSecret,
             clearSecret = false,
             enabled = profile.enabled,
@@ -543,6 +691,46 @@ private data class ServiceEditor(
             proofreadingPrompt = profile.proofreadingPrompt,
         )
     }
+}
+
+private fun TranslationProtocolId.machineDefaultName(): String = when (this) {
+    TranslationProtocolId.BING_TRANSLATOR_WEB -> "Bing Translator"
+    TranslationProtocolId.NIUTRANS_TRANSLATION_V1 -> "NiuTrans"
+    TranslationProtocolId.VOLCENGINE_TRANSLATE_TEXT_V1 -> "Volcengine Translate"
+    TranslationProtocolId.AZURE_TRANSLATOR_V3 -> "Azure Translator"
+    TranslationProtocolId.DEEPL_TRANSLATE_V2 -> "DeepL"
+    TranslationProtocolId.BAIDU_TRANSLATE_VIP_V1 -> "Baidu Translate"
+    TranslationProtocolId.TENCENT_TMT_TEXT_TRANSLATE_V1 -> "Tencent Cloud TMT"
+    else -> ""
+}
+
+private fun TranslationProtocolId.machinePrimaryCredentialLabel(): Int = when (this) {
+    TranslationProtocolId.NIUTRANS_TRANSLATION_V1 -> R.string.translation_services_niutrans_api_key
+    TranslationProtocolId.VOLCENGINE_TRANSLATE_TEXT_V1 -> R.string.translation_services_volc_access_key
+    TranslationProtocolId.AZURE_TRANSLATOR_V3 -> R.string.translation_services_azure_key
+    TranslationProtocolId.DEEPL_TRANSLATE_V2 -> R.string.translation_services_api_key
+    TranslationProtocolId.BAIDU_TRANSLATE_VIP_V1 -> R.string.translation_services_baidu_app_id
+    TranslationProtocolId.TENCENT_TMT_TEXT_TRANSLATE_V1 -> R.string.translation_services_tencent_secret_id
+    else -> R.string.translation_services_api_key
+}
+
+private fun TranslationProtocolId.machineSecondCredentialLabel(): Int? = when (this) {
+    TranslationProtocolId.VOLCENGINE_TRANSLATE_TEXT_V1 -> R.string.translation_services_volc_secret_key
+    TranslationProtocolId.BAIDU_TRANSLATE_VIP_V1 -> R.string.translation_services_baidu_secret_key
+    TranslationProtocolId.TENCENT_TMT_TEXT_TRANSLATE_V1 -> R.string.translation_services_tencent_secret_key
+    else -> null
+}
+
+private fun TranslationProtocolId.machineRegionLabel(): Int? = when (this) {
+    TranslationProtocolId.AZURE_TRANSLATOR_V3 -> R.string.translation_services_azure_region_optional
+    TranslationProtocolId.TENCENT_TMT_TEXT_TRANSLATE_V1 -> R.string.translation_services_tencent_region_optional
+    else -> null
+}
+
+private fun TranslationProtocolId.machineProtocolNote(): Int = when (this) {
+    TranslationProtocolId.BING_TRANSLATOR_WEB -> R.string.translation_services_bing_web_endpoint_note
+    TranslationProtocolId.TENCENT_TMT_TEXT_TRANSLATE_V1 -> R.string.translation_services_tencent_retirement_note
+    else -> R.string.translation_services_machine_protocol_note
 }
 
 private fun TranslationServiceErrorCode.messageResource(): Int = when (this) {

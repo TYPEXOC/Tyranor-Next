@@ -2,6 +2,7 @@ package com.tyranor.next.core.translation
 
 import android.content.Context
 import com.tyranor.next.core.translation.service.TranslationInput
+import com.tyranor.next.core.translation.service.TranslationGlossaryEntry
 import com.tyranor.next.core.translation.service.TranslationItemFailureCode
 import com.tyranor.next.core.translation.service.TranslationServiceClient
 import com.tyranor.next.core.translation.service.TranslationServiceException
@@ -44,13 +45,14 @@ internal class TranslationBatchTaskProcessor(
             val unknownIds = decodeUnknownIds(existingTask.checkpointJson).toMutableSet()
             reportProgress(existingTask.completedItems, total)
             val client = TranslationServiceClient(appContext)
+            val batchSize = client.maxBatchSize(snapshot.protocolId).coerceAtMost(MAX_BATCH_SIZE)
             while (true) {
                 currentCoroutineContext().ensureActive()
                 if (dao.getTask(taskId)?.state != "RUNNING") return
                 val entries = dao.getTranslationCandidates(
                     projectId = task.projectId,
                     retryFailed = snapshot.retryFailed,
-                    limit = BATCH_SIZE,
+                    limit = batchSize,
                 )
                 if (entries.isEmpty()) break
                 val inputs = entries.map { entry ->
@@ -67,6 +69,9 @@ internal class TranslationBatchTaskProcessor(
                     sourceLanguage = snapshot.sourceLanguage,
                     targetLanguage = snapshot.targetLanguage,
                     inputs = inputs,
+                    glossary = snapshot.glossary.map { term ->
+                        TranslationGlossaryEntry(term.sourceTerm, term.targetTerm, term.note)
+                    },
                 )
                 currentCoroutineContext().ensureActive()
                 val outputById = response.successes.associateBy { it.entryId }
@@ -144,7 +149,7 @@ internal class TranslationBatchTaskProcessor(
         .toString()
 
     companion object {
-        private const val BATCH_SIZE = 30
+        private const val MAX_BATCH_SIZE = 50
         private const val CHECKPOINT_PROCESSED = "processedEntryIds"
         private const val CHECKPOINT_UNKNOWN = "unknownResponseIds"
     }

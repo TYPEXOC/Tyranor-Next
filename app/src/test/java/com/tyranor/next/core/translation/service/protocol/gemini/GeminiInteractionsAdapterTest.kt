@@ -2,6 +2,7 @@ package com.tyranor.next.core.translation.service.protocol.gemini
 
 import com.tyranor.next.core.translation.service.GEMINI_API_BASE_URL
 import com.tyranor.next.core.translation.service.ProofreadInput
+import com.tyranor.next.core.translation.service.TranslationGlossaryEntry
 import com.tyranor.next.core.translation.service.TranslationInput
 import com.tyranor.next.core.translation.service.TranslationProtocolId
 import com.tyranor.next.core.translation.service.TranslationServiceErrorCode
@@ -46,6 +47,7 @@ class GeminiInteractionsAdapterTest {
             sourceLanguage = "en",
             targetLanguage = "ja",
             inputs = listOf(TranslationInput("entry", "Hello {player}", "en", "ja")),
+            glossary = listOf(TranslationGlossaryEntry("Hero", "勇者", "title")),
         )
 
         val request = calls.requests.single()
@@ -58,6 +60,7 @@ class GeminiInteractionsAdapterTest {
         assertEquals("Translate only.", body.getString("system_instruction"))
         assertEquals(false, body.getBoolean("store"))
         assertEquals(false, body.getBoolean("stream"))
+        assertEquals("勇者", JSONObject(body.getString("input")).getJSONArray("glossary").getJSONObject(0).getString("target"))
         assertEquals("application/json", body.getJSONObject("response_format").getString("mime_type"))
         assertEquals(listOf("entry"), response.successes.map { it.entryId })
         assertTrue(response.itemFailures.isEmpty())

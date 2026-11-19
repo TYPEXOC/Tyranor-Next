@@ -4,6 +4,7 @@ import com.tyranor.next.core.translation.service.ProofreadBatchResponse
 import com.tyranor.next.core.translation.service.ProofreadInput
 import com.tyranor.next.core.translation.service.TranslationBatchResponse
 import com.tyranor.next.core.translation.service.TranslationInput
+import com.tyranor.next.core.translation.service.TranslationGlossaryEntry
 import com.tyranor.next.core.translation.service.TranslationModelInfo
 import com.tyranor.next.core.translation.service.TranslationProtocolAdapter
 import com.tyranor.next.core.translation.service.TranslationProtocolId
@@ -75,6 +76,7 @@ internal class GeminiInteractionsAdapter(
         sourceLanguage: String,
         targetLanguage: String,
         inputs: List<TranslationInput>,
+        glossary: List<TranslationGlossaryEntry>,
     ): TranslationBatchResponse {
         val key = requireTaskConfiguration(profile, apiKey, sourceLanguage, targetLanguage)
         if (inputs.isEmpty() || inputs.size > MAX_BATCH_SIZE ||
@@ -85,6 +87,17 @@ internal class GeminiInteractionsAdapter(
         val input = JSONObject()
             .put("sourceLanguage", sourceLanguage)
             .put("targetLanguage", targetLanguage)
+            .put(
+                "glossary",
+                JSONArray().apply {
+                    glossary.forEach { term ->
+                        put(JSONObject()
+                            .put("source", term.sourceTerm)
+                            .put("target", term.targetTerm)
+                            .put("note", term.note))
+                    }
+                },
+            )
             .put("results", JSONArray().apply {
                 inputs.forEach { put(JSONObject().put("id", it.entryId).put("text", it.sourceText)) }
             })
