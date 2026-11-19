@@ -272,7 +272,10 @@ private fun GlossaryCard(
             modifier = Modifier.fillMaxWidth().padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+            ) {
                 Surface(
                     modifier = Modifier.size(42.dp),
                     shape = RoundedCornerShape(14.dp),
@@ -288,28 +291,24 @@ private fun GlossaryCard(
                         )
                     }
                 }
-                Column(
+                Text(
+                    glossary.name,
                     modifier = Modifier.weight(1f).padding(start = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Surface(
+                    shape = RoundedCornerShape(50.dp),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
                 ) {
                     Text(
-                        glossary.name,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+                        stringResource(R.string.translation_glossary_term_count, glossary.termCount),
+                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 3.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
                     )
-                    Surface(
-                        shape = RoundedCornerShape(50.dp),
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                    ) {
-                        Text(
-                            stringResource(R.string.translation_glossary_term_count, glossary.termCount),
-                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 3.dp),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                    }
                 }
             }
             Row(
