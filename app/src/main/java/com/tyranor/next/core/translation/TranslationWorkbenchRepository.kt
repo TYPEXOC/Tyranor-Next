@@ -448,9 +448,7 @@ class TranslationWorkbenchRepository(context: Context) {
             throw TranslationWorkbenchException(TranslationWorkbenchError.INVALID_LANGUAGE_PAIR)
         }
         val schedule = withServiceProfileSnapshot(serviceId) { service ->
-            if (!service.enabled || !service.configured ||
-                service.protocolId != TranslationProtocolId.OPENAI_COMPATIBLE_CHAT
-            ) {
+            if (!service.canTranslate()) {
                 throw TranslationWorkbenchException(TranslationWorkbenchError.TRANSLATION_SERVICE_UNAVAILABLE)
             }
             repeat(MAX_TRANSLATION_SNAPSHOT_ATTEMPTS) {
@@ -827,6 +825,10 @@ class TranslationWorkbenchRepository(context: Context) {
         private const val MAX_MANUAL_TRANSLATION_LENGTH = 100_000
     }
 }
+
+internal fun TranslationServiceProfile.canTranslate(): Boolean =
+    enabled && configured &&
+        TranslationProtocolRegistry.supports(protocolId, TranslationServiceCapability.TRANSLATE)
 
 data class ProjectCreation(val projectId: String, val created: Boolean)
 
