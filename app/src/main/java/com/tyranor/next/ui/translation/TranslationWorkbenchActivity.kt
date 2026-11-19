@@ -65,10 +65,12 @@ import com.tyranor.next.core.translation.extraction.TranslationExtractorEngineId
 import com.tyranor.next.core.translation.service.TranslationServiceProfile
 import com.tyranor.next.core.translation.service.TranslationServiceCategory
 import com.tyranor.next.theme.AppComponentCornerRadius
+import com.tyranor.next.theme.DialogItemSurface
 import com.tyranor.next.theme.MiuixSettingsTheme
 import com.tyranor.next.theme.PageSecondaryTextColor
 import com.tyranor.next.theme.PageTextColor
 import com.tyranor.next.theme.SecondaryTextColor
+import com.tyranor.next.theme.TextColor
 import com.tyranor.next.theme.glassBorder
 import com.tyranor.next.ui.common.AppAlertDialog
 import com.tyranor.next.ui.common.AppScreenActivity
@@ -87,6 +89,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.flowOf
 import java.util.Date
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
+import top.yukonga.miuix.kmp.basic.CardDefaults
 import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
 import top.yukonga.miuix.kmp.basic.TabRowWithContour
 
@@ -523,15 +526,26 @@ private fun TranslationWorkbenchScreen() {
                     modifier = Modifier.fillMaxWidth().heightIn(max = 500.dp).verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
+                    Text(
+                        stringResource(R.string.translation_add_project_description),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = PageSecondaryTextColor,
+                    )
                     val operationItems = listOf(
                         stringResource(R.string.translation_add_project_extract),
                         stringResource(R.string.translation_add_project_translate),
                         stringResource(R.string.translation_add_project_proofread),
                     )
+                    val operationSummary = when (addProjectOperation) {
+                        ProjectAddOperation.EXTRACT -> stringResource(R.string.translation_add_project_extract_hint)
+                        ProjectAddOperation.TRANSLATE -> stringResource(R.string.translation_add_project_translate_hint)
+                        ProjectAddOperation.PROOFREAD -> stringResource(R.string.translation_add_project_proofread_hint)
+                    }
                     OverlayDropdownPreference(
                         items = operationItems,
                         selectedIndex = addProjectOperation.ordinal,
                         title = stringResource(R.string.translation_add_project_operation),
+                        summary = operationSummary,
                         modifier = Modifier.fillMaxWidth(),
                         enabled = !addingProject,
                         renderInRootScaffold = false,
@@ -542,31 +556,37 @@ private fun TranslationWorkbenchScreen() {
                         },
                     )
 
-                    if (addProjectOperation == ProjectAddOperation.EXTRACT) {
-                        val engineIds = listOf(
-                            EngineType.RPG_MV.name,
-                            EngineType.RPG_MZ.name,
-                            TranslationExtractorEngineIds.RPG_MAKER_2000_2003,
-                            TranslationExtractorEngineIds.RPG_MAKER_RGSS,
-                        )
-                        val engineNames = listOf(
-                            stringResource(R.string.translation_engine_rpg_maker_mv),
-                            stringResource(R.string.translation_engine_rpg_maker_mz),
-                            stringResource(R.string.translation_engine_rpg_maker_2000_2003),
-                            stringResource(R.string.translation_engine_rpg_maker_rgss),
-                        )
-                        OverlayDropdownPreference(
-                            items = engineNames,
-                            selectedIndex = engineIds.indexOf(addProjectEngineId).coerceAtLeast(0),
-                            title = stringResource(R.string.translation_add_project_engine),
-                            modifier = Modifier.fillMaxWidth(),
-                            enabled = !addingProject,
-                            renderInRootScaffold = false,
-                            onSelectedIndexChange = { index ->
-                                addProjectEngineId = engineIds.getOrNull(index) ?: EngineType.RPG_MV.name
+                    val engineIds = listOf(
+                        EngineType.RPG_MV.name,
+                        EngineType.RPG_MZ.name,
+                        TranslationExtractorEngineIds.RPG_MAKER_2000_2003,
+                        TranslationExtractorEngineIds.RPG_MAKER_RGSS,
+                    )
+                    val engineNames = listOf(
+                        stringResource(R.string.translation_engine_rpg_maker_mv),
+                        stringResource(R.string.translation_engine_rpg_maker_mz),
+                        stringResource(R.string.translation_engine_rpg_maker_2000_2003),
+                        stringResource(R.string.translation_engine_rpg_maker_rgss),
+                    )
+                    OverlayDropdownPreference(
+                        items = engineNames,
+                        selectedIndex = engineIds.indexOf(addProjectEngineId).coerceAtLeast(0),
+                        title = stringResource(R.string.translation_add_project_engine),
+                        summary = stringResource(
+                            if (addProjectOperation == ProjectAddOperation.EXTRACT) {
+                                R.string.translation_add_project_engine_hint
+                            } else {
+                                R.string.translation_add_project_engine_disabled_hint
                             },
-                        )
-                    } else {
+                        ),
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !addingProject && addProjectOperation == ProjectAddOperation.EXTRACT,
+                        renderInRootScaffold = false,
+                        onSelectedIndexChange = { index ->
+                            addProjectEngineId = engineIds.getOrNull(index) ?: EngineType.RPG_MV.name
+                        },
+                    )
+                    if (addProjectOperation != ProjectAddOperation.EXTRACT) {
                         val formatItems = listOf(
                             stringResource(R.string.translation_format_csv),
                             stringResource(R.string.translation_format_json),
@@ -588,30 +608,54 @@ private fun TranslationWorkbenchScreen() {
                     }
 
                     val choosingDirectory = addProjectOperation == ProjectAddOperation.EXTRACT
-                    Column(
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
+                        MiuixCard(
+                            modifier = Modifier.weight(1f).height(56.dp).glassBorder(),
+                            cornerRadius = AppComponentCornerRadius,
+                            colors = CardDefaults.defaultColors(
+                                color = DialogItemSurface,
+                                contentColor = TextColor,
+                            ),
+                        ) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                                verticalArrangement = Arrangement.spacedBy(2.dp),
+                            ) {
+                                Text(
+                                    stringResource(
+                                        if (choosingDirectory) R.string.translation_add_project_directory_label
+                                        else R.string.translation_add_project_file_label,
+                                    ),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = SecondaryTextColor,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                Text(
+                                    addProjectSourcePath.ifBlank {
+                                        stringResource(R.string.translation_add_project_source_not_selected)
+                                    },
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = if (addProjectSourcePath.isBlank()) SecondaryTextColor else TextColor,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                        }
                         NoRippleButton(
                             text = stringResource(
                                 if (choosingDirectory) R.string.translation_add_project_choose_directory
                                 else R.string.translation_add_project_import_file,
                             ),
                             tonal = true,
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+                            modifier = Modifier.height(56.dp),
                             enabled = !addingProject,
                             onClick = ::selectNewProjectSource,
                         )
-                        if (addProjectSourcePath.isNotBlank()) {
-                            Text(
-                                addProjectSourcePath,
-                                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = SecondaryTextColor,
-                                maxLines = 3,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
                     }
                     addProjectErrorCode?.let { code ->
                         Text(
