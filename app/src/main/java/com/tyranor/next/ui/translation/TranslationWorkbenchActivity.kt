@@ -30,6 +30,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -67,11 +68,16 @@ import com.tyranor.next.core.translation.extraction.TranslationExtractorEngineId
 import com.tyranor.next.core.translation.service.TranslationServiceProfile
 import com.tyranor.next.core.translation.service.TranslationServiceCategory
 import com.tyranor.next.theme.AppComponentCornerRadius
+import com.tyranor.next.theme.DialogItemSurface
+import com.tyranor.next.theme.AppThemeColors
 import com.tyranor.next.theme.MiuixSettingsTheme
+import com.tyranor.next.theme.NavWhite
 import com.tyranor.next.theme.PageSecondaryTextColor
 import com.tyranor.next.theme.PageTextColor
 import com.tyranor.next.theme.glassBorder
 import com.tyranor.next.ui.common.AppAlertDialog
+import com.tyranor.next.ui.common.AppBottomSheet
+import com.tyranor.next.ui.common.AppNavItem
 import com.tyranor.next.ui.common.AppScreenActivity
 import com.tyranor.next.ui.common.AppSecondaryTopBar
 import com.tyranor.next.ui.common.motion.startActivityWithPageTransition
@@ -89,6 +95,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.flowOf
 import java.util.Date
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
+import top.yukonga.miuix.kmp.basic.CardDefaults as MiuixCardDefaults
 import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
 import top.yukonga.miuix.kmp.basic.TabRowWithContour
 import top.yukonga.miuix.kmp.basic.TextField as MiuixTextField
@@ -125,6 +132,7 @@ private fun TranslationProjectCard.isFullyTranslated(): Boolean =
     entryCount > 0 && translatedCount == entryCount
 
 @Composable
+@OptIn(ExperimentalMaterial3Api::class)
 private fun TranslationWorkbenchScreen() {
     val context = LocalContext.current
     val appContext = context.applicationContext
@@ -146,7 +154,7 @@ private fun TranslationWorkbenchScreen() {
     var showAddDialog by remember { mutableStateOf(false) }
     var addProjectOperation by remember { mutableStateOf(ProjectAddOperation.EXTRACT) }
     var addProjectEngineId by remember { mutableStateOf(EngineType.RPG_MV.name) }
-    var addProjectFormat by remember { mutableStateOf(TranslationProjectFormat.CSV) }
+    var addProjectSourceFormat by remember { mutableStateOf<TranslationProjectFormat?>(null) }
     var addProjectSourceUri by remember { mutableStateOf<Uri?>(null) }
     var addProjectSourceName by remember { mutableStateOf("") }
     var addProjectSourcePath by remember { mutableStateOf("") }
@@ -154,10 +162,8 @@ private fun TranslationWorkbenchScreen() {
     var addingProject by remember { mutableStateOf(false) }
     var deleteProjectId by remember { mutableStateOf<String?>(null) }
     var errorCode by remember { mutableStateOf<TranslationWorkbenchError?>(null) }
-    var pendingImportFormat by remember { mutableStateOf<TranslationProjectFormat?>(null) }
     var pendingRelinkProjectId by remember { mutableStateOf<String?>(null) }
     var exportProjectId by remember { mutableStateOf<String?>(null) }
-    var exportFormat by remember { mutableStateOf(TranslationProjectFormat.CSV) }
     var exportDestinationUri by remember { mutableStateOf<Uri?>(null) }
     var exportDestinationPath by remember { mutableStateOf("") }
     var exporting by remember { mutableStateOf(false) }
@@ -229,10 +235,10 @@ private fun TranslationWorkbenchScreen() {
             try {
                 val createdDocument = withContext(Dispatchers.IO) {
                     val title = projects.firstOrNull { it.id == projectId }?.title ?: "translation-project"
-                    createExportDocument(appContext, destinationUri, title, exportFormat)
+                    createExportDocument(appContext, destinationUri, title, TranslationProjectFormat.MTOOL_JSON)
                 }
                 outputDocument = createdDocument
-                repository.exportProject(projectId, createdDocument.uri, exportFormat)
+                repository.exportProject(projectId, createdDocument.uri, TranslationProjectFormat.MTOOL_JSON)
                 exportProjectId = null
                 exportDestinationUri = null
                 exportDestinationPath = ""
@@ -249,22 +255,25 @@ private fun TranslationWorkbenchScreen() {
     }
     val importProject = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
-        val selectedFormat = pendingImportFormat ?: addProjectFormat
-        pendingImportFormat = null
-        addProjectFormat = selectedFormat
         addProjectSourceUri = uri
         addProjectSourceName = ""
         addProjectSourcePath = ""
+        addProjectSourceFormat = null
         addProjectErrorCode = null
         scope.launch {
             try {
-                addProjectSourceName = queryDisplayName(appContext, uri)
-                addProjectSourcePath = querySelectedSourcePath(
+                val displayName = queryDisplayName(appContext, uri)
+                val format = detectProjectImportFormat(displayName, appContext.contentResolver.getType(uri))
+                val path = querySelectedSourcePath(
                     appContext,
                     uri,
                     isTree = false,
-                    fallbackName = addProjectSourceName,
+                    fallbackName = displayName,
                 )
+                addProjectSourceName = displayName
+                addProjectSourcePath = path
+                addProjectSourceFormat = format
+                if (format == null) addProjectErrorCode = TranslationWorkbenchError.INVALID_PROJECT_FILE
             } catch (failure: Throwable) {
                 if (failure is CancellationException) throw failure
                 addProjectErrorCode = TranslationWorkbenchError.INVALID_PROJECT_FILE
@@ -288,6 +297,7 @@ private fun TranslationWorkbenchScreen() {
             addProjectSourceUri = uri
             addProjectSourceName = ""
             addProjectSourcePath = ""
+            addProjectSourceFormat = null
             addProjectErrorCode = null
             scope.launch {
                 val displayName = withContext(Dispatchers.IO) {
@@ -332,13 +342,16 @@ private fun TranslationWorkbenchScreen() {
                     ProjectAddOperation.PROOFREAD,
                     -> {
                         val displayName = addProjectSourceName.ifBlank { queryDisplayName(appContext, sourceUri) }
-                        repository.importDocument(sourceUri, displayName, addProjectFormat)
+                        val format = addProjectSourceFormat
+                            ?: throw TranslationWorkbenchException(TranslationWorkbenchError.INVALID_PROJECT_FILE)
+                        repository.importDocument(sourceUri, displayName, format)
                     }
                 }
                 showAddDialog = false
                 addProjectSourceUri = null
                 addProjectSourceName = ""
                 addProjectSourcePath = ""
+                addProjectSourceFormat = null
             } catch (failure: Throwable) {
                 if (failure is CancellationException) throw failure
                 addProjectErrorCode = (failure as? TranslationWorkbenchException)?.code
@@ -350,20 +363,14 @@ private fun TranslationWorkbenchScreen() {
     }
 
     fun chooseProjectFile() {
-        pendingImportFormat = addProjectFormat
-        val mimeTypes = when (addProjectFormat) {
-            TranslationProjectFormat.CSV -> arrayOf("text/csv", "text/comma-separated-values", "text/plain", "*/*")
-            TranslationProjectFormat.JSON,
-            TranslationProjectFormat.MTOOL_JSON,
-            -> arrayOf("application/json", "text/json", "*/*")
-        }
-        importProject.launch(mimeTypes)
+        importProject.launch(arrayOf("application/json", "text/json", "*/*"))
     }
 
     fun clearNewProjectSource() {
         addProjectSourceUri = null
         addProjectSourceName = ""
         addProjectSourcePath = ""
+        addProjectSourceFormat = null
         addProjectErrorCode = null
     }
 
@@ -406,7 +413,7 @@ private fun TranslationWorkbenchScreen() {
                                 onClick = {
                                     addProjectOperation = ProjectAddOperation.EXTRACT
                                     addProjectEngineId = EngineType.RPG_MV.name
-                                    addProjectFormat = TranslationProjectFormat.CSV
+                                    addProjectSourceFormat = null
                                     clearNewProjectSource()
                                     addingProject = false
                                     showAddDialog = true
@@ -498,7 +505,6 @@ private fun TranslationWorkbenchScreen() {
                                 },
                                 onExport = {
                                     exportProjectId = project.id
-                                    exportFormat = TranslationProjectFormat.CSV
                                     exportDestinationUri = null
                                     exportDestinationPath = ""
                                 },
@@ -560,19 +566,37 @@ private fun TranslationWorkbenchScreen() {
     }
 
     if (showAddDialog) {
-        AppAlertDialog(
-            onDismissRequest = { if (!addingProject) showAddDialog = false },
-            title = { Text(stringResource(R.string.translation_add_project), style = MaterialTheme.typography.titleMedium) },
-            text = {
+        val choosingDirectory = addProjectOperation == ProjectAddOperation.EXTRACT
+        val sourceFormatReady = choosingDirectory || addProjectSourceFormat == TranslationProjectFormat.MTOOL_JSON
+        val addProjectCardColor = if (AppThemeColors.isGlass || AppThemeColors.isMilkGlass) {
+            DialogItemSurface
+        } else {
+            NavWhite
+        }
+        AppBottomSheet(onDismissRequest = { if (!addingProject) showAddDialog = false }) {
+            MiuixSettingsTheme {
                 Column(
-                    modifier = Modifier.fillMaxWidth().heightIn(max = 500.dp).verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth().widthIn(max = 760.dp).padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    Text(
-                        stringResource(R.string.translation_add_project_description),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = PageSecondaryTextColor,
-                    )
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Text(
+                            stringResource(R.string.translation_add_project),
+                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                            color = PageTextColor,
+                        )
+                        Text(
+                            stringResource(R.string.translation_add_project_description),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = PageSecondaryTextColor,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+
                     val operationItems = listOf(
                         stringResource(R.string.translation_add_project_extract),
                         stringResource(R.string.translation_add_project_translate),
@@ -583,21 +607,6 @@ private fun TranslationWorkbenchScreen() {
                         ProjectAddOperation.TRANSLATE -> stringResource(R.string.translation_add_project_translate_hint)
                         ProjectAddOperation.PROOFREAD -> stringResource(R.string.translation_add_project_proofread_hint)
                     }
-                    OverlayDropdownPreference(
-                        items = operationItems,
-                        selectedIndex = addProjectOperation.ordinal,
-                        title = stringResource(R.string.translation_add_project_operation),
-                        summary = operationSummary,
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = !addingProject,
-                        renderInRootScaffold = false,
-                        onSelectedIndexChange = { index ->
-                            val nextOperation = ProjectAddOperation.entries.getOrNull(index) ?: ProjectAddOperation.EXTRACT
-                            if (nextOperation != addProjectOperation) clearNewProjectSource()
-                            addProjectOperation = nextOperation
-                        },
-                    )
-
                     val engineIds = listOf(
                         EngineType.RPG_MV.name,
                         EngineType.RPG_MZ.name,
@@ -610,121 +619,112 @@ private fun TranslationWorkbenchScreen() {
                         stringResource(R.string.translation_engine_rpg_maker_2000_2003),
                         stringResource(R.string.translation_engine_rpg_maker_rgss),
                     )
-                    OverlayDropdownPreference(
-                        items = engineNames,
-                        selectedIndex = engineIds.indexOf(addProjectEngineId).coerceAtLeast(0),
-                        title = stringResource(R.string.translation_add_project_engine),
-                        summary = stringResource(
-                            if (addProjectOperation == ProjectAddOperation.EXTRACT) {
-                                R.string.translation_add_project_engine_hint
-                            } else {
-                                R.string.translation_add_project_engine_disabled_hint
-                            },
-                        ),
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = !addingProject && addProjectOperation == ProjectAddOperation.EXTRACT,
-                        renderInRootScaffold = false,
-                        onSelectedIndexChange = { index ->
-                            addProjectEngineId = engineIds.getOrNull(index) ?: EngineType.RPG_MV.name
-                        },
-                    )
-                    val formatItems = listOf(
-                        stringResource(R.string.translation_format_csv),
-                        stringResource(R.string.translation_format_json),
-                    )
-                    val formats = listOf(TranslationProjectFormat.CSV, TranslationProjectFormat.JSON)
-                    val formatEnabled = addProjectOperation != ProjectAddOperation.EXTRACT
-                    OverlayDropdownPreference(
-                        items = formatItems,
-                        selectedIndex = formats.indexOf(addProjectFormat).coerceAtLeast(0),
-                        title = stringResource(R.string.translation_add_project_file_format),
-                        summary = stringResource(
-                            if (formatEnabled) R.string.translation_add_project_file_format_hint
-                            else R.string.translation_add_project_file_format_disabled_hint,
-                        ),
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = !addingProject && formatEnabled,
-                        renderInRootScaffold = false,
-                        onSelectedIndexChange = { index ->
-                            val nextFormat = formats.getOrNull(index) ?: TranslationProjectFormat.CSV
-                            if (nextFormat != addProjectFormat) clearNewProjectSource()
-                            addProjectFormat = nextFormat
-                        },
-                    )
-
-                    val choosingDirectory = addProjectOperation == ProjectAddOperation.EXTRACT
                     Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier.fillMaxWidth().weight(1f, fill = false).verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        Text(
-                            addProjectSourcePath.ifBlank {
+                        MiuixCard(
+                            modifier = Modifier.fillMaxWidth().glassBorder(),
+                            cornerRadius = AppComponentCornerRadius,
+                            colors = MiuixCardDefaults.defaultColors(
+                                color = addProjectCardColor,
+                                contentColor = PageTextColor,
+                            ),
+                        ) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                verticalArrangement = Arrangement.spacedBy(2.dp),
+                            ) {
+                                OverlayDropdownPreference(
+                                    items = operationItems,
+                                    selectedIndex = addProjectOperation.ordinal,
+                                    title = stringResource(R.string.translation_add_project_operation),
+                                    summary = operationSummary,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    enabled = !addingProject,
+                                    onSelectedIndexChange = { index ->
+                                        val nextOperation = ProjectAddOperation.entries.getOrNull(index) ?: ProjectAddOperation.EXTRACT
+                                        if (nextOperation != addProjectOperation) clearNewProjectSource()
+                                        addProjectOperation = nextOperation
+                                    },
+                                )
+                                OverlayDropdownPreference(
+                                    items = engineNames,
+                                    selectedIndex = engineIds.indexOf(addProjectEngineId).coerceAtLeast(0),
+                                    title = stringResource(R.string.translation_add_project_engine),
+                                    summary = stringResource(
+                                        if (addProjectOperation == ProjectAddOperation.EXTRACT) {
+                                            R.string.translation_add_project_engine_hint
+                                        } else {
+                                            R.string.translation_add_project_engine_disabled_hint
+                                        },
+                                    ),
+                                    modifier = Modifier.fillMaxWidth(),
+                                    enabled = !addingProject && addProjectOperation == ProjectAddOperation.EXTRACT,
+                                    onSelectedIndexChange = { index ->
+                                        addProjectEngineId = engineIds.getOrNull(index) ?: EngineType.RPG_MV.name
+                                    },
+                                )
+                            }
+                        }
+
+                        AppNavItem(
+                            title = stringResource(
+                                if (choosingDirectory) R.string.translation_add_project_directory_label
+                                else R.string.translation_add_project_file_label,
+                            ),
+                            summary = addProjectSourcePath.ifBlank {
                                 stringResource(R.string.translation_add_project_source_not_selected)
                             },
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = PageSecondaryTextColor,
-                            maxLines = 3,
-                            overflow = TextOverflow.Ellipsis,
+                            leadingIcon = if (choosingDirectory) R.drawable.ic_sheet_folder else R.drawable.ic_sheet_archive,
+                            containerColor = addProjectCardColor,
+                            verticalPadding = 14.dp,
+                            summaryMaxLines = 2,
+                            indication = null,
+                            onClick = if (addingProject) null else ::selectNewProjectSource,
+                        )
+
+                        addProjectErrorCode?.let { code ->
+                            Text(
+                                stringResource(code.messageResource()),
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        NoRippleButton(
+                            text = stringResource(R.string.common_cancel),
+                            modifier = Modifier.weight(1f).height(48.dp),
+                            enabled = !addingProject,
+                            tonal = true,
+                            onClick = {
+                                showAddDialog = false
+                                clearNewProjectSource()
+                            },
                         )
                         NoRippleButton(
                             text = stringResource(
-                                if (choosingDirectory) R.string.translation_add_project_choose_directory
-                                else R.string.translation_add_project_import_file,
+                                if (addingProject) R.string.translation_add_project_adding
+                                else R.string.translation_add_project_confirm,
                             ),
-                            modifier = Modifier.fillMaxWidth().height(48.dp),
-                            enabled = !addingProject,
-                            onClick = ::selectNewProjectSource,
+                            modifier = Modifier.weight(1f).height(48.dp),
+                            enabled = addProjectSourceUri != null && sourceFormatReady && !addingProject,
+                            onClick = ::submitNewProject,
                         )
                     }
-                    addProjectErrorCode?.let { code ->
-                        Text(
-                            stringResource(code.messageResource()),
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall,
-                        )
                     }
-                }
-            },
-            confirmButton = {
-                DialogTextButton(
-                    text = stringResource(
-                        if (addingProject) R.string.translation_add_project_adding
-                        else R.string.translation_add_project_confirm,
-                    ),
-                    enabled = addProjectSourceUri != null && !addingProject,
-                    onClick = ::submitNewProject,
-                )
-            },
-            dismissButton = {
-                DialogTextButton(
-                    text = stringResource(R.string.common_cancel),
-                    enabled = !addingProject,
-                    onClick = {
-                        showAddDialog = false
-                        clearNewProjectSource()
-                    },
-                )
-            },
-        )
+            }
+        }
     }
 
     exportProjectId?.let { projectId ->
         val project = projects.firstOrNull { it.id == projectId }
-        val exportFormats = buildList {
-            add(TranslationProjectFormat.CSV)
-            add(TranslationProjectFormat.JSON)
-            if (project != null &&
-                project.engineId in setOf(EngineType.RPG_MV.name, EngineType.RPG_MZ.name) &&
-                project.translatedCount > 0
-            ) {
-                add(TranslationProjectFormat.MTOOL_JSON)
-            }
-        }
-        LaunchedEffect(projectId, exportFormats) {
-            if (exportFormat !in exportFormats) exportFormat = exportFormats.first()
-        }
         AppAlertDialog(
             onDismissRequest = { if (!exporting) exportProjectId = null },
             title = { Text(stringResource(R.string.translation_export_title), style = MaterialTheme.typography.titleMedium) },
@@ -740,25 +740,18 @@ private fun TranslationWorkbenchScreen() {
                             color = PageSecondaryTextColor,
                         )
                     }
-                    OverlayDropdownPreference(
-                        items = exportFormats.map { format ->
-                            stringResource(
-                                when (format) {
-                                    TranslationProjectFormat.CSV -> R.string.translation_format_csv
-                                    TranslationProjectFormat.JSON -> R.string.translation_format_json
-                                    TranslationProjectFormat.MTOOL_JSON -> R.string.translation_format_mtool_json
-                                },
-                            )
-                        },
-                        selectedIndex = exportFormats.indexOf(exportFormat).coerceAtLeast(0),
-                        title = stringResource(R.string.translation_export_format),
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = !exporting,
-                        renderInRootScaffold = false,
-                        onSelectedIndexChange = { index ->
-                            exportFormat = exportFormats.getOrNull(index) ?: TranslationProjectFormat.CSV
-                        },
-                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            stringResource(R.string.translation_export_format),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = PageSecondaryTextColor,
+                        )
+                        Text(
+                            stringResource(R.string.translation_format_mtool_json),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = PageTextColor,
+                        )
+                    }
                     Text(
                         stringResource(R.string.translation_export_destination),
                         style = MaterialTheme.typography.labelMedium,
@@ -842,7 +835,7 @@ private fun TranslationWorkbenchScreen() {
                             val formatText = when (record.format) {
                                 TranslationProjectFormat.CSV -> stringResource(R.string.translation_format_csv)
                                 TranslationProjectFormat.JSON -> stringResource(R.string.translation_format_json)
-                                TranslationProjectFormat.MTOOL_JSON -> stringResource(R.string.translation_format_mtool_json)
+                                TranslationProjectFormat.MTOOL_JSON -> stringResource(R.string.translation_format_json)
                             }
                             Text(
                                 stringResource(
@@ -1421,7 +1414,7 @@ private fun createExportDocument(
     val extension = when (format) {
         TranslationProjectFormat.CSV -> ".csv"
         TranslationProjectFormat.JSON -> ".json"
-        TranslationProjectFormat.MTOOL_JSON -> "-mtool.json"
+        TranslationProjectFormat.MTOOL_JSON -> ".json"
     }
     val preferredName = exportName(title, extension)
     val existingNames = directory.listFiles().mapNotNull(DocumentFile::getName).toHashSet()
@@ -1437,4 +1430,18 @@ private fun createExportDocument(
     val mimeType = if (format == TranslationProjectFormat.CSV) "text/csv" else "application/json"
     return directory.createFile(mimeType, candidate)
         ?: throw TranslationWorkbenchException(TranslationWorkbenchError.EXPORT_FAILED)
+}
+
+internal fun detectProjectImportFormat(displayName: String, mimeType: String?): TranslationProjectFormat? {
+    val fileName = displayName.substringAfterLast('/')
+    val extension = fileName.substringAfterLast('.', missingDelimiterValue = "").lowercase()
+    if (extension.isNotBlank()) {
+        return TranslationProjectFormat.MTOOL_JSON.takeIf { extension == "json" }
+    }
+    val normalizedMimeType = mimeType?.substringBefore(';')?.trim()?.lowercase().orEmpty()
+    return TranslationProjectFormat.MTOOL_JSON.takeIf {
+        normalizedMimeType == "application/json" ||
+            normalizedMimeType == "text/json" ||
+            normalizedMimeType.endsWith("+json")
+    }
 }

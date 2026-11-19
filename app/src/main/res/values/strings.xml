@@ -208,7 +208,7 @@
     <string name="translation_workbench_title">翻译工作台</string>
     <string name="translation_add_project">添加项目</string>
     <string name="translation_add_project_description">选择提取、翻译或校对，并指定来源。</string>
-    <string name="translation_choose_project_source">选择 RPG Maker MV/MZ 游戏目录，或导入带原文与译文的项目文件。</string>
+    <string name="translation_choose_project_source">添加游戏目录以提取文本，或导入包含原文与译文的 MTool JSON。</string>
     <string name="translation_add_project_operation">操作</string>
     <string name="translation_add_project_extract">提取</string>
     <string name="translation_add_project_translate">翻译</string>
@@ -219,11 +219,6 @@
     <string name="translation_add_project_engine_hint">选择对应游戏引擎</string>
     <string name="translation_add_project_engine_disabled_hint">仅提取时可选</string>
     <string name="translation_add_project_engine">游戏引擎</string>
-    <string name="translation_add_project_file_format">项目格式</string>
-    <string name="translation_add_project_file_format_hint">选择 CSV 或 JSON</string>
-    <string name="translation_add_project_file_format_disabled_hint">仅导入项目时使用</string>
-    <string name="translation_add_project_choose_directory">选择游戏目录</string>
-    <string name="translation_add_project_import_file">选择文件</string>
     <string name="translation_add_project_directory_label">游戏目录</string>
     <string name="translation_add_project_file_label">项目文件</string>
     <string name="translation_add_project_source_not_selected">尚未选择</string>
@@ -240,7 +235,7 @@
     <string name="translation_import_csv">导入 CSV 项目</string>
     <string name="translation_import_json">导入 JSON 项目</string>
     <string name="translation_no_projects">尚无翻译项目</string>
-    <string name="translation_no_projects_hint">添加 RPG Maker MV/MZ 游戏目录，或导入包含原文与译文的 CSV/JSON。</string>
+    <string name="translation_no_projects_hint">添加游戏目录以提取文本，或导入包含原文与译文的 MTool JSON。</string>
     <string name="translation_project_filter_all">全部项目 %1$d</string>
     <string name="translation_project_filter_in_progress">进行中 %1$d</string>
     <string name="translation_project_filter_continuable">可继续 %1$d</string>
@@ -377,9 +372,7 @@
     <string name="translation_error_duplicate_glossary_term">术语表中原文术语重复。</string>
     <string name="translation_error_project_configuration_changed">项目术语表正在变化，请重新启动翻译任务。</string>
     <string name="translation_error_translation_failed">翻译任务未能完成，已保存此前成功的译文。</string>
-    <string name="translation_error_mtool_engine_unsupported">MTool JSON 导出仅适用于 RPG Maker MV/MZ 项目。</string>
     <string name="translation_error_mtool_source_conflict">同一原文存在不同译文，无法无歧义地生成 MTool JSON。</string>
-    <string name="translation_error_no_translated_entries">项目没有可导出的译文。</string>
     <string name="translation_error_export_failed">无法写入所选导出位置。</string>
     <string name="translation_error_export_history_failed">文件可能已导出，但工作台未能保存导出记录。</string>
     <string name="translation_error_storage_failure">工作台本地数据读写失败。</string>

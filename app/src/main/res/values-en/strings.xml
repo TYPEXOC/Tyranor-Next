@@ -208,7 +208,7 @@
     <string name="translation_workbench_title">Translation workbench</string>
     <string name="translation_add_project">Add project</string>
     <string name="translation_add_project_description">Choose extract, translate, or proofread, and select a source.</string>
-    <string name="translation_choose_project_source">Choose an RPG Maker MV/MZ game folder or import a project with source and translated text.</string>
+    <string name="translation_choose_project_source">Add a game folder to extract text, or import MTool JSON with source and translated text.</string>
     <string name="translation_add_project_operation">Operation</string>
     <string name="translation_add_project_extract">Extract</string>
     <string name="translation_add_project_translate">Translate</string>
@@ -219,11 +219,6 @@
     <string name="translation_add_project_engine_hint">Choose game engine</string>
     <string name="translation_add_project_engine_disabled_hint">Extraction only</string>
     <string name="translation_add_project_engine">Game engine</string>
-    <string name="translation_add_project_file_format">Project format</string>
-    <string name="translation_add_project_file_format_hint">Choose CSV or JSON</string>
-    <string name="translation_add_project_file_format_disabled_hint">Used only when importing</string>
-    <string name="translation_add_project_choose_directory">Choose game folder</string>
-    <string name="translation_add_project_import_file">Choose file</string>
     <string name="translation_add_project_directory_label">Game folder</string>
     <string name="translation_add_project_file_label">Project file</string>
     <string name="translation_add_project_source_not_selected">Not selected</string>
@@ -240,7 +235,7 @@
     <string name="translation_import_csv">Import CSV project</string>
     <string name="translation_import_json">Import JSON project</string>
     <string name="translation_no_projects">No translation projects yet</string>
-    <string name="translation_no_projects_hint">Add an RPG Maker MV/MZ game folder, or import a CSV/JSON project with source and translated text.</string>
+    <string name="translation_no_projects_hint">Add a game folder to extract text, or import MTool JSON with source and translated text.</string>
     <string name="translation_project_filter_all">All projects %1$d</string>
     <string name="translation_project_filter_in_progress">In progress %1$d</string>
     <string name="translation_project_filter_continuable">Can continue %1$d</string>
@@ -377,9 +372,7 @@
     <string name="translation_error_duplicate_glossary_term">The glossary contains a duplicate source term.</string>
     <string name="translation_error_project_configuration_changed">The project glossary is changing. Start the translation task again.</string>
     <string name="translation_error_translation_failed">The translation task did not finish. Previously saved translations were kept.</string>
-    <string name="translation_error_mtool_engine_unsupported">MTool JSON export is available only for RPG Maker MV/MZ projects.</string>
     <string name="translation_error_mtool_source_conflict">The same source text has conflicting translations, so MTool JSON cannot represent it safely.</string>
-    <string name="translation_error_no_translated_entries">This project has no translations to export.</string>
     <string name="translation_error_export_failed">The selected export location could not be written.</string>
     <string name="translation_error_export_history_failed">The file may have been exported, but its history could not be saved.</string>
     <string name="translation_error_storage_failure">The workbench could not read or write local data.</string>

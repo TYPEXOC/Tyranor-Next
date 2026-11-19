@@ -28,9 +28,7 @@ internal fun TranslationWorkbenchError.messageResource(): Int = when (this) {
     TranslationWorkbenchError.GLOSSARY_NOT_FOUND -> R.string.translation_error_glossary_not_found
     TranslationWorkbenchError.DUPLICATE_GLOSSARY_TERM -> R.string.translation_error_duplicate_glossary_term
     TranslationWorkbenchError.PROJECT_CONFIGURATION_CHANGED -> R.string.translation_error_project_configuration_changed
-    TranslationWorkbenchError.MTOOL_ENGINE_UNSUPPORTED -> R.string.translation_error_mtool_engine_unsupported
     TranslationWorkbenchError.MTOOL_SOURCE_CONFLICT -> R.string.translation_error_mtool_source_conflict
-    TranslationWorkbenchError.NO_TRANSLATED_ENTRIES -> R.string.translation_error_no_translated_entries
     TranslationWorkbenchError.NO_PROOFREAD_CANDIDATES -> R.string.translation_error_no_proofread_candidates
     TranslationWorkbenchError.INVALID_REVIEW_ENTRY -> R.string.translation_error_invalid_review_entry
     TranslationWorkbenchError.EXPORT_FAILED -> R.string.translation_error_export_failed

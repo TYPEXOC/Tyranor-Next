@@ -2,7 +2,7 @@ package com.tyranor.next.core.translation
 
 import androidx.room.ColumnInfo
 
-/** 文件导入的受支持格式；格式版本由 [TranslationProjectCodec] 管理。 */
+/** 项目文件交换与导出格式；工作台当前对用户提供 MTool JSON。 */
 enum class TranslationProjectFormat {
     CSV,
     JSON,
@@ -132,7 +132,7 @@ data class TranslationExportRecord(
     val createdAt: Long,
 )
 
-/** 受支持的标准项目 JSON/CSV 在导入与导出之间共用的数据形状。 */
+/** 项目导入/导出的中间数据形状；MTool JSON 仅携带原文与译文。 */
 data class TranslationProjectArchive(
     val projectKey: String?,
     val title: String,
@@ -176,9 +176,7 @@ enum class TranslationWorkbenchError {
     GLOSSARY_NOT_FOUND,
     DUPLICATE_GLOSSARY_TERM,
     PROJECT_CONFIGURATION_CHANGED,
-    MTOOL_ENGINE_UNSUPPORTED,
     MTOOL_SOURCE_CONFLICT,
-    NO_TRANSLATED_ENTRIES,
     NO_PROOFREAD_CANDIDATES,
     INVALID_REVIEW_ENTRY,
     EXPORT_FAILED,
