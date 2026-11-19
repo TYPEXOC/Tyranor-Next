@@ -1021,11 +1021,11 @@ private data class MachineServiceTemplate(
 private val MACHINE_SERVICE_TEMPLATES = listOf(
     MachineServiceTemplate(TranslationProtocolId.BING_TRANSLATOR_WEB, R.string.translation_services_provider_bing, "B"),
     MachineServiceTemplate(TranslationProtocolId.NIUTRANS_TRANSLATION_V1, R.string.translation_services_provider_niutrans, "N"),
-    MachineServiceTemplate(TranslationProtocolId.VOLCENGINE_TRANSLATE_TEXT_V1, R.string.translation_services_provider_volcengine, "火"),
+    MachineServiceTemplate(TranslationProtocolId.VOLCENGINE_TRANSLATE_TEXT_V1, R.string.translation_services_provider_volcengine, "V"),
     MachineServiceTemplate(TranslationProtocolId.AZURE_TRANSLATOR_V3, R.string.translation_services_provider_azure, "AZ"),
     MachineServiceTemplate(TranslationProtocolId.DEEPL_TRANSLATE_V2, R.string.translation_services_provider_deepl, "DL"),
-    MachineServiceTemplate(TranslationProtocolId.BAIDU_TRANSLATE_VIP_V1, R.string.translation_services_provider_baidu, "百度"),
-    MachineServiceTemplate(TranslationProtocolId.TENCENT_TMT_TEXT_TRANSLATE_V1, R.string.translation_services_provider_tencent, "腾讯"),
+    MachineServiceTemplate(TranslationProtocolId.BAIDU_TRANSLATE_VIP_V1, R.string.translation_services_provider_baidu, "BD"),
+    MachineServiceTemplate(TranslationProtocolId.TENCENT_TMT_TEXT_TRANSLATE_V1, R.string.translation_services_provider_tencent, "TX"),
 )
 
 private data class ServiceListRow(
@@ -1056,17 +1056,17 @@ private fun TranslationProtocolId.serviceMark(): String = when (this) {
     TranslationProtocolId.ANTHROPIC_MESSAGES -> "CL"
     TranslationProtocolId.BING_TRANSLATOR_WEB -> "B"
     TranslationProtocolId.NIUTRANS_TRANSLATION_V1 -> "N"
-    TranslationProtocolId.VOLCENGINE_TRANSLATE_TEXT_V1 -> "火"
+    TranslationProtocolId.VOLCENGINE_TRANSLATE_TEXT_V1 -> "V"
     TranslationProtocolId.AZURE_TRANSLATOR_V3 -> "AZ"
     TranslationProtocolId.DEEPL_TRANSLATE_V2 -> "DL"
-    TranslationProtocolId.BAIDU_TRANSLATE_VIP_V1 -> "百度"
-    TranslationProtocolId.TENCENT_TMT_TEXT_TRANSLATE_V1 -> "腾讯"
-    TranslationProtocolId.YOUDAO_TRANSLATE_V2 -> "有道"
-    TranslationProtocolId.ALIBABA_MT_ROA_V1 -> "阿里"
-    TranslationProtocolId.CAIYUN_LINGOCLOUD_V1 -> "彩云"
+    TranslationProtocolId.BAIDU_TRANSLATE_VIP_V1 -> "BD"
+    TranslationProtocolId.TENCENT_TMT_TEXT_TRANSLATE_V1 -> "TX"
+    TranslationProtocolId.YOUDAO_TRANSLATE_V2 -> "YD"
+    TranslationProtocolId.ALIBABA_MT_ROA_V1 -> "AL"
+    TranslationProtocolId.CAIYUN_LINGOCLOUD_V1 -> "CY"
     TranslationProtocolId.GOOGLE_CLOUD_TRANSLATE_V2 -> "G"
     TranslationProtocolId.YANDEX_TRANSLATE_V2 -> "Y"
-    TranslationProtocolId.HUAWEI_NLP_TRANSLATE_V1 -> "华为"
+    TranslationProtocolId.HUAWEI_NLP_TRANSLATE_V1 -> "HW"
 }
 
 private fun TranslationProtocolId.protocolTitleResource(): Int = when (this) {
