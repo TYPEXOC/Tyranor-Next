@@ -367,6 +367,77 @@ class MachineTranslationAdapterTest {
     }
 
     @Test
+    fun bingFollowsKnownRegionalPageRedirectAndUsesItsHostForTranslation() = runBlocking {
+        val html = """{"ig":"regional"} <div data-iid="translator.5020"></div> var params_AbusePreventionHelper = ["key","token"];"""
+        val factory = QueuedCallFactory(
+            listOf(
+                MockResponse(302, "", Headers.headersOf("Location", "https://cn.bing.com/translator")),
+                MockResponse(200, html, Headers.headersOf("Set-Cookie", "SRCHHPGUSR=regional-session; path=/; secure")),
+                MockResponse(200, """[{"translations":[{"text":"你好"}]}]"""),
+            ),
+        )
+
+        val response = BingWebTranslationAdapter(TranslationHttpTransport(factory)).translateBatch(
+            profile(TranslationProtocolId.BING_TRANSLATOR_WEB),
+            null,
+            "en",
+            "zh-CN",
+            listOf(input("regional", "Hello")),
+        )
+
+        assertEquals(listOf("www.bing.com", "cn.bing.com", "cn.bing.com"), factory.requests.map { it.url.host })
+        assertEquals("SRCHHPGUSR=regional-session", factory.requests.last().header("Cookie"))
+        assertEquals("https://cn.bing.com/translator", factory.requests.last().header("Referer"))
+        assertEquals(listOf("你好"), response.successes.map { it.translatedText })
+    }
+
+    @Test
+    fun bingDoesNotFollowRegionalPageRedirectToUntrustedHost() = runBlocking {
+        val factory = QueuedCallFactory(
+            listOf(MockResponse(302, "", Headers.headersOf("Location", "https://example.com/translator"))),
+        )
+
+        val failure = assertThrows(TranslationServiceException::class.java) {
+            runBlocking {
+                BingWebTranslationAdapter(TranslationHttpTransport(factory)).translateBatch(
+                    profile(TranslationProtocolId.BING_TRANSLATOR_WEB),
+                    null,
+                    "en",
+                    "zh-CN",
+                    listOf(input("untrusted", "Hello")),
+                )
+            }
+        }
+
+        assertEquals(TranslationServiceErrorCode.REQUEST_REJECTED, failure.code)
+        assertEquals(1, factory.requests.size)
+    }
+
+    @Test
+    fun bingRefreshesSessionOnceWhenProviderReturnsExpiredSessionStatus() = runBlocking {
+        val html = """{"ig":"session"} <div data-iid="translator.5020"></div> var params_AbusePreventionHelper = ["key","token"];"""
+        val factory = QueuedCallFactory(
+            listOf(
+                MockResponse(200, html),
+                MockResponse(200, """{"statusCode":205}"""),
+                MockResponse(200, html),
+                MockResponse(200, """[{"translations":[{"text":"你好"}]}]"""),
+            ),
+        )
+
+        val response = BingWebTranslationAdapter(TranslationHttpTransport(factory)).translateBatch(
+            profile(TranslationProtocolId.BING_TRANSLATOR_WEB),
+            null,
+            "en",
+            "zh-CN",
+            listOf(input("expired", "Hello")),
+        )
+
+        assertEquals(4, factory.requests.size)
+        assertEquals(listOf("你好"), response.successes.map { it.translatedText })
+    }
+
+    @Test
     fun bingTokenParserDoesNotRequireAnApiKeyOrExposeResponseBodies() {
         val token = BingWebTranslationAdapter.parseTokenPage(
             """{"ig":"i"} <div data-iid="x"></div> var params_AbusePreventionHelper = ["k","t"];""",
@@ -377,6 +448,15 @@ class MachineTranslationAdapterTest {
         }
         assertEquals(TranslationServiceErrorCode.INVALID_RESPONSE, failure.code)
         assertFalse(failure.message.orEmpty().contains("secret-page-body"))
+    }
+
+    @Test
+    fun bingTokenParserAcceptsCurrentPageWithoutTrailingSemicolon() {
+        val token = BingWebTranslationAdapter.parseTokenPage(
+            """{"ig":"i"} <div data-iid="x"></div> var params_AbusePreventionHelper = ["k","t"]""",
+        )
+
+        assertEquals(listOf("i", "x", "k", "t"), token)
     }
 
     @Test
@@ -429,6 +509,37 @@ class MachineTranslationAdapterTest {
         assertTrue(factory.requests[3].bodyText().contains("i=Hello"))
         assertEquals("こんにちは", response.successes.single().translatedText)
         assertEquals("yd-1", response.successes.single().entryId)
+    }
+
+    @Test
+    fun youdaoWebTranslationAcceptsJsonQuotedEncryptedResponse() = runBlocking {
+        val now = Instant.parse("2026-04-15T12:34:56Z")
+        val aesKey = "youdao-test-key"
+        val aesIv = "youdao-test-iv"
+        fun quoted(payload: String) = org.json.JSONObject.quote(
+            encryptYoudao(payload, aesKey, aesIv)
+                .replace('+', '-')
+                .replace('/', '_')
+                .trimEnd('='),
+        )
+        val factory = QueuedCallFactory(
+            listOf(
+                MockResponse(200, "<html></html>", Headers.headersOf("Set-Cookie", "OUTFOX_SEARCH_USER_ID=visitor; path=/; secure")),
+                MockResponse(200, """{"data":{"secretKey":"secret","aesKey":"$aesKey","aesIv":"$aesIv"}}"""),
+                MockResponse(200, quoted("""{"code":0,"translateResult":[[{"src":"Hello","tgt":"你好"}],[{"src":"Thank you","tgt":"谢谢"}]]}""")),
+                MockResponse(200, quoted("""{"code":0,"translateResult":[[{"src":"Hello","tgt":"こんにちは"}]]}""")),
+            ),
+        )
+        val response = YoudaoWebTranslationAdapter(TranslationHttpTransport(factory)) { now }.translateBatch(
+            profile(TranslationProtocolId.YOUDAO_TRANSLATE_WEB_V1),
+            null,
+            "en",
+            "ja",
+            listOf(input("yd-quoted", "Hello")),
+        )
+
+        assertEquals("こんにちは", response.successes.single().translatedText)
+        assertEquals("yd-quoted", response.successes.single().entryId)
     }
 
     @Test

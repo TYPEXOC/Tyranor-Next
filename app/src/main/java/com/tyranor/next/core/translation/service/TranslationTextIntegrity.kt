@@ -16,7 +16,7 @@ object TranslationTextIntegrity {
     private fun newlineTokens(text: String): List<String> = NEWLINE_TOKEN.findAll(text).map { it.value }.toList()
 
     private val FORMAT_TOKEN = Regex(
-        """\\(?:[A-Za-z]+(?:\[[^\]\r\n]*\])?|[{}!>|^])|%(?:\d+\$)?[-+#0-9.]*[A-Za-z]|\{[A-Za-z0-9_.-]+}|</?[A-Za-z][^>\r\n]*>""",
+        """\\(?:[A-Za-z]+(?:\[[^\]\r\n]*\])?|[{}!>|^])|%(?:\d+\$)?[-+#0-9.]*[A-Za-z]|\{[A-Za-z0-9_.-]+\}|</?[A-Za-z][^>\r\n]*>""",
     )
     private val NEWLINE_TOKEN = Regex("\\r\\n|\\r|\\n")
 }

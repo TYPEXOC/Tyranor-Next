@@ -28,8 +28,8 @@ import org.json.JSONException
 import org.json.JSONObject
 
 /**
- * Keyless Youdao webpage translator. The session flow follows SmartSub's MIT-licensed
- * reference and the public Youdao webpage protocol; this adapter is independently implemented.
+ * Keyless Youdao webpage translator. The session flow follows the public Youdao webpage protocol
+ * and open-source implementation references; this adapter is independently implemented.
  * The provider may change or restrict this undocumented endpoint at any time.
  */
 internal class YoudaoWebTranslationAdapter(
@@ -220,13 +220,24 @@ internal class YoudaoWebTranslationAdapter(
     }
 
     private fun decrypt(value: String, session: Session): String {
+        val trimmed = value.trim()
+        val encrypted = if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
+            runCatching { org.json.JSONTokener(trimmed).nextValue() as? String }
+                .getOrNull()
+                ?.takeIf(String::isNotBlank)
+                ?: trimmed
+        } else {
+            trimmed
+        }
         val cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
         cipher.init(
             Cipher.DECRYPT_MODE,
             SecretKeySpec(md5(session.aesKey), "AES"),
             IvParameterSpec(md5(session.aesIv)),
         )
-        return String(cipher.doFinal(java.util.Base64.getDecoder().decode(value)), StandardCharsets.UTF_8)
+        val encryptedBytes = runCatching { java.util.Base64.getDecoder().decode(encrypted) }
+            .getOrElse { java.util.Base64.getUrlDecoder().decode(encrypted) }
+        return String(cipher.doFinal(encryptedBytes), StandardCharsets.UTF_8)
     }
 
     private fun youdaoMd5Hex(value: String): String = md5(value).joinToString("") { "%02x".format(it.toInt() and 0xff) }
