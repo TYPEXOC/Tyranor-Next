@@ -3,6 +3,7 @@ package com.tyranor.next.ui.translation
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,10 +15,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -55,8 +57,8 @@ import com.tyranor.next.ui.common.AppSecondaryTopBar
 import com.tyranor.next.ui.common.ArrowPreference
 import com.tyranor.next.ui.common.DialogTextButton
 import com.tyranor.next.ui.common.NoRippleButton
-import com.tyranor.next.ui.common.glassNavBottomInset
 import com.tyranor.next.ui.common.motion.startActivityWithPageTransition
+import com.tyranor.next.ui.common.notice.AppNotice
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
@@ -84,10 +86,17 @@ private fun TranslationGlossariesScreen() {
     var error by remember { mutableStateOf<TranslationWorkbenchError?>(null) }
     var creating by remember { mutableStateOf(false) }
     var deletingNow by remember { mutableStateOf(false) }
+    val displayNames = translationGlossaryDisplayNames(glossaries)
 
     fun reportFailure(failure: Throwable) {
         if (failure is CancellationException) throw failure
-        error = (failure as? TranslationWorkbenchException)?.code ?: TranslationWorkbenchError.STORAGE_FAILURE
+        val code = (failure as? TranslationWorkbenchException)?.code ?: TranslationWorkbenchError.STORAGE_FAILURE
+        if (code == TranslationWorkbenchError.DUPLICATE_GLOSSARY_NAME) {
+            error = null
+            AppNotice.makeText(context, code.messageResource(), Toast.LENGTH_SHORT, AppNotice.Kind.Failure).show()
+        } else {
+            error = code
+        }
     }
 
     fun openGlossary(glossary: TranslationGlossary) {
@@ -111,15 +120,57 @@ private fun TranslationGlossariesScreen() {
                 )
             },
         ) { innerPadding ->
-            LazyColumn(
+            Column(
                 modifier = Modifier.fillMaxSize()
                     .widthIn(max = 760.dp)
                     .padding(top = innerPadding.calculateTopPadding())
                     .padding(horizontal = 12.dp),
-                contentPadding = PaddingValues(top = 12.dp, bottom = 24.dp + glassNavBottomInset()),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                item(key = "add-glossary") {
+                LazyColumn(
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    contentPadding = PaddingValues(top = 12.dp, bottom = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    if (glossaries.isEmpty()) {
+                        item(key = "empty-glossaries") {
+                            MiuixCard(
+                                modifier = Modifier.fillMaxWidth().glassBorder(),
+                                cornerRadius = AppComponentCornerRadius,
+                            ) {
+                                Text(
+                                    stringResource(R.string.translation_glossaries_empty),
+                                    modifier = Modifier.padding(18.dp),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = PageSecondaryTextColor,
+                                )
+                            }
+                        }
+                    }
+                    itemsIndexed(glossaries, key = { _, glossary -> glossary.id }) { index, glossary ->
+                        GlossaryCard(
+                            glossary = glossary,
+                            displayName = displayNames[index],
+                            onManage = { openGlossary(glossary) },
+                            onDelete = {
+                                error = null
+                                deleting = glossary
+                            },
+                        )
+                    }
+                    error?.takeIf { deleting == null }?.let { code ->
+                        item(key = "glossary-error") {
+                            Text(
+                                stringResource(code.messageResource()),
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                        }
+                    }
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(bottom = 12.dp),
+                ) {
                     NoRippleButton(
                         text = stringResource(R.string.translation_glossary_add),
                         modifier = Modifier.fillMaxWidth(),
@@ -128,41 +179,6 @@ private fun TranslationGlossariesScreen() {
                             editor = GlossaryNameEditor(name = "")
                         },
                     )
-                }
-                if (glossaries.isEmpty()) {
-                    item(key = "empty-glossaries") {
-                        MiuixCard(
-                            modifier = Modifier.fillMaxWidth().glassBorder(),
-                            cornerRadius = AppComponentCornerRadius,
-                        ) {
-                            Text(
-                                stringResource(R.string.translation_glossaries_empty),
-                                modifier = Modifier.padding(18.dp),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = PageSecondaryTextColor,
-                            )
-                        }
-                    }
-                }
-                items(glossaries, key = { glossary -> glossary.id }) { glossary ->
-                    GlossaryCard(
-                        glossary = glossary,
-                        onManage = { openGlossary(glossary) },
-                        onDelete = {
-                            error = null
-                            deleting = glossary
-                        },
-                    )
-                }
-                error?.takeIf { deleting == null }?.let { code ->
-                    item(key = "glossary-error") {
-                        Text(
-                            stringResource(code.messageResource()),
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                    }
                 }
             }
             deleting?.let { glossary ->
@@ -262,6 +278,7 @@ private fun TranslationGlossariesScreen() {
 @Composable
 private fun GlossaryCard(
     glossary: TranslationGlossary,
+    displayName: String,
     onManage: () -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -278,7 +295,7 @@ private fun GlossaryCard(
                 verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
             ) {
                 Text(
-                    glossary.name,
+                    displayName,
                     modifier = Modifier.weight(1f).padding(start = 8.dp),
                     style = MaterialTheme.typography.titleMedium.copy(fontSize = 20.sp),
                     fontWeight = FontWeight.SemiBold,

@@ -3,6 +3,7 @@ package com.tyranor.next.ui.translation
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -62,6 +63,7 @@ import com.tyranor.next.ui.common.AppSecondaryTopBar
 import com.tyranor.next.ui.common.DialogTextButton
 import com.tyranor.next.ui.common.NoRippleButton
 import com.tyranor.next.ui.common.NoRippleTextButton
+import com.tyranor.next.ui.common.notice.AppNotice
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
@@ -120,7 +122,15 @@ private fun TranslationGlossaryDetailScreen(
 
     fun reportFailure(failure: Throwable) {
         if (failure is CancellationException) throw failure
-        error = (failure as? TranslationWorkbenchException)?.code ?: TranslationWorkbenchError.STORAGE_FAILURE
+        val code = (failure as? TranslationWorkbenchException)?.code ?: TranslationWorkbenchError.STORAGE_FAILURE
+        if (code == TranslationWorkbenchError.DUPLICATE_GLOSSARY_NAME ||
+            code == TranslationWorkbenchError.DUPLICATE_GLOSSARY_TERM
+        ) {
+            error = null
+            AppNotice.makeText(context, code.messageResource(), Toast.LENGTH_SHORT, AppNotice.Kind.Failure).show()
+        } else {
+            error = code
+        }
     }
 
     fun saveNameAndReturn() {

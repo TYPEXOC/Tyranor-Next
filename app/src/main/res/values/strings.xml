@@ -306,6 +306,7 @@
     <string name="translation_glossary_loading">正在读取术语…</string>
     <string name="translation_glossary_term_count">%1$d 个术语</string>
     <string name="translation_glossary_name">术语表名称</string>
+    <string name="translation_glossary_duplicate_option">%1$s（同名 #%2$d）</string>
     <string name="translation_glossary_entries_empty">还没有术语，添加原文与译文。</string>
     <string name="translation_glossary_add_entry">添加术语</string>
     <string name="translation_glossary_entry_title">编辑术语</string>
@@ -368,6 +369,7 @@
     <string name="translation_error_invalid_language_pair">请填写不同的原文语言和目标语言。</string>
     <string name="translation_error_no_translation_candidates">项目没有待翻译的条目。</string>
     <string name="translation_error_invalid_glossary">术语表超出限制或格式无效。</string>
+    <string name="translation_error_duplicate_glossary_name">已有同名术语表，请更换名称。</string>
     <string name="translation_error_glossary_not_found">所选术语表已不存在，请重新选择。</string>
     <string name="translation_error_duplicate_glossary_term">术语表中原文术语重复。</string>
     <string name="translation_error_project_configuration_changed">项目术语表正在变化，请重新启动翻译任务。</string>

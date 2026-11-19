@@ -25,6 +25,7 @@ internal fun TranslationWorkbenchError.messageResource(): Int = when (this) {
     TranslationWorkbenchError.INVALID_LANGUAGE_PAIR -> R.string.translation_error_invalid_language_pair
     TranslationWorkbenchError.NO_TRANSLATION_CANDIDATES -> R.string.translation_error_no_translation_candidates
     TranslationWorkbenchError.INVALID_GLOSSARY -> R.string.translation_error_invalid_glossary
+    TranslationWorkbenchError.DUPLICATE_GLOSSARY_NAME -> R.string.translation_error_duplicate_glossary_name
     TranslationWorkbenchError.GLOSSARY_NOT_FOUND -> R.string.translation_error_glossary_not_found
     TranslationWorkbenchError.DUPLICATE_GLOSSARY_TERM -> R.string.translation_error_duplicate_glossary_term
     TranslationWorkbenchError.PROJECT_CONFIGURATION_CHANGED -> R.string.translation_error_project_configuration_changed

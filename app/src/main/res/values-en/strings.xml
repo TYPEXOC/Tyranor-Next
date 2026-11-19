@@ -306,6 +306,7 @@
     <string name="translation_glossary_loading">Loading terms…</string>
     <string name="translation_glossary_term_count">Terms: %1$d</string>
     <string name="translation_glossary_name">Glossary name</string>
+    <string name="translation_glossary_duplicate_option">%1$s (duplicate #%2$d)</string>
     <string name="translation_glossary_entries_empty">No terms yet. Add a source and its translation.</string>
     <string name="translation_glossary_add_entry">Add term</string>
     <string name="translation_glossary_entry_title">Edit term</string>
@@ -368,6 +369,7 @@
     <string name="translation_error_invalid_language_pair">Enter different source and target languages.</string>
     <string name="translation_error_no_translation_candidates">This project has no entries waiting for translation.</string>
     <string name="translation_error_invalid_glossary">The glossary is invalid or exceeds its size limit.</string>
+    <string name="translation_error_duplicate_glossary_name">A glossary with this name already exists. Choose another name.</string>
     <string name="translation_error_glossary_not_found">The selected glossary no longer exists. Select another glossary.</string>
     <string name="translation_error_duplicate_glossary_term">The glossary contains a duplicate source term.</string>
     <string name="translation_error_project_configuration_changed">The project glossary is changing. Start the translation task again.</string>

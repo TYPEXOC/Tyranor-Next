@@ -920,7 +920,7 @@ private fun TranslationStartDialog(
                             }
                         }
                         val glossaryItems = listOf(stringResource(R.string.translation_glossary_none)) +
-                            glossaries.map(TranslationGlossary::name)
+                            translationGlossaryDisplayNames(glossaries)
                         val selectedGlossaryIndex = selectedGlossaryId?.let { selected ->
                             glossaries.indexOfFirst { it.id == selected }.takeIf { it >= 0 }?.plus(1)
                         } ?: 0

@@ -9,6 +9,7 @@ import androidx.room.Upsert
 import com.tyranor.next.core.translation.TranslationWorkbenchError
 import com.tyranor.next.core.translation.TranslationWorkbenchException
 import com.tyranor.next.core.translation.TranslationProjectState
+import com.tyranor.next.core.translation.normalizeTranslationGlossaryName
 import org.json.JSONObject
 import kotlinx.coroutines.flow.Flow
 
@@ -173,6 +174,9 @@ internal abstract class TranslationWorkbenchDao {
     @Query("SELECT * FROM translation_glossaries WHERE id = :id LIMIT 1")
     abstract suspend fun getReusableGlossary(id: String): TranslationGlossaryEntity?
 
+    @Query("SELECT name FROM translation_glossaries WHERE id != :id")
+    abstract suspend fun getOtherReusableGlossaryNames(id: String): List<String>
+
     @Query("SELECT * FROM translation_glossary_entries WHERE glossary_id = :glossaryId ORDER BY source_term COLLATE NOCASE")
     abstract fun observeReusableGlossaryEntries(glossaryId: String): Flow<List<TranslationGlossaryEntryEntity>>
 
@@ -196,15 +200,21 @@ internal abstract class TranslationWorkbenchDao {
         glossary: TranslationGlossaryEntity,
         entries: List<TranslationGlossaryEntryEntity>,
         expectedRevision: Long?,
-    ): Boolean {
+    ): ReusableGlossaryWriteResult {
         val current = getReusableGlossary(glossary.id)
         if ((expectedRevision == null && current != null) ||
             (expectedRevision != null && current?.revision != expectedRevision)
-        ) return false
+        ) return ReusableGlossaryWriteResult.REVISION_MISMATCH
+        val normalizedName = normalizeTranslationGlossaryName(glossary.name)
+        val nameUnchanged = current?.let { normalizeTranslationGlossaryName(it.name) == normalizedName } == true
+        if (!nameUnchanged && getOtherReusableGlossaryNames(glossary.id).any {
+                normalizeTranslationGlossaryName(it) == normalizedName
+            }
+        ) return ReusableGlossaryWriteResult.DUPLICATE_NAME
         upsertReusableGlossary(glossary)
         deleteReusableGlossaryEntries(glossary.id)
         if (entries.isNotEmpty()) insertReusableGlossaryEntries(entries)
-        return true
+        return ReusableGlossaryWriteResult.SAVED
     }
 
     @Query("DELETE FROM translation_glossary_terms WHERE project_id = :projectId")
@@ -696,4 +706,10 @@ internal abstract class TranslationWorkbenchDao {
         upsertProject(project.copy(revision = project.revision + 1, updatedAt = updatedAt))
         return true
     }
+}
+
+internal enum class ReusableGlossaryWriteResult {
+    SAVED,
+    REVISION_MISMATCH,
+    DUPLICATE_NAME,
 }

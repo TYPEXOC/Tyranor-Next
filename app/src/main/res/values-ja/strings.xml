@@ -306,6 +306,7 @@
     <string name="translation_glossary_loading">用語を読み込み中…</string>
     <string name="translation_glossary_term_count">%1$d 件の用語</string>
     <string name="translation_glossary_name">用語集名</string>
+    <string name="translation_glossary_duplicate_option">%1$s（重複 #%2$d）</string>
     <string name="translation_glossary_entries_empty">用語はまだありません。原文と訳文を追加してください。</string>
     <string name="translation_glossary_add_entry">用語を追加</string>
     <string name="translation_glossary_entry_title">用語を編集</string>
@@ -368,6 +369,7 @@
     <string name="translation_error_invalid_language_pair">異なる原文言語と翻訳先言語を入力してください。</string>
     <string name="translation_error_no_translation_candidates">翻訳待ちの項目がありません。</string>
     <string name="translation_error_invalid_glossary">用語集の形式が無効か、サイズ上限を超えています。</string>
+    <string name="translation_error_duplicate_glossary_name">同じ名前の用語集が既にあります。別の名前を入力してください。</string>
     <string name="translation_error_glossary_not_found">選択した用語集は存在しません。別の用語集を選択してください。</string>
     <string name="translation_error_duplicate_glossary_term">用語集に重複した原文用語があります。</string>
     <string name="translation_error_project_configuration_changed">プロジェクト用語集が変更されています。翻訳タスクを再度開始してください。</string>

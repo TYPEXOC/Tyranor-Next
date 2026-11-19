@@ -20,6 +20,7 @@ import com.tyranor.next.core.translation.storage.TranslationGlossaryTermEntity
 import com.tyranor.next.core.translation.storage.TranslationGlossaryEntity
 import com.tyranor.next.core.translation.storage.TranslationGlossaryEntryEntity
 import com.tyranor.next.core.translation.storage.TranslationGlossaryRow
+import com.tyranor.next.core.translation.storage.ReusableGlossaryWriteResult
 import com.tyranor.next.core.translation.storage.TranslationProofreadSuggestionEntity
 import com.tyranor.next.core.translation.storage.TranslationReviewIssueEntity
 import com.tyranor.next.core.translation.storage.TranslationReviewIssueRow
@@ -284,8 +285,12 @@ class TranslationWorkbenchRepository(context: Context) {
                 updatedAt = now,
             )
         }
-        if (!dao.replaceReusableGlossary(glossary, entries, old?.revision)) {
-            throw TranslationWorkbenchException(TranslationWorkbenchError.PROJECT_CONFIGURATION_CHANGED)
+        when (dao.replaceReusableGlossary(glossary, entries, old?.revision)) {
+            ReusableGlossaryWriteResult.SAVED -> Unit
+            ReusableGlossaryWriteResult.REVISION_MISMATCH ->
+                throw TranslationWorkbenchException(TranslationWorkbenchError.PROJECT_CONFIGURATION_CHANGED)
+            ReusableGlossaryWriteResult.DUPLICATE_NAME ->
+                throw TranslationWorkbenchException(TranslationWorkbenchError.DUPLICATE_GLOSSARY_NAME)
         }
         return TranslationGlossary(
             id = glossary.id,
