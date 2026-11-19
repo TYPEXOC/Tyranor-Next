@@ -230,10 +230,8 @@ class TranslationWorkbenchRepository(context: Context) {
 
     /** Creates one project for the selected SAF tree; an existing tree returns its existing project id. */
     suspend fun createGameDirectoryProject(treeUri: Uri, engineId: String): ProjectCreation {
-        val engine = runCatching { EngineType.valueOf(engineId) }.getOrNull()
-        if (engine != EngineType.RPG_MV && engine != EngineType.RPG_MZ) {
-            throw TranslationWorkbenchException(TranslationWorkbenchError.UNSUPPORTED_ENGINE)
-        }
+        val extractor = TextExtractorRegistry.find(engineId)
+            ?: throw TranslationWorkbenchException(TranslationWorkbenchError.UNSUPPORTED_ENGINE)
         val normalized = treeUri.normalizeScheme()
         val sourceIdentity = directoryIdentity(normalized)
         val title = withContext(Dispatchers.IO) {
@@ -247,7 +245,7 @@ class TranslationWorkbenchRepository(context: Context) {
             exchangeKey = UUID.randomUUID().toString(),
             title = title,
             projectState = TranslationProjectState.NEW.name,
-            engineId = engine.name,
+            engineId = extractor.descriptor.engineId,
             sourceType = TranslationProjectSource.GAME_DIRECTORY.name,
             sourceTreeUri = normalized.toString(),
             sourceLanguage = null,
@@ -286,7 +284,7 @@ class TranslationWorkbenchRepository(context: Context) {
                     throw TranslationWorkbenchException(TranslationWorkbenchError.UNSUPPORTED_PROJECT_FORMAT)
             }
             val engine = archive.engineId?.takeIf { value ->
-                runCatching { EngineType.valueOf(value) }.isSuccess
+                runCatching { EngineType.valueOf(value) }.isSuccess || TextExtractorRegistry.find(value) != null
             }
             val identity = importedIdentity(archive, engine)
             val now = System.currentTimeMillis()

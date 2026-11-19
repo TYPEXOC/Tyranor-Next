@@ -48,6 +48,7 @@ class TranslationExtractionException(
 
 enum class ExtractionErrorCode {
     DIRECTORY_PERMISSION_LOST,
+    EXTRACTOR_UNAVAILABLE,
     INVALID_GAME_DIRECTORY,
     UNSUPPORTED_FORMAT,
     CORRUPT_RESOURCE,
@@ -70,6 +71,7 @@ internal fun validateRelativePath(path: String, allowEmpty: Boolean = false): Li
 
 internal fun ExtractionErrorCode.toWorkbenchError(): TranslationWorkbenchError = when (this) {
     ExtractionErrorCode.DIRECTORY_PERMISSION_LOST -> TranslationWorkbenchError.DIRECTORY_PERMISSION_LOST
+    ExtractionErrorCode.EXTRACTOR_UNAVAILABLE -> TranslationWorkbenchError.EXTRACTOR_UNAVAILABLE
     ExtractionErrorCode.INVALID_GAME_DIRECTORY -> TranslationWorkbenchError.INVALID_GAME_DIRECTORY
     ExtractionErrorCode.UNSUPPORTED_FORMAT -> TranslationWorkbenchError.UNSUPPORTED_FORMAT
     ExtractionErrorCode.CORRUPT_RESOURCE -> TranslationWorkbenchError.CORRUPT_RESOURCE

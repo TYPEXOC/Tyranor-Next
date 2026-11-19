@@ -53,6 +53,7 @@ import com.tyranor.next.core.translation.TranslationWorkbenchException
 import com.tyranor.next.core.translation.TranslationWorkbenchRepository
 import com.tyranor.next.core.translation.TranslationProjectCard
 import com.tyranor.next.core.translation.TranslationGlossaryTerm
+import com.tyranor.next.core.translation.extraction.TranslationExtractorEngineIds
 import com.tyranor.next.core.translation.service.TranslationServiceProfile
 import com.tyranor.next.theme.AppComponentCornerRadius
 import com.tyranor.next.theme.MiuixSettingsTheme
@@ -391,6 +392,24 @@ private fun TranslationWorkbenchScreen() {
                         },
                     )
                     NoRippleTextButton(
+                        text = stringResource(R.string.translation_add_rpg2k_directory),
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = {
+                            showAddDialog = false
+                            pendingEngineId = TranslationExtractorEngineIds.RPG_MAKER_2000_2003
+                            chooseGameDirectory.launch(null)
+                        },
+                    )
+                    NoRippleTextButton(
+                        text = stringResource(R.string.translation_add_rgss_directory),
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = {
+                            showAddDialog = false
+                            pendingEngineId = TranslationExtractorEngineIds.RPG_MAKER_RGSS
+                            chooseGameDirectory.launch(null)
+                        },
+                    )
+                    NoRippleTextButton(
                         text = stringResource(R.string.translation_import_csv),
                         modifier = Modifier.fillMaxWidth(),
                         onClick = {
@@ -625,7 +644,12 @@ private fun TranslationProjectCardView(
         }
         else -> R.string.translation_project_waiting
     }
-    val engineLabel = project.engineId?.let(::engineDisplayName) ?: stringResource(R.string.translation_engine_unknown)
+    val engineLabel = when (project.engineId) {
+        TranslationExtractorEngineIds.RPG_MAKER_2000_2003 -> stringResource(R.string.translation_engine_rpg2k)
+        TranslationExtractorEngineIds.RPG_MAKER_RGSS -> stringResource(R.string.translation_engine_rgss)
+        else -> project.engineId?.let(::engineDisplayName)?.takeIf(String::isNotBlank)
+            ?: stringResource(R.string.translation_engine_unknown)
+    }
     val taskId = project.latestTaskId
 
     MiuixCard(
@@ -776,6 +800,7 @@ private fun engineDisplayName(engineId: String): String =
 
 private fun TranslationProjectCard.failureResource(): Int = when (latestTaskFailureCode) {
     TranslationWorkbenchError.DIRECTORY_PERMISSION_LOST.name -> R.string.translation_error_directory_permission_lost
+    TranslationWorkbenchError.EXTRACTOR_UNAVAILABLE.name -> R.string.translation_error_extractor_unavailable
     TranslationWorkbenchError.INVALID_GAME_DIRECTORY.name -> R.string.translation_error_invalid_game_directory
     TranslationWorkbenchError.UNSUPPORTED_FORMAT.name -> R.string.translation_error_unsupported_format
     TranslationWorkbenchError.CORRUPT_RESOURCE.name -> R.string.translation_error_corrupt_resource

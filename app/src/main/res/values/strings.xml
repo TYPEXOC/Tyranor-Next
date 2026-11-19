@@ -82,12 +82,16 @@
     <string name="translation_choose_project_source">选择 RPG Maker MV/MZ 游戏目录，或导入带原文与译文的项目文件。</string>
     <string name="translation_add_mv_directory">选择 RPG Maker MV 游戏目录</string>
     <string name="translation_add_mz_directory">选择 RPG Maker MZ 游戏目录</string>
+    <string name="translation_add_rpg2k_directory">选择 RPG Maker 2000/2003 游戏目录</string>
+    <string name="translation_add_rgss_directory">选择 RPG Maker XP/VX/VX Ace/mkxp-z 游戏目录</string>
     <string name="translation_import_csv">导入 CSV 项目</string>
     <string name="translation_import_json">导入标准 JSON 项目</string>
     <string name="translation_no_projects">尚无翻译项目</string>
     <string name="translation_no_projects_hint">添加 RPG Maker MV/MZ 游戏目录，或导入包含原文与译文的 CSV/标准 JSON。</string>
     <string name="translation_project_metadata">引擎：%1$s</string>
     <string name="translation_engine_unknown">未指定引擎</string>
+    <string name="translation_engine_rpg2k">RPG Maker 2000/2003</string>
+    <string name="translation_engine_rgss">RPG Maker RGSS（XP/VX/VX Ace/mkxp-z）</string>
     <string name="translation_entry_summary">文本条目：%1$d · 含译文：%2$d</string>
     <string name="translation_file_progress">已处理文件：%1$d / %2$d</string>
     <string name="translation_task_queued">排队中</string>
@@ -149,6 +153,7 @@
     <string name="translation_error_directory_permission_lost">游戏目录授权已失效，请重新授权后继续。</string>
     <string name="translation_error_invalid_game_directory">所选目录不是可读取的游戏目录。</string>
     <string name="translation_error_corrupt_resource">游戏数据文件损坏或格式无效，已保留此前完成的条目。</string>
+    <string name="translation_error_extractor_unavailable">此设备上的游戏数据解析组件不可用。</string>
     <string name="translation_error_no_text_found">受支持的数据文件中没有找到可提取文本。</string>
     <string name="translation_error_resource_too_large">单个游戏数据文件超过读取上限。</string>
     <string name="translation_error_task_already_active">该项目已有提取任务正在排队或运行。</string>

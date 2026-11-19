@@ -82,12 +82,16 @@
     <string name="translation_choose_project_source">Choose an RPG Maker MV/MZ game folder or import a project with source and translated text.</string>
     <string name="translation_add_mv_directory">Choose RPG Maker MV game folder</string>
     <string name="translation_add_mz_directory">Choose RPG Maker MZ game folder</string>
+    <string name="translation_add_rpg2k_directory">Choose an RPG Maker 2000/2003 game folder</string>
+    <string name="translation_add_rgss_directory">Choose an RPG Maker XP/VX/VX Ace/mkxp-z game folder</string>
     <string name="translation_import_csv">Import CSV project</string>
     <string name="translation_import_json">Import standard JSON project</string>
     <string name="translation_no_projects">No translation projects yet</string>
     <string name="translation_no_projects_hint">Add an RPG Maker MV/MZ game folder, or import a CSV/standard JSON project with source and translated text.</string>
     <string name="translation_project_metadata">Engine: %1$s</string>
     <string name="translation_engine_unknown">Engine not specified</string>
+    <string name="translation_engine_rpg2k">RPG Maker 2000/2003</string>
+    <string name="translation_engine_rgss">RPG Maker RGSS (XP/VX/VX Ace/mkxp-z)</string>
     <string name="translation_entry_summary">Text entries: %1$d · with translations: %2$d</string>
     <string name="translation_file_progress">Files processed: %1$d / %2$d</string>
     <string name="translation_task_queued">Queued</string>
@@ -149,6 +153,7 @@
     <string name="translation_error_directory_permission_lost">The game folder grant is no longer available. Reauthorize it to continue.</string>
     <string name="translation_error_invalid_game_directory">The selected folder is not a readable game directory.</string>
     <string name="translation_error_corrupt_resource">A game data file is damaged or invalid. Previously completed entries were kept.</string>
+    <string name="translation_error_extractor_unavailable">The game data parser is unavailable on this device.</string>
     <string name="translation_error_no_text_found">No extractable text was found in the supported data files.</string>
     <string name="translation_error_resource_too_large">A game data file exceeds the read limit.</string>
     <string name="translation_error_task_already_active">An extraction task for this project is queued or running.</string>

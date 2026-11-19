@@ -310,7 +310,7 @@ App 存档管理与 native 共用 `<游戏根>/savedata` user-root。宿主和 n
 
 - 入口位于一级「工具」页；工作台通过 `AppScreenActivity` / `AppSecondaryTopBar` 展示项目卡片。游戏目录按 SAF tree URI 唯一对应一个项目；CSV/标准 JSON 导入项目按交换键去重，无交换键时按标题与引擎去重。
 - 项目数据保存在独立 Room 数据库 `translation_workbench.db`（schema v6），与游戏库及 `core/engine/translation` 的运行时译表发现、订阅和交付分离。项目、条目、提取/翻译/AI 校对任务、成功导出记录、非敏感服务档案、项目术语表、校对建议与问题分别落库；项目删除只删除 TYN 项目数据，不改游戏目录。目录提取只经持久 SAF 只读授权读取相对路径；导出由用户通过系统文件选择器指定位置，卡片可查看导出格式、目标文件名、条目数和时间。
-- 当前项目来源为 RPG Maker MV/MZ 游戏目录与标准 CSV/JSON 文本项目。首期提取器各自注册 MV、MZ 标识，但只解析 `data/` 或 `www/data/` 内的兼容 JSON 文件；详细资源清单、格式代际、插件/归档限制及证据见 [翻译工作台首期实现说明](docs/翻译工作台首期实现说明.md)。
+- 当前项目来源为 RPG Maker MV/MZ、2000/2003、RGSS（XP/VX/VX Ace/mkxp-z）游戏目录与标准 CSV/JSON 文本项目。各格式代际独立注册：MV/MZ 解析 `data/` 或 `www/data/` 的兼容 JSON；2000/2003 解析 LCF；RGSS 解析 Marshal 数据并可在内存中解密受限 RGSS 归档。文件白名单、版本前置条件、归档上限、插件/脚本限制、第三方依赖和验证证据见 [翻译工作台首期实现说明](docs/翻译工作台首期实现说明.md)。
 - 标准 JSON 使用 `format=tyranor-translation-project`、`version=1`，包含项目元数据和稳定 `sourceKey` 条目；CSV 使用表头列名交换。导入限制为 32 MiB 文档、最多 200,000 条且来源键唯一。任务快照、内部检查点、SAF URI 和服务秘密不进入导出。
 - 提取、翻译和 AI 校对任务由 WorkManager 的全局串行 drain 队列执行，Room 中的任务状态、条目状态、进度计数与 JSON 检查点是进度事实源。Worker 使用前台 `dataSync` 通知；进入工作台会补排可运行队列。提取按文件、翻译与 AI 校对按批次将已提交结果和检查点在同一 Room 事务落盘；取消或进程中断保留已完成结果，重试只处理未完成或失败条目。人工规则检查、条目编辑/确认和问题处理直接更新项目数据，不创建任务。
 - 应用设置提供 OpenAI-compatible Chat Completions 和 Google Gemini Interactions API 服务档案编辑、启停、模型目录获取与手动填写模型 ID。OpenAI adapter 使用配置根地址下的 `/models` 和 `/chat/completions`；Gemini adapter 固定使用 `generativelanguage.googleapis.com`，以 `x-goog-api-key` 请求头调用 `GET /v1beta/models` 与 `POST /v1/interactions`，结构化请求设 `store=false`。Vertex AI 与 Gemini 自定义代理不在本协议范围。翻译域自行维护 OkHttp transport，禁用重定向并限制响应体；请求取消传递到底层 `Call.cancel()`。服务档案不保存密钥，API Key 以 Android Keystore AES/GCM 密文保存在独立且备份排除的偏好文件。项目卡片与校对选择器仅显示已启用、配置完整且 adapter 能力匹配的服务；任务快照包含协议、配置版本、模型、语言、范围、提示词、术语表版本/内容及 `secretRef`，不含密钥值。
@@ -323,7 +323,7 @@ App 存档管理与 native 共用 `<游戏根>/savedata` user-root。宿主和 n
 
 | 改动领域 | 验收场景 |
 | --- | --- |
-| 翻译工作台阶段一/二 | MV/MZ 各自注册与文件代际隔离；授权撤销/恢复、目录读失败、重提取与稳定 sourceKey；提取/翻译取消或中断后的检查点恢复、部分成功保留与失败项重试；服务配置快照、密钥引用保留、术语表修订；跨项目串行、同项目重复启动拦截、删除时不写游戏目录；标准 JSON/CSV 导入导出；手机/平板、系统通知、前后台与系统调度；真实供应商/游戏样本和 MTool 导出结果须单独验收 |
+| 翻译工作台阶段一/二 | MV/MZ、2000/2003 LCF、RGSS Marshal 与加密归档各自注册、文件代际隔离及稳定 sourceKey；授权撤销/恢复、目录读失败、重提取；提取/翻译取消或中断后的检查点恢复、部分成功保留与失败项重试；服务配置快照、密钥引用保留、术语表修订；跨项目串行、同项目重复启动拦截、删除时不写游戏目录；标准 JSON/CSV 导入导出；手机/平板、系统通知、前后台与系统调度；真实供应商、真实各代际游戏样本和 MTool 导出结果须单独验收 |
 | 翻译工作台阶段三 | 本地规则对空译文、占位符/控制码及换行问题的发现和重算；AI 校对显式范围、服务能力筛选、稳定条目 ID 校验、建议/问题与检查点原子提交；取消/中断后恢复、失败项重试且保留已成功建议；建议不自动覆盖译文；人工编辑/确认、问题解决/忽略与手动完成轮次均不创建后台任务；手机/平板、真实服务与真实项目效果须单独验收 |
 | 翻译工作台阶段四 | Gemini Interactions API v1 固定官方 HTTPS 主机与 API Key 请求头；v1beta 模型目录分页与能力过滤；翻译/校对结构化响应、稳定 ID/格式校验、请求取消、鉴权错误与响应限制；真实 Gemini 账户/模型和 Android 网络行为须单独验收 |
 | 界面动效 | 普通/增强、中途切档、系统关闭动画；快速连续切页、列表拖动打断入场、下拉/抽屉关闭与重入；跨窗口提示保持身份或按年龄收起；左右缘返回的提交与取消；平板双向旋转后核对选中项、草稿、可点边界。已做与未做的历史样本见 [PR #162](https://github.com/Weiss-UltimateSavior/Tyranor-Next/pull/162)。 |

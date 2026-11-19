@@ -14,6 +14,7 @@ internal fun TranslationWorkbenchError.messageResource(): Int = when (this) {
     TranslationWorkbenchError.UNSUPPORTED_ENGINE -> R.string.translation_error_unsupported_engine
     TranslationWorkbenchError.UNSUPPORTED_FORMAT -> R.string.translation_error_unsupported_format
     TranslationWorkbenchError.DIRECTORY_PERMISSION_LOST -> R.string.translation_error_directory_permission_lost
+    TranslationWorkbenchError.EXTRACTOR_UNAVAILABLE -> R.string.translation_error_extractor_unavailable
     TranslationWorkbenchError.INVALID_GAME_DIRECTORY -> R.string.translation_error_invalid_game_directory
     TranslationWorkbenchError.CORRUPT_RESOURCE -> R.string.translation_error_corrupt_resource
     TranslationWorkbenchError.NO_TEXT_FOUND -> R.string.translation_error_no_text_found

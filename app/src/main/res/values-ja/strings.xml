@@ -82,12 +82,16 @@
     <string name="translation_choose_project_source">RPG Maker MV/MZ のゲームフォルダーを選ぶか、原文と訳文を含むプロジェクトを読み込みます。</string>
     <string name="translation_add_mv_directory">RPG Maker MV のゲームフォルダーを選択</string>
     <string name="translation_add_mz_directory">RPG Maker MZ のゲームフォルダーを選択</string>
+    <string name="translation_add_rpg2k_directory">RPG Maker 2000/2003 のゲームフォルダーを選択</string>
+    <string name="translation_add_rgss_directory">RPG Maker XP/VX/VX Ace/mkxp-z のゲームフォルダーを選択</string>
     <string name="translation_import_csv">CSV プロジェクトを読み込む</string>
     <string name="translation_import_json">標準 JSON プロジェクトを読み込む</string>
     <string name="translation_no_projects">翻訳プロジェクトはありません</string>
     <string name="translation_no_projects_hint">RPG Maker MV/MZ のゲームフォルダーを追加するか、原文と訳文を含む CSV/標準 JSON を読み込みます。</string>
     <string name="translation_project_metadata">エンジン：%1$s</string>
     <string name="translation_engine_unknown">エンジン未指定</string>
+    <string name="translation_engine_rpg2k">RPG Maker 2000/2003</string>
+    <string name="translation_engine_rgss">RPG Maker RGSS（XP/VX/VX Ace/mkxp-z）</string>
     <string name="translation_entry_summary">テキスト：%1$d 件・訳文あり：%2$d 件</string>
     <string name="translation_file_progress">処理済みファイル：%1$d / %2$d</string>
     <string name="translation_task_queued">待機中</string>
@@ -149,6 +153,7 @@
     <string name="translation_error_directory_permission_lost">ゲームフォルダーの許可が無効です。再許可して続行してください。</string>
     <string name="translation_error_invalid_game_directory">選択したフォルダーは読み取り可能なゲームフォルダーではありません。</string>
     <string name="translation_error_corrupt_resource">ゲームデータが破損または無効です。完了済みの項目は保持しました。</string>
+    <string name="translation_error_extractor_unavailable">この端末ではゲームデータ解析コンポーネントを利用できません。</string>
     <string name="translation_error_no_text_found">対応データファイルに抽出可能なテキストがありません。</string>
     <string name="translation_error_resource_too_large">ゲームデータファイルが読み取り上限を超えています。</string>
     <string name="translation_error_task_already_active">このプロジェクトの抽出タスクは待機中または実行中です。</string>
