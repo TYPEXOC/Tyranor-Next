@@ -87,6 +87,10 @@
             android:exported="false"
             android:configChanges="uiMode" />
         <activity
+            android:name=".ui.translation.TranslationGlossaryDetailActivity"
+            android:exported="false"
+            android:configChanges="uiMode" />
+        <activity
             android:name=".ui.translation.TranslationReviewActivity"
             android:exported="false"
             android:configChanges="uiMode" />

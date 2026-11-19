@@ -6,6 +6,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.text.format.DateFormat as AndroidDateFormat
 import android.provider.OpenableColumns
+import androidx.documentfile.provider.DocumentFile
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -24,6 +25,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -43,6 +45,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.verticalScroll
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tyranor.next.R
 import com.tyranor.next.core.engine.EngineType
@@ -113,9 +116,12 @@ private fun TranslationWorkbenchScreen() {
     var addProjectOperation by remember { mutableStateOf(ProjectAddOperation.EXTRACT) }
     var addProjectEngineId by remember { mutableStateOf(EngineType.RPG_MV.name) }
     var addProjectFormat by remember { mutableStateOf(TranslationProjectFormat.CSV) }
+    var addProjectSourceUri by remember { mutableStateOf<Uri?>(null) }
+    var addProjectSourceName by remember { mutableStateOf("") }
+    var addProjectErrorCode by remember { mutableStateOf<TranslationWorkbenchError?>(null) }
+    var addingProject by remember { mutableStateOf(false) }
     var deleteProjectId by remember { mutableStateOf<String?>(null) }
     var errorCode by remember { mutableStateOf<TranslationWorkbenchError?>(null) }
-    var pendingEngineId by remember { mutableStateOf<String?>(null) }
     var pendingImportFormat by remember { mutableStateOf<TranslationProjectFormat?>(null) }
     var pendingRelinkProjectId by remember { mutableStateOf<String?>(null) }
     var pendingExportProjectId by remember { mutableStateOf<String?>(null) }
@@ -177,62 +183,113 @@ private fun TranslationWorkbenchScreen() {
     }
     val importProject = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
-        val selectedFormat = pendingImportFormat
-            ?: if (uri.lastPathSegment.orEmpty().endsWith(".csv", ignoreCase = true)) {
-                TranslationProjectFormat.CSV
-            } else {
-                TranslationProjectFormat.JSON
-            }
+        val selectedFormat = pendingImportFormat ?: addProjectFormat
         pendingImportFormat = null
-        runOperation {
-            val displayName = queryDisplayName(appContext, uri)
-            repository.importDocument(uri, displayName, selectedFormat)
+        addProjectFormat = selectedFormat
+        addProjectSourceUri = uri
+        addProjectSourceName = ""
+        addProjectErrorCode = null
+        scope.launch {
+            try {
+                addProjectSourceName = queryDisplayName(appContext, uri)
+            } catch (failure: Throwable) {
+                if (failure is CancellationException) throw failure
+                addProjectErrorCode = TranslationWorkbenchError.INVALID_PROJECT_FILE
+            }
         }
     }
     val chooseGameDirectory = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         val relinkId = pendingRelinkProjectId
-        val engineId = pendingEngineId
         pendingRelinkProjectId = null
-        pendingEngineId = null
         if (uri == null) return@rememberLauncherForActivityResult
-        runOperation {
-            try {
-                appContext.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            } catch (failure: SecurityException) {
-                throw TranslationWorkbenchException(TranslationWorkbenchError.DIRECTORY_PERMISSION_LOST, failure)
-            }
-            if (relinkId != null) {
+        if (relinkId != null) {
+            runOperation {
+                try {
+                    appContext.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                } catch (failure: SecurityException) {
+                    throw TranslationWorkbenchException(TranslationWorkbenchError.DIRECTORY_PERMISSION_LOST, failure)
+                }
                 repository.relinkGameDirectory(relinkId, uri)
-            } else {
-                val creation = repository.createGameDirectoryProject(
-                    treeUri = uri,
-                    engineId = engineId ?: EngineType.RPG_MV.name,
-                )
-                if (!creation.created) {
-                    throw TranslationWorkbenchException(TranslationWorkbenchError.PROJECT_ALREADY_EXISTS)
+            }
+        } else {
+            addProjectSourceUri = uri
+            addProjectSourceName = ""
+            addProjectErrorCode = null
+            scope.launch {
+                addProjectSourceName = withContext(Dispatchers.IO) {
+                    DocumentFile.fromTreeUri(appContext, uri)?.name
+                        ?: uri.lastPathSegment?.substringAfterLast(':')?.substringAfterLast('/')
+                        ?: ""
                 }
             }
         }
     }
 
-    fun chooseProjectSource() {
-        showAddDialog = false
-        when (addProjectOperation) {
-            ProjectAddOperation.EXTRACT -> {
-                pendingEngineId = addProjectEngineId
-                chooseGameDirectory.launch(null)
-            }
-            ProjectAddOperation.TRANSLATE,
-            ProjectAddOperation.PROOFREAD,
-            -> {
-                pendingImportFormat = addProjectFormat
-                val mimeTypes = when (addProjectFormat) {
-                    TranslationProjectFormat.CSV -> arrayOf("text/csv", "text/comma-separated-values", "text/plain", "*/*")
-                    TranslationProjectFormat.JSON -> arrayOf("application/json", "text/json", "*/*")
-                    TranslationProjectFormat.MTOOL_JSON -> arrayOf("application/json", "text/json", "*/*")
+    fun submitNewProject() {
+        val sourceUri = addProjectSourceUri ?: return
+        if (addingProject) return
+        addingProject = true
+        addProjectErrorCode = null
+        scope.launch {
+            try {
+                when (addProjectOperation) {
+                    ProjectAddOperation.EXTRACT -> {
+                        try {
+                            appContext.contentResolver.takePersistableUriPermission(
+                                sourceUri,
+                                Intent.FLAG_GRANT_READ_URI_PERMISSION,
+                            )
+                        } catch (failure: SecurityException) {
+                            throw TranslationWorkbenchException(TranslationWorkbenchError.DIRECTORY_PERMISSION_LOST, failure)
+                        }
+                        val creation = repository.createGameDirectoryProject(sourceUri, addProjectEngineId)
+                        if (!creation.created) {
+                            throw TranslationWorkbenchException(TranslationWorkbenchError.PROJECT_ALREADY_EXISTS)
+                        }
+                    }
+                    ProjectAddOperation.TRANSLATE,
+                    ProjectAddOperation.PROOFREAD,
+                    -> {
+                        val displayName = addProjectSourceName.ifBlank { queryDisplayName(appContext, sourceUri) }
+                        repository.importDocument(sourceUri, displayName, addProjectFormat)
+                    }
                 }
-                importProject.launch(mimeTypes)
+                showAddDialog = false
+                addProjectSourceUri = null
+                addProjectSourceName = ""
+            } catch (failure: Throwable) {
+                if (failure is CancellationException) throw failure
+                addProjectErrorCode = (failure as? TranslationWorkbenchException)?.code
+                    ?: TranslationWorkbenchError.STORAGE_FAILURE
+            } finally {
+                addingProject = false
             }
+        }
+    }
+
+    fun chooseProjectFile() {
+        pendingImportFormat = addProjectFormat
+        val mimeTypes = when (addProjectFormat) {
+            TranslationProjectFormat.CSV -> arrayOf("text/csv", "text/comma-separated-values", "text/plain", "*/*")
+            TranslationProjectFormat.JSON,
+            TranslationProjectFormat.MTOOL_JSON,
+            -> arrayOf("application/json", "text/json", "*/*")
+        }
+        importProject.launch(mimeTypes)
+    }
+
+    fun clearNewProjectSource() {
+        addProjectSourceUri = null
+        addProjectSourceName = ""
+        addProjectErrorCode = null
+    }
+
+    fun selectNewProjectSource() {
+        addProjectErrorCode = null
+        when (addProjectOperation) {
+            ProjectAddOperation.EXTRACT -> chooseGameDirectory.launch(null)
+            ProjectAddOperation.TRANSLATE,
+            ProjectAddOperation.PROOFREAD -> chooseProjectFile()
         }
     }
 
@@ -267,6 +324,8 @@ private fun TranslationWorkbenchScreen() {
                                     addProjectOperation = ProjectAddOperation.EXTRACT
                                     addProjectEngineId = EngineType.RPG_MV.name
                                     addProjectFormat = TranslationProjectFormat.CSV
+                                    clearNewProjectSource()
+                                    addingProject = false
                                     showAddDialog = true
                                 },
                             )
@@ -380,10 +439,13 @@ private fun TranslationWorkbenchScreen() {
 
     if (showAddDialog) {
         AppAlertDialog(
-            onDismissRequest = { showAddDialog = false },
+            onDismissRequest = { if (!addingProject) showAddDialog = false },
             title = { Text(stringResource(R.string.translation_add_project), style = MaterialTheme.typography.titleMedium) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().heightIn(max = 500.dp).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     Text(
                         stringResource(R.string.translation_add_project_description),
                         style = MaterialTheme.typography.bodyMedium,
@@ -405,9 +467,12 @@ private fun TranslationWorkbenchScreen() {
                         title = stringResource(R.string.translation_add_project_operation),
                         summary = operationSummary,
                         modifier = Modifier.fillMaxWidth(),
+                        enabled = !addingProject,
                         renderInRootScaffold = false,
                         onSelectedIndexChange = { index ->
-                            addProjectOperation = ProjectAddOperation.entries.getOrNull(index) ?: ProjectAddOperation.EXTRACT
+                            val nextOperation = ProjectAddOperation.entries.getOrNull(index) ?: ProjectAddOperation.EXTRACT
+                            if (nextOperation != addProjectOperation) clearNewProjectSource()
+                            addProjectOperation = nextOperation
                         },
                     )
 
@@ -429,6 +494,7 @@ private fun TranslationWorkbenchScreen() {
                             selectedIndex = engineIds.indexOf(addProjectEngineId).coerceAtLeast(0),
                             title = stringResource(R.string.translation_add_project_engine),
                             modifier = Modifier.fillMaxWidth(),
+                            enabled = !addingProject,
                             renderInRootScaffold = false,
                             onSelectedIndexChange = { index ->
                                 addProjectEngineId = engineIds.getOrNull(index) ?: EngineType.RPG_MV.name
@@ -445,27 +511,78 @@ private fun TranslationWorkbenchScreen() {
                             selectedIndex = formats.indexOf(addProjectFormat).coerceAtLeast(0),
                             title = stringResource(R.string.translation_add_project_file_format),
                             modifier = Modifier.fillMaxWidth(),
+                            enabled = !addingProject,
                             renderInRootScaffold = false,
                             onSelectedIndexChange = { index ->
-                                addProjectFormat = formats.getOrNull(index) ?: TranslationProjectFormat.CSV
+                                val nextFormat = formats.getOrNull(index) ?: TranslationProjectFormat.CSV
+                                if (nextFormat != addProjectFormat) clearNewProjectSource()
+                                addProjectFormat = nextFormat
                             },
+                        )
+                    }
+
+                    val choosingDirectory = addProjectOperation == ProjectAddOperation.EXTRACT
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        OutlinedTextField(
+                            value = addProjectSourceName,
+                            onValueChange = {},
+                            readOnly = true,
+                            singleLine = true,
+                            label = {
+                                Text(
+                                    stringResource(
+                                        if (choosingDirectory) R.string.translation_add_project_directory_label
+                                        else R.string.translation_add_project_file_label,
+                                    ),
+                                )
+                            },
+                            placeholder = { Text(stringResource(R.string.translation_add_project_source_not_selected)) },
+                            modifier = Modifier.weight(1f),
+                            enabled = !addingProject,
+                        )
+                        NoRippleButton(
+                            text = stringResource(
+                                if (choosingDirectory) R.string.translation_add_project_choose_directory
+                                else R.string.translation_add_project_import_file,
+                            ),
+                            tonal = true,
+                            modifier = Modifier.height(56.dp),
+                            enabled = !addingProject,
+                            onClick = ::selectNewProjectSource,
+                        )
+                    }
+                    addProjectErrorCode?.let { code ->
+                        Text(
+                            stringResource(code.messageResource()),
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
                         )
                     }
                 }
             },
             confirmButton = {
-                val actionLabel = when (addProjectOperation) {
-                    ProjectAddOperation.EXTRACT -> R.string.translation_add_project_choose_directory
-                    ProjectAddOperation.TRANSLATE,
-                    ProjectAddOperation.PROOFREAD,
-                    -> R.string.translation_add_project_import_file
-                }
-                DialogTextButton(text = stringResource(actionLabel), onClick = ::chooseProjectSource)
+                DialogTextButton(
+                    text = stringResource(
+                        if (addingProject) R.string.translation_add_project_adding
+                        else R.string.translation_add_project_confirm,
+                    ),
+                    enabled = addProjectSourceUri != null && !addingProject,
+                    onClick = ::submitNewProject,
+                )
             },
             dismissButton = {
                 DialogTextButton(
                     text = stringResource(R.string.common_cancel),
-                    onClick = { showAddDialog = false },
+                    enabled = !addingProject,
+                    onClick = {
+                        showAddDialog = false
+                        clearNewProjectSource()
+                    },
                 )
             },
         )

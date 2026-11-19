@@ -96,6 +96,7 @@ internal fun NoRippleActionText(
 /**
  * 页内填充按钮：无涟漪/按压效果。
  * [tonal] = true 时为浅色底（主色 14%）+ 主色文字，用于次级动作（如「前往授权」）。
+ * [containerColorOverride] / [contentColorOverride] 可为需要特殊语义色的次级按钮指定容器色和文字色。
  */
 @Composable
 fun NoRippleButton(
@@ -103,17 +104,20 @@ fun NoRippleButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     tonal: Boolean = false,
+    containerColorOverride: Color? = null,
+    contentColorOverride: Color? = null,
     leadingIcon: Painter? = null,
     iconContentDescription: String? = null,
     onClick: () -> Unit,
 ) {
-    val container = when {
+    val defaultContainer = when {
         tonal -> MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
         enabled -> MaterialTheme.colorScheme.primary
         else -> MaterialTheme.colorScheme.primary.copy(alpha = 0.38f)
     }
+    val container = containerColorOverride ?: defaultContainer
     // 主题色实底上的文字/图标固定白色（不随主题色变化）；tonal 为浅底次级样式，文字用主题色
-    val contentColor = if (tonal) MaterialTheme.colorScheme.primary else Color.White
+    val contentColor = contentColorOverride ?: if (tonal) MaterialTheme.colorScheme.primary else Color.White
     val enhanced = MotionMode.enhanced
     // 可用 ↔ 不可用、实底 ↔ 浅底：「增强」档底色弹簧淡变（在绘制阶段读取，不逐帧重组），「普通」档直接切换
     val animatedContainer = if (enhanced) {
