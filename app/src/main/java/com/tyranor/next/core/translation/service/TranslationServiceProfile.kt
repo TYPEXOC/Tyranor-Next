@@ -8,6 +8,7 @@ enum class TranslationServiceCategory {
 /** TYN-owned protocols; adding a provider label does not add protocol support. */
 enum class TranslationProtocolId(val wireId: String, val category: TranslationServiceCategory) {
     OPENAI_COMPATIBLE_CHAT("openai-compatible-chat-v1", TranslationServiceCategory.AI_TRANSLATION),
+    OPENAI_RESPONSES("openai-responses-v1", TranslationServiceCategory.AI_TRANSLATION),
     GEMINI_INTERACTIONS("gemini-interactions-v1", TranslationServiceCategory.AI_TRANSLATION),
     BING_TRANSLATOR_WEB("bing-translator-web-v1", TranslationServiceCategory.MACHINE_TRANSLATION),
     NIUTRANS_TRANSLATION_V1("niutrans-translation-v1", TranslationServiceCategory.MACHINE_TRANSLATION),
@@ -19,6 +20,7 @@ enum class TranslationProtocolId(val wireId: String, val category: TranslationSe
 }
 
 const val GEMINI_API_BASE_URL = "https://generativelanguage.googleapis.com"
+const val OPENAI_RESPONSES_BASE_URL = "https://api.openai.com/v1"
 
 internal val TranslationProtocolId.requiresModel: Boolean
     get() = category == TranslationServiceCategory.AI_TRANSLATION
@@ -27,11 +29,13 @@ internal val TranslationProtocolId.requiresSecret: Boolean
     get() = when (this) {
         TranslationProtocolId.OPENAI_COMPATIBLE_CHAT,
         TranslationProtocolId.BING_TRANSLATOR_WEB -> false
+        TranslationProtocolId.OPENAI_RESPONSES -> true
         else -> true
     }
 
 internal fun TranslationProtocolId.defaultBaseUrl(): String = when (this) {
     TranslationProtocolId.OPENAI_COMPATIBLE_CHAT -> "https://api.openai.com/v1"
+    TranslationProtocolId.OPENAI_RESPONSES -> OPENAI_RESPONSES_BASE_URL
     TranslationProtocolId.GEMINI_INTERACTIONS -> GEMINI_API_BASE_URL
     TranslationProtocolId.BING_TRANSLATOR_WEB -> "https://cn.bing.com"
     TranslationProtocolId.NIUTRANS_TRANSLATION_V1 -> "https://api.niutrans.com"

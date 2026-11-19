@@ -57,6 +57,29 @@ class TranslationServiceProfileTest {
     }
 
     @Test
+    fun acceptsOnlyOfficialOpenAiResponsesApiBaseUrl() {
+        assertEquals(
+            OPENAI_RESPONSES_BASE_URL,
+            TranslationServiceRepository.normalizeBaseUrl(
+                "https://api.openai.com/",
+                TranslationProtocolId.OPENAI_RESPONSES,
+            ),
+        )
+        listOf(
+            "http://api.openai.com/v1",
+            "https://proxy.example.test/v1",
+            "https://api.openai.com/v2",
+            "https://api.openai.com/v1?key=secret",
+            "https://api.openai.com:8443/v1",
+        ).forEach { value ->
+            val failure = assertThrows(TranslationServiceException::class.java) {
+                TranslationServiceRepository.normalizeBaseUrl(value, TranslationProtocolId.OPENAI_RESPONSES)
+            }
+            assertEquals(TranslationServiceErrorCode.INVALID_CONFIGURATION, failure.code)
+        }
+    }
+
+    @Test
     fun secretValuesAreRedactedFromAccidentalStringFormatting() {
         val secret = "sk-test-secret-do-not-print"
         val draft = TranslationServiceDraft(

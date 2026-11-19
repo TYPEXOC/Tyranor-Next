@@ -2,6 +2,7 @@ package com.tyranor.next.core.translation.service
 
 import android.content.Context
 import com.tyranor.next.core.translation.service.protocol.openai.OpenAiCompatibleChatAdapter
+import com.tyranor.next.core.translation.service.protocol.openai.OpenAiResponsesAdapter
 import com.tyranor.next.core.translation.service.protocol.gemini.GeminiInteractionsAdapter
 import com.tyranor.next.core.translation.service.protocol.deepl.DeepLTranslateAdapter
 import com.tyranor.next.core.translation.service.protocol.machine.AzureTranslatorV3Adapter
@@ -103,6 +104,7 @@ class TranslationServiceClient(
 internal object TranslationProtocolRegistry {
     private val adapters: Map<TranslationProtocolId, TranslationProtocolAdapter> = listOf(
         OpenAiCompatibleChatAdapter(),
+        OpenAiResponsesAdapter(),
         GeminiInteractionsAdapter(),
         BingWebTranslationAdapter(),
         NiuTransAdapter(),

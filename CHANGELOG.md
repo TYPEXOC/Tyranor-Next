@@ -2,6 +2,8 @@
 
 ## 未发布
 
+- 翻译服务新增独立 OpenAI Responses API adapter，固定官方主机并将请求设为 `store=false`；AI 服务新增 Chat Completions、Responses API、Gemini Interactions 三组模板选择，预设 OpenAI、DeepSeek、阿里云百炼（通义千问 AI）、Moonshot、智谱、MiniMax、硅基流动、OpenRouter、火山方舟、腾讯混元和百度千帆 Chat Completions 根地址。模型 ID 留空由用户获取或手动填写；厂商预设复用 Chat Completions adapter，不代表各自拥有独立协议 adapter。真实服务账号和 Android 设备网络验收尚未完成。
+
 - 翻译工作台接入必应、小牛、火山、Azure Translator、DeepL、百度翻译和腾讯云 TMT 七种机器翻译 adapter；按服务类别与能力筛选任务服务，多字段供应商凭据仅以翻译域加密 bundle 保存，批次结果按供应商上限和返回顺序逐项提交。AI adapter 与 DeepL 使用项目术语表，其他机器翻译协议暂不发送术语表。必应依赖易变网页接口，腾讯 TMT 有供应商退市时间表。JVM 合成协议回归通过；真实供应商凭据、网络区域、翻译质量及 Android 设备验收尚未完成。
 
 - 翻译工作台提取器扩展至 RPG Maker 2000/2003 LCF 与 RGSS（XP/VX/VX Ace/mkxp-z）数据代际：按代际独立注册，2000/2003 读取数据库、地图树和地图，RGSS 读取白名单 Marshal 数据并支持在内存中解密标准 RGSS 归档；归档不解析脚本/插件资源、不写回游戏目录。增加 arm64 Rust JNI 解码桥和上限保护。合成解析/提取回归与 Android arm64 交叉编译通过；真实旧版游戏样本、SAF 设备和归档游戏验收尚未完成。
