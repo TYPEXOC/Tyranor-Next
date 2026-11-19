@@ -56,7 +56,6 @@ import com.tyranor.next.ui.common.AppScreenActivity
 import com.tyranor.next.ui.common.AppSecondaryTopBar
 import com.tyranor.next.ui.common.DialogTextButton
 import com.tyranor.next.ui.common.NoRippleButton
-import com.tyranor.next.ui.common.NoRippleTextButton
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
@@ -420,13 +419,12 @@ private fun GlossaryTermCard(
         modifier = Modifier.fillMaxWidth().glassBorder(),
         cornerRadius = AppComponentCornerRadius,
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Column(
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 GlossaryTermValuePanel(
@@ -468,25 +466,22 @@ private fun GlossaryTermCard(
                     )
                 }
             }
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(6.dp),
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                NoRippleTextButton(
+                NoRippleButton(
                     text = stringResource(R.string.translation_glossary_edit),
-                    modifier = Modifier
-                        .width(72.dp)
-                        .clip(AppComponentShape)
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)),
+                    modifier = Modifier.weight(1f),
+                    tonal = true,
                     onClick = onEdit,
                 )
-                NoRippleTextButton(
+                NoRippleButton(
                     text = stringResource(R.string.common_delete),
-                    contentColor = MaterialTheme.colorScheme.error,
-                    modifier = Modifier
-                        .width(72.dp)
-                        .clip(AppComponentShape)
-                        .background(MaterialTheme.colorScheme.error.copy(alpha = 0.12f)),
+                    modifier = Modifier.weight(1f),
+                    tonal = true,
+                    containerColorOverride = MaterialTheme.colorScheme.error.copy(alpha = 0.12f),
+                    contentColorOverride = MaterialTheme.colorScheme.error,
                     onClick = onDelete,
                 )
             }
