@@ -2,8 +2,11 @@
 
 ## 未发布
 
+- 翻译服务页改为机器翻译 / AI 翻译分类切换和服务卡片，展示服务商、接口地址、配置状态与模型信息；内置机器翻译入口限定为必应、小牛、火山、Azure、DeepL、百度和腾讯，已有其它协议档案仍可查看管理。服务配置与高级设置均使用完整页面，AI 服务以简短协议标签显示，模型名称仅在已填写时展示；自定义入口使用普通主按钮“添加自定义API”。
+- 自定义 AI API 配置页增加 Chat Completions、OpenAI Responses 与 Anthropic Messages 三种协议下拉选择；新增 Anthropic 原生 adapter，固定官方 HTTPS 主机，使用 `x-api-key`、模型目录游标分页和 Messages API。Claude 必填 `max_tokens`（留空时发送 4096），temperature 与 top_p 不可同时设置；配置与高级设置的输入改用 Miuix 0.9.2 TextField，协议选择沿用 TYN 的 Miuix 下拉公共入口；服务信息、连接模型、凭据与提示词参数已按用途分成 Miuix 卡片，模型获取入口集成在模型 ID 输入框尾部并与字段尺寸协调。
+- 工作台添加项目先选择提取、翻译或校对，提取时再从引擎下拉列表选择引擎；术语表新建只填写名称，进入列表项的“编辑”后才维护可重复添加的多条术语。
 - 按 LunaTranslator “传统 API”公开清单，补齐有道、阿里云机器翻译、彩云小译、Google Cloud Translation、Yandex 和华为云六种固定协议 adapter；连同此前六种固定 API 与必应网页翻译，共提供 13 种机器翻译适配器。Yandex 可接收最多 50 对项目术语；华为云固定 cn-north-4，官方文档标注日语将逐步下线。未复制 LunaTranslator 源码或集成其网页翻译源。JVM 合成协议与固定主机回归通过；真实供应商凭据、区域网络、语言支持、翻译质量及 Android 设备验收尚未完成。
-- AI 翻译服务新增“高级设置”弹窗，可分别编辑翻译与校对的系统/用户提示词，并按协议配置温度、Top P、输出 Token 上限、OpenAI 惩罚/推理参数及 Gemini Top K/思考等级。任务快照固定启动时参数；Chat Completions 可选择 `max_tokens` 或 `max_completion_tokens`，未设置的参数沿用服务端默认。模型参数支持随模型变化，真实供应商账户与设备网络验收尚未完成。
+- AI 翻译服务新增“高级设置”完整页面，可分别编辑翻译与校对的系统/用户提示词，并按协议配置温度、Top P、输出 Token 上限、OpenAI 惩罚/推理参数及 Gemini Top K/思考等级。任务快照固定启动时参数；Chat Completions 可选择 `max_tokens` 或 `max_completion_tokens`，未设置的参数沿用服务端默认。模型参数支持随模型变化，真实供应商账户与设备网络验收尚未完成。
 - 翻译工作台新增可复用的命名术语表管理页，可添加术语表并逐条编辑术语与备注；开始批量翻译时可下拉选择。v6→v7 会迁移现有项目术语，并把术语表版本与内容写入新任务快照；删除术语表不影响已启动任务。尚未完成真实项目迁移设备验收。
 
 - 翻译服务新增独立 OpenAI Responses API adapter，固定官方主机并将请求设为 `store=false`；AI 服务新增 Chat Completions、Responses API、Gemini Interactions 三组模板选择，预设 OpenAI、DeepSeek、阿里云百炼（通义千问 AI）、Moonshot、智谱、MiniMax、硅基流动、OpenRouter、火山方舟、腾讯混元和百度千帆 Chat Completions 根地址。模型 ID 留空由用户获取或手动填写；厂商预设复用 Chat Completions adapter，不代表各自拥有独立协议 adapter。真实服务账号和 Android 设备网络验收尚未完成。

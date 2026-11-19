@@ -224,7 +224,7 @@ _Avoid_: 导出任务（导出不创建后台任务）
 _Avoid_: 服务模板（模板只是初始配置建议，不代表已经支持对应协议）
 
 **翻译服务类别（Translation Service Category）**:
-工作台区分「机器翻译」与「AI 翻译」两类服务；当前机器翻译接入必应、小牛、火山、Azure、DeepL、百度和腾讯，AI 翻译接入 OpenAI Chat Completions、OpenAI Responses API 与 Gemini Interactions。AI 服务模板只是这些协议的初始配置建议，不代表额外协议适配；具体任务资格仍由协议 adapter 声明的能力决定。
+工作台区分「机器翻译」与「AI 翻译」两类服务；当前机器翻译接入必应、小牛、火山、Azure、DeepL、百度和腾讯，AI 翻译接入 OpenAI Chat Completions、OpenAI Responses API、Gemini Interactions 与 Anthropic Claude Messages API。自定义 API 的协议选择提供 Chat Completions、Responses 和 Anthropic Messages 三项；Gemini 通过独立模板配置。AI 服务模板只是这些协议的初始配置建议，不代表额外协议适配；具体任务资格仍由协议 adapter 声明的能力决定。
 _Avoid_: 把传统机器翻译作为 AI 校对服务、仅凭服务商名称判断协议支持
 
 **翻译服务协议（Translation Service Protocol）**:

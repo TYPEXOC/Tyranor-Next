@@ -33,5 +33,9 @@ class TranslationGenerationOptionsTest {
         assertFalse(TranslationGenerationOptions(geminiTopK = 10).isValidFor(TranslationProtocolId.OPENAI_COMPATIBLE_CHAT))
         assertFalse(TranslationGenerationOptions(frequencyPenalty = 0.1).isValidFor(TranslationProtocolId.GEMINI_INTERACTIONS))
         assertFalse(TranslationGenerationOptions(maxOutputTokens = 0).isValidFor(TranslationProtocolId.OPENAI_RESPONSES))
+        assertTrue(TranslationGenerationOptions(temperature = 0.8).isValidFor(TranslationProtocolId.ANTHROPIC_MESSAGES))
+        assertFalse(TranslationGenerationOptions(temperature = 1.1).isValidFor(TranslationProtocolId.ANTHROPIC_MESSAGES))
+        assertFalse(TranslationGenerationOptions(temperature = 0.2, topP = 0.8).isValidFor(TranslationProtocolId.ANTHROPIC_MESSAGES))
+        assertFalse(TranslationGenerationOptions(reasoningEffort = TranslationReasoningEffort.HIGH).isValidFor(TranslationProtocolId.ANTHROPIC_MESSAGES))
     }
 }

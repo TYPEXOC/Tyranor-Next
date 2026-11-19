@@ -54,6 +54,11 @@ data class TranslationGenerationOptions(
                 geminiTopK == null && geminiThinkingLevel == null
             TranslationProtocolId.GEMINI_INTERACTIONS ->
                 frequencyPenalty == null && presencePenalty == null && reasoningEffort == null
+            TranslationProtocolId.ANTHROPIC_MESSAGES ->
+                temperature?.let { it !in 0.0..1.0 } != true &&
+                    !(temperature != null && topP != null) &&
+                    frequencyPenalty == null && presencePenalty == null && reasoningEffort == null &&
+                    geminiTopK == null && geminiThinkingLevel == null
             else -> listOf(
                 temperature,
                 topP,
@@ -104,6 +109,12 @@ data class TranslationGenerationOptions(
         maxOutputTokens?.let { put("max_output_tokens", it) }
         geminiTopK?.let { put("top_k", it) }
         geminiThinkingLevel?.let { put("thinking_level", it.wireValue) }
+    }
+
+    internal fun addAnthropicParameters(body: JSONObject): JSONObject = body.apply {
+        put("max_tokens", maxOutputTokens ?: ANTHROPIC_DEFAULT_MAX_OUTPUT_TOKENS)
+        temperature?.let { put("temperature", it) }
+        topP?.let { put("top_p", it) }
     }
 
     companion object {

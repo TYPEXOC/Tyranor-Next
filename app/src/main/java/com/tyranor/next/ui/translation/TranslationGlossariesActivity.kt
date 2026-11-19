@@ -169,6 +169,7 @@ private fun TranslationGlossariesScreen() {
                             ) {
                                 ArrowPreference(
                                     title = stringResource(R.string.translation_glossary_edit),
+                                    modifier = Modifier.weight(1f),
                                     onClick = { editGlossary(glossary) },
                                 )
                                 NoRippleTextButton(
@@ -225,41 +226,43 @@ private fun TranslationGlossariesScreen() {
                             style = MaterialTheme.typography.bodySmall,
                         )
                     }
-                    if (current.terms.isEmpty()) {
-                        Text(
-                            stringResource(R.string.translation_glossary_entries_empty),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = PageSecondaryTextColor,
-                        )
-                    }
-                    current.terms.forEachIndexed { index, term ->
-                        Column(
-                            Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp),
-                        ) {
-                            Text("${term.sourceTerm} → ${term.targetTerm}", style = MaterialTheme.typography.bodyMedium)
-                            term.note?.let {
-                                Text(it, style = MaterialTheme.typography.bodySmall, color = PageSecondaryTextColor)
-                            }
-                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                NoRippleTextButton(
-                                    text = stringResource(R.string.translation_glossary_edit),
-                                    onClick = {
-                                        termEditor = TermEditor(index, term.sourceTerm, term.targetTerm, term.note.orEmpty())
-                                    },
-                                )
-                                NoRippleTextButton(
-                                    text = stringResource(R.string.common_delete),
-                                    contentColor = MaterialTheme.colorScheme.error,
-                                    onClick = { editor = current.copy(terms = current.terms.filterIndexed { i, _ -> i != index }) },
-                                )
+                    if (current.id != null) {
+                        if (current.terms.isEmpty()) {
+                            Text(
+                                stringResource(R.string.translation_glossary_entries_empty),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = PageSecondaryTextColor,
+                            )
+                        }
+                        current.terms.forEachIndexed { index, term ->
+                            Column(
+                                Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                Text("${term.sourceTerm} → ${term.targetTerm}", style = MaterialTheme.typography.bodyMedium)
+                                term.note?.let {
+                                    Text(it, style = MaterialTheme.typography.bodySmall, color = PageSecondaryTextColor)
+                                }
+                                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    NoRippleTextButton(
+                                        text = stringResource(R.string.translation_glossary_edit),
+                                        onClick = {
+                                            termEditor = TermEditor(index, term.sourceTerm, term.targetTerm, term.note.orEmpty())
+                                        },
+                                    )
+                                    NoRippleTextButton(
+                                        text = stringResource(R.string.common_delete),
+                                        contentColor = MaterialTheme.colorScheme.error,
+                                        onClick = { editor = current.copy(terms = current.terms.filterIndexed { i, _ -> i != index }) },
+                                    )
+                                }
                             }
                         }
+                        NoRippleTextButton(
+                            text = stringResource(R.string.translation_glossary_add_entry),
+                            onClick = { termEditor = TermEditor(index = null, source = "", target = "", note = "") },
+                        )
                     }
-                    NoRippleTextButton(
-                        text = stringResource(R.string.translation_glossary_add_entry),
-                        onClick = { termEditor = TermEditor(index = null, source = "", target = "", note = "") },
-                    )
                 }
             },
             confirmButton = {
@@ -287,7 +290,15 @@ private fun TranslationGlossariesScreen() {
     termEditor?.let { current ->
         AppAlertDialog(
             onDismissRequest = { termEditor = null },
-            title = { Text(stringResource(R.string.translation_glossary_entry_title), style = MaterialTheme.typography.titleMedium) },
+            title = {
+                Text(
+                    stringResource(
+                        if (current.index == null) R.string.translation_glossary_add_entry
+                        else R.string.translation_glossary_entry_title,
+                    ),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+            },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(

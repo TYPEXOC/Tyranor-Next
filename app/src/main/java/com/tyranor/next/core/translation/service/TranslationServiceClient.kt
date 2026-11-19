@@ -4,6 +4,7 @@ import android.content.Context
 import com.tyranor.next.core.translation.service.protocol.openai.OpenAiCompatibleChatAdapter
 import com.tyranor.next.core.translation.service.protocol.openai.OpenAiResponsesAdapter
 import com.tyranor.next.core.translation.service.protocol.gemini.GeminiInteractionsAdapter
+import com.tyranor.next.core.translation.service.protocol.anthropic.AnthropicMessagesAdapter
 import com.tyranor.next.core.translation.service.protocol.deepl.DeepLTranslateAdapter
 import com.tyranor.next.core.translation.service.protocol.machine.AzureTranslatorV3Adapter
 import com.tyranor.next.core.translation.service.protocol.machine.BaiduTranslateVipAdapter
@@ -115,6 +116,7 @@ internal object TranslationProtocolRegistry {
         OpenAiCompatibleChatAdapter(),
         OpenAiResponsesAdapter(),
         GeminiInteractionsAdapter(),
+        AnthropicMessagesAdapter(),
         BingWebTranslationAdapter(),
         NiuTransAdapter(),
         VolcEngineTranslateTextAdapter(),

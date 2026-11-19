@@ -81,6 +81,29 @@ class TranslationServiceProfileTest {
     }
 
     @Test
+    fun acceptsOnlyOfficialAnthropicApiBaseUrl() {
+        assertEquals(
+            ANTHROPIC_API_BASE_URL,
+            TranslationServiceRepository.normalizeBaseUrl(
+                "$ANTHROPIC_API_BASE_URL/",
+                TranslationProtocolId.ANTHROPIC_MESSAGES,
+            ),
+        )
+        listOf(
+            "http://api.anthropic.com",
+            "https://proxy.example.test",
+            "https://api.anthropic.com/v1",
+            "https://api.anthropic.com?key=secret",
+            "https://api.anthropic.com:8443",
+        ).forEach { invalid ->
+            val failure = assertThrows(TranslationServiceException::class.java) {
+                TranslationServiceRepository.normalizeBaseUrl(invalid, TranslationProtocolId.ANTHROPIC_MESSAGES)
+            }
+            assertEquals(TranslationServiceErrorCode.INVALID_CONFIGURATION, failure.code)
+        }
+    }
+
+    @Test
     fun acceptsOnlyFixedMachineTranslationProviderOrigins() {
         val fixedProviders = mapOf(
             TranslationProtocolId.YOUDAO_TRANSLATE_V2 to "https://openapi.youdao.com",

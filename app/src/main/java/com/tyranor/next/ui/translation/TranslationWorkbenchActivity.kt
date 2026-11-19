@@ -93,6 +93,12 @@ class TranslationWorkbenchActivity : AppScreenActivity() {
     }
 }
 
+private enum class ProjectAddOperation {
+    EXTRACT,
+    TRANSLATE,
+    PROOFREAD,
+}
+
 @Composable
 private fun TranslationWorkbenchScreen() {
     val context = LocalContext.current
@@ -104,6 +110,9 @@ private fun TranslationWorkbenchScreen() {
         repository.observeEnabledTranslationServices()
     }.collectAsStateWithLifecycle(initialValue = emptyList())
     var showAddDialog by remember { mutableStateOf(false) }
+    var addProjectOperation by remember { mutableStateOf(ProjectAddOperation.EXTRACT) }
+    var addProjectEngineId by remember { mutableStateOf(EngineType.RPG_MV.name) }
+    var addProjectFormat by remember { mutableStateOf(TranslationProjectFormat.CSV) }
     var deleteProjectId by remember { mutableStateOf<String?>(null) }
     var errorCode by remember { mutableStateOf<TranslationWorkbenchError?>(null) }
     var pendingEngineId by remember { mutableStateOf<String?>(null) }
@@ -206,6 +215,27 @@ private fun TranslationWorkbenchScreen() {
         }
     }
 
+    fun chooseProjectSource() {
+        showAddDialog = false
+        when (addProjectOperation) {
+            ProjectAddOperation.EXTRACT -> {
+                pendingEngineId = addProjectEngineId
+                chooseGameDirectory.launch(null)
+            }
+            ProjectAddOperation.TRANSLATE,
+            ProjectAddOperation.PROOFREAD,
+            -> {
+                pendingImportFormat = addProjectFormat
+                val mimeTypes = when (addProjectFormat) {
+                    TranslationProjectFormat.CSV -> arrayOf("text/csv", "text/comma-separated-values", "text/plain", "*/*")
+                    TranslationProjectFormat.JSON -> arrayOf("application/json", "text/json", "*/*")
+                    TranslationProjectFormat.MTOOL_JSON -> arrayOf("application/json", "text/json", "*/*")
+                }
+                importProject.launch(mimeTypes)
+            }
+        }
+    }
+
     MiuixSettingsTheme {
         MiuixScaffold(
             modifier = Modifier.fillMaxSize(),
@@ -233,7 +263,12 @@ private fun TranslationWorkbenchScreen() {
                             NoRippleButton(
                                 text = stringResource(R.string.translation_add_project),
                                 modifier = Modifier.weight(1f),
-                                onClick = { showAddDialog = true },
+                                onClick = {
+                                    addProjectOperation = ProjectAddOperation.EXTRACT
+                                    addProjectEngineId = EngineType.RPG_MV.name
+                                    addProjectFormat = TranslationProjectFormat.CSV
+                                    showAddDialog = true
+                                },
                             )
                             NoRippleButton(
                                 text = stringResource(R.string.translation_glossaries_title),
@@ -348,72 +383,91 @@ private fun TranslationWorkbenchScreen() {
             onDismissRequest = { showAddDialog = false },
             title = { Text(stringResource(R.string.translation_add_project), style = MaterialTheme.typography.titleMedium) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        stringResource(R.string.translation_choose_project_source),
+                        stringResource(R.string.translation_add_project_description),
                         style = MaterialTheme.typography.bodyMedium,
                         color = PageSecondaryTextColor,
                     )
-                    Spacer(Modifier.height(6.dp))
-                    NoRippleTextButton(
-                        text = stringResource(R.string.translation_add_mv_directory),
+                    val operationItems = listOf(
+                        stringResource(R.string.translation_add_project_extract),
+                        stringResource(R.string.translation_add_project_translate),
+                        stringResource(R.string.translation_add_project_proofread),
+                    )
+                    val operationSummary = when (addProjectOperation) {
+                        ProjectAddOperation.EXTRACT -> stringResource(R.string.translation_add_project_extract_hint)
+                        ProjectAddOperation.TRANSLATE -> stringResource(R.string.translation_add_project_translate_hint)
+                        ProjectAddOperation.PROOFREAD -> stringResource(R.string.translation_add_project_proofread_hint)
+                    }
+                    OverlayDropdownPreference(
+                        items = operationItems,
+                        selectedIndex = addProjectOperation.ordinal,
+                        title = stringResource(R.string.translation_add_project_operation),
+                        summary = operationSummary,
                         modifier = Modifier.fillMaxWidth(),
-                        onClick = {
-                            showAddDialog = false
-                            pendingEngineId = EngineType.RPG_MV.name
-                            chooseGameDirectory.launch(null)
+                        renderInRootScaffold = false,
+                        onSelectedIndexChange = { index ->
+                            addProjectOperation = ProjectAddOperation.entries.getOrNull(index) ?: ProjectAddOperation.EXTRACT
                         },
                     )
-                    NoRippleTextButton(
-                        text = stringResource(R.string.translation_add_mz_directory),
-                        modifier = Modifier.fillMaxWidth(),
-                        onClick = {
-                            showAddDialog = false
-                            pendingEngineId = EngineType.RPG_MZ.name
-                            chooseGameDirectory.launch(null)
-                        },
-                    )
-                    NoRippleTextButton(
-                        text = stringResource(R.string.translation_add_rpg2k_directory),
-                        modifier = Modifier.fillMaxWidth(),
-                        onClick = {
-                            showAddDialog = false
-                            pendingEngineId = TranslationExtractorEngineIds.RPG_MAKER_2000_2003
-                            chooseGameDirectory.launch(null)
-                        },
-                    )
-                    NoRippleTextButton(
-                        text = stringResource(R.string.translation_add_rgss_directory),
-                        modifier = Modifier.fillMaxWidth(),
-                        onClick = {
-                            showAddDialog = false
-                            pendingEngineId = TranslationExtractorEngineIds.RPG_MAKER_RGSS
-                            chooseGameDirectory.launch(null)
-                        },
-                    )
-                    NoRippleTextButton(
-                        text = stringResource(R.string.translation_import_csv),
-                        modifier = Modifier.fillMaxWidth(),
-                        onClick = {
-                            showAddDialog = false
-                            pendingImportFormat = TranslationProjectFormat.CSV
-                            importProject.launch(arrayOf("text/csv", "text/comma-separated-values", "text/plain", "*/*"))
-                        },
-                    )
-                    NoRippleTextButton(
-                        text = stringResource(R.string.translation_import_json),
-                        modifier = Modifier.fillMaxWidth(),
-                        onClick = {
-                            showAddDialog = false
-                            pendingImportFormat = TranslationProjectFormat.JSON
-                            importProject.launch(arrayOf("application/json", "text/json", "*/*"))
-                        },
-                    )
+
+                    if (addProjectOperation == ProjectAddOperation.EXTRACT) {
+                        val engineIds = listOf(
+                            EngineType.RPG_MV.name,
+                            EngineType.RPG_MZ.name,
+                            TranslationExtractorEngineIds.RPG_MAKER_2000_2003,
+                            TranslationExtractorEngineIds.RPG_MAKER_RGSS,
+                        )
+                        val engineNames = listOf(
+                            stringResource(R.string.translation_engine_rpg_maker_mv),
+                            stringResource(R.string.translation_engine_rpg_maker_mz),
+                            stringResource(R.string.translation_engine_rpg_maker_2000_2003),
+                            stringResource(R.string.translation_engine_rpg_maker_rgss),
+                        )
+                        OverlayDropdownPreference(
+                            items = engineNames,
+                            selectedIndex = engineIds.indexOf(addProjectEngineId).coerceAtLeast(0),
+                            title = stringResource(R.string.translation_add_project_engine),
+                            modifier = Modifier.fillMaxWidth(),
+                            renderInRootScaffold = false,
+                            onSelectedIndexChange = { index ->
+                                addProjectEngineId = engineIds.getOrNull(index) ?: EngineType.RPG_MV.name
+                            },
+                        )
+                    } else {
+                        val formatItems = listOf(
+                            stringResource(R.string.translation_format_csv),
+                            stringResource(R.string.translation_format_json),
+                        )
+                        val formats = listOf(TranslationProjectFormat.CSV, TranslationProjectFormat.JSON)
+                        OverlayDropdownPreference(
+                            items = formatItems,
+                            selectedIndex = formats.indexOf(addProjectFormat).coerceAtLeast(0),
+                            title = stringResource(R.string.translation_add_project_file_format),
+                            modifier = Modifier.fillMaxWidth(),
+                            renderInRootScaffold = false,
+                            onSelectedIndexChange = { index ->
+                                addProjectFormat = formats.getOrNull(index) ?: TranslationProjectFormat.CSV
+                            },
+                        )
+                    }
                 }
             },
-            confirmButton = {},
-            dismissButton = null,
-            showButtonRow = false,
+            confirmButton = {
+                val actionLabel = when (addProjectOperation) {
+                    ProjectAddOperation.EXTRACT -> R.string.translation_add_project_choose_directory
+                    ProjectAddOperation.TRANSLATE,
+                    ProjectAddOperation.PROOFREAD,
+                    -> R.string.translation_add_project_import_file
+                }
+                DialogTextButton(text = stringResource(actionLabel), onClick = ::chooseProjectSource)
+            },
+            dismissButton = {
+                DialogTextButton(
+                    text = stringResource(R.string.common_cancel),
+                    onClick = { showAddDialog = false },
+                )
+            },
         )
     }
 
