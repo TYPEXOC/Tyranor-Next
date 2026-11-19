@@ -275,7 +275,7 @@ private fun GlossaryCard(
             ) {
                 Text(
                     glossary.name,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).padding(start = 8.dp),
                     style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
