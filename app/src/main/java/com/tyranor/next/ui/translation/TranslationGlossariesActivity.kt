@@ -40,7 +40,9 @@ import com.tyranor.next.core.translation.TranslationWorkbenchError
 import com.tyranor.next.core.translation.TranslationWorkbenchException
 import com.tyranor.next.core.translation.TranslationWorkbenchRepository
 import com.tyranor.next.theme.AppComponentCornerRadius
+import com.tyranor.next.theme.DangerFill
 import com.tyranor.next.theme.MiuixSettingsTheme
+import com.tyranor.next.theme.OnDangerFill
 import com.tyranor.next.theme.PageSecondaryTextColor
 import com.tyranor.next.theme.PageTextColor
 import com.tyranor.next.theme.glassBorder
@@ -319,15 +321,13 @@ private fun GlossaryCard(
                 NoRippleButton(
                     text = stringResource(R.string.translation_glossary_manage),
                     modifier = Modifier.weight(1f),
-                    tonal = true,
                     onClick = onManage,
                 )
                 NoRippleButton(
                     text = stringResource(R.string.common_delete),
                     modifier = Modifier.weight(1f),
-                    tonal = true,
-                    containerColorOverride = MaterialTheme.colorScheme.error.copy(alpha = 0.12f),
-                    contentColorOverride = MaterialTheme.colorScheme.error,
+                    containerColorOverride = DangerFill,
+                    contentColorOverride = OnDangerFill,
                     onClick = onDelete,
                 )
             }
