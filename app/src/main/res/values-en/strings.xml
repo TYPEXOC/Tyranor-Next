@@ -220,9 +220,6 @@
     <string name="translation_add_project_file_format">Project format</string>
     <string name="translation_add_project_choose_directory">Choose game folder</string>
     <string name="translation_add_project_import_file">Choose file</string>
-    <string name="translation_add_project_directory_label">Game folder</string>
-    <string name="translation_add_project_file_label">Project file</string>
-    <string name="translation_add_project_source_not_selected">Choose a folder or file</string>
     <string name="translation_add_project_confirm">Add project</string>
     <string name="translation_add_project_adding">Adding…</string>
     <string name="translation_engine_rpg_maker_mv">RPG Maker MV</string>
@@ -237,6 +234,11 @@
     <string name="translation_import_json">Import standard JSON project</string>
     <string name="translation_no_projects">No translation projects yet</string>
     <string name="translation_no_projects_hint">Add an RPG Maker MV/MZ game folder, or import a CSV/standard JSON project with source and translated text.</string>
+    <string name="translation_project_filter_all">All projects %1$d</string>
+    <string name="translation_project_filter_in_progress">In progress %1$d</string>
+    <string name="translation_project_filter_continuable">Can continue %1$d</string>
+    <string name="translation_project_filter_translated">Translated %1$d</string>
+    <string name="translation_project_filter_empty">No projects in this category</string>
     <string name="translation_project_metadata">Engine: %1$s</string>
     <string name="translation_engine_unknown">Engine not specified</string>
     <string name="translation_engine_rpg2k">RPG Maker 2000/2003</string>

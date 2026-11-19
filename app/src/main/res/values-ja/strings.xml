@@ -220,9 +220,6 @@
     <string name="translation_add_project_file_format">プロジェクト形式</string>
     <string name="translation_add_project_choose_directory">ゲームフォルダーを選択</string>
     <string name="translation_add_project_import_file">ファイルを選択</string>
-    <string name="translation_add_project_directory_label">ゲームフォルダー</string>
-    <string name="translation_add_project_file_label">プロジェクトファイル</string>
-    <string name="translation_add_project_source_not_selected">フォルダーまたはファイルを選択</string>
     <string name="translation_add_project_confirm">プロジェクトを追加</string>
     <string name="translation_add_project_adding">追加中…</string>
     <string name="translation_engine_rpg_maker_mv">RPG Maker MV</string>
@@ -237,6 +234,11 @@
     <string name="translation_import_json">標準 JSON プロジェクトを読み込む</string>
     <string name="translation_no_projects">翻訳プロジェクトはありません</string>
     <string name="translation_no_projects_hint">RPG Maker MV/MZ のゲームフォルダーを追加するか、原文と訳文を含む CSV/標準 JSON を読み込みます。</string>
+    <string name="translation_project_filter_all">すべて %1$d</string>
+    <string name="translation_project_filter_in_progress">進行中 %1$d</string>
+    <string name="translation_project_filter_continuable">続行可能 %1$d</string>
+    <string name="translation_project_filter_translated">翻訳済み %1$d</string>
+    <string name="translation_project_filter_empty">この分類のプロジェクトはありません</string>
     <string name="translation_project_metadata">エンジン：%1$s</string>
     <string name="translation_engine_unknown">エンジン未指定</string>
     <string name="translation_engine_rpg2k">RPG Maker 2000/2003</string>

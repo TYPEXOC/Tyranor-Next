@@ -3,8 +3,10 @@ package com.tyranor.next.ui.translation
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Environment
 import android.os.Bundle
 import android.text.format.DateFormat as AndroidDateFormat
+import android.provider.DocumentsContract
 import android.provider.OpenableColumns
 import androidx.documentfile.provider.DocumentFile
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -37,6 +39,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -65,6 +68,7 @@ import com.tyranor.next.theme.AppComponentCornerRadius
 import com.tyranor.next.theme.MiuixSettingsTheme
 import com.tyranor.next.theme.PageSecondaryTextColor
 import com.tyranor.next.theme.PageTextColor
+import com.tyranor.next.theme.SecondaryTextColor
 import com.tyranor.next.theme.glassBorder
 import com.tyranor.next.ui.common.AppAlertDialog
 import com.tyranor.next.ui.common.AppScreenActivity
@@ -84,6 +88,7 @@ import kotlinx.coroutines.flow.flowOf
 import java.util.Date
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
 import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
+import top.yukonga.miuix.kmp.basic.TabRowWithContour
 
 class TranslationWorkbenchActivity : AppScreenActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -102,6 +107,19 @@ private enum class ProjectAddOperation {
     PROOFREAD,
 }
 
+private enum class ProjectListFilter {
+    ALL,
+    IN_PROGRESS,
+    CONTINUABLE,
+    TRANSLATED,
+}
+
+private fun TranslationProjectCard.isInProgress(): Boolean =
+    projectState == TranslationProjectState.PROCESSING.name || latestTaskState in setOf("QUEUED", "RUNNING")
+
+private fun TranslationProjectCard.isFullyTranslated(): Boolean =
+    entryCount > 0 && translatedCount == entryCount
+
 @Composable
 private fun TranslationWorkbenchScreen() {
     val context = LocalContext.current
@@ -112,12 +130,22 @@ private fun TranslationWorkbenchScreen() {
     val enabledTranslationServices by remember(repository) {
         repository.observeEnabledTranslationServices()
     }.collectAsStateWithLifecycle(initialValue = emptyList())
+    var projectFilter by rememberSaveable { mutableStateOf(ProjectListFilter.ALL) }
+    val inProgressProjectCount = projects.count(TranslationProjectCard::isInProgress)
+    val fullyTranslatedProjectCount = projects.count(TranslationProjectCard::isFullyTranslated)
+    val visibleProjects = when (projectFilter) {
+        ProjectListFilter.ALL -> projects
+        ProjectListFilter.IN_PROGRESS -> projects.filter(TranslationProjectCard::isInProgress)
+        ProjectListFilter.CONTINUABLE -> projects.filterNot(TranslationProjectCard::isInProgress)
+        ProjectListFilter.TRANSLATED -> projects.filter(TranslationProjectCard::isFullyTranslated)
+    }
     var showAddDialog by remember { mutableStateOf(false) }
     var addProjectOperation by remember { mutableStateOf(ProjectAddOperation.EXTRACT) }
     var addProjectEngineId by remember { mutableStateOf(EngineType.RPG_MV.name) }
     var addProjectFormat by remember { mutableStateOf(TranslationProjectFormat.CSV) }
     var addProjectSourceUri by remember { mutableStateOf<Uri?>(null) }
     var addProjectSourceName by remember { mutableStateOf("") }
+    var addProjectSourcePath by remember { mutableStateOf("") }
     var addProjectErrorCode by remember { mutableStateOf<TranslationWorkbenchError?>(null) }
     var addingProject by remember { mutableStateOf(false) }
     var deleteProjectId by remember { mutableStateOf<String?>(null) }
@@ -188,10 +216,17 @@ private fun TranslationWorkbenchScreen() {
         addProjectFormat = selectedFormat
         addProjectSourceUri = uri
         addProjectSourceName = ""
+        addProjectSourcePath = ""
         addProjectErrorCode = null
         scope.launch {
             try {
                 addProjectSourceName = queryDisplayName(appContext, uri)
+                addProjectSourcePath = querySelectedSourcePath(
+                    appContext,
+                    uri,
+                    isTree = false,
+                    fallbackName = addProjectSourceName,
+                )
             } catch (failure: Throwable) {
                 if (failure is CancellationException) throw failure
                 addProjectErrorCode = TranslationWorkbenchError.INVALID_PROJECT_FILE
@@ -214,13 +249,21 @@ private fun TranslationWorkbenchScreen() {
         } else {
             addProjectSourceUri = uri
             addProjectSourceName = ""
+            addProjectSourcePath = ""
             addProjectErrorCode = null
             scope.launch {
-                addProjectSourceName = withContext(Dispatchers.IO) {
+                val displayName = withContext(Dispatchers.IO) {
                     DocumentFile.fromTreeUri(appContext, uri)?.name
                         ?: uri.lastPathSegment?.substringAfterLast(':')?.substringAfterLast('/')
                         ?: ""
                 }
+                addProjectSourceName = displayName
+                addProjectSourcePath = querySelectedSourcePath(
+                    appContext,
+                    uri,
+                    isTree = true,
+                    fallbackName = displayName,
+                )
             }
         }
     }
@@ -257,6 +300,7 @@ private fun TranslationWorkbenchScreen() {
                 showAddDialog = false
                 addProjectSourceUri = null
                 addProjectSourceName = ""
+                addProjectSourcePath = ""
             } catch (failure: Throwable) {
                 if (failure is CancellationException) throw failure
                 addProjectErrorCode = (failure as? TranslationWorkbenchException)?.code
@@ -281,6 +325,7 @@ private fun TranslationWorkbenchScreen() {
     fun clearNewProjectSource() {
         addProjectSourceUri = null
         addProjectSourceName = ""
+        addProjectSourcePath = ""
         addProjectErrorCode = null
     }
 
@@ -341,6 +386,24 @@ private fun TranslationWorkbenchScreen() {
                             )
                         }
                     }
+                    if (projects.isNotEmpty()) {
+                        item(key = "project-filter") {
+                            val filterLabels = listOf(
+                                stringResource(R.string.translation_project_filter_all, projects.size),
+                                stringResource(R.string.translation_project_filter_in_progress, inProgressProjectCount),
+                                stringResource(R.string.translation_project_filter_continuable, projects.size - inProgressProjectCount),
+                                stringResource(R.string.translation_project_filter_translated, fullyTranslatedProjectCount),
+                            )
+                            TabRowWithContour(
+                                tabs = filterLabels,
+                                selectedTabIndex = projectFilter.ordinal,
+                                onTabSelected = { index ->
+                                    projectFilter = ProjectListFilter.entries.getOrNull(index) ?: ProjectListFilter.ALL
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
+                    }
                     if (projects.isEmpty()) {
                         item(key = "empty") {
                             MiuixCard(
@@ -357,8 +420,22 @@ private fun TranslationWorkbenchScreen() {
                                 }
                             }
                         }
+                    } else if (visibleProjects.isEmpty()) {
+                        item(key = "filter-empty") {
+                            MiuixCard(
+                                modifier = Modifier.fillMaxWidth().glassBorder(),
+                                cornerRadius = AppComponentCornerRadius,
+                            ) {
+                                Text(
+                                    stringResource(R.string.translation_project_filter_empty),
+                                    modifier = Modifier.fillMaxWidth().padding(18.dp),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = PageSecondaryTextColor,
+                                )
+                            }
+                        }
                     } else {
-                        items(projects, key = TranslationProjectCard::id) { project ->
+                        items(visibleProjects, key = TranslationProjectCard::id) { project ->
                             TranslationProjectCardView(
                                 project = project,
                                 onReview = {
@@ -522,38 +599,30 @@ private fun TranslationWorkbenchScreen() {
                     }
 
                     val choosingDirectory = addProjectOperation == ProjectAddOperation.EXTRACT
-                    Row(
+                    Column(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
-                        OutlinedTextField(
-                            value = addProjectSourceName,
-                            onValueChange = {},
-                            readOnly = true,
-                            singleLine = true,
-                            label = {
-                                Text(
-                                    stringResource(
-                                        if (choosingDirectory) R.string.translation_add_project_directory_label
-                                        else R.string.translation_add_project_file_label,
-                                    ),
-                                )
-                            },
-                            placeholder = { Text(stringResource(R.string.translation_add_project_source_not_selected)) },
-                            modifier = Modifier.weight(1f),
-                            enabled = !addingProject,
-                        )
                         NoRippleButton(
                             text = stringResource(
                                 if (choosingDirectory) R.string.translation_add_project_choose_directory
                                 else R.string.translation_add_project_import_file,
                             ),
                             tonal = true,
-                            modifier = Modifier.height(56.dp),
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
                             enabled = !addingProject,
                             onClick = ::selectNewProjectSource,
                         )
+                        if (addProjectSourcePath.isNotBlank()) {
+                            Text(
+                                addProjectSourcePath,
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = SecondaryTextColor,
+                                maxLines = 3,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
                     }
                     addProjectErrorCode?.let { code ->
                         Text(
@@ -991,6 +1060,33 @@ private fun TranslationProjectCard.failureResource(): Int = when (latestTaskFail
         "AI_PROOFREAD" -> R.string.translation_task_proofread_failed
         else -> R.string.translation_error_storage_failure
     }
+}
+
+private suspend fun querySelectedSourcePath(
+    context: Context,
+    uri: Uri,
+    isTree: Boolean,
+    fallbackName: String,
+): String = withContext(Dispatchers.IO) {
+    val documentId = runCatching {
+        if (isTree) DocumentsContract.getTreeDocumentId(uri) else DocumentsContract.getDocumentId(uri)
+    }.getOrNull()
+    val rawPath = documentId?.removePrefix("raw:")?.takeIf { it.startsWith('/') }
+    if (rawPath != null) return@withContext rawPath
+    if (uri.authority == "com.android.externalstorage.documents" && documentId != null) {
+        val separator = documentId.indexOf(':')
+        if (separator > 0) {
+            val volumeId = documentId.substring(0, separator)
+            val relativePath = documentId.substring(separator + 1).trim('/')
+            val root = if (volumeId.equals("primary", ignoreCase = true)) {
+                Environment.getExternalStorageDirectory().absolutePath
+            } else {
+                "/storage/$volumeId"
+            }
+            return@withContext if (relativePath.isBlank()) root else "$root/$relativePath"
+        }
+    }
+    fallbackName
 }
 
 private suspend fun queryDisplayName(context: Context, uri: Uri): String = withContext(Dispatchers.IO) {
