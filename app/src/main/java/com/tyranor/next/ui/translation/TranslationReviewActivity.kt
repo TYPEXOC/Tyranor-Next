@@ -24,7 +24,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -73,6 +72,7 @@ import kotlinx.coroutines.launch
 import com.tyranor.next.theme.glassBorder
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
 import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
+import top.yukonga.miuix.kmp.basic.TextField as MiuixTextField
 
 class TranslationReviewActivity : AppScreenActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -501,19 +501,19 @@ private fun ProofreadStartDialog(
                 if (selectedScope == TranslationProofreadScope.RULE_HITS && ruleHitCount == 0) {
                     Text(stringResource(R.string.translation_review_rule_hits_empty), color = PageSecondaryTextColor)
                 }
-                OutlinedTextField(
+                MiuixTextField(
                     value = sourceLanguage,
                     onValueChange = onSourceLanguageChange,
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    label = { Text(stringResource(R.string.translation_source_language)) },
+                    label = stringResource(R.string.translation_source_language),
                 )
-                OutlinedTextField(
+                MiuixTextField(
                     value = targetLanguage,
                     onValueChange = onTargetLanguageChange,
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    label = { Text(stringResource(R.string.translation_target_language)) },
+                    label = stringResource(R.string.translation_target_language),
                 )
             }
         },
@@ -618,13 +618,13 @@ private fun TranslationReviewEntryDetailPane(
                 Text(stringResource(R.string.translation_review_source), style = MaterialTheme.typography.labelMedium)
                 Text(entry.sourceText, style = MaterialTheme.typography.bodyMedium)
                 Text(stringResource(R.string.translation_review_translation), style = MaterialTheme.typography.labelMedium)
-                OutlinedTextField(
+                MiuixTextField(
                     value = translationText,
                     onValueChange = onTranslationTextChange,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 140.dp),
                     minLines = 5,
                     enabled = enabled,
-                    label = { Text(stringResource(R.string.translation_review_translation)) },
+                    label = stringResource(R.string.translation_review_translation),
                 )
                 entry.suggestedTranslation?.let { suggestion ->
                     Text(stringResource(R.string.translation_review_suggestion), style = MaterialTheme.typography.labelMedium)
