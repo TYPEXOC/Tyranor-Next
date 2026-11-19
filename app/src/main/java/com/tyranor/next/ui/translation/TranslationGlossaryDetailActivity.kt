@@ -493,7 +493,7 @@ private fun GlossaryTermCard(
                     style = MaterialTheme.typography.labelSmall,
                     color = PageSecondaryTextColor,
                     maxLines = 1,
-                    textAlign = TextAlign.Start,
+                    textAlign = TextAlign.Center,
                 )
                 Text(
                     term.note.orEmpty(),
