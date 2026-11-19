@@ -294,7 +294,7 @@ private fun GlossaryCard(
                 Text(
                     glossary.name,
                     modifier = Modifier.weight(1f).padding(start = 12.dp),
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
