@@ -16,7 +16,6 @@ internal object TranslationTaskNotification {
     private const val NOTIFICATION_ID = 0x54594F
 
     fun createChannel(context: Context) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val localizedContext = AppLocaleController.wrap(context)
         val channel = NotificationChannel(
             CHANNEL_ID,
