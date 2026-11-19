@@ -112,7 +112,10 @@ internal fun TranslationStructuredOutputMode.addAnthropicFormat(
         )
         TranslationStructuredOutputMode.JSON_SCHEMA -> put(
             "output_config",
-            JSONObject().put("format", JSONObject().put("type", "json_schema").put("schema", schema)),
+            (optJSONObject("output_config") ?: JSONObject()).put(
+                "format",
+                JSONObject().put("type", "json_schema").put("schema", schema),
+            ),
         )
     }
 }

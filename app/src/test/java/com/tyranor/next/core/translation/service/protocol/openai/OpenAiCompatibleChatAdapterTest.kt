@@ -9,7 +9,7 @@ import com.tyranor.next.core.translation.service.TranslationServiceErrorCode
 import com.tyranor.next.core.translation.service.TranslationServiceException
 import com.tyranor.next.core.translation.service.ChatCompletionTokenLimitField
 import com.tyranor.next.core.translation.service.TranslationGenerationOptions
-import com.tyranor.next.core.translation.service.TranslationReasoningEffort
+import com.tyranor.next.core.translation.service.TranslationThinkingLevel
 import com.tyranor.next.core.translation.service.TranslationCustomParameter
 import com.tyranor.next.core.translation.service.TranslationCustomParameters
 import com.tyranor.next.core.translation.service.TranslationParameterType
@@ -128,7 +128,7 @@ class OpenAiCompatibleChatAdapterTest {
             chatTokenLimitField = ChatCompletionTokenLimitField.MAX_TOKENS,
             frequencyPenalty = 0.2,
             presencePenalty = -0.1,
-            reasoningEffort = TranslationReasoningEffort.LOW,
+            thinkingLevel = TranslationThinkingLevel.LOW,
             structuredOutputMode = TranslationStructuredOutputMode.JSON_SCHEMA,
         )
         OpenAiCompatibleChatAdapter(TranslationHttpTransport(callFactory)).translateBatch(

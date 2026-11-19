@@ -2,7 +2,7 @@ package com.tyranor.next.core.translation
 
 import com.tyranor.next.core.translation.service.TranslationProtocolId
 import com.tyranor.next.core.translation.service.TranslationGenerationOptions
-import com.tyranor.next.core.translation.service.GeminiThinkingLevel
+import com.tyranor.next.core.translation.service.TranslationThinkingLevel
 import com.tyranor.next.core.translation.service.TranslationServiceTaskSettings
 import com.tyranor.next.core.translation.service.TranslationServiceCategory
 import org.json.JSONObject
@@ -34,7 +34,7 @@ class TranslationProofreadTaskSnapshotTest {
                 temperature = 0.1,
                 maxOutputTokens = 600,
                 geminiTopK = 20,
-                geminiThinkingLevel = GeminiThinkingLevel.LOW,
+                thinkingLevel = TranslationThinkingLevel.LOW,
             ),
             taskSettings = TranslationServiceTaskSettings.defaults(TranslationServiceCategory.AI_TRANSLATION)
                 .copy(aiBatchSize = 12, aiBatchConcurrency = 3, aiRequestIntervalMillis = 100),

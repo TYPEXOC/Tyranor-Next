@@ -10,6 +10,7 @@ import com.tyranor.next.core.translation.service.TranslationServiceException
 import com.tyranor.next.core.translation.service.TranslationServiceProfile
 import com.tyranor.next.core.translation.service.TranslationGenerationOptions
 import com.tyranor.next.core.translation.service.TranslationStructuredOutputMode
+import com.tyranor.next.core.translation.service.TranslationThinkingLevel
 import com.tyranor.next.core.translation.service.transport.TranslationHttpTransport
 import java.io.IOException
 import java.util.ArrayDeque
@@ -132,6 +133,56 @@ class AnthropicMessagesAdapterTest {
         val format = readBody(calls.requests.single()).getJSONObject("output_config").getJSONObject("format")
         assertEquals("json_schema", format.getString("type"))
         assertEquals("object", format.getJSONObject("schema").getString("type"))
+    }
+
+    @Test
+    fun sendsUnifiedThinkingLevelForAdaptiveClaudeModels() = runBlocking {
+        val output = JSONObject().put("results", JSONArray().put(
+            JSONObject().put("id", "entry").put("translation", "こんにちは"),
+        )).toString()
+        val calls = QueuedCallFactory(listOf(HttpResult(200, textResponse(output))))
+        AnthropicMessagesAdapter(TranslationHttpTransport(calls)).translateBatch(
+            profile().copy(
+                modelId = "claude-sonnet-4-6",
+                generationOptions = TranslationGenerationOptions(
+                    thinkingLevel = TranslationThinkingLevel.HIGH,
+                    structuredOutputMode = TranslationStructuredOutputMode.JSON_SCHEMA,
+                ),
+            ),
+            apiKey = "test-api-key",
+            sourceLanguage = "en",
+            targetLanguage = "ja",
+            inputs = listOf(TranslationInput("entry", "Hello", "en", "ja")),
+            glossary = emptyList(),
+        )
+
+        val body = readBody(calls.requests.single())
+        assertEquals("adaptive", body.getJSONObject("thinking").getString("type"))
+        assertEquals("high", body.getJSONObject("output_config").getString("effort"))
+        assertEquals("json_schema", body.getJSONObject("output_config").getJSONObject("format").getString("type"))
+    }
+
+    @Test
+    fun mapsUnifiedThinkingLevelToBudgetForOlderClaudeModels() = runBlocking {
+        val output = JSONObject().put("results", JSONArray().put(
+            JSONObject().put("id", "entry").put("translation", "こんにちは"),
+        )).toString()
+        val calls = QueuedCallFactory(listOf(HttpResult(200, textResponse(output))))
+        AnthropicMessagesAdapter(TranslationHttpTransport(calls)).translateBatch(
+            profile().copy(
+                modelId = "claude-sonnet-4-5-20250929",
+                generationOptions = TranslationGenerationOptions(thinkingLevel = TranslationThinkingLevel.MEDIUM),
+            ),
+            apiKey = "test-api-key",
+            sourceLanguage = "en",
+            targetLanguage = "ja",
+            inputs = listOf(TranslationInput("entry", "Hello", "en", "ja")),
+            glossary = emptyList(),
+        )
+
+        val thinking = readBody(calls.requests.single()).getJSONObject("thinking")
+        assertEquals("enabled", thinking.getString("type"))
+        assertEquals(1_536, thinking.getInt("budget_tokens"))
     }
 
     @Test

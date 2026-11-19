@@ -178,6 +178,7 @@ internal class AnthropicMessagesAdapter(
                         .put("role", "user")
                         .put("content", formatAiUserMessage(userPrompt, taskData.toString())),
                 )),
+            profile.modelId,
         )
         profile.generationOptions.structuredOutputMode.addAnthropicFormat(
             body,

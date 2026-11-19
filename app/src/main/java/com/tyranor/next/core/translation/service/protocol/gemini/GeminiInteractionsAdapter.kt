@@ -191,7 +191,7 @@ internal class GeminiInteractionsAdapter(
             .put("store", false)
             .put("stream", false)
             .apply {
-                val generationConfig = profile.generationOptions.geminiGenerationConfig()
+                val generationConfig = profile.generationOptions.geminiGenerationConfig(profile.modelId)
                 if (generationConfig.length() > 0) put("generation_config", generationConfig)
             }
         profile.generationOptions.structuredOutputMode.geminiResponseFormat(schema)?.let {

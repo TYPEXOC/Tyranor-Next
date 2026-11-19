@@ -55,9 +55,8 @@ import com.tyranor.next.R
 import com.tyranor.next.core.translation.service.TranslationProtocolId
 import com.tyranor.next.core.translation.service.TranslationServiceCategory
 import com.tyranor.next.core.translation.service.ChatCompletionTokenLimitField
-import com.tyranor.next.core.translation.service.GeminiThinkingLevel
 import com.tyranor.next.core.translation.service.TranslationGenerationOptions
-import com.tyranor.next.core.translation.service.TranslationReasoningEffort
+import com.tyranor.next.core.translation.service.TranslationThinkingLevel
 import com.tyranor.next.core.translation.service.GEMINI_API_BASE_URL
 import com.tyranor.next.core.translation.service.TranslationProviderCredentialBundle
 import com.tyranor.next.core.translation.service.TranslationProviderCredentials
@@ -100,7 +99,6 @@ import com.tyranor.next.ui.common.Switch
 import com.tyranor.next.ui.common.motion.listItemMotion
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
-import java.net.URI
 import kotlin.math.roundToLong
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
 import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
@@ -444,6 +442,7 @@ private fun TranslationServicesScreen() {
                                                         hasSavedSecret = false,
                                                         clearSecret = state.hasSavedSecret || state.clearSecret,
                                                         generationOptions = TranslationGenerationOptions(
+                                                            thinkingLevel = state.generationOptions.thinkingLevel,
                                                             structuredOutputMode = if (protocol == TranslationProtocolId.GEMINI_INTERACTIONS) {
                                                                 TranslationStructuredOutputMode.JSON_SCHEMA
                                                             } else {
@@ -462,16 +461,7 @@ private fun TranslationServicesScreen() {
                                     }
                                     ServiceTextField(
                                         value = state.baseUrl,
-                                        onValueChange = { baseUrl ->
-                                            editor = state.copy(
-                                                baseUrl = baseUrl,
-                                                generationOptions = state.generationOptions.copy(
-                                                    reasoningEffort = state.generationOptions.reasoningEffort.takeIf {
-                                                        isOpenAiProvider(state.protocolId, baseUrl)
-                                                    },
-                                                ),
-                                            )
-                                        },
+                                        onValueChange = { baseUrl -> editor = state.copy(baseUrl = baseUrl) },
                                         label = stringResource(R.string.translation_services_base_url),
                                         supportingText = stringResource(
                                             when (state.protocolId) {
@@ -577,13 +567,11 @@ private fun TranslationServicesScreen() {
                                     )
                                 }
                             }
-                            val showOpenAiReasoning = state.isOpenAiProvider()
-                            val showGeminiThinking = state.protocolId == TranslationProtocolId.GEMINI_INTERACTIONS
-                            if (showOpenAiReasoning || showGeminiThinking) {
+                            if (state.protocolId.category == TranslationServiceCategory.AI_TRANSLATION) {
                                 ServiceSectionCard(title = stringResource(R.string.translation_services_reasoning_settings)) {
-                                    if (showOpenAiReasoning) {
-                                        val reasoningOptions = listOf(null) + TranslationReasoningEffort.entries
-                                        val reasoningItems = listOf(
+                                    val thinkingOptions = listOf(null) + TranslationThinkingLevel.entries
+                                    OverlayDropdownPreference(
+                                        items = listOf(
                                             stringResource(R.string.translation_services_provider_default),
                                             stringResource(R.string.translation_services_reasoning_none),
                                             stringResource(R.string.translation_services_reasoning_minimal),
@@ -591,45 +579,25 @@ private fun TranslationServicesScreen() {
                                             stringResource(R.string.translation_services_reasoning_medium),
                                             stringResource(R.string.translation_services_reasoning_high),
                                             stringResource(R.string.translation_services_reasoning_xhigh),
-                                        )
-                                        OverlayDropdownPreference(
-                                            items = reasoningItems,
-                                            selectedIndex = reasoningOptions.indexOf(state.generationOptions.reasoningEffort),
-                                            title = stringResource(R.string.translation_services_reasoning_effort),
-                                            modifier = Modifier.fillMaxWidth(),
-                                            renderInRootScaffold = false,
-                                            onSelectedIndexChange = { index ->
-                                                editor = state.copy(
-                                                    generationOptions = state.generationOptions.copy(
-                                                        reasoningEffort = reasoningOptions.getOrNull(index),
-                                                    ),
-                                                )
-                                            },
-                                        )
-                                    }
-                                    if (showGeminiThinking) {
-                                        val thinkingOptions = listOf(null) + GeminiThinkingLevel.entries
-                                        OverlayDropdownPreference(
-                                            items = listOf(
-                                                stringResource(R.string.translation_services_provider_default),
-                                                stringResource(R.string.translation_services_reasoning_minimal),
-                                                stringResource(R.string.translation_services_reasoning_low),
-                                                stringResource(R.string.translation_services_reasoning_medium),
-                                                stringResource(R.string.translation_services_reasoning_high),
-                                            ),
-                                            selectedIndex = thinkingOptions.indexOf(state.generationOptions.geminiThinkingLevel),
-                                            title = stringResource(R.string.translation_services_gemini_thinking_level),
-                                            modifier = Modifier.fillMaxWidth(),
-                                            renderInRootScaffold = false,
-                                            onSelectedIndexChange = { index ->
-                                                editor = state.copy(
-                                                    generationOptions = state.generationOptions.copy(
-                                                        geminiThinkingLevel = thinkingOptions.getOrNull(index),
-                                                    ),
-                                                )
-                                            },
-                                        )
-                                    }
+                                            stringResource(R.string.translation_services_reasoning_max),
+                                        ),
+                                        selectedIndex = thinkingOptions.indexOf(state.generationOptions.thinkingLevel),
+                                        title = stringResource(R.string.translation_services_thinking_level),
+                                        modifier = Modifier.fillMaxWidth(),
+                                        renderInRootScaffold = false,
+                                        onSelectedIndexChange = { index ->
+                                            editor = state.copy(
+                                                generationOptions = state.generationOptions.copy(
+                                                    thinkingLevel = thinkingOptions.getOrNull(index),
+                                                ),
+                                            )
+                                        },
+                                    )
+                                    Text(
+                                        stringResource(R.string.translation_services_thinking_level_hint),
+                                        color = PageSecondaryTextColor,
+                                        style = MaterialTheme.typography.bodySmall,
+                                    )
                                 }
                             }
                             ServiceSectionCard(title = stringResource(R.string.translation_services_section_credentials)) {
@@ -922,7 +890,21 @@ private fun TranslationServicesScreen() {
                             modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()),
                             verticalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
-                        ServiceSectionCard(title = stringResource(R.string.translation_services_translation_prompts)) {
+                        ServiceSectionCard(
+                            title = stringResource(R.string.translation_services_translation_prompts),
+                            trailingAction = {
+                                NoRippleButton(
+                                    text = stringResource(R.string.translation_services_prompt_restore_defaults),
+                                    tonal = true,
+                                    onClick = {
+                                        advancedSettingsEditor = state.copy(
+                                            translationSystemPrompt = DEFAULT_TRANSLATION_PROMPT,
+                                            translationUserPrompt = "",
+                                        )
+                                    },
+                                )
+                            },
+                        ) {
                             ServiceTextField(
                                 value = state.translationSystemPrompt,
                                 onValueChange = { advancedSettingsEditor = state.copy(translationSystemPrompt = it) },
@@ -939,7 +921,21 @@ private fun TranslationServicesScreen() {
                                 modifier = Modifier.fillMaxWidth(),
                             )
                         }
-                        ServiceSectionCard(title = stringResource(R.string.translation_services_proofreading_prompts)) {
+                        ServiceSectionCard(
+                            title = stringResource(R.string.translation_services_proofreading_prompts),
+                            trailingAction = {
+                                NoRippleButton(
+                                    text = stringResource(R.string.translation_services_prompt_restore_defaults),
+                                    tonal = true,
+                                    onClick = {
+                                        advancedSettingsEditor = state.copy(
+                                            proofreadingSystemPrompt = DEFAULT_PROOFREADING_PROMPT,
+                                            proofreadingUserPrompt = "",
+                                        )
+                                    },
+                                )
+                            },
+                        ) {
                             ServiceTextField(
                                 value = state.proofreadingSystemPrompt,
                                 onValueChange = { advancedSettingsEditor = state.copy(proofreadingSystemPrompt = it) },
@@ -1043,7 +1039,6 @@ private fun TranslationServicesScreen() {
                                 onClick = {
                                     val options = state.toGenerationOptions(
                                         editor?.generationOptions ?: TranslationGenerationOptions(),
-                                        editor?.isOpenAiProvider() == true,
                                     )
                                     if (options == null) {
                                         invalidOptions = true
@@ -1468,6 +1463,7 @@ private fun MachineProviderCredentialsFields(
 @Composable
 private fun ServiceSectionCard(
     title: String,
+    trailingAction: (@Composable () -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     MiuixCard(
@@ -1478,11 +1474,27 @@ private fun ServiceSectionCard(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
             content = {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
+                if (trailingAction == null) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                } else {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = title,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.weight(1f),
+                        )
+                        trailingAction()
+                    }
+                }
                 content()
             },
         )
@@ -1940,7 +1952,7 @@ private data class ServiceEditor(
             translationUserPrompt = profile.translationUserPrompt,
             proofreadingPrompt = profile.proofreadingPrompt,
             proofreadingUserPrompt = profile.proofreadingUserPrompt,
-            generationOptions = profile.generationOptions.forServiceEditor(profile.protocolId, profile.baseUrl),
+            generationOptions = profile.generationOptions.forServiceEditor(profile.protocolId),
             taskSettings = profile.taskSettings,
             allowProtocolSelection = profile.protocolId.category == TranslationServiceCategory.AI_TRANSLATION,
             customParametersRef = profile.customParametersRef,
@@ -2026,7 +2038,6 @@ private data class AdvancedSettingsEditor(
 ) {
     fun toGenerationOptions(
         current: TranslationGenerationOptions,
-        isOpenAiProvider: Boolean,
     ): TranslationGenerationOptions? {
         val parsedMaxOutputTokens = maxOutputTokens.toIntOrNull()
         if (maxOutputTokens.isNotBlank() && parsedMaxOutputTokens == null) return null
@@ -2035,9 +2046,8 @@ private data class AdvancedSettingsEditor(
                 protocolId == TranslationProtocolId.OPENAI_COMPATIBLE_CHAT
             },
             chatTokenLimitField = chatTokenLimitField,
-            reasoningEffort = current.reasoningEffort.takeIf { isOpenAiProvider },
-            geminiThinkingLevel = current.geminiThinkingLevel.takeIf {
-                protocolId == TranslationProtocolId.GEMINI_INTERACTIONS
+            thinkingLevel = current.thinkingLevel.takeIf {
+                protocolId.category == TranslationServiceCategory.AI_TRANSLATION
             },
             structuredOutputMode = structuredOutputMode,
         ).takeIf { it.isValidFor(protocolId) }
@@ -2061,52 +2071,21 @@ private data class AdvancedSettingsEditor(
     }
 }
 
-private fun ServiceEditor.isOpenAiProvider(): Boolean = isOpenAiProvider(protocolId, baseUrl)
-
-private fun isOpenAiProvider(protocolId: TranslationProtocolId, baseUrl: String): Boolean {
-    if (protocolId !in setOf(
-            TranslationProtocolId.OPENAI_COMPATIBLE_CHAT,
-            TranslationProtocolId.OPENAI_RESPONSES,
-        )
-    ) return false
-    return runCatching {
-        URI(baseUrl).let { it.scheme.equals("https", ignoreCase = true) && it.host.equals("api.openai.com", ignoreCase = true) }
-    }.getOrDefault(false)
-}
-
 private fun TranslationGenerationOptions.forServiceEditor(
     protocolId: TranslationProtocolId,
-    baseUrl: String,
 ): TranslationGenerationOptions = copy(
     temperature = null,
     topP = null,
     maxOutputTokens = maxOutputTokens.takeIf { protocolId == TranslationProtocolId.OPENAI_COMPATIBLE_CHAT },
     frequencyPenalty = null,
     presencePenalty = null,
-    reasoningEffort = reasoningEffort.takeIf { isOpenAiProvider(protocolId, baseUrl) },
     geminiTopK = null,
-    geminiThinkingLevel = geminiThinkingLevel.takeIf { protocolId == TranslationProtocolId.GEMINI_INTERACTIONS },
+    thinkingLevel = thinkingLevel.takeIf { protocolId.category == TranslationServiceCategory.AI_TRANSLATION },
 )
 
 private fun ChatCompletionTokenLimitField.labelResource(): Int = when (this) {
     ChatCompletionTokenLimitField.MAX_TOKENS -> R.string.translation_services_max_tokens_legacy
     ChatCompletionTokenLimitField.MAX_COMPLETION_TOKENS -> R.string.translation_services_max_completion_tokens
-}
-
-private fun TranslationReasoningEffort.labelResource(): Int = when (this) {
-    TranslationReasoningEffort.NONE -> R.string.translation_services_reasoning_none
-    TranslationReasoningEffort.MINIMAL -> R.string.translation_services_reasoning_minimal
-    TranslationReasoningEffort.LOW -> R.string.translation_services_reasoning_low
-    TranslationReasoningEffort.MEDIUM -> R.string.translation_services_reasoning_medium
-    TranslationReasoningEffort.HIGH -> R.string.translation_services_reasoning_high
-    TranslationReasoningEffort.XHIGH -> R.string.translation_services_reasoning_xhigh
-}
-
-private fun GeminiThinkingLevel.labelResource(): Int = when (this) {
-    GeminiThinkingLevel.MINIMAL -> R.string.translation_services_reasoning_minimal
-    GeminiThinkingLevel.LOW -> R.string.translation_services_reasoning_low
-    GeminiThinkingLevel.MEDIUM -> R.string.translation_services_reasoning_medium
-    GeminiThinkingLevel.HIGH -> R.string.translation_services_reasoning_high
 }
 
 private fun TranslationStructuredOutputMode.labelResource(): Int = when (this) {

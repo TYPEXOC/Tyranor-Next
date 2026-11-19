@@ -2,7 +2,7 @@ package com.tyranor.next.core.translation
 
 import com.tyranor.next.core.translation.service.TranslationProtocolId
 import com.tyranor.next.core.translation.service.TranslationGenerationOptions
-import com.tyranor.next.core.translation.service.TranslationReasoningEffort
+import com.tyranor.next.core.translation.service.TranslationThinkingLevel
 import com.tyranor.next.core.translation.service.TranslationServiceTaskSettings
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
@@ -32,7 +32,7 @@ class TranslationTaskSnapshotTest {
                 temperature = 0.2,
                 topP = 0.8,
                 maxOutputTokens = 400,
-                reasoningEffort = TranslationReasoningEffort.LOW,
+                thinkingLevel = TranslationThinkingLevel.LOW,
             ),
             taskSettings = TranslationServiceTaskSettings.defaults(
                 com.tyranor.next.core.translation.service.TranslationServiceCategory.AI_TRANSLATION,

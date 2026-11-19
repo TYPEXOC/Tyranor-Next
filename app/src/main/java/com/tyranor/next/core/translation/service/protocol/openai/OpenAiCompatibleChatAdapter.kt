@@ -171,6 +171,7 @@ internal class OpenAiCompatibleChatAdapter(
             )
         val body = profile.generationOptions.addOpenAiChatParameters(
             JSONObject().put("model", profile.modelId).put("messages", messages).put("stream", false),
+            profile.modelId,
         )
         profile.generationOptions.structuredOutputMode.addOpenAiChatFormat(
             body,
@@ -223,10 +224,12 @@ internal class OpenAiCompatibleChatAdapter(
                         formatAiUserMessage(profile.translationUserPrompt, taskData.toString()),
                     ),
             )
-        val body = profile.generationOptions.addOpenAiChatParameters(JSONObject()
-            .put("model", profile.modelId)
-            .put("messages", messages)
-            .put("stream", false)
+        val body = profile.generationOptions.addOpenAiChatParameters(
+            JSONObject()
+                .put("model", profile.modelId)
+                .put("messages", messages)
+                .put("stream", false),
+            profile.modelId,
         )
         profile.generationOptions.structuredOutputMode.addOpenAiChatFormat(
             body,

@@ -8,7 +8,7 @@ import com.tyranor.next.core.translation.service.TranslationProtocolId
 import com.tyranor.next.core.translation.service.TranslationServiceErrorCode
 import com.tyranor.next.core.translation.service.TranslationServiceException
 import com.tyranor.next.core.translation.service.TranslationGenerationOptions
-import com.tyranor.next.core.translation.service.GeminiThinkingLevel
+import com.tyranor.next.core.translation.service.TranslationThinkingLevel
 import com.tyranor.next.core.translation.service.TranslationCustomParameter
 import com.tyranor.next.core.translation.service.TranslationCustomParameters
 import com.tyranor.next.core.translation.service.TranslationParameterType
@@ -88,7 +88,7 @@ class GeminiInteractionsAdapterTest {
                     topP = 0.85,
                     maxOutputTokens = 700,
                     geminiTopK = 32,
-                    geminiThinkingLevel = GeminiThinkingLevel.MINIMAL,
+                    thinkingLevel = TranslationThinkingLevel.LOW,
                 ),
             ),
             apiKey = "test-key",
@@ -105,7 +105,7 @@ class GeminiInteractionsAdapterTest {
         assertEquals(0.85, config.getDouble("top_p"), 0.001)
         assertEquals(700, config.getInt("max_output_tokens"))
         assertEquals(32, config.getInt("top_k"))
-        assertEquals("minimal", config.getString("thinking_level"))
+        assertEquals("low", config.getString("thinking_level"))
     }
 
     @Test

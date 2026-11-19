@@ -5,7 +5,7 @@ import com.tyranor.next.core.translation.service.TranslationProtocolId
 import com.tyranor.next.core.translation.service.TranslationServiceErrorCode
 import com.tyranor.next.core.translation.service.TranslationServiceException
 import com.tyranor.next.core.translation.service.TranslationGenerationOptions
-import com.tyranor.next.core.translation.service.TranslationReasoningEffort
+import com.tyranor.next.core.translation.service.TranslationThinkingLevel
 import com.tyranor.next.core.translation.service.TranslationCustomParameter
 import com.tyranor.next.core.translation.service.TranslationCustomParameters
 import com.tyranor.next.core.translation.service.TranslationParameterType
@@ -109,7 +109,7 @@ class OpenAiResponsesAdapterTest {
             maxOutputTokens = 500,
             frequencyPenalty = 0.1,
             presencePenalty = -0.1,
-            reasoningEffort = TranslationReasoningEffort.MEDIUM,
+            thinkingLevel = TranslationThinkingLevel.MEDIUM,
             structuredOutputMode = TranslationStructuredOutputMode.JSON_SCHEMA,
         )
         OpenAiResponsesAdapter(TranslationHttpTransport(calls)).translateBatch(

@@ -126,11 +126,13 @@ internal class OpenAiResponsesAdapter(
         input: String,
         proofreading: Boolean,
     ): String {
-        val body = profile.generationOptions.addOpenAiResponsesParameters(JSONObject()
-            .put("model", profile.modelId)
-            .put("instructions", instructions)
-            .put("input", formatAiUserMessage(userPrompt, input))
-            .put("store", false)
+        val body = profile.generationOptions.addOpenAiResponsesParameters(
+            JSONObject()
+                .put("model", profile.modelId)
+                .put("instructions", instructions)
+                .put("input", formatAiUserMessage(userPrompt, input))
+                .put("store", false),
+            profile.modelId,
         )
         profile.generationOptions.structuredOutputMode.addOpenAiResponsesFormat(
             body,
