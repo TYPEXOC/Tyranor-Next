@@ -170,9 +170,22 @@
     <string name="translation_no_enabled_service">没有可用的已启用翻译服务，请先在应用设置中配置并启用服务。</string>
     <string name="translation_source_language">原文语言（例如 ja）</string>
     <string name="translation_target_language">目标语言（例如 zh-CN）</string>
-    <string name="translation_glossary_open">术语表</string>
-    <string name="translation_glossary_title">项目术语表</string>
-    <string name="translation_glossary_hint">每行填写一组术语，格式为“原文 = 译文”。保存后会生成新版本，任务使用启动时的术语表快照。</string>
+    <string name="translation_glossaries_title">术语表管理</string>
+    <string name="translation_glossaries_empty">还没有术语表。添加术语表后，可在批量翻译时选择。</string>
+    <string name="translation_glossary_add">添加术语表</string>
+    <string name="translation_glossary_edit">编辑</string>
+    <string name="translation_glossary_term_count">%1$d 个术语</string>
+    <string name="translation_glossary_name">术语表名称</string>
+    <string name="translation_glossary_entries_empty">还没有术语，添加原文与译文。</string>
+    <string name="translation_glossary_add_entry">添加术语</string>
+    <string name="translation_glossary_entry_title">编辑术语</string>
+    <string name="translation_glossary_source_term">原文</string>
+    <string name="translation_glossary_target_term">译文</string>
+    <string name="translation_glossary_note_optional">备注（可选）</string>
+    <string name="translation_glossary_delete_title">删除术语表？</string>
+    <string name="translation_glossary_delete_message">将删除“%1$s”及其中的术语。已启动的任务仍使用启动时保存的术语表快照。</string>
+    <string name="translation_glossary_select">术语表</string>
+    <string name="translation_glossary_none">不使用术语表</string>
     <string name="translation_cancel_task">中止任务</string>
     <string name="translation_reauthorize_directory">重新授权目录</string>
     <string name="translation_export_csv">导出 CSV</string>
@@ -211,6 +224,7 @@
     <string name="translation_error_invalid_language_pair">请填写不同的原文语言和目标语言。</string>
     <string name="translation_error_no_translation_candidates">项目没有待翻译的条目。</string>
     <string name="translation_error_invalid_glossary">术语表超出限制或格式无效。</string>
+    <string name="translation_error_glossary_not_found">所选术语表已不存在，请重新选择。</string>
     <string name="translation_error_duplicate_glossary_term">术语表中原文术语重复。</string>
     <string name="translation_error_project_configuration_changed">项目术语表正在变化，请重新启动翻译任务。</string>
     <string name="translation_error_translation_failed">翻译任务未能完成，已保存此前成功的译文。</string>

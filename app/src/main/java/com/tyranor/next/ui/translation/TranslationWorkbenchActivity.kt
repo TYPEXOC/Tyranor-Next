@@ -54,7 +54,7 @@ import com.tyranor.next.core.translation.TranslationWorkbenchError
 import com.tyranor.next.core.translation.TranslationWorkbenchException
 import com.tyranor.next.core.translation.TranslationWorkbenchRepository
 import com.tyranor.next.core.translation.TranslationProjectCard
-import com.tyranor.next.core.translation.TranslationGlossaryTerm
+import com.tyranor.next.core.translation.TranslationGlossary
 import com.tyranor.next.core.translation.extraction.TranslationExtractorEngineIds
 import com.tyranor.next.core.translation.service.TranslationServiceProfile
 import com.tyranor.next.core.translation.service.TranslationServiceCategory
@@ -70,6 +70,7 @@ import com.tyranor.next.ui.common.motion.startActivityWithPageTransition
 import com.tyranor.next.ui.common.DialogTextButton
 import com.tyranor.next.ui.common.NoRippleButton
 import com.tyranor.next.ui.common.NoRippleTextButton
+import com.tyranor.next.ui.common.OverlayDropdownPreference
 import com.tyranor.next.ui.common.glassNavBottomInset
 import com.tyranor.next.ui.common.motion.listItemMotion
 import kotlinx.coroutines.CancellationException
@@ -114,21 +115,16 @@ private fun TranslationWorkbenchScreen() {
     var selectedTranslationServiceId by remember { mutableStateOf<String?>(null) }
     var translationSourceLanguage by remember { mutableStateOf("") }
     var translationTargetLanguage by remember { mutableStateOf("") }
-    var glossaryProjectId by remember { mutableStateOf<String?>(null) }
-    var glossaryText by remember { mutableStateOf("") }
+    var selectedTranslationGlossaryId by remember { mutableStateOf<String?>(null) }
+    val reusableGlossaries by repository.observeReusableGlossaries().collectAsStateWithLifecycle(initialValue = emptyList())
     val exportHistory by remember(repository, exportHistoryProjectId) {
         exportHistoryProjectId?.let(repository::observeExportHistory)
             ?: flowOf<List<TranslationExportRecord>>(emptyList())
     }.collectAsStateWithLifecycle(initialValue = emptyList())
-    val glossaryTerms by remember(repository, glossaryProjectId) {
-        glossaryProjectId?.let(repository::observeGlossary)
-            ?: flowOf<List<TranslationGlossaryTerm>>(emptyList())
-    }.collectAsStateWithLifecycle(initialValue = emptyList())
-
-    LaunchedEffect(glossaryProjectId, glossaryTerms) {
-        if (glossaryProjectId != null) {
-            glossaryText = glossaryTerms.joinToString("\n") { "${it.sourceTerm} = ${it.targetTerm}" }
-        }
+    LaunchedEffect(translationProjectId, reusableGlossaries) {
+        val projectId = translationProjectId ?: return@LaunchedEffect
+        selectedTranslationGlossaryId = repository.getPreferredGlossaryId(projectId)
+            ?.takeIf { glossaryId -> reusableGlossaries.any { it.id == glossaryId } }
     }
 
     fun showFailure(failure: Throwable) {
@@ -233,11 +229,23 @@ private fun TranslationWorkbenchScreen() {
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     item(key = "add-project") {
-                        NoRippleButton(
-                            text = stringResource(R.string.translation_add_project),
-                            modifier = Modifier.fillMaxWidth(),
-                            onClick = { showAddDialog = true },
-                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            NoRippleButton(
+                                text = stringResource(R.string.translation_add_project),
+                                modifier = Modifier.weight(1f),
+                                onClick = { showAddDialog = true },
+                            )
+                            NoRippleButton(
+                                text = stringResource(R.string.translation_glossaries_title),
+                                modifier = Modifier.weight(1f),
+                                onClick = {
+                                    startActivityWithPageTransition(
+                                        context,
+                                        TranslationGlossariesActivity.createIntent(context),
+                                    )
+                                },
+                            )
+                        }
                     }
                     if (projects.isEmpty()) {
                         item(key = "empty") {
@@ -270,15 +278,12 @@ private fun TranslationWorkbenchScreen() {
                                 onTranslate = {
                                     translationProjectId = project.id
                                     selectedTranslationServiceId = enabledTranslationServices.firstOrNull()?.id
+                                    selectedTranslationGlossaryId = null
                                     translationSourceLanguage = ""
                                     translationTargetLanguage = ""
                                 },
                                 onContinueTranslation = { taskId ->
                                     runOperation { repository.continueTranslation(project.id, taskId) }
-                                },
-                                onGlossary = {
-                                    glossaryText = ""
-                                    glossaryProjectId = project.id
                                 },
                                 onRelink = {
                                     pendingRelinkProjectId = project.id
@@ -311,9 +316,12 @@ private fun TranslationWorkbenchScreen() {
         TranslationStartDialog(
             services = enabledTranslationServices,
             selectedServiceId = selectedTranslationServiceId,
+            glossaries = reusableGlossaries,
+            selectedGlossaryId = selectedTranslationGlossaryId,
             sourceLanguage = translationSourceLanguage,
             targetLanguage = translationTargetLanguage,
             onSelectService = { selectedTranslationServiceId = it },
+            onSelectGlossary = { selectedTranslationGlossaryId = it },
             onSourceLanguageChange = { translationSourceLanguage = it },
             onTargetLanguageChange = { translationTargetLanguage = it },
             onDismiss = { translationProjectId = null },
@@ -327,50 +335,10 @@ private fun TranslationWorkbenchScreen() {
                             serviceId = serviceId,
                             sourceLanguage = translationSourceLanguage,
                             targetLanguage = translationTargetLanguage,
+                            glossaryId = selectedTranslationGlossaryId,
                         )
                     }
                 }
-            },
-        )
-    }
-
-    glossaryProjectId?.let { projectId ->
-        AppAlertDialog(
-            onDismissRequest = { glossaryProjectId = null },
-            title = { Text(stringResource(R.string.translation_glossary_title), style = MaterialTheme.typography.titleMedium) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        stringResource(R.string.translation_glossary_hint),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = PageSecondaryTextColor,
-                    )
-                    OutlinedTextField(
-                        value = glossaryText,
-                        onValueChange = { glossaryText = it },
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 180.dp, max = 360.dp),
-                        minLines = 6,
-                        maxLines = 12,
-                    )
-                }
-            },
-            confirmButton = {
-                DialogTextButton(
-                    text = stringResource(R.string.common_save),
-                    onClick = {
-                        val terms = glossaryText.lineSequence().filter(String::isNotBlank).map { line ->
-                            val separator = line.indexOf('=')
-                            if (separator < 0) TranslationGlossaryTerm(line.trim(), "") else {
-                                TranslationGlossaryTerm(line.substring(0, separator).trim(), line.substring(separator + 1).trim())
-                            }
-                        }.toList()
-                        glossaryProjectId = null
-                        runOperation { repository.saveGlossary(projectId, terms) }
-                    },
-                )
-            },
-            dismissButton = {
-                DialogTextButton(text = stringResource(R.string.common_cancel), onClick = { glossaryProjectId = null })
             },
         )
     }
@@ -537,85 +505,105 @@ private fun TranslationWorkbenchScreen() {
 private fun TranslationStartDialog(
     services: List<TranslationServiceProfile>,
     selectedServiceId: String?,
+    glossaries: List<TranslationGlossary>,
+    selectedGlossaryId: String?,
     sourceLanguage: String,
     targetLanguage: String,
     onSelectService: (String) -> Unit,
+    onSelectGlossary: (String?) -> Unit,
     onSourceLanguageChange: (String) -> Unit,
     onTargetLanguageChange: (String) -> Unit,
     onDismiss: () -> Unit,
     onStart: () -> Unit,
 ) {
-    AppAlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.translation_start_translation_title), style = MaterialTheme.typography.titleMedium) },
-        text = {
-            Column(
-                modifier = Modifier.fillMaxWidth().heightIn(max = 420.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                if (services.isEmpty()) {
-                    Text(
-                        stringResource(R.string.translation_no_enabled_service),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = PageSecondaryTextColor,
-                    )
-                } else {
-                    Text(stringResource(R.string.translation_service_label), style = MaterialTheme.typography.labelMedium)
-                    LazyColumn(
-                        modifier = Modifier.fillMaxWidth().heightIn(max = 150.dp),
-                        verticalArrangement = Arrangement.spacedBy(2.dp),
-                    ) {
-                        items(services, key = TranslationServiceProfile::id) { service ->
-                            val categoryName = stringResource(
-                                if (service.protocolId.category == TranslationServiceCategory.MACHINE_TRANSLATION) {
-                                    R.string.translation_services_machine_category
-                                } else {
-                                    R.string.translation_services_ai_category
-                                },
-                            )
-                            NoRippleTextButton(
-                                text = buildString {
-                                    if (service.id == selectedServiceId) append("✓  ")
-                                    append(categoryName).append(" · ")
-                                    append(service.displayName)
-                                    if (service.modelId.isNotBlank()) append(" · ${service.modelId}")
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                contentColor = if (service.id == selectedServiceId) MaterialTheme.colorScheme.primary
-                                else PageTextColor,
-                                onClick = { onSelectService(service.id) },
-                            )
+    MiuixSettingsTheme {
+        AppAlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text(stringResource(R.string.translation_start_translation_title), style = MaterialTheme.typography.titleMedium) },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth().heightIn(max = 420.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    if (services.isEmpty()) {
+                        Text(
+                            stringResource(R.string.translation_no_enabled_service),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = PageSecondaryTextColor,
+                        )
+                    } else {
+                        Text(stringResource(R.string.translation_service_label), style = MaterialTheme.typography.labelMedium)
+                        LazyColumn(
+                            modifier = Modifier.fillMaxWidth().heightIn(max = 150.dp),
+                            verticalArrangement = Arrangement.spacedBy(2.dp),
+                        ) {
+                            items(services, key = TranslationServiceProfile::id) { service ->
+                                val categoryName = stringResource(
+                                    if (service.protocolId.category == TranslationServiceCategory.MACHINE_TRANSLATION) {
+                                        R.string.translation_services_machine_category
+                                    } else {
+                                        R.string.translation_services_ai_category
+                                    },
+                                )
+                                NoRippleTextButton(
+                                    text = buildString {
+                                        if (service.id == selectedServiceId) append("✓  ")
+                                        append(categoryName).append(" · ")
+                                        append(service.displayName)
+                                        if (service.modelId.isNotBlank()) append(" · ${service.modelId}")
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    contentColor = if (service.id == selectedServiceId) MaterialTheme.colorScheme.primary
+                                    else PageTextColor,
+                                    onClick = { onSelectService(service.id) },
+                                )
+                            }
                         }
+                        val glossaryItems = listOf(stringResource(R.string.translation_glossary_none)) +
+                            glossaries.map(TranslationGlossary::name)
+                        val selectedGlossaryIndex = selectedGlossaryId?.let { selected ->
+                            glossaries.indexOfFirst { it.id == selected }.takeIf { it >= 0 }?.plus(1)
+                        } ?: 0
+                        OverlayDropdownPreference(
+                            items = glossaryItems,
+                            selectedIndex = selectedGlossaryIndex,
+                            title = stringResource(R.string.translation_glossary_select),
+                            modifier = Modifier.fillMaxWidth(),
+                            renderInRootScaffold = false,
+                            onSelectedIndexChange = { index ->
+                                onSelectGlossary(glossaries.getOrNull(index - 1)?.id)
+                            },
+                        )
+                        OutlinedTextField(
+                            value = sourceLanguage,
+                            onValueChange = onSourceLanguageChange,
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            label = { Text(stringResource(R.string.translation_source_language)) },
+                        )
+                        OutlinedTextField(
+                            value = targetLanguage,
+                            onValueChange = onTargetLanguageChange,
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            label = { Text(stringResource(R.string.translation_target_language)) },
+                        )
                     }
-                    OutlinedTextField(
-                        value = sourceLanguage,
-                        onValueChange = onSourceLanguageChange,
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        label = { Text(stringResource(R.string.translation_source_language)) },
-                    )
-                    OutlinedTextField(
-                        value = targetLanguage,
-                        onValueChange = onTargetLanguageChange,
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        label = { Text(stringResource(R.string.translation_target_language)) },
-                    )
                 }
-            }
-        },
-        confirmButton = {
-            DialogTextButton(
-                text = stringResource(R.string.translation_start_translation),
-                enabled = services.isNotEmpty() && selectedServiceId != null &&
-                    sourceLanguage.isNotBlank() && targetLanguage.isNotBlank(),
-                onClick = onStart,
-            )
-        },
-        dismissButton = {
-            DialogTextButton(text = stringResource(R.string.common_cancel), onClick = onDismiss)
-        },
-    )
+            },
+            confirmButton = {
+                DialogTextButton(
+                    text = stringResource(R.string.translation_start_translation),
+                    enabled = services.isNotEmpty() && selectedServiceId != null &&
+                        sourceLanguage.isNotBlank() && targetLanguage.isNotBlank(),
+                    onClick = onStart,
+                )
+            },
+            dismissButton = {
+                DialogTextButton(text = stringResource(R.string.common_cancel), onClick = onDismiss)
+            },
+        )
+    }
 }
 
 @Composable
@@ -627,7 +615,6 @@ private fun TranslationProjectCardView(
     onCancel: (String) -> Unit,
     onTranslate: () -> Unit,
     onContinueTranslation: (String) -> Unit,
-    onGlossary: () -> Unit,
     onRelink: () -> Unit,
     onExportCsv: () -> Unit,
     onExportJson: () -> Unit,
@@ -782,7 +769,6 @@ private fun TranslationProjectCardView(
                 if (project.translatedCount > 0) {
                     NoRippleTextButton(text = stringResource(R.string.translation_review_open), onClick = onReview)
                 }
-                NoRippleTextButton(text = stringResource(R.string.translation_glossary_open), onClick = onGlossary)
                 if (isGameDirectory && project.latestTaskFailureCode == TranslationWorkbenchError.DIRECTORY_PERMISSION_LOST.name) {
                     NoRippleTextButton(text = stringResource(R.string.translation_reauthorize_directory), onClick = onRelink)
                 }

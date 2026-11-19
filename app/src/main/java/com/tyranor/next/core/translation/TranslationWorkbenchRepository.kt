@@ -17,6 +17,9 @@ import com.tyranor.next.core.translation.storage.TranslationTaskEntity
 import com.tyranor.next.core.translation.storage.TranslationExportEntity
 import com.tyranor.next.core.translation.storage.TranslationExportRow
 import com.tyranor.next.core.translation.storage.TranslationGlossaryTermEntity
+import com.tyranor.next.core.translation.storage.TranslationGlossaryEntity
+import com.tyranor.next.core.translation.storage.TranslationGlossaryEntryEntity
+import com.tyranor.next.core.translation.storage.TranslationGlossaryRow
 import com.tyranor.next.core.translation.storage.TranslationProofreadSuggestionEntity
 import com.tyranor.next.core.translation.storage.TranslationReviewIssueEntity
 import com.tyranor.next.core.translation.storage.TranslationReviewIssueRow
@@ -228,6 +231,77 @@ class TranslationWorkbenchRepository(context: Context) {
             ?: throw TranslationWorkbenchException(TranslationWorkbenchError.PROJECT_NOT_FOUND)
     }
 
+    fun observeReusableGlossaries(): Flow<List<TranslationGlossary>> =
+        dao.observeReusableGlossaries().map { rows -> rows.map(TranslationGlossaryRow::toModel) }
+
+    fun observeReusableGlossaryTerms(glossaryId: String): Flow<List<TranslationGlossaryTerm>> =
+        dao.observeReusableGlossaryEntries(glossaryId).map { entries ->
+            entries.map { TranslationGlossaryTerm(it.sourceTerm, it.targetTerm, it.note) }
+        }
+
+    suspend fun getReusableGlossaryTerms(glossaryId: String): List<TranslationGlossaryTerm> =
+        dao.getReusableGlossary(glossaryId)?.let {
+            dao.getReusableGlossaryEntries(glossaryId).map { entry ->
+                TranslationGlossaryTerm(entry.sourceTerm, entry.targetTerm, entry.note)
+            }
+        } ?: throw TranslationWorkbenchException(TranslationWorkbenchError.GLOSSARY_NOT_FOUND)
+
+    suspend fun getPreferredGlossaryId(projectId: String): String? =
+        (dao.getProject(projectId)
+            ?: throw TranslationWorkbenchException(TranslationWorkbenchError.PROJECT_NOT_FOUND))
+            .selectedGlossaryId
+
+    suspend fun saveReusableGlossary(
+        id: String?,
+        name: String,
+        draftTerms: List<TranslationGlossaryTerm>,
+    ): TranslationGlossary {
+        val normalizedName = name.trim()
+        if (normalizedName.isBlank() || normalizedName.length > MAX_GLOSSARY_NAME_LENGTH) {
+            throw TranslationWorkbenchException(TranslationWorkbenchError.INVALID_GLOSSARY)
+        }
+        val old = id?.let { dao.getReusableGlossary(it) }
+        if (id != null && old == null) throw TranslationWorkbenchException(TranslationWorkbenchError.GLOSSARY_NOT_FOUND)
+        val terms = normalizeGlossaryTerms(draftTerms)
+        val now = System.currentTimeMillis()
+        val glossaryId = id ?: UUID.randomUUID().toString()
+        val glossary = TranslationGlossaryEntity(
+            id = glossaryId,
+            name = normalizedName,
+            revision = (old?.revision ?: 0L) + 1L,
+            sourceProjectId = old?.sourceProjectId,
+            createdAt = old?.createdAt ?: now,
+            updatedAt = now,
+        )
+        val entries = terms.map { term ->
+            TranslationGlossaryEntryEntity(
+                id = UUID.randomUUID().toString(),
+                glossaryId = glossaryId,
+                sourceTerm = term.sourceTerm,
+                targetTerm = term.targetTerm,
+                note = term.note,
+                updatedAt = now,
+            )
+        }
+        if (!dao.replaceReusableGlossary(glossary, entries, old?.revision)) {
+            throw TranslationWorkbenchException(TranslationWorkbenchError.PROJECT_CONFIGURATION_CHANGED)
+        }
+        return TranslationGlossary(
+            id = glossary.id,
+            name = glossary.name,
+            revision = glossary.revision,
+            termCount = entries.size,
+            sourceProjectId = glossary.sourceProjectId,
+            updatedAt = glossary.updatedAt,
+        )
+    }
+
+    suspend fun deleteReusableGlossary(id: String) {
+        if (dao.deleteReusableGlossary(id) == 0) {
+            throw TranslationWorkbenchException(TranslationWorkbenchError.GLOSSARY_NOT_FOUND)
+        }
+    }
+
     /** Creates one project for the selected SAF tree; an existing tree returns its existing project id. */
     suspend fun createGameDirectoryProject(treeUri: Uri, engineId: String): ProjectCreation {
         val extractor = TextExtractorRegistry.find(engineId)
@@ -437,6 +511,7 @@ class TranslationWorkbenchRepository(context: Context) {
         serviceId: String,
         sourceLanguage: String,
         targetLanguage: String,
+        glossaryId: String? = null,
     ): TranslationTaskScheduleResult {
         val source = sourceLanguage.trim()
         val target = targetLanguage.trim()
@@ -457,7 +532,11 @@ class TranslationWorkbenchRepository(context: Context) {
                 if (dao.countTranslationCandidates(projectId, retryFailed = false) == 0) {
                     throw TranslationWorkbenchException(TranslationWorkbenchError.NO_TRANSLATION_CANDIDATES)
                 }
-                val glossary = dao.getGlossary(projectId)
+                val reusableGlossary = glossaryId?.let { id ->
+                    dao.getReusableGlossary(id)
+                        ?: throw TranslationWorkbenchException(TranslationWorkbenchError.GLOSSARY_NOT_FOUND)
+                }
+                val glossary = glossaryId?.let { id -> dao.getReusableGlossaryEntries(id) }.orEmpty()
                 val snapshot = TranslationTaskSnapshot(
                     serviceId = service.id,
                     serviceRevision = service.revision,
@@ -468,7 +547,9 @@ class TranslationWorkbenchRepository(context: Context) {
                     sourceLanguage = source,
                     targetLanguage = target,
                     prompt = service.translationPrompt,
-                    glossaryRevision = project.glossaryRevision,
+                    glossaryId = reusableGlossary?.id,
+                    glossaryName = reusableGlossary?.name,
+                    glossaryRevision = reusableGlossary?.revision ?: 0L,
                     glossary = glossary.map { TranslationGlossaryTerm(it.sourceTerm, it.targetTerm, it.note) },
                 )
                 val snapshotJson = snapshot.encode()
@@ -493,12 +574,21 @@ class TranslationWorkbenchRepository(context: Context) {
                     createdAt = now,
                     updatedAt = now,
                 )
-                if (dao.createTranslationTaskIfProjectIdle(task, source, target, project.glossaryRevision)) {
+                if (dao.createTranslationTaskIfProjectIdle(
+                        task,
+                        source,
+                        target,
+                        reusableGlossary?.id,
+                        reusableGlossary?.revision ?: 0L,
+                    )
+                ) {
                     return@withServiceProfileSnapshot TranslationTaskScheduleResult.Started(taskId)
                 }
                 val queuedTask = dao.getActiveTask(projectId)
                 if (queuedTask != null) return@withServiceProfileSnapshot TranslationTaskScheduleResult.AlreadyActive(queuedTask.id)
-                if (dao.getProject(projectId)?.glossaryRevision != project.glossaryRevision) return@repeat
+                if (glossaryId != null && dao.getReusableGlossary(glossaryId)?.revision != reusableGlossary?.revision) {
+                    return@repeat
+                }
                 throw TranslationWorkbenchException(TranslationWorkbenchError.PROJECT_NOT_FOUND)
             }
             throw TranslationWorkbenchException(TranslationWorkbenchError.PROJECT_CONFIGURATION_CHANGED)
@@ -564,6 +654,10 @@ class TranslationWorkbenchRepository(context: Context) {
             if (dao.countProofreadCandidates(projectId, scope.name, retryFailed = false) == 0) {
                 throw TranslationWorkbenchException(TranslationWorkbenchError.NO_PROOFREAD_CANDIDATES)
             }
+            val reusableGlossary = project.selectedGlossaryId?.let { id ->
+                dao.getReusableGlossary(id)
+                    ?: throw TranslationWorkbenchException(TranslationWorkbenchError.GLOSSARY_NOT_FOUND)
+            }
             val snapshot = TranslationProofreadTaskSnapshot(
                 serviceId = service.id,
                 serviceRevision = service.revision,
@@ -574,8 +668,10 @@ class TranslationWorkbenchRepository(context: Context) {
                 sourceLanguage = source,
                 targetLanguage = target,
                 prompt = service.proofreadingPrompt,
-                glossaryRevision = project.glossaryRevision,
-                glossary = dao.getGlossary(projectId).map {
+                glossaryId = reusableGlossary?.id,
+                glossaryName = reusableGlossary?.name,
+                glossaryRevision = reusableGlossary?.revision ?: 0L,
+                glossary = project.selectedGlossaryId?.let { id -> dao.getReusableGlossaryEntries(id) }.orEmpty().map {
                     TranslationGlossaryTerm(it.sourceTerm, it.targetTerm, it.note)
                 },
                 scope = scope,
@@ -605,7 +701,10 @@ class TranslationWorkbenchRepository(context: Context) {
             if (!dao.createProofreadTaskIfProjectIdle(task, scope.name)) {
                 val queued = dao.getActiveTask(projectId)
                 if (queued != null) return@withServiceProfileSnapshot TranslationTaskScheduleResult.AlreadyActive(queued.id)
-                if (dao.getProject(projectId)?.glossaryRevision != project.glossaryRevision) {
+                if (project.selectedGlossaryId != dao.getProject(projectId)?.selectedGlossaryId ||
+                    (project.selectedGlossaryId != null &&
+                        dao.getReusableGlossary(project.selectedGlossaryId)?.revision != reusableGlossary?.revision)
+                ) {
                     throw TranslationWorkbenchException(TranslationWorkbenchError.PROJECT_CONFIGURATION_CHANGED)
                 }
                 throw TranslationWorkbenchException(TranslationWorkbenchError.NO_PROOFREAD_CANDIDATES)
@@ -815,12 +914,35 @@ class TranslationWorkbenchRepository(context: Context) {
     companion object {
         private const val MAX_LANGUAGE_LENGTH = 64
         private const val MAX_GLOSSARY_TERMS = 100
+        private const val MAX_GLOSSARY_NAME_LENGTH = 80
         private const val MAX_GLOSSARY_TERM_LENGTH = 120
         private const val MAX_GLOSSARY_NOTE_LENGTH = 500
         private const val MAX_GLOSSARY_CHARS = 8_000
         private const val MAX_TASK_SNAPSHOT_BYTES = 64 * 1024
         private const val MAX_TRANSLATION_SNAPSHOT_ATTEMPTS = 3
         private const val MAX_MANUAL_TRANSLATION_LENGTH = 100_000
+    }
+
+    private fun normalizeGlossaryTerms(draftTerms: List<TranslationGlossaryTerm>): List<TranslationGlossaryTerm> {
+        val terms = draftTerms.map { term ->
+            TranslationGlossaryTerm(
+                sourceTerm = term.sourceTerm.trim(),
+                targetTerm = term.targetTerm.trim(),
+                note = term.note?.trim()?.takeIf(String::isNotBlank),
+            )
+        }.filter { it.sourceTerm.isNotEmpty() || it.targetTerm.isNotEmpty() }
+        if (terms.size > MAX_GLOSSARY_TERMS || terms.any {
+                it.sourceTerm.isBlank() || it.targetTerm.isBlank() ||
+                    it.sourceTerm.length > MAX_GLOSSARY_TERM_LENGTH || it.targetTerm.length > MAX_GLOSSARY_TERM_LENGTH ||
+                    (it.note?.length ?: 0) > MAX_GLOSSARY_NOTE_LENGTH
+            } || terms.sumOf { it.sourceTerm.length + it.targetTerm.length + (it.note?.length ?: 0) } > MAX_GLOSSARY_CHARS
+        ) {
+            throw TranslationWorkbenchException(TranslationWorkbenchError.INVALID_GLOSSARY)
+        }
+        if (terms.groupingBy { it.sourceTerm.lowercase(Locale.ROOT) }.eachCount().any { it.value > 1 }) {
+            throw TranslationWorkbenchException(TranslationWorkbenchError.DUPLICATE_GLOSSARY_TERM)
+        }
+        return terms
     }
 }
 
@@ -829,6 +951,15 @@ internal fun TranslationServiceProfile.canTranslate(): Boolean =
         TranslationProtocolRegistry.supports(protocolId, TranslationServiceCapability.TRANSLATE)
 
 data class ProjectCreation(val projectId: String, val created: Boolean)
+
+private fun TranslationGlossaryRow.toModel(): TranslationGlossary = TranslationGlossary(
+    id = id,
+    name = name,
+    revision = revision,
+    termCount = termCount,
+    sourceProjectId = sourceProjectId,
+    updatedAt = updatedAt,
+)
 
 sealed interface TranslationTaskScheduleResult {
     data class Started(val taskId: String) : TranslationTaskScheduleResult

@@ -19,6 +19,8 @@ internal data class TranslationProofreadTaskSnapshot(
     val glossaryRevision: Long,
     val glossary: List<TranslationGlossaryTerm>,
     val scope: TranslationProofreadScope,
+    val glossaryId: String? = null,
+    val glossaryName: String? = null,
     val retryFailed: Boolean = false,
 ) {
     fun encode(): String = JSONObject()
@@ -32,6 +34,8 @@ internal data class TranslationProofreadTaskSnapshot(
         .put("targetLanguage", targetLanguage)
         .put("prompt", prompt)
         .put("glossaryRevision", glossaryRevision)
+        .put("glossaryId", glossaryId)
+        .put("glossaryName", glossaryName)
         .put("scope", scope.name)
         .put("retryFailed", retryFailed)
         .put("glossary", JSONArray().apply {
@@ -91,6 +95,8 @@ internal data class TranslationProofreadTaskSnapshot(
                     )
                 },
                 scope = scope,
+                glossaryId = value.optString("glossaryId").takeIf(String::isNotBlank),
+                glossaryName = value.optString("glossaryName").takeIf(String::isNotBlank),
                 retryFailed = value.optBoolean("retryFailed"),
             )
         }

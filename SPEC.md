@@ -309,12 +309,12 @@ App 存档管理与 native 共用 `<游戏根>/savedata` user-root。宿主和 n
 ### 10.1 翻译工作台项目基础、服务配置、批量翻译与校对
 
 - 入口位于一级「工具」页；工作台通过 `AppScreenActivity` / `AppSecondaryTopBar` 展示项目卡片。游戏目录按 SAF tree URI 唯一对应一个项目；CSV/标准 JSON 导入项目按交换键去重，无交换键时按标题与引擎去重。
-- 项目数据保存在独立 Room 数据库 `translation_workbench.db`（schema v6），与游戏库及 `core/engine/translation` 的运行时译表发现、订阅和交付分离。项目、条目、提取/翻译/AI 校对任务、成功导出记录、非敏感服务档案、项目术语表、校对建议与问题分别落库；项目删除只删除 TYN 项目数据，不改游戏目录。目录提取只经持久 SAF 只读授权读取相对路径；导出由用户通过系统文件选择器指定位置，卡片可查看导出格式、目标文件名、条目数和时间。
+- 项目数据保存在独立 Room 数据库 `translation_workbench.db`（schema v7），与游戏库及 `core/engine/translation` 的运行时译表发现、订阅和交付分离。项目、条目、提取/翻译/AI 校对任务、成功导出记录、非敏感服务档案、可复用工作台术语表、校对建议与问题分别落库；项目删除只删除 TYN 项目数据，不改游戏目录。目录提取只经持久 SAF 只读授权读取相对路径；导出由用户通过系统文件选择器指定位置，卡片可查看导出格式、目标文件名、条目数和时间。
 - 当前项目来源为 RPG Maker MV/MZ、2000/2003、RGSS（XP/VX/VX Ace/mkxp-z）游戏目录与标准 CSV/JSON 文本项目。各格式代际独立注册：MV/MZ 解析 `data/` 或 `www/data/` 的兼容 JSON；2000/2003 解析 LCF；RGSS 解析 Marshal 数据并可在内存中解密受限 RGSS 归档。文件白名单、版本前置条件、归档上限、插件/脚本限制、第三方依赖和验证证据见 [翻译工作台首期实现说明](docs/翻译工作台首期实现说明.md)。
 - 标准 JSON 使用 `format=tyranor-translation-project`、`version=1`，包含项目元数据和稳定 `sourceKey` 条目；CSV 使用表头列名交换。导入限制为 32 MiB 文档、最多 200,000 条且来源键唯一。任务快照、内部检查点、SAF URI 和服务秘密不进入导出。
 - 提取、翻译和 AI 校对任务由 WorkManager 的全局串行 drain 队列执行，Room 中的任务状态、条目状态、进度计数与 JSON 检查点是进度事实源。Worker 使用前台 `dataSync` 通知；进入工作台会补排可运行队列。提取按文件、翻译与 AI 校对按批次将已提交结果和检查点在同一 Room 事务落盘；取消或进程中断保留已完成结果，重试只处理未完成或失败条目。人工规则检查、条目编辑/确认和问题处理直接更新项目数据，不创建任务。
 - 应用设置提供 OpenAI Chat Completions、OpenAI Responses API 与 Google Gemini Interactions API 三种 AI 翻译协议，以及必应、小牛、火山、Azure、DeepL、百度、腾讯七种机器翻译服务。AI 服务选择器按协议分组提供 11 个 Chat Completions 厂商模板、一个自定义 OpenAI 兼容地址入口、OpenAI Responses 与 Gemini 模板；厂商模板复用 Chat Completions adapter，不等于独立供应商协议支持。模型目录可获取并可手动填写模型 ID；机器翻译使用各自固定的 HTTPS 协议与供应商凭据，不提供任意地址或模型字段。必应目前使用网页会话令牌流程，协议不稳定。火山、Azure 等批量接口按各自上限分批，单条接口逐条提交检查点。Responses adapter 固定使用 OpenAI 官方 HTTPS 地址且请求设置 `store=false`；Vertex AI 与 Gemini 自定义代理不在本协议范围。翻译域自行维护 OkHttp transport，禁用重定向并限制响应体；请求取消传递到底层 `Call.cancel()`。服务档案不保存密钥，机器翻译多字段凭据与 AI API Key 均以 Android Keystore AES/GCM 密文保存在独立且备份排除的偏好文件。项目卡片与校对选择器仅显示已启用、配置完整且 adapter 能力匹配的服务；机器翻译仅声明 `TRANSLATE`，不会进入 AI 校对选择器。任务快照包含协议、配置版本、模型（AI）、语言、范围、提示词、术语表版本/内容及 `secretRef`，不含密钥值；术语表随请求发送给三种 AI adapter，并作为 DeepL context，其余六种机器翻译 adapter 暂不发送术语表。
-- 已实现项目级术语表、两类服务的批量翻译、OpenAI Chat Completions/Responses 与 Gemini 的 AI 校对能力，以及独立 MV/MZ MTool JSON exporter。Responses 按已完成 response 的 assistant `output_text` 解析；三种 AI 协议的响应按稳定条目 ID 检查缺失、重复、未知条目及控制码/占位符/换行完整性；已通过校验的条目独立提交，失败条目记录错误码。MTool JSON 以来源文本为键；同一来源文本出现冲突译文时拒绝导出，不静默覆盖。代码当前未包含设计文档提到的 `TranslationCatalog` / `TranslationMapProvider` 运行时加载通路，因此 MTool 文件需由用户自行选择和处理，不能称为 TYN 内运行时交付已完成。
+- 工作台提供可复用命名术语表列表，可新增/编辑/删除术语表及单条术语，并在开始翻译时通过下拉框选择；迁移把旧项目术语复制为术语表。任务快照保存术语表 ID、名称、版本和内容，编辑或删除术语表不会改写已启动任务。两类服务的批量翻译、OpenAI Chat Completions/Responses 与 Gemini 的 AI 校对能力，以及独立 MV/MZ MTool JSON exporter 已实现。Responses 按已完成 response 的 assistant `output_text` 解析；三种 AI 协议的响应按稳定条目 ID 检查缺失、重复、未知条目及控制码/占位符/换行完整性；已通过校验的条目独立提交，失败条目记录错误码。MTool JSON 以来源文本为键；同一来源文本出现冲突译文时拒绝导出，不静默覆盖。代码当前未包含设计文档提到的 `TranslationCatalog` / `TranslationMapProvider` 运行时加载通路，因此 MTool 文件需由用户自行选择和处理，不能称为 TYN 内运行时交付已完成。
 - 已实现本地校对规则（缺少译文、占位符/控制码不匹配、换行不匹配）、可选 AI 校对任务、建议/问题持久化、人工编辑与确认、问题解决/忽略及手动完成校对轮次。AI 校对范围每次须明确选择「规则命中条目」或「全部已翻译条目」，不预设待产品确认的默认范围。AI 建议不覆盖当前译文；服务能力由 adapter 声明。校对列表显示序号、原文、当前译文和确认状态，手机采用列表→详情的页面状态切换，平板采用列表与详情并排布局，共用同一筛选和条目状态模型。真实供应商、游戏样本及手机/平板设备尚未验收；其它引擎提取器、Anthropic、Vertex AI 与本地模型暂未接入。
 
 ## 11. 回归验收清单
@@ -323,7 +323,7 @@ App 存档管理与 native 共用 `<游戏根>/savedata` user-root。宿主和 n
 
 | 改动领域 | 验收场景 |
 | --- | --- |
-| 翻译工作台阶段一/二 | MV/MZ、2000/2003 LCF、RGSS Marshal 与加密归档各自注册、文件代际隔离及稳定 sourceKey；授权撤销/恢复、目录读失败、重提取；提取/翻译取消或中断后的检查点恢复、部分成功保留与失败项重试；服务配置快照、密钥引用保留、术语表修订；跨项目串行、同项目重复启动拦截、删除时不写游戏目录；标准 JSON/CSV 导入导出；手机/平板、系统通知、前后台与系统调度；真实供应商、真实各代际游戏样本和 MTool 导出结果须单独验收 |
+| 翻译工作台阶段一/二 | MV/MZ、2000/2003 LCF、RGSS Marshal 与加密归档各自注册、文件代际隔离及稳定 sourceKey；授权撤销/恢复、目录读失败、重提取；提取/翻译取消或中断后的检查点恢复、部分成功保留与失败项重试；可复用术语表增删改、旧项目术语迁移、任务术语快照；服务配置快照、密钥引用保留；跨项目串行、同项目重复启动拦截、删除时不写游戏目录；标准 JSON/CSV 导入导出；手机/平板、系统通知、前后台与系统调度；真实供应商、真实各代际游戏样本和 MTool 导出结果须单独验收 |
 | 翻译工作台阶段三 | 本地规则对空译文、占位符/控制码及换行问题的发现和重算；AI 校对显式范围、服务能力筛选、稳定条目 ID 校验、建议/问题与检查点原子提交；取消/中断后恢复、失败项重试且保留已成功建议；建议不自动覆盖译文；人工编辑/确认、问题解决/忽略与手动完成轮次均不创建后台任务；手机/平板、真实服务与真实项目效果须单独验收 |
 | 翻译工作台阶段四 | 七种机器翻译协议分别固定供应商 HTTPS 主机、凭据字段、签名/认证、批量上限与语言/结果映射；机器翻译仅有 TRANSLATE 能力且不进入 AI 校对选择器；OpenAI Chat Completions、固定 OpenAI 主机的 Responses API 与固定 Gemini 官方主机的 Interactions API 分别注册；模板复用协议 adapter 且不冒充独立服务实现；响应顺序/稳定 ID、格式校验、凭据加密、请求取消、错误映射与响应限制；真实供应商账户和 Android 网络行为须单独验收 |
 | 界面动效 | 普通/增强、中途切档、系统关闭动画；快速连续切页、列表拖动打断入场、下拉/抽屉关闭与重入；跨窗口提示保持身份或按年龄收起；左右缘返回的提交与取消；平板双向旋转后核对选中项、草稿、可点边界。已做与未做的历史样本见 [PR #162](https://github.com/Weiss-UltimateSavior/Tyranor-Next/pull/162)。 |

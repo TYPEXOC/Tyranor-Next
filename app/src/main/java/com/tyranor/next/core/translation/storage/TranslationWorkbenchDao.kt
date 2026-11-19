@@ -9,6 +9,7 @@ import androidx.room.Upsert
 import com.tyranor.next.core.translation.TranslationWorkbenchError
 import com.tyranor.next.core.translation.TranslationWorkbenchException
 import com.tyranor.next.core.translation.TranslationProjectState
+import org.json.JSONObject
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -158,6 +159,51 @@ internal abstract class TranslationWorkbenchDao {
 
     @Query("SELECT * FROM translation_glossary_terms WHERE project_id = :projectId ORDER BY source_term COLLATE NOCASE")
     abstract suspend fun getGlossary(projectId: String): List<TranslationGlossaryTermEntity>
+
+    @Query(
+        "SELECT g.id, g.name, g.revision, g.source_project_id, g.updated_at, " +
+            "COUNT(e.id) AS term_count FROM translation_glossaries g " +
+            "LEFT JOIN translation_glossary_entries e ON e.glossary_id = g.id " +
+            "GROUP BY g.id ORDER BY g.updated_at DESC, g.name COLLATE NOCASE",
+    )
+    abstract fun observeReusableGlossaries(): Flow<List<TranslationGlossaryRow>>
+
+    @Query("SELECT * FROM translation_glossaries WHERE id = :id LIMIT 1")
+    abstract suspend fun getReusableGlossary(id: String): TranslationGlossaryEntity?
+
+    @Query("SELECT * FROM translation_glossary_entries WHERE glossary_id = :glossaryId ORDER BY source_term COLLATE NOCASE")
+    abstract fun observeReusableGlossaryEntries(glossaryId: String): Flow<List<TranslationGlossaryEntryEntity>>
+
+    @Query("SELECT * FROM translation_glossary_entries WHERE glossary_id = :glossaryId ORDER BY source_term COLLATE NOCASE")
+    abstract suspend fun getReusableGlossaryEntries(glossaryId: String): List<TranslationGlossaryEntryEntity>
+
+    @Upsert
+    abstract suspend fun upsertReusableGlossary(glossary: TranslationGlossaryEntity)
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    abstract suspend fun insertReusableGlossaryEntries(entries: List<TranslationGlossaryEntryEntity>)
+
+    @Query("DELETE FROM translation_glossary_entries WHERE glossary_id = :glossaryId")
+    abstract suspend fun deleteReusableGlossaryEntries(glossaryId: String)
+
+    @Query("DELETE FROM translation_glossaries WHERE id = :glossaryId")
+    abstract suspend fun deleteReusableGlossary(glossaryId: String): Int
+
+    @Transaction
+    open suspend fun replaceReusableGlossary(
+        glossary: TranslationGlossaryEntity,
+        entries: List<TranslationGlossaryEntryEntity>,
+        expectedRevision: Long?,
+    ): Boolean {
+        val current = getReusableGlossary(glossary.id)
+        if ((expectedRevision == null && current != null) ||
+            (expectedRevision != null && current?.revision != expectedRevision)
+        ) return false
+        upsertReusableGlossary(glossary)
+        deleteReusableGlossaryEntries(glossary.id)
+        if (entries.isNotEmpty()) insertReusableGlossaryEntries(entries)
+        return true
+    }
 
     @Query("DELETE FROM translation_glossary_terms WHERE project_id = :projectId")
     abstract suspend fun deleteGlossary(projectId: String)
@@ -480,9 +526,12 @@ internal abstract class TranslationWorkbenchDao {
     open suspend fun createProofreadTaskIfProjectIdle(task: TranslationTaskEntity, scope: String): Boolean {
         val project = getProject(task.projectId) ?: return false
         if (getActiveTask(task.projectId) != null) return false
-        val snapshot = org.json.JSONObject(task.configSnapshotJson)
+        val snapshot = JSONObject(task.configSnapshotJson)
         val itemTotal = countProofreadCandidates(task.projectId, scope, retryFailed = false)
-        if (project.glossaryRevision != snapshot.optLong("glossaryRevision", -1L) || itemTotal <= 0) return false
+        val glossaryId = snapshot.optString("glossaryId").takeIf(String::isNotBlank)
+        if (project.selectedGlossaryId != glossaryId ||
+            !matchesGlossaryRevision(glossaryId, snapshot.optLong("glossaryRevision", 0L)) || itemTotal <= 0
+        ) return false
         insertTask(task.copy(itemTotal = itemTotal))
         setTranslationProjectLanguages(
             task.projectId,
@@ -551,14 +600,28 @@ internal abstract class TranslationWorkbenchDao {
         task: TranslationTaskEntity,
         sourceLanguage: String,
         targetLanguage: String,
+        glossaryId: String?,
         expectedGlossaryRevision: Long,
     ): Boolean {
         val project = getProject(task.projectId) ?: return false
-        if (project.glossaryRevision != expectedGlossaryRevision || getActiveTask(task.projectId) != null) return false
+        if (getActiveTask(task.projectId) != null ||
+            !matchesGlossaryRevision(glossaryId, expectedGlossaryRevision)
+        ) return false
         insertTask(task)
+        upsertProject(
+            project.copy(
+                selectedGlossaryId = glossaryId,
+                revision = project.revision + 1,
+                updatedAt = task.createdAt,
+            ),
+        )
         setTranslationProjectLanguages(task.projectId, sourceLanguage, targetLanguage, task.createdAt)
         return true
     }
+
+    private suspend fun matchesGlossaryRevision(glossaryId: String?, expectedRevision: Long): Boolean =
+        if (glossaryId == null) expectedRevision == 0L
+        else getReusableGlossary(glossaryId)?.revision == expectedRevision
 
     @Transaction
     open suspend fun createContinuationTask(task: TranslationTaskEntity, previousTaskId: String): Boolean {

@@ -9,7 +9,19 @@ import com.tyranor.next.core.translation.TranslationProjectCard
 
 @Entity(
     tableName = "translation_projects",
-    indices = [Index(value = ["identity"], unique = true), Index(value = ["exchange_key"], unique = true)],
+    foreignKeys = [
+        ForeignKey(
+            entity = TranslationGlossaryEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["selected_glossary_id"],
+            onDelete = ForeignKey.SET_NULL,
+        ),
+    ],
+    indices = [
+        Index(value = ["identity"], unique = true),
+        Index(value = ["exchange_key"], unique = true),
+        Index(value = ["selected_glossary_id"]),
+    ],
 )
 internal data class TranslationProjectEntity(
     @PrimaryKey val id: String,
@@ -23,6 +35,7 @@ internal data class TranslationProjectEntity(
     @ColumnInfo(name = "source_language") val sourceLanguage: String?,
     @ColumnInfo(name = "target_language") val targetLanguage: String?,
     @ColumnInfo(name = "glossary_revision", defaultValue = "0") val glossaryRevision: Long = 0,
+    @ColumnInfo(name = "selected_glossary_id") val selectedGlossaryId: String? = null,
     @ColumnInfo(name = "review_completed_at") val reviewCompletedAt: Long? = null,
     val revision: Long,
     @ColumnInfo(name = "created_at") val createdAt: Long,
@@ -130,6 +143,49 @@ internal data class TranslationGlossaryTermEntity(
     @ColumnInfo(name = "updated_at") val updatedAt: Long,
 )
 
+/** Reusable user glossary. Migrated project glossaries remain available after their source project is deleted. */
+@Entity(
+    tableName = "translation_glossaries",
+    foreignKeys = [
+        ForeignKey(
+            entity = TranslationProjectEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["source_project_id"],
+            onDelete = ForeignKey.SET_NULL,
+        ),
+    ],
+    indices = [Index(value = ["source_project_id"], unique = true), Index(value = ["updated_at"])],
+)
+internal data class TranslationGlossaryEntity(
+    @PrimaryKey val id: String,
+    val name: String,
+    val revision: Long,
+    @ColumnInfo(name = "source_project_id") val sourceProjectId: String?,
+    @ColumnInfo(name = "created_at") val createdAt: Long,
+    @ColumnInfo(name = "updated_at") val updatedAt: Long,
+)
+
+@Entity(
+    tableName = "translation_glossary_entries",
+    foreignKeys = [
+        ForeignKey(
+            entity = TranslationGlossaryEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["glossary_id"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+    indices = [Index("glossary_id"), Index(value = ["glossary_id", "source_term"], unique = true)],
+)
+internal data class TranslationGlossaryEntryEntity(
+    @PrimaryKey val id: String,
+    @ColumnInfo(name = "glossary_id") val glossaryId: String,
+    @ColumnInfo(name = "source_term") val sourceTerm: String,
+    @ColumnInfo(name = "target_term") val targetTerm: String,
+    val note: String?,
+    @ColumnInfo(name = "updated_at") val updatedAt: Long,
+)
+
 @Entity(
     tableName = "translation_proofread_suggestions",
     foreignKeys = [
@@ -190,6 +246,15 @@ internal data class TranslationReviewIssueRow(
     val code: String,
     val severity: String,
     val state: String,
+)
+
+internal data class TranslationGlossaryRow(
+    val id: String,
+    val name: String,
+    val revision: Long,
+    @ColumnInfo(name = "source_project_id") val sourceProjectId: String?,
+    @ColumnInfo(name = "updated_at") val updatedAt: Long,
+    @ColumnInfo(name = "term_count") val termCount: Int,
 )
 
 internal data class TranslationExportRow(

@@ -18,6 +18,8 @@ internal data class TranslationTaskSnapshot(
     val prompt: String,
     val glossaryRevision: Long,
     val glossary: List<TranslationGlossaryTerm>,
+    val glossaryId: String? = null,
+    val glossaryName: String? = null,
     val scope: String = SCOPE_UNTRANSLATED,
     val retryFailed: Boolean = false,
 ) {
@@ -32,6 +34,8 @@ internal data class TranslationTaskSnapshot(
         .put("targetLanguage", targetLanguage)
         .put("prompt", prompt)
         .put("glossaryRevision", glossaryRevision)
+        .put("glossaryId", glossaryId)
+        .put("glossaryName", glossaryName)
         .put("scope", scope)
         .put("glossary", JSONArray().apply {
             glossary.forEach { term ->
@@ -87,6 +91,8 @@ internal data class TranslationTaskSnapshot(
                         note = item.optString("note").takeIf(String::isNotBlank),
                     )
                 },
+                glossaryId = value.optString("glossaryId").takeIf(String::isNotBlank),
+                glossaryName = value.optString("glossaryName").takeIf(String::isNotBlank),
                 scope = value.optString("scope", SCOPE_UNTRANSLATED),
                 retryFailed = value.optBoolean("retryFailed"),
             )

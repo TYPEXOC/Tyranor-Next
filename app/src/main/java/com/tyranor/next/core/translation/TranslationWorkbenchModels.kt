@@ -56,6 +56,16 @@ data class TranslationGlossaryTerm(
     val note: String? = null,
 )
 
+/** A named reusable glossary shown by the workbench and selected when a task starts. */
+data class TranslationGlossary(
+    val id: String,
+    val name: String,
+    val revision: Long,
+    val termCount: Int,
+    val sourceProjectId: String?,
+    val updatedAt: Long,
+)
+
 /** 项目条目供列表预览和导出使用。每个来源位置独立保存，不按原文合并。 */
 data class TranslationTextEntry(
     val id: String,
@@ -162,6 +172,7 @@ enum class TranslationWorkbenchError {
     INVALID_LANGUAGE_PAIR,
     NO_TRANSLATION_CANDIDATES,
     INVALID_GLOSSARY,
+    GLOSSARY_NOT_FOUND,
     DUPLICATE_GLOSSARY_TERM,
     PROJECT_CONFIGURATION_CHANGED,
     MTOOL_ENGINE_UNSUPPORTED,

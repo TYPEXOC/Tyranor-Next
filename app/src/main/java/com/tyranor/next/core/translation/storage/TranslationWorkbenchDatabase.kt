@@ -16,10 +16,12 @@ import com.tyranor.next.core.settings.AppStorageNames
         TranslationExportEntity::class,
         TranslationServiceProfileEntity::class,
         TranslationGlossaryTermEntity::class,
+        TranslationGlossaryEntity::class,
+        TranslationGlossaryEntryEntity::class,
         TranslationProofreadSuggestionEntity::class,
         TranslationReviewIssueEntity::class,
     ],
-    version = 6,
+    version = 7,
     exportSchema = true,
 )
 internal abstract class TranslationWorkbenchDatabase : RoomDatabase() {
@@ -179,13 +181,87 @@ internal abstract class TranslationWorkbenchDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `translation_glossaries` (
+                        `id` TEXT NOT NULL,
+                        `name` TEXT NOT NULL,
+                        `revision` INTEGER NOT NULL,
+                        `source_project_id` TEXT,
+                        `created_at` INTEGER NOT NULL,
+                        `updated_at` INTEGER NOT NULL,
+                        PRIMARY KEY(`id`),
+                        FOREIGN KEY(`source_project_id`) REFERENCES `translation_projects`(`id`)
+                            ON UPDATE NO ACTION ON DELETE SET NULL
+                    )""".trimIndent(),
+                )
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_translation_glossaries_source_project_id` ON `translation_glossaries` (`source_project_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_translation_glossaries_updated_at` ON `translation_glossaries` (`updated_at`)")
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `translation_glossary_entries` (
+                        `id` TEXT NOT NULL,
+                        `glossary_id` TEXT NOT NULL,
+                        `source_term` TEXT NOT NULL,
+                        `target_term` TEXT NOT NULL,
+                        `note` TEXT,
+                        `updated_at` INTEGER NOT NULL,
+                        PRIMARY KEY(`id`),
+                        FOREIGN KEY(`glossary_id`) REFERENCES `translation_glossaries`(`id`)
+                            ON UPDATE NO ACTION ON DELETE CASCADE
+                    )""".trimIndent(),
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_translation_glossary_entries_glossary_id` ON `translation_glossary_entries` (`glossary_id`)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_translation_glossary_entries_glossary_id_source_term` ON `translation_glossary_entries` (`glossary_id`, `source_term`)")
+                db.execSQL(
+                    """INSERT INTO translation_glossaries (
+                        id, name, revision, source_project_id, created_at, updated_at
+                    )
+                    SELECT 'legacy-' || p.id, substr(p.title, 1, 80), p.glossary_revision, p.id, p.created_at, p.updated_at
+                    FROM translation_projects p
+                    WHERE EXISTS (
+                        SELECT 1 FROM translation_glossary_terms t WHERE t.project_id = p.id
+                    )""".trimIndent(),
+                )
+                db.execSQL(
+                    """INSERT INTO translation_glossary_entries (
+                        id, glossary_id, source_term, target_term, note, updated_at
+                    )
+                    SELECT 'legacy-' || t.id, 'legacy-' || t.project_id, t.source_term,
+                        t.target_term, t.note, t.updated_at
+                    FROM translation_glossary_terms t""".trimIndent(),
+                )
+                db.execSQL(
+                    "ALTER TABLE translation_projects ADD COLUMN selected_glossary_id TEXT " +
+                        "REFERENCES translation_glossaries(id) ON DELETE SET NULL",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_translation_projects_selected_glossary_id` " +
+                        "ON `translation_projects` (`selected_glossary_id`)",
+                )
+                db.execSQL(
+                    """UPDATE translation_projects SET selected_glossary_id =
+                        (SELECT id FROM translation_glossaries WHERE source_project_id = translation_projects.id)
+                        WHERE EXISTS (SELECT 1 FROM translation_glossaries
+                            WHERE source_project_id = translation_projects.id)""".trimIndent(),
+                )
+            }
+        }
+
         fun get(context: Context): TranslationWorkbenchDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(
                 context.applicationContext,
                 TranslationWorkbenchDatabase::class.java,
                 AppStorageNames.TRANSLATION_WORKBENCH_DATABASE,
             )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+                .addMigrations(
+                    MIGRATION_1_2,
+                    MIGRATION_2_3,
+                    MIGRATION_3_4,
+                    MIGRATION_4_5,
+                    MIGRATION_5_6,
+                    MIGRATION_6_7,
+                )
                 .fallbackToDestructiveMigrationOnDowngrade(dropAllTables = true)
                 .build()
                 .also { instance = it }
