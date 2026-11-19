@@ -365,7 +365,7 @@ private fun TranslationWorkbenchScreen() {
     }
 
     fun chooseProjectFile() {
-        importProject.launch(arrayOf("application/json", "text/json"))
+        importProject.launch(arrayOf("application/json", "text/json", "*/*"))
     }
 
     fun clearNewProjectSource() {
