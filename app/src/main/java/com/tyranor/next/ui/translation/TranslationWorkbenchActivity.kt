@@ -673,25 +673,18 @@ private fun TranslationWorkbenchScreen() {
                                 if (choosingDirectory) R.string.translation_add_project_directory_label
                                 else R.string.translation_add_project_file_label,
                             ),
-                            summary = addProjectSourcePath.ifBlank {
-                                stringResource(R.string.translation_add_project_source_not_selected)
-                            },
+                            summary = addProjectErrorCode?.let { stringResource(it.messageResource()) }
+                                ?: addProjectSourcePath.ifBlank {
+                                    stringResource(R.string.translation_add_project_source_not_selected)
+                                },
                             leadingIcon = if (choosingDirectory) R.drawable.ic_sheet_folder else R.drawable.ic_sheet_archive,
                             containerColor = addProjectCardColor,
                             verticalPadding = 14.dp,
-                            summaryMaxLines = 2,
+                            summaryMaxLines = 1,
+                            summaryColor = if (addProjectErrorCode != null) MaterialTheme.colorScheme.error else null,
                             indication = null,
                             onClick = if (addingProject) null else ::selectNewProjectSource,
                         )
-
-                        addProjectErrorCode?.let { code ->
-                            Text(
-                                stringResource(code.messageResource()),
-                                modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
-                                color = MaterialTheme.colorScheme.error,
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                        }
                     }
 
                     NoRippleButton(

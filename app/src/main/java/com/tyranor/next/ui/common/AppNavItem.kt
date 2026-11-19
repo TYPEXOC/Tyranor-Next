@@ -93,6 +93,8 @@ fun AppNavItem(
     summaryMaxLines: Int = 2,
     indication: Indication? = LocalIndication.current,
     drawSurface: Boolean = true,
+    /** 摘要的显式颜色（如需要在保留原布局的位置显示错误状态）。 */
+    summaryColor: Color? = null,
     onClick: (() -> Unit)? = null,
 ) {
     val enabled = onClick != null
@@ -159,7 +161,8 @@ fun AppNavItem(
                     Text(
                         text,
                         style = MaterialTheme.typography.bodySmall,
-                        color = TextColor.copy(alpha = 0.55f * contentAlpha),
+                        color = summaryColor?.copy(alpha = summaryColor.alpha * contentAlpha)
+                            ?: TextColor.copy(alpha = 0.55f * contentAlpha),
                         maxLines = summaryMaxLines,
                         overflow = TextOverflow.Ellipsis,
                     )
