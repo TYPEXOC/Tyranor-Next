@@ -220,7 +220,7 @@
     <string name="translation_add_project_engine_disabled_hint">Extraction only</string>
     <string name="translation_add_project_engine">Game engine</string>
     <string name="translation_add_project_file_format">Project format</string>
-    <string name="translation_add_project_file_format_hint">Choose CSV or standard JSON</string>
+    <string name="translation_add_project_file_format_hint">Choose CSV or JSON</string>
     <string name="translation_add_project_file_format_disabled_hint">Used only when importing</string>
     <string name="translation_add_project_choose_directory">Choose game folder</string>
     <string name="translation_add_project_import_file">Choose file</string>
@@ -238,9 +238,9 @@
     <string name="translation_add_rpg2k_directory">Choose an RPG Maker 2000/2003 game folder</string>
     <string name="translation_add_rgss_directory">Choose an RPG Maker XP/VX/VX Ace/mkxp-z game folder</string>
     <string name="translation_import_csv">Import CSV project</string>
-    <string name="translation_import_json">Import standard JSON project</string>
+    <string name="translation_import_json">Import JSON project</string>
     <string name="translation_no_projects">No translation projects yet</string>
-    <string name="translation_no_projects_hint">Add an RPG Maker MV/MZ game folder, or import a CSV/standard JSON project with source and translated text.</string>
+    <string name="translation_no_projects_hint">Add an RPG Maker MV/MZ game folder, or import a CSV/JSON project with source and translated text.</string>
     <string name="translation_project_filter_all">All projects %1$d</string>
     <string name="translation_project_filter_in_progress">In progress %1$d</string>
     <string name="translation_project_filter_continuable">Can continue %1$d</string>
@@ -309,7 +309,7 @@
     <string name="translation_cancel_task">Stop task</string>
     <string name="translation_reauthorize_directory">Reauthorize folder</string>
     <string name="translation_export_csv">Export CSV</string>
-    <string name="translation_export_json">Export standard JSON</string>
+    <string name="translation_export_json">Export JSON</string>
     <string name="translation_export_mtool_json">Export MTool JSON</string>
     <string name="translation_export_history_open">Export history</string>
     <string name="translation_export_history_title">Export history</string>
@@ -317,7 +317,7 @@
     <string name="translation_export_history_row">%1$s · %2$s · %3$s · %4$d entries</string>
     <string name="translation_export_filename_unknown">Unknown file name</string>
     <string name="translation_format_csv">CSV</string>
-    <string name="translation_format_json">Standard JSON</string>
+    <string name="translation_format_json">JSON</string>
     <string name="translation_format_mtool_json">MTool JSON</string>
     <string name="translation_delete_project">Delete project</string>
     <string name="translation_delete_project_title">Delete translation project?</string>

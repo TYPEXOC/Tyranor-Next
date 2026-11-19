@@ -220,7 +220,7 @@
     <string name="translation_add_project_engine_disabled_hint">抽出のみで使用</string>
     <string name="translation_add_project_engine">ゲームエンジン</string>
     <string name="translation_add_project_file_format">プロジェクト形式</string>
-    <string name="translation_add_project_file_format_hint">CSV または標準 JSON を選択</string>
+    <string name="translation_add_project_file_format_hint">CSV または JSON を選択</string>
     <string name="translation_add_project_file_format_disabled_hint">読み込み時のみ使用</string>
     <string name="translation_add_project_choose_directory">ゲームフォルダーを選択</string>
     <string name="translation_add_project_import_file">ファイルを選択</string>
@@ -238,9 +238,9 @@
     <string name="translation_add_rpg2k_directory">RPG Maker 2000/2003 のゲームフォルダーを選択</string>
     <string name="translation_add_rgss_directory">RPG Maker XP/VX/VX Ace/mkxp-z のゲームフォルダーを選択</string>
     <string name="translation_import_csv">CSV プロジェクトを読み込む</string>
-    <string name="translation_import_json">標準 JSON プロジェクトを読み込む</string>
+    <string name="translation_import_json">JSON プロジェクトを読み込む</string>
     <string name="translation_no_projects">翻訳プロジェクトはありません</string>
-    <string name="translation_no_projects_hint">RPG Maker MV/MZ のゲームフォルダーを追加するか、原文と訳文を含む CSV/標準 JSON を読み込みます。</string>
+    <string name="translation_no_projects_hint">RPG Maker MV/MZ のゲームフォルダーを追加するか、原文と訳文を含む CSV/JSON を読み込みます。</string>
     <string name="translation_project_filter_all">すべて %1$d</string>
     <string name="translation_project_filter_in_progress">進行中 %1$d</string>
     <string name="translation_project_filter_continuable">続行可能 %1$d</string>
@@ -309,7 +309,7 @@
     <string name="translation_cancel_task">タスクを中止</string>
     <string name="translation_reauthorize_directory">フォルダーを再許可</string>
     <string name="translation_export_csv">CSV を書き出す</string>
-    <string name="translation_export_json">標準 JSON を書き出す</string>
+    <string name="translation_export_json">JSON を書き出す</string>
     <string name="translation_export_mtool_json">MTool JSON を書き出す</string>
     <string name="translation_export_history_open">書き出し履歴</string>
     <string name="translation_export_history_title">書き出し履歴</string>
@@ -317,7 +317,7 @@
     <string name="translation_export_history_row">%1$s · %2$s · %3$s · %4$d 件</string>
     <string name="translation_export_filename_unknown">ファイル名不明</string>
     <string name="translation_format_csv">CSV</string>
-    <string name="translation_format_json">標準 JSON</string>
+    <string name="translation_format_json">JSON</string>
     <string name="translation_format_mtool_json">MTool JSON</string>
     <string name="translation_delete_project">プロジェクトを削除</string>
     <string name="translation_delete_project_title">翻訳プロジェクトを削除しますか？</string>
