@@ -8,6 +8,7 @@ data class TranslationProviderCredentials(
     val first: String = "",
     val second: String = "",
     val region: String = "",
+    val third: String = "",
 ) {
     override fun toString(): String = "TranslationProviderCredentials([redacted])"
 }
@@ -25,6 +26,7 @@ object TranslationProviderCredentialBundle {
             .put("first", credentials.first.trim())
             .put("second", credentials.second.trim())
             .put("region", credentials.region.trim())
+            .put("third", credentials.third.trim())
             .toString()
     }
 
@@ -39,9 +41,10 @@ object TranslationProviderCredentialBundle {
                 first = value.optString("first").trim(),
                 second = value.optString("second").trim(),
                 region = value.optString("region").trim(),
+                third = value.optString("third").trim(),
             )
             if (credentials.first.length > MAX_FIELD_LENGTH || credentials.second.length > MAX_FIELD_LENGTH ||
-                credentials.region.length > MAX_REGION_LENGTH
+                credentials.region.length > MAX_REGION_LENGTH || credentials.third.length > MAX_FIELD_LENGTH
             ) {
                 null
             } else {
@@ -59,10 +62,17 @@ object TranslationProviderCredentialBundle {
             TranslationProtocolId.NIUTRANS_TRANSLATION_V1,
             TranslationProtocolId.AZURE_TRANSLATOR_V3,
             TranslationProtocolId.DEEPL_TRANSLATE_V2 -> credentials.first.isNotBlank()
+            TranslationProtocolId.CAIYUN_LINGOCLOUD_V1,
+            TranslationProtocolId.GOOGLE_CLOUD_TRANSLATE_V2 -> credentials.first.isNotBlank()
             TranslationProtocolId.VOLCENGINE_TRANSLATE_TEXT_V1,
             TranslationProtocolId.BAIDU_TRANSLATE_VIP_V1,
-            TranslationProtocolId.TENCENT_TMT_TEXT_TRANSLATE_V1 ->
+            TranslationProtocolId.TENCENT_TMT_TEXT_TRANSLATE_V1,
+            TranslationProtocolId.YOUDAO_TRANSLATE_V2,
+            TranslationProtocolId.ALIBABA_MT_ROA_V1,
+            TranslationProtocolId.YANDEX_TRANSLATE_V2 ->
                 credentials.first.isNotBlank() && credentials.second.isNotBlank()
+            TranslationProtocolId.HUAWEI_NLP_TRANSLATE_V1 -> credentials.first.isNotBlank() &&
+                credentials.second.isNotBlank() && credentials.third.matches(Regex("[A-Za-z0-9-]{1,64}"))
             else -> false
         }
     }

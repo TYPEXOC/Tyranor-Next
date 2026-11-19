@@ -185,6 +185,36 @@ private fun TranslationServicesScreen() {
                             modifier = Modifier.fillMaxWidth(),
                             onClick = { editor = ServiceEditor.newMachine(TranslationProtocolId.TENCENT_TMT_TEXT_TRANSLATE_V1) },
                         )
+                        NoRippleButton(
+                            text = stringResource(R.string.translation_services_add_youdao),
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { editor = ServiceEditor.newMachine(TranslationProtocolId.YOUDAO_TRANSLATE_V2) },
+                        )
+                        NoRippleButton(
+                            text = stringResource(R.string.translation_services_add_alibaba_mt),
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { editor = ServiceEditor.newMachine(TranslationProtocolId.ALIBABA_MT_ROA_V1) },
+                        )
+                        NoRippleButton(
+                            text = stringResource(R.string.translation_services_add_caiyun),
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { editor = ServiceEditor.newMachine(TranslationProtocolId.CAIYUN_LINGOCLOUD_V1) },
+                        )
+                        NoRippleButton(
+                            text = stringResource(R.string.translation_services_add_google_translate),
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { editor = ServiceEditor.newMachine(TranslationProtocolId.GOOGLE_CLOUD_TRANSLATE_V2) },
+                        )
+                        NoRippleButton(
+                            text = stringResource(R.string.translation_services_add_yandex),
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { editor = ServiceEditor.newMachine(TranslationProtocolId.YANDEX_TRANSLATE_V2) },
+                        )
+                        NoRippleButton(
+                            text = stringResource(R.string.translation_services_add_huawei),
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { editor = ServiceEditor.newMachine(TranslationProtocolId.HUAWEI_NLP_TRANSLATE_V1) },
+                        )
                         Text(
                             stringResource(R.string.translation_services_ai_category),
                             modifier = Modifier.padding(start = 8.dp, top = 12.dp),
@@ -501,6 +531,7 @@ private fun TranslationServicesScreen() {
                                     apiKey = "",
                                     credentialSecond = "",
                                     credentialRegion = "",
+                                    credentialThird = "",
                                 )
                             },
                         )
@@ -845,6 +876,15 @@ private fun MachineProviderCredentialsFields(
             modifier = Modifier.fillMaxWidth(),
         )
     }
+    state.protocolId.machineProjectIdLabel()?.let { label ->
+        OutlinedTextField(
+            value = state.credentialThird,
+            onValueChange = { onChange(state.copy(credentialThird = it, clearSecret = false)) },
+            label = { Text(stringResource(label)) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
 }
 
 private data class AiServiceTemplate(
@@ -941,6 +981,7 @@ private data class ServiceEditor(
     val apiKey: String,
     val credentialSecond: String,
     val credentialRegion: String,
+    val credentialThird: String,
     val hasSavedSecret: Boolean,
     val clearSecret: Boolean,
     val enabled: Boolean,
@@ -966,11 +1007,11 @@ private data class ServiceEditor(
             clearSecret -> TranslationSecretChange.Remove
             protocolId.category == TranslationServiceCategory.MACHINE_TRANSLATION &&
                 protocolId != TranslationProtocolId.BING_TRANSLATOR_WEB &&
-                listOf(apiKey, credentialSecond, credentialRegion).any(String::isNotBlank) ->
+                listOf(apiKey, credentialSecond, credentialRegion, credentialThird).any(String::isNotBlank) ->
                 TranslationSecretChange.Replace(
                     TranslationProviderCredentialBundle.encode(
                         protocolId,
-                        TranslationProviderCredentials(apiKey, credentialSecond, credentialRegion),
+                        TranslationProviderCredentials(apiKey, credentialSecond, credentialRegion, credentialThird),
                     ),
                 )
             protocolId.category == TranslationServiceCategory.AI_TRANSLATION && apiKey.isNotBlank() ->
@@ -989,6 +1030,7 @@ private data class ServiceEditor(
             apiKey = "",
             credentialSecond = "",
             credentialRegion = "",
+            credentialThird = "",
             hasSavedSecret = false,
             clearSecret = false,
             enabled = false,
@@ -1008,6 +1050,7 @@ private data class ServiceEditor(
             apiKey = "",
             credentialSecond = "",
             credentialRegion = "",
+            credentialThird = "",
             hasSavedSecret = false,
             clearSecret = false,
             enabled = false,
@@ -1027,6 +1070,7 @@ private data class ServiceEditor(
             apiKey = "",
             credentialSecond = "",
             credentialRegion = "",
+            credentialThird = "",
             hasSavedSecret = profile.hasSecret,
             clearSecret = false,
             enabled = profile.enabled,
@@ -1128,6 +1172,12 @@ private fun TranslationProtocolId.machineDefaultName(): String = when (this) {
     TranslationProtocolId.DEEPL_TRANSLATE_V2 -> "DeepL"
     TranslationProtocolId.BAIDU_TRANSLATE_VIP_V1 -> "Baidu Translate"
     TranslationProtocolId.TENCENT_TMT_TEXT_TRANSLATE_V1 -> "Tencent Cloud TMT"
+    TranslationProtocolId.YOUDAO_TRANSLATE_V2 -> "Youdao Translate"
+    TranslationProtocolId.ALIBABA_MT_ROA_V1 -> "Alibaba Cloud Machine Translation"
+    TranslationProtocolId.CAIYUN_LINGOCLOUD_V1 -> "Caiyun LingoCloud"
+    TranslationProtocolId.GOOGLE_CLOUD_TRANSLATE_V2 -> "Google Cloud Translation"
+    TranslationProtocolId.YANDEX_TRANSLATE_V2 -> "Yandex Translate"
+    TranslationProtocolId.HUAWEI_NLP_TRANSLATE_V1 -> "Huawei Cloud NLP Translate"
     else -> ""
 }
 
@@ -1138,6 +1188,12 @@ private fun TranslationProtocolId.machinePrimaryCredentialLabel(): Int = when (t
     TranslationProtocolId.DEEPL_TRANSLATE_V2 -> R.string.translation_services_api_key
     TranslationProtocolId.BAIDU_TRANSLATE_VIP_V1 -> R.string.translation_services_baidu_app_id
     TranslationProtocolId.TENCENT_TMT_TEXT_TRANSLATE_V1 -> R.string.translation_services_tencent_secret_id
+    TranslationProtocolId.YOUDAO_TRANSLATE_V2 -> R.string.translation_services_youdao_app_id
+    TranslationProtocolId.ALIBABA_MT_ROA_V1 -> R.string.translation_services_alibaba_access_key_id
+    TranslationProtocolId.CAIYUN_LINGOCLOUD_V1 -> R.string.translation_services_caiyun_token
+    TranslationProtocolId.GOOGLE_CLOUD_TRANSLATE_V2 -> R.string.translation_services_google_api_key
+    TranslationProtocolId.YANDEX_TRANSLATE_V2 -> R.string.translation_services_yandex_api_key
+    TranslationProtocolId.HUAWEI_NLP_TRANSLATE_V1 -> R.string.translation_services_huawei_access_key_id
     else -> R.string.translation_services_api_key
 }
 
@@ -1145,6 +1201,10 @@ private fun TranslationProtocolId.machineSecondCredentialLabel(): Int? = when (t
     TranslationProtocolId.VOLCENGINE_TRANSLATE_TEXT_V1 -> R.string.translation_services_volc_secret_key
     TranslationProtocolId.BAIDU_TRANSLATE_VIP_V1 -> R.string.translation_services_baidu_secret_key
     TranslationProtocolId.TENCENT_TMT_TEXT_TRANSLATE_V1 -> R.string.translation_services_tencent_secret_key
+    TranslationProtocolId.YOUDAO_TRANSLATE_V2 -> R.string.translation_services_youdao_secret
+    TranslationProtocolId.ALIBABA_MT_ROA_V1 -> R.string.translation_services_alibaba_access_key_secret
+    TranslationProtocolId.YANDEX_TRANSLATE_V2 -> R.string.translation_services_yandex_folder_id
+    TranslationProtocolId.HUAWEI_NLP_TRANSLATE_V1 -> R.string.translation_services_huawei_secret_access_key
     else -> null
 }
 
@@ -1154,9 +1214,18 @@ private fun TranslationProtocolId.machineRegionLabel(): Int? = when (this) {
     else -> null
 }
 
+private fun TranslationProtocolId.machineProjectIdLabel(): Int? = when (this) {
+    TranslationProtocolId.HUAWEI_NLP_TRANSLATE_V1 -> R.string.translation_services_huawei_project_id
+    else -> null
+}
+
 private fun TranslationProtocolId.machineProtocolNote(): Int = when (this) {
     TranslationProtocolId.BING_TRANSLATOR_WEB -> R.string.translation_services_bing_web_endpoint_note
     TranslationProtocolId.TENCENT_TMT_TEXT_TRANSLATE_V1 -> R.string.translation_services_tencent_retirement_note
+    TranslationProtocolId.CAIYUN_LINGOCLOUD_V1 -> R.string.translation_services_caiyun_protocol_note
+    TranslationProtocolId.GOOGLE_CLOUD_TRANSLATE_V2 -> R.string.translation_services_google_protocol_note
+    TranslationProtocolId.HUAWEI_NLP_TRANSLATE_V1 -> R.string.translation_services_huawei_protocol_note
+    TranslationProtocolId.YANDEX_TRANSLATE_V2 -> R.string.translation_services_yandex_protocol_note
     else -> R.string.translation_services_machine_protocol_note
 }
 

@@ -17,6 +17,12 @@ enum class TranslationProtocolId(val wireId: String, val category: TranslationSe
     DEEPL_TRANSLATE_V2("deepl-translate-v2", TranslationServiceCategory.MACHINE_TRANSLATION),
     BAIDU_TRANSLATE_VIP_V1("baidu-translate-vip-v1", TranslationServiceCategory.MACHINE_TRANSLATION),
     TENCENT_TMT_TEXT_TRANSLATE_V1("tencent-tmt-text-translate-v1", TranslationServiceCategory.MACHINE_TRANSLATION),
+    YOUDAO_TRANSLATE_V2("youdao-translate-v2", TranslationServiceCategory.MACHINE_TRANSLATION),
+    ALIBABA_MT_ROA_V1("alibaba-mt-roa-v1", TranslationServiceCategory.MACHINE_TRANSLATION),
+    CAIYUN_LINGOCLOUD_V1("caiyun-lingocloud-v1", TranslationServiceCategory.MACHINE_TRANSLATION),
+    GOOGLE_CLOUD_TRANSLATE_V2("google-cloud-translate-v2", TranslationServiceCategory.MACHINE_TRANSLATION),
+    YANDEX_TRANSLATE_V2("yandex-translate-v2", TranslationServiceCategory.MACHINE_TRANSLATION),
+    HUAWEI_NLP_TRANSLATE_V1("huawei-nlp-translate-v1", TranslationServiceCategory.MACHINE_TRANSLATION),
 }
 
 const val GEMINI_API_BASE_URL = "https://generativelanguage.googleapis.com"
@@ -44,6 +50,12 @@ internal fun TranslationProtocolId.defaultBaseUrl(): String = when (this) {
     TranslationProtocolId.DEEPL_TRANSLATE_V2 -> "https://api.deepl.com"
     TranslationProtocolId.BAIDU_TRANSLATE_VIP_V1 -> "https://fanyi-api.baidu.com"
     TranslationProtocolId.TENCENT_TMT_TEXT_TRANSLATE_V1 -> "https://tmt.tencentcloudapi.com"
+    TranslationProtocolId.YOUDAO_TRANSLATE_V2 -> "https://openapi.youdao.com"
+    TranslationProtocolId.ALIBABA_MT_ROA_V1 -> "https://mt.cn-hangzhou.aliyuncs.com"
+    TranslationProtocolId.CAIYUN_LINGOCLOUD_V1 -> "https://api.interpreter.caiyunai.com"
+    TranslationProtocolId.GOOGLE_CLOUD_TRANSLATE_V2 -> "https://translation.googleapis.com"
+    TranslationProtocolId.YANDEX_TRANSLATE_V2 -> "https://translate.api.cloud.yandex.net"
+    TranslationProtocolId.HUAWEI_NLP_TRANSLATE_V1 -> "https://nlp-ext.cn-north-4.myhuaweicloud.com"
 }
 
 enum class TranslationServiceCapability {

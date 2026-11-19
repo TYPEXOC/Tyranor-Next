@@ -251,7 +251,13 @@ class TranslationServiceRepository(context: Context) {
             TranslationProtocolId.AZURE_TRANSLATOR_V3,
             TranslationProtocolId.DEEPL_TRANSLATE_V2,
             TranslationProtocolId.BAIDU_TRANSLATE_VIP_V1,
-            TranslationProtocolId.TENCENT_TMT_TEXT_TRANSLATE_V1 -> normalizeFixedProviderUrl(value, protocolId)
+            TranslationProtocolId.TENCENT_TMT_TEXT_TRANSLATE_V1,
+            TranslationProtocolId.YOUDAO_TRANSLATE_V2,
+            TranslationProtocolId.ALIBABA_MT_ROA_V1,
+            TranslationProtocolId.CAIYUN_LINGOCLOUD_V1,
+            TranslationProtocolId.GOOGLE_CLOUD_TRANSLATE_V2,
+            TranslationProtocolId.YANDEX_TRANSLATE_V2,
+            TranslationProtocolId.HUAWEI_NLP_TRANSLATE_V1 -> normalizeFixedProviderUrl(value, protocolId)
         }
 
         private fun normalizeFixedProviderUrl(value: String, protocolId: TranslationProtocolId): String {
