@@ -220,6 +220,8 @@
     <string name="translation_add_project_engine_disabled_hint">抽出のみで使用</string>
     <string name="translation_add_project_engine">ゲームエンジン</string>
     <string name="translation_add_project_file_format">プロジェクト形式</string>
+    <string name="translation_add_project_file_format_hint">CSV または標準 JSON を選択</string>
+    <string name="translation_add_project_file_format_disabled_hint">読み込み時のみ使用</string>
     <string name="translation_add_project_choose_directory">ゲームフォルダーを選択</string>
     <string name="translation_add_project_import_file">ファイルを選択</string>
     <string name="translation_add_project_directory_label">ゲームフォルダー</string>

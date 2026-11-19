@@ -586,26 +586,29 @@ private fun TranslationWorkbenchScreen() {
                             addProjectEngineId = engineIds.getOrNull(index) ?: EngineType.RPG_MV.name
                         },
                     )
-                    if (addProjectOperation != ProjectAddOperation.EXTRACT) {
-                        val formatItems = listOf(
-                            stringResource(R.string.translation_format_csv),
-                            stringResource(R.string.translation_format_json),
-                        )
-                        val formats = listOf(TranslationProjectFormat.CSV, TranslationProjectFormat.JSON)
-                        OverlayDropdownPreference(
-                            items = formatItems,
-                            selectedIndex = formats.indexOf(addProjectFormat).coerceAtLeast(0),
-                            title = stringResource(R.string.translation_add_project_file_format),
-                            modifier = Modifier.fillMaxWidth(),
-                            enabled = !addingProject,
-                            renderInRootScaffold = false,
-                            onSelectedIndexChange = { index ->
-                                val nextFormat = formats.getOrNull(index) ?: TranslationProjectFormat.CSV
-                                if (nextFormat != addProjectFormat) clearNewProjectSource()
-                                addProjectFormat = nextFormat
-                            },
-                        )
-                    }
+                    val formatItems = listOf(
+                        stringResource(R.string.translation_format_csv),
+                        stringResource(R.string.translation_format_json),
+                    )
+                    val formats = listOf(TranslationProjectFormat.CSV, TranslationProjectFormat.JSON)
+                    val formatEnabled = addProjectOperation != ProjectAddOperation.EXTRACT
+                    OverlayDropdownPreference(
+                        items = formatItems,
+                        selectedIndex = formats.indexOf(addProjectFormat).coerceAtLeast(0),
+                        title = stringResource(R.string.translation_add_project_file_format),
+                        summary = stringResource(
+                            if (formatEnabled) R.string.translation_add_project_file_format_hint
+                            else R.string.translation_add_project_file_format_disabled_hint,
+                        ),
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !addingProject && formatEnabled,
+                        renderInRootScaffold = false,
+                        onSelectedIndexChange = { index ->
+                            val nextFormat = formats.getOrNull(index) ?: TranslationProjectFormat.CSV
+                            if (nextFormat != addProjectFormat) clearNewProjectSource()
+                            addProjectFormat = nextFormat
+                        },
+                    )
 
                     val choosingDirectory = addProjectOperation == ProjectAddOperation.EXTRACT
                     Row(
@@ -614,7 +617,7 @@ private fun TranslationWorkbenchScreen() {
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         MiuixCard(
-                            modifier = Modifier.weight(1f).height(56.dp).glassBorder(),
+                            modifier = Modifier.weight(1f).height(48.dp).glassBorder(),
                             cornerRadius = AppComponentCornerRadius,
                             colors = CardDefaults.defaultColors(
                                 color = DialogItemSurface,
@@ -622,8 +625,8 @@ private fun TranslationWorkbenchScreen() {
                             ),
                         ) {
                             Column(
-                                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
-                                verticalArrangement = Arrangement.spacedBy(2.dp),
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
+                                verticalArrangement = Arrangement.spacedBy(0.dp),
                             ) {
                                 Text(
                                     stringResource(
@@ -651,8 +654,7 @@ private fun TranslationWorkbenchScreen() {
                                 if (choosingDirectory) R.string.translation_add_project_choose_directory
                                 else R.string.translation_add_project_import_file,
                             ),
-                            tonal = true,
-                            modifier = Modifier.height(56.dp),
+                            modifier = Modifier.height(48.dp),
                             enabled = !addingProject,
                             onClick = ::selectNewProjectSource,
                         )

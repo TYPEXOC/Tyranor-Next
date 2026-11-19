@@ -220,6 +220,8 @@
     <string name="translation_add_project_engine_disabled_hint">仅提取时可选</string>
     <string name="translation_add_project_engine">游戏引擎</string>
     <string name="translation_add_project_file_format">项目格式</string>
+    <string name="translation_add_project_file_format_hint">选择 CSV 或标准 JSON</string>
+    <string name="translation_add_project_file_format_disabled_hint">仅导入项目时使用</string>
     <string name="translation_add_project_choose_directory">选择游戏目录</string>
     <string name="translation_add_project_import_file">选择文件</string>
     <string name="translation_add_project_directory_label">游戏目录</string>

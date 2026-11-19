@@ -220,6 +220,8 @@
     <string name="translation_add_project_engine_disabled_hint">Extraction only</string>
     <string name="translation_add_project_engine">Game engine</string>
     <string name="translation_add_project_file_format">Project format</string>
+    <string name="translation_add_project_file_format_hint">Choose CSV or standard JSON</string>
+    <string name="translation_add_project_file_format_disabled_hint">Used only when importing</string>
     <string name="translation_add_project_choose_directory">Choose game folder</string>
     <string name="translation_add_project_import_file">Choose file</string>
     <string name="translation_add_project_directory_label">Game folder</string>
