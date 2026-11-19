@@ -38,16 +38,6 @@
     <string name="translation_services_template_openai_chat">OpenAI (Chat Completions)</string>
     <string name="translation_services_template_custom_chat">Custom API</string>
     <string name="translation_services_template_deepseek">DeepSeek</string>
-    <string name="translation_services_template_qwen">Alibaba Cloud Model Studio (Qwen AI)</string>
-    <string name="translation_services_template_kimi">Moonshot AI (Kimi)</string>
-    <string name="translation_services_template_zhipu">Zhipu AI (GLM)</string>
-    <string name="translation_services_template_minimax">MiniMax</string>
-    <string name="translation_services_template_siliconflow">SiliconFlow</string>
-    <string name="translation_services_template_openrouter">OpenRouter</string>
-    <string name="translation_services_template_volcengine_ark">Volcengine Ark (requires an endpoint ID)</string>
-    <string name="translation_services_template_tencent_hunyuan">Tencent Hunyuan</string>
-    <string name="translation_services_template_baidu_qianfan">Baidu Qianfan</string>
-    <string name="translation_services_template_openai_responses">OpenAI (Responses API)</string>
     <string name="translation_services_template_gemini_interactions">Google Gemini (Interactions API)</string>
     <string name="translation_services_template_anthropic">Anthropic Claude (Messages API)</string>
     <string name="translation_services_machine_category">Machine translation</string>

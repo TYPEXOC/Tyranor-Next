@@ -2,6 +2,7 @@
 
 ## 未发布
 
+- AI 翻译服务列表收敛为 OpenAI、DeepSeek、Gemini、Claude 四个内置模板，另保留“添加自定义 API”入口；OpenAI Responses 与 Anthropic Messages 仍可从自定义 API 中选择，已保存的其它服务档案继续显示并可管理。
 - 翻译服务页改为机器翻译 / AI 翻译分类切换和服务卡片，展示服务商、接口地址、配置状态与模型信息；内置机器翻译入口限定为必应、小牛、火山、Azure、DeepL、百度和腾讯，已有其它协议档案仍可查看管理。服务配置与高级设置均使用完整页面，AI 服务以简短协议标签显示，模型名称仅在已填写时展示；自定义入口使用普通主按钮“添加自定义API”。
 - 自定义 AI API 配置页增加 Chat Completions、OpenAI Responses 与 Anthropic Messages 三种协议下拉选择；新增 Anthropic 原生 adapter，固定官方 HTTPS 主机，使用 `x-api-key`、模型目录游标分页和 Messages API。Claude 必填 `max_tokens`（留空时发送 4096），temperature 与 top_p 不可同时设置；配置与高级设置的输入改用 Miuix 0.9.2 TextField，协议选择沿用 TYN 的 Miuix 下拉公共入口；服务信息、连接模型、凭据与提示词参数已按用途分成 Miuix 卡片，模型获取入口集成在模型 ID 输入框尾部并与字段尺寸协调。
 - 工作台添加项目先选择提取、翻译或校对，提取时再从引擎下拉列表选择引擎；术语表新建只填写名称，进入列表项的“编辑”后才维护可重复添加的多条术语。

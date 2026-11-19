@@ -54,7 +54,6 @@ import com.tyranor.next.core.translation.service.GeminiThinkingLevel
 import com.tyranor.next.core.translation.service.TranslationGenerationOptions
 import com.tyranor.next.core.translation.service.TranslationReasoningEffort
 import com.tyranor.next.core.translation.service.GEMINI_API_BASE_URL
-import com.tyranor.next.core.translation.service.OPENAI_RESPONSES_BASE_URL
 import com.tyranor.next.core.translation.service.ANTHROPIC_DEFAULT_MAX_OUTPUT_TOKENS
 import com.tyranor.next.core.translation.service.TranslationProviderCredentialBundle
 import com.tyranor.next.core.translation.service.TranslationProviderCredentials
@@ -1226,66 +1225,6 @@ private val AI_SERVICE_TEMPLATES = listOf(
         TranslationProtocolId.OPENAI_COMPATIBLE_CHAT,
         "https://api.deepseek.com",
         "DS",
-    ),
-    AiServiceTemplate(
-        R.string.translation_services_template_qwen,
-        TranslationProtocolId.OPENAI_COMPATIBLE_CHAT,
-        "https://dashscope.aliyuncs.com/compatible-mode/v1",
-        "Q",
-    ),
-    AiServiceTemplate(
-        R.string.translation_services_template_kimi,
-        TranslationProtocolId.OPENAI_COMPATIBLE_CHAT,
-        "https://api.moonshot.ai/v1",
-        "K",
-    ),
-    AiServiceTemplate(
-        R.string.translation_services_template_zhipu,
-        TranslationProtocolId.OPENAI_COMPATIBLE_CHAT,
-        "https://open.bigmodel.cn/api/paas/v4",
-        "GLM",
-    ),
-    AiServiceTemplate(
-        R.string.translation_services_template_minimax,
-        TranslationProtocolId.OPENAI_COMPATIBLE_CHAT,
-        "https://api.minimax.io/v1",
-        "MM",
-    ),
-    AiServiceTemplate(
-        R.string.translation_services_template_siliconflow,
-        TranslationProtocolId.OPENAI_COMPATIBLE_CHAT,
-        "https://api.siliconflow.cn/v1",
-        "SF",
-    ),
-    AiServiceTemplate(
-        R.string.translation_services_template_openrouter,
-        TranslationProtocolId.OPENAI_COMPATIBLE_CHAT,
-        "https://openrouter.ai/api/v1",
-        "OR",
-    ),
-    AiServiceTemplate(
-        R.string.translation_services_template_volcengine_ark,
-        TranslationProtocolId.OPENAI_COMPATIBLE_CHAT,
-        "https://ark.cn-beijing.volces.com/api/v3",
-        "ARK",
-    ),
-    AiServiceTemplate(
-        R.string.translation_services_template_tencent_hunyuan,
-        TranslationProtocolId.OPENAI_COMPATIBLE_CHAT,
-        "https://api.hunyuan.cloud.tencent.com/v1",
-        "混元",
-    ),
-    AiServiceTemplate(
-        R.string.translation_services_template_baidu_qianfan,
-        TranslationProtocolId.OPENAI_COMPATIBLE_CHAT,
-        "https://qianfan.baidubce.com/v2",
-        "千帆",
-    ),
-    AiServiceTemplate(
-        R.string.translation_services_template_openai_responses,
-        TranslationProtocolId.OPENAI_RESPONSES,
-        OPENAI_RESPONSES_BASE_URL,
-        "R",
     ),
     AiServiceTemplate(
         R.string.translation_services_template_gemini_interactions,

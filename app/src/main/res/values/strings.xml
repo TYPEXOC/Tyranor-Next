@@ -38,16 +38,6 @@
     <string name="translation_services_template_openai_chat">OpenAI（Chat Completions）</string>
     <string name="translation_services_template_custom_chat">自定义 API</string>
     <string name="translation_services_template_deepseek">DeepSeek</string>
-    <string name="translation_services_template_qwen">阿里云百炼（通义千问 AI）</string>
-    <string name="translation_services_template_kimi">Moonshot AI（Kimi）</string>
-    <string name="translation_services_template_zhipu">智谱 AI（GLM）</string>
-    <string name="translation_services_template_minimax">MiniMax</string>
-    <string name="translation_services_template_siliconflow">硅基流动（SiliconFlow）</string>
-    <string name="translation_services_template_openrouter">OpenRouter</string>
-    <string name="translation_services_template_volcengine_ark">火山引擎方舟（需填写接入点 ID）</string>
-    <string name="translation_services_template_tencent_hunyuan">腾讯混元</string>
-    <string name="translation_services_template_baidu_qianfan">百度千帆</string>
-    <string name="translation_services_template_openai_responses">OpenAI（Responses API）</string>
     <string name="translation_services_template_gemini_interactions">Google Gemini（Interactions API）</string>
     <string name="translation_services_template_anthropic">Anthropic Claude（Messages API）</string>
     <string name="translation_services_machine_category">机器翻译</string>
