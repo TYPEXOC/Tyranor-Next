@@ -2,19 +2,35 @@ package com.tyranor.next.core.translation.service.protocol.machine
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.tyranor.next.core.translation.TranslationBatchTaskProcessor
+import com.tyranor.next.core.translation.TranslationProjectSource
+import com.tyranor.next.core.translation.TranslationProjectState
+import com.tyranor.next.core.translation.TranslationTaskSnapshot
+import com.tyranor.next.core.translation.service.DEFAULT_TRANSLATION_PROMPT
+import com.tyranor.next.core.translation.service.TranslationServiceTaskSettings.Companion.DEFAULT_MACHINE_BATCH_SIZE
 import com.tyranor.next.core.translation.service.TranslationInput
 import com.tyranor.next.core.translation.service.TranslationProtocolId
+import com.tyranor.next.core.translation.service.TranslationServiceDraft
 import com.tyranor.next.core.translation.service.TranslationServiceException
 import com.tyranor.next.core.translation.service.TranslationServiceProfile
+import com.tyranor.next.core.translation.service.TranslationServiceRepository
+import com.tyranor.next.core.translation.service.TranslationServiceTaskSettings
 import com.tyranor.next.core.translation.service.defaultBaseUrl
+import com.tyranor.next.core.translation.storage.TranslationEntryEntity
+import com.tyranor.next.core.translation.storage.TranslationProjectEntity
+import com.tyranor.next.core.translation.storage.TranslationTaskEntity
+import com.tyranor.next.core.translation.storage.TranslationWorkbenchDatabase
 import com.tyranor.next.core.translation.service.transport.TranslationHttpTransport
 import java.io.IOException
+import java.util.UUID
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.runBlocking
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
+import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -41,6 +57,12 @@ class TranslationWebProviderLiveSmokeDeviceTest {
     }
 
     @Test
+    fun bingProcessesDefaultBatchTaskAndPersistsCheckpoint() = runBlocking {
+        assumeEnabled()
+        processDefaultBatchTask("Bing", TranslationProtocolId.BING_TRANSLATOR_WEB)
+    }
+
+    @Test
     fun youdaoTranslatesShortText() = runBlocking {
         assumeEnabled()
         val trace = mutableListOf<String>()
@@ -59,6 +81,12 @@ class TranslationWebProviderLiveSmokeDeviceTest {
     }
 
     @Test
+    fun youdaoProcessesDefaultBatchTaskAndPersistsCheckpoint() = runBlocking {
+        assumeEnabled()
+        processDefaultBatchTask("Youdao", TranslationProtocolId.YOUDAO_TRANSLATE_WEB_V1)
+    }
+
+    @Test
     fun googleTranslatesShortText() = runBlocking {
         assumeEnabled()
         val trace = mutableListOf<String>()
@@ -74,6 +102,162 @@ class TranslationWebProviderLiveSmokeDeviceTest {
         assertFalse(result.successes.isEmpty())
         assertEquals("google", result.successes.single().entryId)
         assertFalse(result.successes.single().translatedText.isBlank())
+    }
+
+    @Test
+    fun googleProcessesDefaultBatchTaskAndPersistsCheckpoint() = runBlocking {
+        assumeEnabled()
+        processDefaultBatchTask("Google", TranslationProtocolId.GOOGLE_TRANSLATE_WEB_V1)
+    }
+
+    private suspend fun processDefaultBatchTask(provider: String, protocol: TranslationProtocolId) {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val dao = TranslationWorkbenchDatabase.get(context).translationDao()
+        val serviceRepository = TranslationServiceRepository(context)
+        val now = System.currentTimeMillis()
+        val suffix = UUID.randomUUID().toString()
+        val projectId = "live-batch-project-$suffix"
+        val sources = listOf(
+            "Hello, traveler.",
+            "Thank you for helping me.",
+            "The train leaves at dawn.",
+            "Please wait here until the guide returns.",
+            "The village shop closes at sunset.",
+            "I found a key near the old bridge.",
+            "Our party will leave after breakfast.",
+            "The northern road is blocked by snow.",
+            "Could you tell me where the library is?",
+            "We need three healing potions.",
+            "The festival begins tomorrow morning.",
+            "Mira promised to meet us at the harbor.",
+            "This machine has been broken for years.",
+            "Do not open the door during the storm.",
+            "I heard footsteps in the empty hallway.",
+            "The captain has already read your letter.",
+            "Take the blue flowers to the healer.",
+            "We should save our supplies for the journey.",
+            "A small boat is waiting beside the pier.",
+            "The mountain path is safer in daylight.",
+            "Your brother left a message on the table.",
+            "There are two switches behind the painting.",
+            "The castle gate will open at noon.",
+            "I cannot remember the password anymore.",
+            "Please return the book before you leave.",
+            "A stranger asked about the silver necklace.",
+            "The next airship arrives in half an hour.",
+            "We heard music coming from the basement.",
+            "Keep this map away from the rain.",
+            "The final decision belongs to the council.",
+        )
+        require(sources.size == DEFAULT_MACHINE_BATCH_SIZE)
+        val entries = sources.mapIndexed { index, source ->
+            TranslationEntryEntity(
+                id = "live-batch-entry-$index-$suffix",
+                projectId = projectId,
+                sourceKey = "live-batch-$index",
+                sourceText = source,
+                translatedText = null,
+                sourceFile = "smoke.json",
+                sourcePointer = "entries[$index]",
+                textType = "dialogue",
+                status = "UNTRANSLATED",
+            )
+        }
+        var serviceId: String? = null
+        try {
+            val profile = serviceRepository.saveProfile(
+                TranslationServiceDraft(
+                    displayName = "Live batch $provider $suffix",
+                    protocolId = protocol,
+                    baseUrl = protocol.defaultBaseUrl(),
+                    modelId = "",
+                    enabled = true,
+                    translationPrompt = DEFAULT_TRANSLATION_PROMPT,
+                    taskSettings = TranslationServiceTaskSettings(),
+                ),
+            )
+            serviceId = profile.id
+            dao.upsertProject(
+                TranslationProjectEntity(
+                    id = projectId,
+                    identity = "live-batch:$suffix",
+                    exchangeKey = "live-batch-exchange:$suffix",
+                    title = "Live batch $provider",
+                    projectState = TranslationProjectState.READY.name,
+                    engineId = null,
+                    sourceType = TranslationProjectSource.IMPORTED_JSON.name,
+                    sourceTreeUri = null,
+                    sourceLanguage = null,
+                    targetLanguage = null,
+                    revision = 1,
+                    createdAt = now,
+                    updatedAt = now,
+                ),
+            )
+            dao.insertEntries(entries)
+            val snapshot = TranslationTaskSnapshot(
+                serviceId = profile.id,
+                serviceRevision = profile.revision,
+                protocolId = protocol,
+                baseUrl = profile.baseUrl,
+                modelId = profile.modelId,
+                secretRef = profile.secretRef,
+                sourceLanguage = "en",
+                targetLanguage = "zh-CN",
+                prompt = profile.translationPrompt,
+                glossaryRevision = 0,
+                glossary = emptyList(),
+                taskSettings = profile.taskSettings,
+            )
+            val task = TranslationTaskEntity(
+                id = "live-batch-task-$suffix",
+                projectId = projectId,
+                type = "TRANSLATE",
+                state = "QUEUED",
+                extractorId = null,
+                sourceTreeUri = null,
+                configSnapshotJson = snapshot.encode(),
+                checkpointJson = "{}",
+                totalFiles = 0,
+                completedFiles = 0,
+                entryCount = 0,
+                failureCode = null,
+                createdAt = now,
+                updatedAt = now,
+            )
+            assertTrue(dao.createTranslationTaskIfProjectIdle(task, "en", "zh-CN", null, 0L))
+
+            val progress = mutableListOf<Pair<Int, Int>>()
+            TranslationBatchTaskProcessor(context, dao) { completed, total ->
+                progress += completed to total
+            }.process(task)
+
+            val completedTask = requireNotNull(dao.getTask(task.id))
+            assertEquals(
+                "$provider three-entry task failed with ${completedTask.failureCode}",
+                "COMPLETED",
+                completedTask.state,
+            )
+            assertEquals(sources.size, completedTask.itemTotal)
+            assertEquals(sources.size, completedTask.completedItems)
+            assertEquals(0, completedTask.failedItems)
+            val checkpointIds = JSONObject(completedTask.checkpointJson)
+                .getJSONArray("processedEntryIds")
+                .let { values -> (0 until values.length()).map(values::getString).toSet() }
+            assertEquals(entries.map(TranslationEntryEntity::id).toSet(), checkpointIds)
+            assertEquals(sources.size to sources.size, progress.last())
+
+            val translatedEntries = dao.getEntries(projectId).associateBy(TranslationEntryEntity::id)
+            entries.forEachIndexed { index, entry ->
+                val translated = requireNotNull(translatedEntries[entry.id])
+                assertEquals("TRANSLATED", translated.status)
+                assertFalse(translated.translatedText.isNullOrBlank())
+                assertFalse("$provider returned the source text unchanged", translated.translatedText == sources[index])
+            }
+        } finally {
+            dao.deleteProject(projectId)
+            serviceId?.let { serviceRepository.deleteProfile(it) }
+        }
     }
 
     private fun assumeEnabled() = assumeTrue(

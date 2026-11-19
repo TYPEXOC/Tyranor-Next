@@ -7,7 +7,7 @@
 - 服务列表改用独立品牌图标：机器翻译 13 个模板均有对应图标，OpenAI、DeepSeek、Gemini、Claude AI 模板也显示图标；未匹配内置模板的自定义 AI 档案使用 TYN 自绘的通用 API 图标。SmartSub 已提供的 SVG/PNG 转为 Android VectorDrawable，Google Cloud 与 Anthropic 图标取自 simple-icons。默认启用的必应、Google 网页翻译和有道网页排在机器翻译列表前面，来源与许可固定记录在第三方声明中。
 - 自定义请求参数页改为列表为主，添加和编辑在抽屉中完成；请求头值固定为单行字符串，类型选择仅用于请求体参数。
 - 翻译服务新增独立的“任务设置”完整页面，机器翻译配置批次、请求节流与 RPM，AI 配置批次大小、并发数和请求间隔；设置保存在服务档案并固定进翻译/AI 校对任务快照。AI 按条目数量拆批，不按 Token 估算拆分；无效持久化设置回退到类别默认值。
-- 新增 `tools/test-translation-web-providers.ps1`，在 Medium Phone API 36 模拟器对必应、Google 网页和有道网页执行无密钥联网短文本冒烟，3 项均通过。实测修复必应区域重定向/过期会话处理、Google Android ICU 正则兼容，以及有道 JSON 字符串包裹的 URL-safe Base64 密文解码；其它供应商账号、地区覆盖和翻译质量仍未验收。
+- 扩展 `tools/test-translation-web-providers.ps1`，在 Medium Phone API 36 模拟器对必应、Google 网页和有道网页执行短文本探测，并分别用默认任务设置翻译 30 条不同文本，核对条目映射与持久化检查点；6 项 instrumentation 全部通过。三种网页 adapter 单次 HTTP 上限为 1，本次验证的是默认任务条数，不是单 HTTP 30 条批次。Google SmartSub Chrome 多条通道尚未接入，现有 Google adapter 仍使用 gtx 单条通道；其它供应商账号、地区覆盖和翻译质量仍未验收。
 - 补齐有道网页翻译、Google 网页翻译、火山方舟 Responses 与讯飞 OTS 四个机器翻译协议；共注册 17 个机器翻译 adapter，配置页提供 13 个模板入口。真实游戏文本效果与手机/平板 UI 验收尚未完成。
 - 添加项目抽屉中的来源错误提示改为替换来源路径副标题，限制单行省略，避免错误出现时额外撑高抽屉。
 - 翻译服务入口从“应用设置”移至设置首页，作为独立功能卡片显示。
