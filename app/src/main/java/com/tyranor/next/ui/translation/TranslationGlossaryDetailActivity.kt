@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
@@ -56,6 +57,7 @@ import com.tyranor.next.ui.common.AppScreenActivity
 import com.tyranor.next.ui.common.AppSecondaryTopBar
 import com.tyranor.next.ui.common.DialogTextButton
 import com.tyranor.next.ui.common.NoRippleButton
+import com.tyranor.next.ui.common.NoRippleTextButton
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
@@ -240,6 +242,7 @@ private fun TranslationGlossaryDetailScreen(
                         ) { index, term ->
                             GlossaryTermCard(
                                 term = term,
+                                sequence = index + 1,
                                 onEdit = {
                                     termEditor = TermEditor(index, term.sourceTerm, term.targetTerm, term.note.orEmpty())
                                 },
@@ -412,6 +415,7 @@ private fun TranslationGlossaryDetailScreen(
 @Composable
 private fun GlossaryTermCard(
     term: TranslationGlossaryTerm,
+    sequence: Int,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -420,68 +424,90 @@ private fun GlossaryTermCard(
         cornerRadius = AppComponentCornerRadius,
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier.fillMaxWidth().padding(8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            Column(
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.Top,
             ) {
-                GlossaryTermValuePanel(
-                    label = stringResource(R.string.translation_glossary_source_label),
-                    value = term.sourceTerm,
-                    translated = false,
-                )
-                GlossaryTermValuePanel(
-                    label = stringResource(R.string.translation_glossary_target_label),
-                    value = term.targetTerm,
-                    translated = true,
-                )
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 1.dp)
-                        .height(1.dp)
-                        .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)),
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 20.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                        .size(40.dp)
+                        .clip(AppComponentShape)
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)),
+                    contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        stringResource(R.string.translation_glossary_note_label),
-                        modifier = Modifier.width(42.dp),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = PageSecondaryTextColor,
+                        sequence.toString(),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
-                        textAlign = TextAlign.Start,
                     )
-                    Text(
-                        term.note.orEmpty(),
-                        modifier = Modifier.weight(1f),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = PageSecondaryTextColor,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+                }
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    GlossaryTermValueRow(
+                        label = stringResource(R.string.translation_glossary_source_label),
+                        value = term.sourceTerm,
                     )
+                    GlossaryTermValueRow(
+                        label = stringResource(R.string.translation_glossary_target_label),
+                        value = term.targetTerm,
+                        translated = true,
+                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(1.dp)
+                            .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)),
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 18.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            stringResource(R.string.translation_glossary_note_label),
+                            modifier = Modifier.width(42.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = PageSecondaryTextColor,
+                            maxLines = 1,
+                            textAlign = TextAlign.Start,
+                        )
+                        Text(
+                            term.note.orEmpty(),
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = PageSecondaryTextColor,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                 }
             }
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.End),
             ) {
-                NoRippleButton(
+                NoRippleTextButton(
                     text = stringResource(R.string.translation_glossary_edit),
-                    modifier = Modifier.weight(1f),
-                    tonal = true,
+                    modifier = Modifier
+                        .width(68.dp)
+                        .clip(AppComponentShape)
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)),
                     onClick = onEdit,
                 )
-                NoRippleButton(
+                NoRippleTextButton(
                     text = stringResource(R.string.common_delete),
-                    modifier = Modifier.weight(1f),
-                    tonal = true,
-                    containerColorOverride = MaterialTheme.colorScheme.error.copy(alpha = 0.12f),
-                    contentColorOverride = MaterialTheme.colorScheme.error,
+                    contentColor = MaterialTheme.colorScheme.error,
+                    modifier = Modifier
+                        .width(68.dp)
+                        .clip(AppComponentShape)
+                        .background(MaterialTheme.colorScheme.error.copy(alpha = 0.12f)),
                     onClick = onDelete,
                 )
             }
@@ -490,34 +516,30 @@ private fun GlossaryTermCard(
 }
 
 @Composable
-private fun GlossaryTermValuePanel(
+private fun GlossaryTermValueRow(
     label: String,
     value: String,
-    translated: Boolean,
+    translated: Boolean = false,
 ) {
     val accent = MaterialTheme.colorScheme.primary
     val labelColor = if (translated) accent else PageSecondaryTextColor
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(AppComponentShape)
-            .background(
-                if (translated) {
-                    accent.copy(alpha = 0.08f)
-                } else {
-                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.045f)
-                },
-            )
-            .padding(horizontal = 9.dp, vertical = 7.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
             modifier = Modifier
                 .width(42.dp)
                 .clip(AppComponentShape)
-                .background(labelColor.copy(alpha = if (translated) 0.16f else 0.10f))
-                .padding(vertical = 4.dp),
+                .background(
+                    if (translated) {
+                        accent.copy(alpha = 0.14f)
+                    } else {
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
+                    },
+                )
+                .padding(vertical = 3.dp),
             contentAlignment = Alignment.Center,
         ) {
             Text(
@@ -530,10 +552,10 @@ private fun GlossaryTermValuePanel(
         Text(
             value,
             modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.bodyMedium,
+            style = MaterialTheme.typography.bodySmall,
             color = if (translated) accent else PageTextColor,
             fontWeight = FontWeight.Medium,
-            maxLines = 2,
+            maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
     }
