@@ -611,16 +611,16 @@ private fun TranslationWorkbenchScreen() {
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
-                        if (addProjectSourcePath.isNotBlank()) {
-                            Text(
-                                addProjectSourcePath,
-                                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = PageSecondaryTextColor,
-                                maxLines = 3,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
+                        Text(
+                            addProjectSourcePath.ifBlank {
+                                stringResource(R.string.translation_add_project_source_not_selected)
+                            },
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = PageSecondaryTextColor,
+                            maxLines = 3,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                         NoRippleButton(
                             text = stringResource(
                                 if (choosingDirectory) R.string.translation_add_project_choose_directory
