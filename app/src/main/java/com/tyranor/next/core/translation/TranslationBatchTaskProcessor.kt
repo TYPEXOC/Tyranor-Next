@@ -13,10 +13,12 @@ import com.tyranor.next.core.translation.storage.TranslationWorkbenchDao
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.json.JSONArray
 import org.json.JSONObject
 
-/** Executes a durable translation task in batches; a batch's results and checkpoint commit together. */
+/** Executes a durable translation task in checkpointed batches. */
 internal class TranslationBatchTaskProcessor(
     context: Context,
     private val dao: TranslationWorkbenchDao,
@@ -43,68 +45,109 @@ internal class TranslationBatchTaskProcessor(
 
             val processedIds = decodeProcessedIds(existingTask.checkpointJson).toMutableSet()
             val unknownIds = decodeUnknownIds(existingTask.checkpointJson).toMutableSet()
+            val commitMutex = Mutex()
             reportProgress(existingTask.completedItems, total)
             val client = TranslationServiceClient(appContext)
-            val batchSize = client.maxBatchSize(snapshot.protocolId).coerceAtMost(MAX_BATCH_SIZE)
+            val profile = snapshot.toServiceProfile()
+            val protocolMaxBatchSize = client.maxBatchSize(snapshot.protocolId)
+            val batchSize = TranslationTaskRequestPolicy.batchSize(
+                snapshot.protocolId,
+                snapshot.taskSettings,
+                protocolMaxBatchSize,
+            )
+            val batchConcurrency = snapshot.taskSettings.requestConcurrency(snapshot.protocolId.category)
+            val windowSize = (batchSize * batchConcurrency).coerceAtMost(MAX_WINDOW_SIZE)
+            val glossary = snapshot.glossary.map { term ->
+                TranslationGlossaryEntry(term.sourceTerm, term.targetTerm, term.note)
+            }
+            suspend fun commitBatch(
+                updates: List<TranslationEntryEntity>,
+                responseUnknownIds: Set<String> = emptySet(),
+            ): Boolean = commitMutex.withLock {
+                processedIds += updates.map(TranslationEntryEntity::id)
+                unknownIds += responseUnknownIds
+                val committed = dao.commitTranslatedBatch(
+                    taskId = taskId,
+                    entries = updates,
+                    checkpointJson = encodeCheckpoint(processedIds, unknownIds),
+                    completedItems = processedIds.size,
+                    newFailures = updates.count { it.status == "FAILED" },
+                    unknownResponseIds = responseUnknownIds.isNotEmpty(),
+                    updatedAt = System.currentTimeMillis(),
+                )
+                if (committed) {
+                    val fresh = dao.getTask(taskId) ?: return@withLock false
+                    reportProgress(fresh.completedItems, fresh.itemTotal)
+                }
+                committed
+            }
+
             while (true) {
                 currentCoroutineContext().ensureActive()
                 if (dao.getTask(taskId)?.state != "RUNNING") return
                 val entries = dao.getTranslationCandidates(
                     projectId = task.projectId,
                     retryFailed = snapshot.retryFailed,
-                    limit = batchSize,
+                    limit = windowSize,
                 )
                 if (entries.isEmpty()) break
-                val inputs = entries.map { entry ->
-                    TranslationInput(
-                        entryId = entry.id,
-                        sourceText = entry.sourceText,
-                        sourceLanguage = snapshot.sourceLanguage,
-                        targetLanguage = snapshot.targetLanguage,
-                    )
-                }
-                val response = client.translateBatch(
-                    profile = snapshot.toServiceProfile(),
-                    secretRef = snapshot.secretRef,
-                    sourceLanguage = snapshot.sourceLanguage,
-                    targetLanguage = snapshot.targetLanguage,
-                    inputs = inputs,
-                    glossary = snapshot.glossary.map { term ->
-                        TranslationGlossaryEntry(term.sourceTerm, term.targetTerm, term.note)
-                    },
+                val plan = TranslationTaskRequestPolicy.translationBatches(
+                    entries = entries,
+                    protocolId = snapshot.protocolId,
+                    settings = snapshot.taskSettings,
+                    protocolMaxBatchSize = protocolMaxBatchSize,
                 )
-                currentCoroutineContext().ensureActive()
-                val outputById = response.successes.associateBy { it.entryId }
-                val updated = entries.map { entry ->
-                    val output = outputById[entry.id]
-                    when {
-                        output != null -> entry.copy(
-                            translatedText = output.translatedText,
-                            status = "TRANSLATED",
-                            failureCode = null,
+
+                val failures = TranslationTaskRequestPolicy.executeBatches(plan.batches, batchConcurrency) { batch ->
+                    try {
+                        currentCoroutineContext().ensureActive()
+                        TranslationTaskRequestLimiter.awaitRequestSlot(profile)
+                        currentCoroutineContext().ensureActive()
+                        val response = client.translateBatch(
+                            profile = profile,
+                            secretRef = snapshot.secretRef,
+                            sourceLanguage = snapshot.sourceLanguage,
+                            targetLanguage = snapshot.targetLanguage,
+                            inputs = batch.map { entry ->
+                                TranslationInput(
+                                    entryId = entry.id,
+                                    sourceText = entry.sourceText,
+                                    sourceLanguage = snapshot.sourceLanguage,
+                                    targetLanguage = snapshot.targetLanguage,
+                                )
+                            },
+                            glossary = glossary,
                         )
-                        else -> entry.copy(
-                            translatedText = null,
-                            status = "FAILED",
-                            failureCode = (response.itemFailures[entry.id]
-                                ?: TranslationItemFailureCode.MISSING_RESPONSE).name,
-                        )
+                        currentCoroutineContext().ensureActive()
+                        val outputById = response.successes.associateBy { it.entryId }
+                        val updated = batch.map { entry ->
+                            val output = outputById[entry.id]
+                            if (output != null) {
+                                entry.copy(
+                                    translatedText = output.translatedText,
+                                    status = "TRANSLATED",
+                                    failureCode = null,
+                                )
+                            } else {
+                                entry.copy(
+                                    translatedText = null,
+                                    status = "FAILED",
+                                    failureCode = (response.itemFailures[entry.id]
+                                        ?: TranslationItemFailureCode.MISSING_RESPONSE).name,
+                                )
+                            }
+                        }
+                        if (!commitBatch(updated, response.unknownResponseIds)) {
+                            throw CancellationException("Translation task is no longer running")
+                        }
+                        null
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (failure: Exception) {
+                        failure
                     }
                 }
-                processedIds += entries.map(TranslationEntryEntity::id)
-                unknownIds += response.unknownResponseIds
-                val committed = dao.commitTranslatedBatch(
-                    taskId = taskId,
-                    entries = updated,
-                    checkpointJson = encodeCheckpoint(processedIds, unknownIds),
-                    completedItems = processedIds.size,
-                    newFailures = updated.count { it.status == "FAILED" },
-                    unknownResponseIds = response.unknownResponseIds.isNotEmpty(),
-                    updatedAt = System.currentTimeMillis(),
-                )
-                if (!committed) return
-                val fresh = dao.getTask(taskId) ?: return
-                reportProgress(fresh.completedItems, fresh.itemTotal)
+                failures.filterNotNull().firstOrNull()?.let { throw it }
             }
             dao.completeTranslationTaskAndReadyProject(taskId, System.currentTimeMillis())
             cleanupSecrets()
@@ -149,7 +192,7 @@ internal class TranslationBatchTaskProcessor(
         .toString()
 
     companion object {
-        private const val MAX_BATCH_SIZE = 50
+        private const val MAX_WINDOW_SIZE = 400
         private const val CHECKPOINT_PROCESSED = "processedEntryIds"
         private const val CHECKPOINT_UNKNOWN = "unknownResponseIds"
     }

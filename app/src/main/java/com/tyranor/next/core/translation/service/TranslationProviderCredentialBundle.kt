@@ -59,6 +59,9 @@ object TranslationProviderCredentialBundle {
         if (protocolId == TranslationProtocolId.BING_TRANSLATOR_WEB) return true
         val credentials = decode(protocolId, secret) ?: return false
         return when (protocolId) {
+            TranslationProtocolId.DOUBAO_TRANSLATE_RESPONSES_V1 -> credentials.first.isNotBlank()
+            TranslationProtocolId.IFLYTEK_TRANSLATE_V2 -> credentials.first.isNotBlank() &&
+                credentials.second.isNotBlank() && credentials.third.isNotBlank()
             TranslationProtocolId.NIUTRANS_TRANSLATION_V1,
             TranslationProtocolId.AZURE_TRANSLATOR_V3,
             TranslationProtocolId.DEEPL_TRANSLATE_V2 -> credentials.first.isNotBlank()

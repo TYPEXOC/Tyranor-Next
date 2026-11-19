@@ -23,6 +23,7 @@ internal data class TranslationServiceProfileEntity(
     @ColumnInfo(name = "translation_user_prompt", defaultValue = "''") val translationUserPrompt: String = "",
     @ColumnInfo(name = "proofreading_user_prompt", defaultValue = "''") val proofreadingUserPrompt: String = "",
     @ColumnInfo(name = "generation_options_json", defaultValue = "'{}'") val generationOptionsJson: String = "{}",
+    @ColumnInfo(name = "task_settings_json", defaultValue = "'{}'") val taskSettingsJson: String = "{}",
     @ColumnInfo(name = "secret_ref") val secretRef: String?,
     @ColumnInfo(name = "created_at") val createdAt: Long,
     @ColumnInfo(name = "updated_at") val updatedAt: Long,

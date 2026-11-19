@@ -56,6 +56,7 @@
     <string name="translation_services_machine_category_note">机器翻译：TYN 提供固定的服务模板。配置后可在翻译任务中选择。</string>
     <string name="translation_services_ai_category_note">AI 翻译：可配置预置模板或添加自定义 API；已启用服务可用于翻译或 AI 校对。</string>
     <string name="translation_services_provider_bing">必应翻译</string>
+    <string name="translation_services_provider_microsoft">微软翻译</string>
     <string name="translation_services_provider_niutrans">小牛翻译</string>
     <string name="translation_services_provider_volcengine">火山引擎翻译</string>
     <string name="translation_services_provider_azure">Azure Translator</string>
@@ -68,6 +69,10 @@
     <string name="translation_services_provider_google">Google Cloud Translation</string>
     <string name="translation_services_provider_yandex">Yandex Translate</string>
     <string name="translation_services_provider_huawei">华为云 NLP 翻译</string>
+    <string name="translation_services_provider_doubao">豆包翻译</string>
+    <string name="translation_services_provider_iflytek">讯飞翻译</string>
+    <string name="translation_services_provider_google_web">谷歌翻译</string>
+    <string name="translation_services_provider_google_cloud">谷歌云翻译</string>
     <string name="translation_services_add_bing">添加必应翻译</string>
     <string name="translation_services_add_niutrans">添加小牛翻译</string>
     <string name="translation_services_add_volcengine">添加火山引擎翻译</string>
@@ -133,6 +138,10 @@
     <string name="translation_services_huawei_access_key_id">华为云 Access Key ID</string>
     <string name="translation_services_huawei_secret_access_key">华为云 Secret Access Key</string>
     <string name="translation_services_huawei_project_id">华为云项目 ID</string>
+    <string name="translation_services_doubao_api_key">火山方舟 API Key</string>
+    <string name="translation_services_iflytek_app_id">讯飞 APPID</string>
+    <string name="translation_services_iflytek_api_key">讯飞 APIKey</string>
+    <string name="translation_services_iflytek_api_secret">讯飞 APISecret</string>
     <string name="translation_services_machine_secret_hint">凭据会保存在翻译域加密存储中；保存后不会回显。</string>
     <string name="translation_services_machine_secret_keep_hint">凭据不会回显。全部留空会保留已保存凭据；替换时请填写完整凭据组。</string>
     <string name="translation_services_key_keep_hint">留空会保留已保存的密钥。密钥使用设备 Keystore 加密，并排除在备份之外。</string>
@@ -151,6 +160,10 @@
     <string name="translation_services_anthropic_sampling_hint">Claude 不允许同时设置 temperature 和 top_p，请只填写其中一项。</string>
     <string name="translation_services_machine_protocol_note">请求发送到该服务商固定的 HTTPS 接口。使用前请查看服务商的语言支持、额度和隐私条款。</string>
     <string name="translation_services_bing_web_endpoint_note">必应目前使用网页翻译令牌接口，没有稳定的公开 API 协议；网页改版或访问限制可能导致失效。</string>
+    <string name="translation_services_youdao_web_endpoint_note">有道网页翻译接口并非稳定的公开 API；网页或访问策略变化可能导致暂时不可用。</string>
+    <string name="translation_services_google_web_endpoint_note">谷歌网页翻译接口并非稳定的公开 API；网页或访问策略变化可能导致暂时不可用。</string>
+    <string name="translation_services_doubao_protocol_note">使用火山方舟专用翻译模型，需填写方舟 API Key；模型按火山方舟账户规则计费。</string>
+    <string name="translation_services_iflytek_protocol_note">使用讯飞机器翻译 OTS v2；需要同一应用下的 APPID、APIKey 和 APISecret。</string>
     <string name="translation_services_tencent_retirement_note">腾讯云文本翻译计划于 2027-01-31 停止销售、2027-07-31 停止续订支持，并于 2030-12-31 下线；现有有效付费服务在到期前仍可使用。</string>
     <string name="translation_services_caiyun_protocol_note">需要彩云翻译开放平台的 API Token，和“彩云小译”App 账号不同；目前只覆盖文档列出的中、英、日方向。</string>
     <string name="translation_services_google_protocol_note">使用 Cloud Translation Basic v2；请先在 Google Cloud 项目启用接口并配置计费。API Key 通过请求头发送，来源语言可自动检测。</string>
@@ -1705,4 +1718,17 @@
     <string name="translation_task_proofread_failed">AI 校对任务失败</string>
     <string name="translation_error_no_proofread_candidates">所选范围中没有可校对的已翻译条目。</string>
     <string name="translation_error_invalid_review_entry">校对条目或建议已变化，刷新后再试。</string>
+    <string name="translation_services_task_settings">任务设置</string>
+    <string name="translation_services_machine_task_limits">机器翻译请求设置</string>
+    <string name="translation_services_batch_size">批量翻译数量</string>
+    <string name="translation_services_batch_size_hint">每次请求最多处理的文本条目数。</string>
+    <string name="translation_services_batch_concurrency">批次并发数</string>
+    <string name="translation_services_batch_concurrency_hint">同时发送的翻译请求数，较大的值可能触发服务限流。</string>
+    <string name="translation_services_request_interval">请求间隔（秒）</string>
+    <string name="translation_services_request_interval_hint">连续请求之间至少等待的时间。</string>
+    <string name="translation_services_requests_per_minute">每分钟最大请求数</string>
+    <string name="translation_services_requests_per_minute_machine_hint">滑动 60 秒内的请求上限；0 表示不限制。</string>
+    <string name="translation_services_ai_task_limits">AI 翻译请求设置</string>
+    <string name="translation_services_ai_batch_concurrency_hint">同一任务同时发送的模型请求数。</string>
+    <string name="translation_services_task_settings_invalid">设置无效，请检查数值范围。</string>
 </resources>

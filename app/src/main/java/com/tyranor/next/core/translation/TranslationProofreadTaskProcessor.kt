@@ -15,10 +15,12 @@ import java.util.UUID
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.json.JSONArray
 import org.json.JSONObject
 
-/** Executes AI proofreading without replacing current translations; each batch commits with its checkpoint. */
+/** Runs AI proofreading without replacing translations; suggestions and checkpoints commit together. */
 internal class TranslationProofreadTaskProcessor(
     context: Context,
     private val dao: TranslationWorkbenchDao,
@@ -40,7 +42,50 @@ internal class TranslationProofreadTaskProcessor(
             }
             if (taskRow.itemTotal == 0) dao.setTaskItemTotal(taskId, total, System.currentTimeMillis())
             reportProgress(taskRow.completedItems, total)
+
             val client = TranslationServiceClient(appContext)
+            val profile = snapshot.toServiceProfile()
+            val protocolMaxBatchSize = client.maxBatchSize(snapshot.protocolId)
+            val batchSize = TranslationTaskRequestPolicy.batchSize(
+                snapshot.protocolId,
+                snapshot.taskSettings,
+                protocolMaxBatchSize,
+            )
+            val batchConcurrency = snapshot.taskSettings.requestConcurrency(snapshot.protocolId.category)
+            val windowSize = (batchSize * batchConcurrency)
+                .coerceAtMost(MAX_WINDOW_SIZE)
+            val commitMutex = Mutex()
+
+            suspend fun commitBatch(
+                batchEntries: List<TranslationEntryEntity>,
+                suggestions: List<TranslationProofreadSuggestionEntity>,
+                issues: List<TranslationReviewIssueEntity>,
+                failedCount: Int,
+                unknownResponseIds: Set<String> = emptySet(),
+            ): Boolean = commitMutex.withLock {
+                val previous = dao.getTask(taskId) ?: return@withLock false
+                val completedCount = previous.completedItems + batchEntries.size
+                val committed = dao.commitProofreadBatch(
+                    taskId = taskId,
+                    entries = batchEntries,
+                    suggestions = suggestions,
+                    issues = issues,
+                    checkpointJson = JSONObject()
+                        .put("lastCommittedEntryIds", JSONArray(batchEntries.map(TranslationEntryEntity::id)))
+                        .put("unknownResponseIds", JSONArray(unknownResponseIds.sorted()))
+                        .toString(),
+                    completedItems = completedCount,
+                    newFailures = failedCount,
+                    unknownResponseIds = unknownResponseIds.isNotEmpty(),
+                    updatedAt = System.currentTimeMillis(),
+                )
+                if (committed) {
+                    val fresh = dao.getTask(taskId) ?: return@withLock false
+                    reportProgress(fresh.completedItems, fresh.itemTotal)
+                }
+                committed
+            }
+
             while (true) {
                 currentCoroutineContext().ensureActive()
                 if (dao.getTask(taskId)?.state != "RUNNING") return
@@ -49,74 +94,87 @@ internal class TranslationProofreadTaskProcessor(
                     scope = snapshot.scope.name,
                     retryFailed = snapshot.retryFailed,
                     taskId = taskId,
-                    limit = BATCH_SIZE,
+                    limit = windowSize,
                 )
                 if (entries.isEmpty()) break
-                val response = client.proofreadBatch(
-                    profile = snapshot.toServiceProfile(),
-                    secretRef = snapshot.secretRef,
-                    sourceLanguage = snapshot.sourceLanguage,
-                    targetLanguage = snapshot.targetLanguage,
-                    inputs = entries.map { entry ->
-                        ProofreadInput(entry.id, entry.sourceText, entry.translatedText.orEmpty())
-                    },
+
+                val plan = TranslationTaskRequestPolicy.proofreadingBatches(
+                    entries = entries,
+                    settings = snapshot.taskSettings,
+                    protocolMaxBatchSize = protocolMaxBatchSize,
                 )
-                currentCoroutineContext().ensureActive()
-                val outputsById = response.successes.associateBy { it.entryId }
-                val now = System.currentTimeMillis()
-                val updatedEntries = entries.map { entry ->
-                    entry.copy(
-                        reviewState = if (outputsById.containsKey(entry.id)) "AI_REVIEWED" else "PROOFREAD_FAILED",
-                        lastProofreadTaskId = taskId,
-                    )
-                }
-                val suggestions = entries.mapNotNull { entry ->
-                    val output = outputsById[entry.id] ?: return@mapNotNull null
-                    if (output.suggestedTranslation == entry.translatedText && output.issueCodes.isEmpty()) return@mapNotNull null
-                    TranslationProofreadSuggestionEntity(
-                        id = UUID.randomUUID().toString(),
-                        projectId = task.projectId,
-                        entryId = entry.id,
-                        taskId = taskId,
-                        suggestedTranslation = output.suggestedTranslation,
-                        state = "PENDING",
-                        createdAt = now,
-                    )
-                }
-                val issues = entries.flatMap { entry ->
-                    outputsById[entry.id]?.issueCodes.orEmpty().map { code ->
-                        TranslationReviewIssueEntity(
-                            id = UUID.randomUUID().toString(),
-                            projectId = task.projectId,
-                            entryId = entry.id,
-                            taskId = taskId,
-                            source = "AI",
-                            code = code,
-                            severity = "SUGGESTION",
-                            state = "OPEN",
-                            updatedAt = now,
+
+                val failures = TranslationTaskRequestPolicy.executeBatches(plan.batches, batchConcurrency) { batch ->
+                    try {
+                        currentCoroutineContext().ensureActive()
+                        TranslationTaskRequestLimiter.awaitRequestSlot(profile)
+                        currentCoroutineContext().ensureActive()
+                        val response = client.proofreadBatch(
+                            profile = profile,
+                            secretRef = snapshot.secretRef,
+                            sourceLanguage = snapshot.sourceLanguage,
+                            targetLanguage = snapshot.targetLanguage,
+                            inputs = batch.map { entry ->
+                                ProofreadInput(entry.id, entry.sourceText, entry.translatedText.orEmpty())
+                            },
                         )
+                        currentCoroutineContext().ensureActive()
+                        val outputsById = response.successes.associateBy { it.entryId }
+                        val now = System.currentTimeMillis()
+                        val updatedEntries = batch.map { entry ->
+                            entry.copy(
+                                reviewState = if (outputsById.containsKey(entry.id)) "AI_REVIEWED" else "PROOFREAD_FAILED",
+                                lastProofreadTaskId = taskId,
+                            )
+                        }
+                        val suggestions = batch.mapNotNull { entry ->
+                            val output = outputsById[entry.id] ?: return@mapNotNull null
+                            if (output.suggestedTranslation == entry.translatedText && output.issueCodes.isEmpty()) {
+                                return@mapNotNull null
+                            }
+                            TranslationProofreadSuggestionEntity(
+                                id = UUID.randomUUID().toString(),
+                                projectId = task.projectId,
+                                entryId = entry.id,
+                                taskId = taskId,
+                                suggestedTranslation = output.suggestedTranslation,
+                                state = "PENDING",
+                                createdAt = now,
+                            )
+                        }
+                        val issues = batch.flatMap { entry ->
+                            outputsById[entry.id]?.issueCodes.orEmpty().map { code ->
+                                TranslationReviewIssueEntity(
+                                    id = UUID.randomUUID().toString(),
+                                    projectId = task.projectId,
+                                    entryId = entry.id,
+                                    taskId = taskId,
+                                    source = "AI",
+                                    code = code,
+                                    severity = "SUGGESTION",
+                                    state = "OPEN",
+                                    updatedAt = now,
+                                )
+                            }
+                        }
+                        if (!commitBatch(
+                                batchEntries = updatedEntries,
+                                suggestions = suggestions,
+                                issues = issues,
+                                failedCount = response.itemFailures.size,
+                                unknownResponseIds = response.unknownResponseIds,
+                            )
+                        ) {
+                            throw CancellationException("Proofreading task is no longer running")
+                        }
+                        null
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (failure: Exception) {
+                        failure
                     }
                 }
-                val previous = dao.getTask(taskId) ?: return
-                val committedCount = previous.completedItems + entries.size
-                val committed = dao.commitProofreadBatch(
-                    taskId = taskId,
-                    entries = updatedEntries,
-                    suggestions = suggestions,
-                    issues = issues,
-                    checkpointJson = JSONObject()
-                        .put("lastCommittedEntryIds", JSONArray(entries.map(TranslationEntryEntity::id)))
-                        .put("unknownResponseIds", JSONArray(response.unknownResponseIds.sorted()))
-                        .toString(),
-                    completedItems = committedCount,
-                    newFailures = response.itemFailures.size,
-                    unknownResponseIds = response.unknownResponseIds.isNotEmpty(),
-                    updatedAt = now,
-                )
-                if (!committed) return
-                val fresh = dao.getTask(taskId) ?: return
-                reportProgress(fresh.completedItems, fresh.itemTotal)
+                failures.filterNotNull().firstOrNull()?.let { throw it }
             }
             dao.completeTranslationTaskAndReadyProject(taskId, System.currentTimeMillis())
             cleanupSecrets()
@@ -142,6 +200,6 @@ internal class TranslationProofreadTaskProcessor(
     }
 
     companion object {
-        private const val BATCH_SIZE = 30
+        private const val MAX_WINDOW_SIZE = 400
     }
 }

@@ -14,7 +14,12 @@ import com.tyranor.next.core.translation.service.TranslationProtocolRegistry
 import com.tyranor.next.core.translation.service.defaultBaseUrl
 import com.tyranor.next.core.translation.service.transport.TranslationHttpTransport
 import java.io.IOException
+import java.nio.charset.StandardCharsets
 import java.time.Instant
+import java.util.Base64
+import javax.crypto.Cipher
+import javax.crypto.spec.IvParameterSpec
+import javax.crypto.spec.SecretKeySpec
 import kotlinx.coroutines.runBlocking
 import okhttp3.Call
 import okhttp3.Callback
@@ -336,7 +341,7 @@ class MachineTranslationAdapterTest {
 
     @Test
     fun bingObtainsWebTokenAndSendsItsSessionCookie() = runBlocking {
-        val html = """IG:"ig-value" <div id="tta_outGDCont" data-iid="translator.5020"></div> var params_AbusePreventionHelper = ["key-value","token-value"];"""
+        val html = """{"ig":"ig-value"} <div data-iid="translator.5020"></div> var params_AbusePreventionHelper = ["key-value","token-value"];"""
         val factory = QueuedCallFactory(
             listOf(
                 MockResponse(200, html, Headers.Builder().add("Set-Cookie", "SRCHHPGUSR=session-value; path=/; secure").build()),
@@ -353,7 +358,7 @@ class MachineTranslationAdapterTest {
         )
 
         assertEquals(2, factory.requests.size)
-        assertEquals("/Translator", factory.requests[0].url.encodedPath)
+        assertEquals("/translator", factory.requests[0].url.encodedPath)
         val request = factory.requests[1]
         assertEquals("/ttranslatev3", request.url.encodedPath)
         assertEquals("SRCHHPGUSR=session-value", request.header("Cookie"))
@@ -364,7 +369,7 @@ class MachineTranslationAdapterTest {
     @Test
     fun bingTokenParserDoesNotRequireAnApiKeyOrExposeResponseBodies() {
         val token = BingWebTranslationAdapter.parseTokenPage(
-            """IG:"i" <div id="tta_outGDCont" data-iid="x"></div> var params_AbusePreventionHelper = ["k","t"];""",
+            """{"ig":"i"} <div data-iid="x"></div> var params_AbusePreventionHelper = ["k","t"];""",
         )
         assertEquals(listOf("i", "x", "k", "t"), token)
         val failure = assertThrows(TranslationServiceException::class.java) {
@@ -372,6 +377,117 @@ class MachineTranslationAdapterTest {
         }
         assertEquals(TranslationServiceErrorCode.INVALID_RESPONSE, failure.code)
         assertFalse(failure.message.orEmpty().contains("secret-page-body"))
+    }
+
+    @Test
+    fun googleWebTranslationUsesStableInputIdWithoutCredentials() = runBlocking {
+        val factory = QueuedCallFactory(
+            listOf(MockResponse(200, """[[["こんにちは","Hello",null,null,3]],null,"en"]""")),
+        )
+        val response = GoogleTranslateWebAdapter(TranslationHttpTransport(factory)).translateBatch(
+            profile(TranslationProtocolId.GOOGLE_TRANSLATE_WEB_V1),
+            null,
+            "en",
+            "ja",
+            listOf(input("g-1", "Hello")),
+        )
+
+        val request = factory.requests.single()
+        assertEquals("GET", request.method)
+        assertEquals("translate.googleapis.com", request.url.host)
+        assertEquals("Hello", request.url.queryParameter("q"))
+        assertEquals("ja", request.url.queryParameter("tl"))
+        assertEquals(listOf("g-1"), response.successes.map { it.entryId })
+    }
+
+    @Test
+    fun youdaoWebTranslationEstablishesAndReusesEncryptedSessionWithoutCredentials() = runBlocking {
+        val now = Instant.parse("2026-04-15T12:34:56Z")
+        val aesKey = "youdao-test-key"
+        val aesIv = "youdao-test-iv"
+        val factory = QueuedCallFactory(
+            listOf(
+                MockResponse(200, "<html></html>", Headers.headersOf("Set-Cookie", "OUTFOX_SEARCH_USER_ID=visitor; path=/; secure")),
+                MockResponse(200, """{"data":{"secretKey":"secret","aesKey":"$aesKey","aesIv":"$aesIv"}}"""),
+                MockResponse(200, encryptYoudao("""{"code":0,"translateResult":[[{"src":"Hello","tgt":"你好"}],[{"src":"Thank you","tgt":"谢谢"}]]}""", aesKey, aesIv)),
+                MockResponse(200, encryptYoudao("""{"code":0,"translateResult":[[{"src":"Hello","tgt":"こんにちは"}]]}""", aesKey, aesIv)),
+            ),
+        )
+        val adapter = YoudaoWebTranslationAdapter(TranslationHttpTransport(factory)) { now }
+        val response = adapter.translateBatch(
+            profile(TranslationProtocolId.YOUDAO_TRANSLATE_WEB_V1),
+            null,
+            "en",
+            "ja",
+            listOf(input("yd-1", "Hello")),
+        )
+
+        assertEquals(4, factory.requests.size)
+        assertEquals("https://fanyi.youdao.com/", factory.requests[0].url.toString())
+        assertEquals("/webtranslate/key", factory.requests[1].url.encodedPath)
+        assertEquals("visitor", factory.requests[2].header("Cookie")?.substringAfter('='))
+        assertTrue(factory.requests[3].bodyText().contains("i=Hello"))
+        assertEquals("こんにちは", response.successes.single().translatedText)
+        assertEquals("yd-1", response.successes.single().entryId)
+    }
+
+    @Test
+    fun doubaoUsesDedicatedArkResponseProtocolAndKeyHeader() = runBlocking {
+        val factory = QueuedCallFactory(
+            listOf(
+                MockResponse(
+                    200,
+                    """{"output":[{"type":"message","content":[{"type":"output_text","text":"こんにちは"}]}]}""",
+                ),
+            ),
+        )
+        val response = DoubaoTranslationAdapter(TranslationHttpTransport(factory)).translateBatch(
+            profile(TranslationProtocolId.DOUBAO_TRANSLATE_RESPONSES_V1),
+            secret(TranslationProtocolId.DOUBAO_TRANSLATE_RESPONSES_V1, "ark-key"),
+            "en",
+            "ja",
+            listOf(input("db-1", "Hello")),
+        )
+
+        val request = factory.requests.single()
+        assertEquals("ark.cn-beijing.volces.com", request.url.host)
+        assertEquals("/api/v3/responses", request.url.encodedPath)
+        assertEquals("Bearer ark-key", request.header("Authorization"))
+        assertTrue(request.bodyText().contains("doubao-seed-translation-250915"))
+        assertEquals(listOf("db-1"), response.successes.map { it.entryId })
+    }
+
+    @Test
+    fun iflytekSignsPublishedOtsV2Request() = runBlocking {
+        val fixedTime = Instant.parse("2026-04-15T12:34:56Z")
+        val factory = QueuedCallFactory(
+            listOf(MockResponse(200, """{"code":0,"data":{"result":{"trans_result":{"dst":"こんにちは"}}}}""")),
+        )
+        val credentials = secret(
+            TranslationProtocolId.IFLYTEK_TRANSLATE_V2,
+            first = "app-id",
+            second = "api-key",
+            third = "api-secret",
+        )
+        val response = IflytekTranslationAdapter(
+            transport = TranslationHttpTransport(factory),
+            now = { fixedTime },
+        ).translateBatch(
+            profile(TranslationProtocolId.IFLYTEK_TRANSLATE_V2),
+            credentials,
+            "en",
+            "ja",
+            listOf(input("xf-1", "Hello")),
+        )
+
+        val request = factory.requests.single()
+        assertEquals("ntrans.xfyun.cn", request.url.host)
+        assertEquals("/v2/ots", request.url.encodedPath)
+        assertEquals("Wed, 15 Apr 2026 12:34:56 GMT", request.header("Date"))
+        assertTrue(request.header("Authorization").orEmpty().contains("api_key=\"api-key\""))
+        assertFalse(request.header("Authorization").orEmpty().contains("api-secret"))
+        assertTrue(request.bodyText().contains("app-id"))
+        assertEquals(listOf("xf-1"), response.successes.map { it.entryId })
     }
 
     @Test
@@ -390,6 +506,10 @@ class MachineTranslationAdapterTest {
             TranslationProtocolId.GOOGLE_CLOUD_TRANSLATE_V2,
             TranslationProtocolId.YANDEX_TRANSLATE_V2,
             TranslationProtocolId.HUAWEI_NLP_TRANSLATE_V1,
+            TranslationProtocolId.YOUDAO_TRANSLATE_WEB_V1,
+            TranslationProtocolId.GOOGLE_TRANSLATE_WEB_V1,
+            TranslationProtocolId.DOUBAO_TRANSLATE_RESPONSES_V1,
+            TranslationProtocolId.IFLYTEK_TRANSLATE_V2,
         ).forEach { protocol ->
             assertEquals(TranslationServiceCategory.MACHINE_TRANSLATION, protocol.category)
             assertFalse(TranslationProtocolRegistry.supports(protocol, TranslationServiceCapability.AI_PROOFREAD))
@@ -425,6 +545,14 @@ class MachineTranslationAdapterTest {
     )
 
     private fun Request.bodyText(): String = Buffer().also { body?.writeTo(it) }.readUtf8()
+
+    private fun encryptYoudao(value: String, key: String, iv: String): String {
+        val cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
+        val keyBytes = java.security.MessageDigest.getInstance("MD5").digest(key.toByteArray(StandardCharsets.UTF_8))
+        val ivBytes = java.security.MessageDigest.getInstance("MD5").digest(iv.toByteArray(StandardCharsets.UTF_8))
+        cipher.init(Cipher.ENCRYPT_MODE, SecretKeySpec(keyBytes, "AES"), IvParameterSpec(ivBytes))
+        return Base64.getEncoder().encodeToString(cipher.doFinal(value.toByteArray(StandardCharsets.UTF_8)))
+    }
 
     private data class MockResponse(
         val code: Int,

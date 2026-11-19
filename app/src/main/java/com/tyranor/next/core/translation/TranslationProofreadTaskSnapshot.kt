@@ -3,6 +3,7 @@ package com.tyranor.next.core.translation
 import com.tyranor.next.core.translation.service.TranslationProtocolId
 import com.tyranor.next.core.translation.service.TranslationGenerationOptions
 import com.tyranor.next.core.translation.service.TranslationServiceProfile
+import com.tyranor.next.core.translation.service.TranslationServiceTaskSettings
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -24,6 +25,7 @@ internal data class TranslationProofreadTaskSnapshot(
     val glossaryName: String? = null,
     val userPrompt: String = "",
     val generationOptions: TranslationGenerationOptions = TranslationGenerationOptions(),
+    val taskSettings: TranslationServiceTaskSettings = TranslationServiceTaskSettings.defaults(protocolId.category),
     val retryFailed: Boolean = false,
 ) {
     fun encode(): String = JSONObject()
@@ -38,6 +40,7 @@ internal data class TranslationProofreadTaskSnapshot(
         .put("prompt", prompt)
         .put("userPrompt", userPrompt)
         .put("generationOptions", JSONObject(generationOptions.encode()))
+        .put("taskSettings", JSONObject(taskSettings.encode()))
         .put("glossaryRevision", glossaryRevision)
         .put("glossaryId", glossaryId)
         .put("glossaryName", glossaryName)
@@ -71,6 +74,7 @@ internal data class TranslationProofreadTaskSnapshot(
             proofreadingPrompt = completePrompt,
             proofreadingUserPrompt = userPrompt,
             generationOptions = generationOptions,
+            taskSettings = taskSettings,
         )
     }
 
@@ -107,6 +111,9 @@ internal data class TranslationProofreadTaskSnapshot(
                 userPrompt = value.optString("userPrompt"),
                 generationOptions = value.optJSONObject("generationOptions")?.toString()
                     ?.let(TranslationGenerationOptions::decode) ?: TranslationGenerationOptions(),
+                taskSettings = value.optJSONObject("taskSettings")?.toString()?.let {
+                    TranslationServiceTaskSettings.decode(it, protocol.category)
+                } ?: TranslationServiceTaskSettings.defaults(protocol.category),
                 retryFailed = value.optBoolean("retryFailed"),
             )
         }

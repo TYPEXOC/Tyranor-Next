@@ -33,3 +33,31 @@ taken from the original design. The original license text is available at the pr
 The drawing in `MotionLinearProgressIndicator.kt` is adapted from
 `ProgressIndicator.kt` in [Miuix](https://github.com/compose-miuix-ui/miuix) 0.9.2.
 Copyright 2025, compose-miuix-ui contributors. License: Apache License 2.0.
+
+## SmartSub（翻译服务图标）
+
+`app/src/main/res/drawable-nodpi/ic_translation_provider_*.webp` 与 `ic_translation_provider_youdao.png` 中本次新增的服务图标取自 [SmartSub](https://github.com/buxuku/SmartSub)。SmartSub 以 MIT License 发布，Copyright (c) 2024 Lin Xiaodong；其余服务协议实现为 Tyranor-Next 独立实现，没有复制 SmartSub 源码或依赖。
+
+```text
+MIT License
+
+Copyright (c) 2024 Lin Xiaodong
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```

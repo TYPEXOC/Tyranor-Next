@@ -3,6 +3,8 @@ package com.tyranor.next.core.translation
 import com.tyranor.next.core.translation.service.TranslationProtocolId
 import com.tyranor.next.core.translation.service.TranslationGenerationOptions
 import com.tyranor.next.core.translation.service.GeminiThinkingLevel
+import com.tyranor.next.core.translation.service.TranslationServiceTaskSettings
+import com.tyranor.next.core.translation.service.TranslationServiceCategory
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -34,6 +36,8 @@ class TranslationProofreadTaskSnapshotTest {
                 geminiTopK = 20,
                 geminiThinkingLevel = GeminiThinkingLevel.LOW,
             ),
+            taskSettings = TranslationServiceTaskSettings.defaults(TranslationServiceCategory.AI_TRANSLATION)
+                .copy(aiBatchSize = 12, aiBatchConcurrency = 3, aiRequestIntervalMillis = 100),
         )
         val encoded = snapshot.encode()
 

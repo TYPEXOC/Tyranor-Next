@@ -3,6 +3,7 @@ package com.tyranor.next.core.translation
 import com.tyranor.next.core.translation.service.TranslationProtocolId
 import com.tyranor.next.core.translation.service.TranslationGenerationOptions
 import com.tyranor.next.core.translation.service.TranslationServiceProfile
+import com.tyranor.next.core.translation.service.TranslationServiceTaskSettings
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -23,6 +24,7 @@ internal data class TranslationTaskSnapshot(
     val glossaryName: String? = null,
     val userPrompt: String = "",
     val generationOptions: TranslationGenerationOptions = TranslationGenerationOptions(),
+    val taskSettings: TranslationServiceTaskSettings = TranslationServiceTaskSettings.defaults(protocolId.category),
     val scope: String = SCOPE_UNTRANSLATED,
     val retryFailed: Boolean = false,
 ) {
@@ -38,6 +40,7 @@ internal data class TranslationTaskSnapshot(
         .put("prompt", prompt)
         .put("userPrompt", userPrompt)
         .put("generationOptions", JSONObject(generationOptions.encode()))
+        .put("taskSettings", JSONObject(taskSettings.encode()))
         .put("glossaryRevision", glossaryRevision)
         .put("glossaryId", glossaryId)
         .put("glossaryName", glossaryName)
@@ -68,6 +71,7 @@ internal data class TranslationTaskSnapshot(
             translationPrompt = completePrompt,
             translationUserPrompt = userPrompt,
             generationOptions = generationOptions,
+            taskSettings = taskSettings,
             secretRef = secretRef,
             updatedAt = 0,
         )
@@ -92,6 +96,9 @@ internal data class TranslationTaskSnapshot(
                 userPrompt = value.optString("userPrompt"),
                 generationOptions = value.optJSONObject("generationOptions")?.toString()
                     ?.let(TranslationGenerationOptions::decode) ?: TranslationGenerationOptions(),
+                taskSettings = value.optJSONObject("taskSettings")?.toString()?.let {
+                    TranslationServiceTaskSettings.decode(it, protocolId.category)
+                } ?: TranslationServiceTaskSettings.defaults(protocolId.category),
                 glossaryRevision = value.optLong("glossaryRevision"),
                 glossary = (0 until terms.length()).mapNotNull { index ->
                     val item = terms.optJSONObject(index) ?: return@mapNotNull null

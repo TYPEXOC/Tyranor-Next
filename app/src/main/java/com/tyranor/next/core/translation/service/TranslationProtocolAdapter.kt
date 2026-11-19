@@ -28,6 +28,7 @@ enum class TranslationItemFailureCode {
     DUPLICATE_RESPONSE,
     INVALID_TRANSLATION,
     PLACEHOLDER_MISMATCH,
+    INPUT_TOKEN_LIMIT,
 }
 
 data class TranslationBatchResponse(

@@ -3,6 +3,7 @@ package com.tyranor.next.core.translation
 import com.tyranor.next.core.translation.service.TranslationProtocolId
 import com.tyranor.next.core.translation.service.TranslationGenerationOptions
 import com.tyranor.next.core.translation.service.TranslationReasoningEffort
+import com.tyranor.next.core.translation.service.TranslationServiceTaskSettings
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -33,6 +34,9 @@ class TranslationTaskSnapshotTest {
                 maxOutputTokens = 400,
                 reasoningEffort = TranslationReasoningEffort.LOW,
             ),
+            taskSettings = TranslationServiceTaskSettings.defaults(
+                com.tyranor.next.core.translation.service.TranslationServiceCategory.AI_TRANSLATION,
+            ).copy(aiBatchSize = 16, aiBatchConcurrency = 3, aiRequestIntervalMillis = 250),
         )
 
         val encoded = snapshot.encode()

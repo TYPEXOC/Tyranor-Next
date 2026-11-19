@@ -56,6 +56,7 @@
     <string name="translation_services_machine_category_note">機械翻訳：TYN が固定テンプレートを提供します。翻訳タスクで選択する前に設定してください。</string>
     <string name="translation_services_ai_category_note">AI 翻訳：プリセットまたはカスタム API を設定できます。有効なサービスは翻訳と AI 校正に使用できます。</string>
     <string name="translation_services_provider_bing">Bing Translator</string>
+    <string name="translation_services_provider_microsoft">Microsoft Translator</string>
     <string name="translation_services_provider_niutrans">小牛翻訳</string>
     <string name="translation_services_provider_volcengine">火山引擎翻訳</string>
     <string name="translation_services_provider_azure">Azure Translator</string>
@@ -68,6 +69,10 @@
     <string name="translation_services_provider_google">Google Cloud Translation</string>
     <string name="translation_services_provider_yandex">Yandex Translate</string>
     <string name="translation_services_provider_huawei">Huawei Cloud NLP 翻訳</string>
+    <string name="translation_services_provider_doubao">Doubao 翻訳</string>
+    <string name="translation_services_provider_iflytek">iFlytek 翻訳</string>
+    <string name="translation_services_provider_google_web">Google 翻訳</string>
+    <string name="translation_services_provider_google_cloud">Google Cloud Translation</string>
     <string name="translation_services_add_bing">Bing Translator を追加</string>
     <string name="translation_services_add_niutrans">小牛翻訳を追加</string>
     <string name="translation_services_add_volcengine">火山引擎翻訳を追加</string>
@@ -133,6 +138,10 @@
     <string name="translation_services_huawei_access_key_id">Huawei Cloud Access Key ID</string>
     <string name="translation_services_huawei_secret_access_key">Huawei Cloud Secret Access Key</string>
     <string name="translation_services_huawei_project_id">Huawei Cloud プロジェクト ID</string>
+    <string name="translation_services_doubao_api_key">Volcengine Ark API Key</string>
+    <string name="translation_services_iflytek_app_id">iFlytek APPID</string>
+    <string name="translation_services_iflytek_api_key">iFlytek APIKey</string>
+    <string name="translation_services_iflytek_api_secret">iFlytek APISecret</string>
     <string name="translation_services_machine_secret_hint">認証情報は翻訳専用の暗号化ストアに保存され、保存後は表示されません。</string>
     <string name="translation_services_machine_secret_keep_hint">保存済み認証情報は非表示です。すべて空欄なら保持し、置き換える場合は必要な情報をすべて入力してください。</string>
     <string name="translation_services_key_keep_hint">空欄のままにすると保存済みキーを保持します。Android Keystore で暗号化し、バックアップ対象外にします。</string>
@@ -151,6 +160,10 @@
     <string name="translation_services_anthropic_sampling_hint">Claude では temperature と top_p を同時に指定できません。どちらか一方だけ設定してください。</string>
     <string name="translation_services_machine_protocol_note">各サービス提供元の固定 HTTPS エンドポイントに送信します。利用前に対応言語、利用枠、プライバシー条件を確認してください。</string>
     <string name="translation_services_bing_web_endpoint_note">Bing は現在、安定した公開 API ではないウェブページ翻訳トークン方式を使用しています。ページ変更やアクセス制限で利用できなくなる場合があります。</string>
+    <string name="translation_services_youdao_web_endpoint_note">Youdao のウェブ翻訳エンドポイントは安定した公開 API ではなく、サイトやアクセス方針の変更で使えなくなる場合があります。</string>
+    <string name="translation_services_google_web_endpoint_note">Google のウェブ翻訳エンドポイントは安定した公開 API ではなく、サイトやアクセス方針の変更で使えなくなる場合があります。</string>
+    <string name="translation_services_doubao_protocol_note">Volcengine Ark の専用翻訳モデルを使用します。Ark API Key が必要で、料金は Ark アカウントのルールに従います。</string>
+    <string name="translation_services_iflytek_protocol_note">iFlytek 機械翻訳 OTS v2 を使用します。同一アプリの APPID、APIKey、APISecret が必要です。</string>
     <string name="translation_services_tencent_retirement_note">Tencent Cloud は 2027-01-31 に新規販売、2027-07-31 に更新・サポートを終了し、2030-12-31 にテキスト翻訳を停止する予定です。既存の有効な有料サービスは有効期間中利用できます。</string>
     <string name="translation_services_caiyun_protocol_note">彩雲翻訳オープンプラットフォームの API Token が必要です。彩雲小訳 App のアカウントとは別のサービスです。文書に記載された中国語・英語・日本語の方向のみ対応します。</string>
     <string name="translation_services_google_protocol_note">Cloud Translation Basic v2 を使用します。Google Cloud プロジェクトで API と課金を有効にしてください。API Key はリクエストヘッダーで送信し、原文言語は自動検出できます。</string>
@@ -1705,4 +1718,17 @@
     <string name="translation_task_proofread_failed">AI 校正に失敗しました</string>
     <string name="translation_error_no_proofread_candidates">選択した範囲に校正できる翻訳済み項目がありません。</string>
     <string name="translation_error_invalid_review_entry">校正項目または提案が変更されました。更新してから再試行してください。</string>
+    <string name="translation_services_task_settings">タスク設定</string>
+    <string name="translation_services_machine_task_limits">機械翻訳リクエスト設定</string>
+    <string name="translation_services_batch_size">一括翻訳数</string>
+    <string name="translation_services_batch_size_hint">1 回のリクエストで処理するテキスト項目数。</string>
+    <string name="translation_services_batch_concurrency">同時バッチ数</string>
+    <string name="translation_services_batch_concurrency_hint">同時に送信するリクエスト数。大きい値は制限される場合があります。</string>
+    <string name="translation_services_request_interval">リクエスト間隔（秒）</string>
+    <string name="translation_services_request_interval_hint">連続するリクエストの最小待機時間。</string>
+    <string name="translation_services_requests_per_minute">1 分あたりの最大リクエスト数</string>
+    <string name="translation_services_requests_per_minute_machine_hint">直近 60 秒間の上限。0 は無制限。</string>
+    <string name="translation_services_ai_task_limits">AI 翻訳リクエスト設定</string>
+    <string name="translation_services_ai_batch_concurrency_hint">タスク内で同時に送信するモデルリクエスト数。</string>
+    <string name="translation_services_task_settings_invalid">設定値が無効です。入力範囲を確認してください。</string>
 </resources>

@@ -7,6 +7,10 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.tyranor.next.core.settings.AppStorageNames
+import com.tyranor.next.core.translation.service.DEFAULT_PROOFREADING_PROMPT
+import com.tyranor.next.core.translation.service.DEFAULT_TRANSLATION_PROMPT
+import com.tyranor.next.core.translation.service.TranslationProtocolId
+import com.tyranor.next.core.translation.service.defaultBaseUrl
 
 @Database(
     entities = [
@@ -21,7 +25,7 @@ import com.tyranor.next.core.settings.AppStorageNames
         TranslationProofreadSuggestionEntity::class,
         TranslationReviewIssueEntity::class,
     ],
-    version = 8,
+    version = 10,
     exportSchema = true,
 )
 internal abstract class TranslationWorkbenchDatabase : RoomDatabase() {
@@ -256,12 +260,64 @@ internal abstract class TranslationWorkbenchDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                seedDefaultWebTranslationProfiles(db)
+            }
+        }
+
+        private val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE translation_service_profiles ADD COLUMN task_settings_json TEXT NOT NULL DEFAULT '{}'")
+            }
+        }
+
+        private val SEED_DEFAULT_MACHINE_PROFILES = object : RoomDatabase.Callback() {
+            override fun onCreate(db: SupportSQLiteDatabase) {
+                seedDefaultWebTranslationProfiles(db)
+            }
+        }
+
+        private fun seedDefaultWebTranslationProfiles(db: SupportSQLiteDatabase) {
+            val now = System.currentTimeMillis()
+            listOf(
+                TranslationProtocolId.BING_TRANSLATOR_WEB to "Bing Translator",
+                TranslationProtocolId.YOUDAO_TRANSLATE_WEB_V1 to "Youdao Translator",
+                TranslationProtocolId.GOOGLE_TRANSLATE_WEB_V1 to "Google Translate",
+            ).forEach { (protocol, displayName) ->
+                val exists = db.query(
+                    "SELECT 1 FROM translation_service_profiles WHERE protocol_id = ? LIMIT 1",
+                    arrayOf(protocol.wireId),
+                ).use { it.moveToFirst() }
+                if (!exists) {
+                    db.execSQL(
+                        """INSERT INTO translation_service_profiles (
+                            id, display_name, protocol_id, base_url, model_id, enabled, revision,
+                            translation_prompt, proofreading_prompt, translation_user_prompt,
+                            proofreading_user_prompt, generation_options_json, secret_ref, created_at, updated_at
+                        ) VALUES (?, ?, ?, ?, '', 1, 1, ?, ?, '', '', '{}', NULL, ?, ?)""".trimIndent(),
+                        arrayOf<Any?>(
+                            "builtin-machine-${protocol.wireId}",
+                            displayName,
+                            protocol.wireId,
+                            protocol.defaultBaseUrl(),
+                            DEFAULT_TRANSLATION_PROMPT,
+                            DEFAULT_PROOFREADING_PROMPT,
+                            now,
+                            now,
+                        ),
+                    )
+                }
+            }
+        }
+
         fun get(context: Context): TranslationWorkbenchDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(
                 context.applicationContext,
                 TranslationWorkbenchDatabase::class.java,
                 AppStorageNames.TRANSLATION_WORKBENCH_DATABASE,
             )
+                .addCallback(SEED_DEFAULT_MACHINE_PROFILES)
                 .addMigrations(
                     MIGRATION_1_2,
                     MIGRATION_2_3,
@@ -270,6 +326,8 @@ internal abstract class TranslationWorkbenchDatabase : RoomDatabase() {
                     MIGRATION_5_6,
                     MIGRATION_6_7,
                     MIGRATION_7_8,
+                    MIGRATION_8_9,
+                    MIGRATION_9_10,
                 )
                 .fallbackToDestructiveMigrationOnDowngrade(dropAllTables = true)
                 .build()

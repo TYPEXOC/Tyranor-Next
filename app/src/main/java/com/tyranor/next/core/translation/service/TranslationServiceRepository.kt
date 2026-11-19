@@ -56,13 +56,15 @@ class TranslationServiceRepository(context: Context) {
         val translationUserPrompt = draft.translationUserPrompt.trim()
         val proofreadingUserPrompt = draft.proofreadingUserPrompt.trim()
         val generationOptions = draft.generationOptions
+        val taskSettings = draft.taskSettings
         val baseUrl = normalizeBaseUrl(draft.baseUrl, draft.protocolId)
         if (displayName.isBlank() || displayName.length > MAX_DISPLAY_NAME || modelId.length > MAX_MODEL_ID ||
             translationPrompt.isBlank() || translationPrompt.length > MAX_PROMPT_LENGTH ||
             proofreadingPrompt.length > MAX_PROMPT_LENGTH ||
             translationUserPrompt.length > MAX_PROMPT_LENGTH ||
             proofreadingUserPrompt.length > MAX_PROMPT_LENGTH ||
-            !generationOptions.isValidFor(draft.protocolId)
+            !generationOptions.isValidFor(draft.protocolId) ||
+            !taskSettings.isValidFor(draft.protocolId.category)
         ) {
             throw TranslationServiceException(TranslationServiceErrorCode.INVALID_CONFIGURATION)
         }
@@ -114,6 +116,7 @@ class TranslationServiceRepository(context: Context) {
             translationUserPrompt = translationUserPrompt,
             proofreadingUserPrompt = proofreadingUserPrompt,
             generationOptionsJson = generationOptions.encode(),
+            taskSettingsJson = taskSettings.encode(),
             secretRef = nextSecretRef,
             createdAt = old?.createdAt ?: now,
             updatedAt = now,
@@ -156,6 +159,7 @@ class TranslationServiceRepository(context: Context) {
                 translationUserPrompt = current.translationUserPrompt,
                 proofreadingUserPrompt = current.proofreadingUserPrompt,
                 generationOptions = current.generationOptions,
+                taskSettings = current.taskSettings,
                 secretChange = TranslationSecretChange.Keep,
             ),
         )
@@ -197,6 +201,7 @@ class TranslationServiceRepository(context: Context) {
             ?: throw TranslationServiceException(TranslationServiceErrorCode.UNSUPPORTED_PROTOCOL)
         val validUrl = runCatching { normalizeBaseUrl(baseUrl, protocol) }.isSuccess
         val generationOptions = runCatching { TranslationGenerationOptions.decode(generationOptionsJson) }.getOrNull()
+        val taskSettings = TranslationServiceTaskSettings.decode(taskSettingsJson, protocol.category)
         return TranslationServiceProfile(
             id = id,
             displayName = displayName,
@@ -215,6 +220,7 @@ class TranslationServiceRepository(context: Context) {
             translationUserPrompt = translationUserPrompt,
             proofreadingUserPrompt = proofreadingUserPrompt,
             generationOptions = generationOptions ?: TranslationGenerationOptions(),
+            taskSettings = taskSettings,
             secretRef = secretRef,
             updatedAt = updatedAt,
         )
@@ -258,7 +264,11 @@ class TranslationServiceRepository(context: Context) {
             TranslationProtocolId.CAIYUN_LINGOCLOUD_V1,
             TranslationProtocolId.GOOGLE_CLOUD_TRANSLATE_V2,
             TranslationProtocolId.YANDEX_TRANSLATE_V2,
-            TranslationProtocolId.HUAWEI_NLP_TRANSLATE_V1 -> normalizeFixedProviderUrl(value, protocolId)
+            TranslationProtocolId.HUAWEI_NLP_TRANSLATE_V1,
+            TranslationProtocolId.YOUDAO_TRANSLATE_WEB_V1,
+            TranslationProtocolId.GOOGLE_TRANSLATE_WEB_V1,
+            TranslationProtocolId.DOUBAO_TRANSLATE_RESPONSES_V1,
+            TranslationProtocolId.IFLYTEK_TRANSLATE_V2 -> normalizeFixedProviderUrl(value, protocolId)
         }
 
         private fun normalizeFixedProviderUrl(value: String, protocolId: TranslationProtocolId): String {
@@ -268,9 +278,9 @@ class TranslationServiceRepository(context: Context) {
                 ?: throw TranslationServiceException(TranslationServiceErrorCode.INVALID_CONFIGURATION)
             val expectedUri = URI(expected)
             if (trimmed.length > 256 || uri.scheme?.lowercase() != "https" ||
-                !uri.host.equals(expectedUri.host, ignoreCase = true) || uri.rawUserInfo != null ||
+            !uri.host.equals(expectedUri.host, ignoreCase = true) || uri.rawUserInfo != null ||
                 uri.rawQuery != null || uri.rawFragment != null || uri.port !in setOf(-1, 443) ||
-                uri.path.orEmpty().isNotEmpty() && uri.path != "/"
+                uri.path.orEmpty().trimEnd('/') != expectedUri.path.orEmpty().trimEnd('/')
             ) {
                 throw TranslationServiceException(TranslationServiceErrorCode.INVALID_CONFIGURATION)
             }

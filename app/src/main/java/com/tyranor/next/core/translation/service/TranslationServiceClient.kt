@@ -18,6 +18,10 @@ import com.tyranor.next.core.translation.service.protocol.machine.CaiyunLingoClo
 import com.tyranor.next.core.translation.service.protocol.machine.GoogleCloudTranslateV2Adapter
 import com.tyranor.next.core.translation.service.protocol.machine.YandexTranslateV2Adapter
 import com.tyranor.next.core.translation.service.protocol.machine.HuaweiNlpTranslateAdapter
+import com.tyranor.next.core.translation.service.protocol.machine.YoudaoWebTranslationAdapter
+import com.tyranor.next.core.translation.service.protocol.machine.GoogleTranslateWebAdapter
+import com.tyranor.next.core.translation.service.protocol.machine.DoubaoTranslationAdapter
+import com.tyranor.next.core.translation.service.protocol.machine.IflytekTranslationAdapter
 
 /** Resolves the profile revision and secret reference before crossing into a protocol adapter. */
 class TranslationServiceClient(
@@ -60,6 +64,7 @@ class TranslationServiceClient(
             translationUserPrompt = draft.translationUserPrompt,
             proofreadingUserPrompt = draft.proofreadingUserPrompt,
             generationOptions = draft.generationOptions,
+            taskSettings = draft.taskSettings,
             secretRef = existing?.secretRef,
             updatedAt = existing?.updatedAt ?: 0L,
         )
@@ -130,6 +135,10 @@ internal object TranslationProtocolRegistry {
         GoogleCloudTranslateV2Adapter(),
         YandexTranslateV2Adapter(),
         HuaweiNlpTranslateAdapter(),
+        YoudaoWebTranslationAdapter(),
+        GoogleTranslateWebAdapter(),
+        DoubaoTranslationAdapter(),
+        IflytekTranslationAdapter(),
     ).associateBy(TranslationProtocolAdapter::protocolId)
 
     fun adapter(protocolId: TranslationProtocolId): TranslationProtocolAdapter =

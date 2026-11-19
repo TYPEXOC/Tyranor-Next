@@ -104,12 +104,12 @@ internal class BingWebTranslationAdapter(
     }
 
     companion object {
-        private const val BING_HOST = "https://cn.bing.com"
-        private const val BING_REFERER = "https://cn.bing.com/Translator"
+        private const val BING_HOST = "https://www.bing.com"
+        private const val BING_REFERER = "https://www.bing.com/translator?from=auto-detect&to=zh-Hans"
         private const val USER_AGENT =
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-        private val IG_PATTERN = Pattern.compile("IG:\"([^\"]+)\"")
-        private val IID_PATTERN = Pattern.compile("id=\"tta_outGDCont\"[^>]*data-iid=\"([^\"]+)\"")
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0"
+        private val IG_PATTERN = Pattern.compile("\\\"ig\\\":\\\"([^\\\"]+)\\\"")
+        private val IID_PATTERN = Pattern.compile("data-iid=\"([^\"]+)\"")
         private val TOKEN_PATTERN = Pattern.compile("var params_AbusePreventionHelper\\s*=\\s*(\\[[^;]+])\\s*;", Pattern.DOTALL)
         private val STRING_VALUE_PATTERN = Regex("\\\"((?:\\\\.|[^\\\"\\\\])*)\\\"")
 

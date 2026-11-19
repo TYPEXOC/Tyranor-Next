@@ -24,6 +24,10 @@ enum class TranslationProtocolId(val wireId: String, val category: TranslationSe
     GOOGLE_CLOUD_TRANSLATE_V2("google-cloud-translate-v2", TranslationServiceCategory.MACHINE_TRANSLATION),
     YANDEX_TRANSLATE_V2("yandex-translate-v2", TranslationServiceCategory.MACHINE_TRANSLATION),
     HUAWEI_NLP_TRANSLATE_V1("huawei-nlp-translate-v1", TranslationServiceCategory.MACHINE_TRANSLATION),
+    YOUDAO_TRANSLATE_WEB_V1("youdao-translate-web-v1", TranslationServiceCategory.MACHINE_TRANSLATION),
+    GOOGLE_TRANSLATE_WEB_V1("google-translate-web-v1", TranslationServiceCategory.MACHINE_TRANSLATION),
+    DOUBAO_TRANSLATE_RESPONSES_V1("doubao-translate-responses-v1", TranslationServiceCategory.MACHINE_TRANSLATION),
+    IFLYTEK_TRANSLATE_V2("iflytek-translate-v2", TranslationServiceCategory.MACHINE_TRANSLATION),
 }
 
 const val GEMINI_API_BASE_URL = "https://generativelanguage.googleapis.com"
@@ -37,7 +41,9 @@ internal val TranslationProtocolId.requiresModel: Boolean
 internal val TranslationProtocolId.requiresSecret: Boolean
     get() = when (this) {
         TranslationProtocolId.OPENAI_COMPATIBLE_CHAT,
-        TranslationProtocolId.BING_TRANSLATOR_WEB -> false
+        TranslationProtocolId.BING_TRANSLATOR_WEB,
+        TranslationProtocolId.YOUDAO_TRANSLATE_WEB_V1,
+        TranslationProtocolId.GOOGLE_TRANSLATE_WEB_V1 -> false
         TranslationProtocolId.OPENAI_RESPONSES -> true
         else -> true
     }
@@ -47,7 +53,7 @@ internal fun TranslationProtocolId.defaultBaseUrl(): String = when (this) {
     TranslationProtocolId.OPENAI_RESPONSES -> OPENAI_RESPONSES_BASE_URL
     TranslationProtocolId.GEMINI_INTERACTIONS -> GEMINI_API_BASE_URL
     TranslationProtocolId.ANTHROPIC_MESSAGES -> ANTHROPIC_API_BASE_URL
-    TranslationProtocolId.BING_TRANSLATOR_WEB -> "https://cn.bing.com"
+    TranslationProtocolId.BING_TRANSLATOR_WEB -> "https://www.bing.com"
     TranslationProtocolId.NIUTRANS_TRANSLATION_V1 -> "https://api.niutrans.com"
     TranslationProtocolId.VOLCENGINE_TRANSLATE_TEXT_V1 -> "https://translate.volcengineapi.com"
     TranslationProtocolId.AZURE_TRANSLATOR_V3 -> "https://api.cognitive.microsofttranslator.com"
@@ -60,6 +66,10 @@ internal fun TranslationProtocolId.defaultBaseUrl(): String = when (this) {
     TranslationProtocolId.GOOGLE_CLOUD_TRANSLATE_V2 -> "https://translation.googleapis.com"
     TranslationProtocolId.YANDEX_TRANSLATE_V2 -> "https://translate.api.cloud.yandex.net"
     TranslationProtocolId.HUAWEI_NLP_TRANSLATE_V1 -> "https://nlp-ext.cn-north-4.myhuaweicloud.com"
+    TranslationProtocolId.YOUDAO_TRANSLATE_WEB_V1 -> "https://dict.youdao.com"
+    TranslationProtocolId.GOOGLE_TRANSLATE_WEB_V1 -> "https://translate.googleapis.com"
+    TranslationProtocolId.DOUBAO_TRANSLATE_RESPONSES_V1 -> "https://ark.cn-beijing.volces.com/api/v3"
+    TranslationProtocolId.IFLYTEK_TRANSLATE_V2 -> "https://ntrans.xfyun.cn"
 }
 
 enum class TranslationServiceCapability {
@@ -84,6 +94,7 @@ data class TranslationServiceProfile(
     val translationUserPrompt: String = "",
     val proofreadingUserPrompt: String = "",
     val generationOptions: TranslationGenerationOptions = TranslationGenerationOptions(),
+    val taskSettings: TranslationServiceTaskSettings = TranslationServiceTaskSettings.defaults(protocolId.category),
 )
 
 data class TranslationServiceDraft(
@@ -98,6 +109,7 @@ data class TranslationServiceDraft(
     val translationUserPrompt: String = "",
     val proofreadingUserPrompt: String = "",
     val generationOptions: TranslationGenerationOptions = TranslationGenerationOptions(),
+    val taskSettings: TranslationServiceTaskSettings = TranslationServiceTaskSettings.defaults(protocolId.category),
     val secretChange: TranslationSecretChange = TranslationSecretChange.Keep,
 ) {
     override fun toString(): String =

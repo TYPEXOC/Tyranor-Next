@@ -5,6 +5,7 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -38,7 +39,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -65,6 +68,7 @@ import com.tyranor.next.core.translation.service.TranslationServiceErrorCode
 import com.tyranor.next.core.translation.service.TranslationServiceException
 import com.tyranor.next.core.translation.service.TranslationModelInfo
 import com.tyranor.next.core.translation.service.TranslationServiceProfile
+import com.tyranor.next.core.translation.service.TranslationServiceTaskSettings
 import com.tyranor.next.core.translation.service.TranslationServiceRepository
 import com.tyranor.next.core.translation.service.DEFAULT_TRANSLATION_PROMPT
 import com.tyranor.next.core.translation.service.DEFAULT_PROOFREADING_PROMPT
@@ -87,6 +91,7 @@ import com.tyranor.next.ui.common.Switch
 import com.tyranor.next.ui.common.motion.listItemMotion
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import kotlin.math.roundToLong
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
 import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
 import top.yukonga.miuix.kmp.basic.TextField as MiuixTextField
@@ -111,6 +116,7 @@ private fun TranslationServicesScreen() {
     val scope = rememberCoroutineScope()
     var editor by remember { mutableStateOf<ServiceEditor?>(null) }
     var advancedSettingsEditor by remember { mutableStateOf<AdvancedSettingsEditor?>(null) }
+    var taskSettingsEditor by remember { mutableStateOf<TaskSettingsEditor?>(null) }
     var selectedCategory by remember { mutableStateOf(TranslationServiceCategory.MACHINE_TRANSLATION) }
     var deleteProfile by remember { mutableStateOf<TranslationServiceProfile?>(null) }
     var errorCode by remember { mutableStateOf<TranslationServiceErrorCode?>(null) }
@@ -129,6 +135,7 @@ private fun TranslationServicesScreen() {
         modelFetchError = null
         modelListEmpty = false
         advancedSettingsEditor = null
+        taskSettingsEditor = null
         errorCode = null
         editor = ServiceEditor.newAiProfile(
             template.protocolId,
@@ -154,9 +161,10 @@ private fun TranslationServicesScreen() {
             add(
                 ServiceListRow(
                     key = "machine:${template.protocolId.wireId}",
-                    displayName = profile?.displayName,
+                    displayName = profile?.displayName?.takeUnless { profile.id == builtinMachineProfileId(template.protocolId) },
                     displayNameResource = template.nameResource,
                     mark = template.mark,
+                    iconResource = template.iconResource,
                     protocolId = template.protocolId,
                     baseUrl = profile?.baseUrl ?: template.protocolId.defaultBaseUrl(),
                     profile = profile,
@@ -238,7 +246,9 @@ private fun TranslationServicesScreen() {
             modelFetchError = null
             modelListEmpty = false
             advancedSettingsEditor = null
-            editor = ServiceEditor.from(row.profile)
+            editor = ServiceEditor.from(row.profile).let { state ->
+                if (row.profile.id == builtinMachineProfileId(row.protocolId)) state.copy(displayName = displayName) else state
+            }
         } else if (row.protocolId.category == TranslationServiceCategory.MACHINE_TRANSLATION) {
             editor = ServiceEditor.newMachine(row.protocolId, displayName)
         } else {
@@ -345,7 +355,9 @@ private fun TranslationServicesScreen() {
 
     BackHandler(enabled = editor != null) {
         if (!isSaving) {
-            if (advancedSettingsEditor != null) {
+            if (taskSettingsEditor != null) {
+                taskSettingsEditor = null
+            } else if (advancedSettingsEditor != null) {
                 advancedSettingsEditor = null
             } else {
                 editor = null
@@ -353,7 +365,7 @@ private fun TranslationServicesScreen() {
         }
     }
 
-    editor?.takeIf { advancedSettingsEditor == null }?.let { state ->
+    editor?.takeIf { advancedSettingsEditor == null && taskSettingsEditor == null }?.let { state ->
         val isMachineTranslation = state.protocolId.category == TranslationServiceCategory.MACHINE_TRANSLATION
         MiuixSettingsTheme {
             MiuixScaffold(
@@ -589,6 +601,11 @@ private fun TranslationServicesScreen() {
                                     )
                                 }
                             }
+                    NoRippleButton(
+                        text = stringResource(R.string.translation_services_task_settings),
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = { taskSettingsEditor = TaskSettingsEditor.from(state) },
+                    )
                     if (!isMachineTranslation) {
                         NoRippleButton(
                             text = stringResource(R.string.translation_services_advanced_settings),
@@ -645,6 +662,131 @@ private fun TranslationServicesScreen() {
                                         } finally {
                                             isSaving = false
                                         }
+                                    }
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    taskSettingsEditor?.let { state ->
+        var invalidSettings by remember { mutableStateOf(false) }
+        MiuixSettingsTheme {
+            MiuixScaffold(
+                modifier = Modifier.fillMaxSize(),
+                containerColor = Color.Transparent,
+                contentWindowInsets = WindowInsets(0.dp),
+                topBar = {
+                    AppSecondaryTopBar(
+                        title = stringResource(R.string.translation_services_task_settings),
+                        background = Color.Transparent,
+                        contentColor = PageTextColor,
+                    )
+                },
+            ) { innerPadding ->
+                Box(
+                    modifier = Modifier.fillMaxSize().padding(top = innerPadding.calculateTopPadding()),
+                    contentAlignment = Alignment.TopCenter,
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().widthIn(max = 760.dp).fillMaxSize().padding(horizontal = 16.dp),
+                    ) {
+                        Column(
+                            modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            if (state.protocolId.category == TranslationServiceCategory.MACHINE_TRANSLATION) {
+                                ServiceSectionCard(title = stringResource(R.string.translation_services_machine_task_limits)) {
+                                    ServiceTextField(
+                                        value = state.batchSize,
+                                        onValueChange = { taskSettingsEditor = state.copy(batchSize = it) },
+                                        label = stringResource(R.string.translation_services_batch_size),
+                                        supportingText = stringResource(R.string.translation_services_batch_size_hint),
+                                        singleLine = true,
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                    ServiceTextField(
+                                        value = state.batchConcurrency,
+                                        onValueChange = { taskSettingsEditor = state.copy(batchConcurrency = it) },
+                                        label = stringResource(R.string.translation_services_batch_concurrency),
+                                        supportingText = stringResource(R.string.translation_services_batch_concurrency_hint),
+                                        singleLine = true,
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                    ServiceTextField(
+                                        value = state.requestIntervalSeconds,
+                                        onValueChange = { taskSettingsEditor = state.copy(requestIntervalSeconds = it) },
+                                        label = stringResource(R.string.translation_services_request_interval),
+                                        supportingText = stringResource(R.string.translation_services_request_interval_hint),
+                                        singleLine = true,
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                    ServiceTextField(
+                                        value = state.requestsPerMinute,
+                                        onValueChange = { taskSettingsEditor = state.copy(requestsPerMinute = it) },
+                                        label = stringResource(R.string.translation_services_requests_per_minute),
+                                        supportingText = stringResource(R.string.translation_services_requests_per_minute_machine_hint),
+                                        singleLine = true,
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                }
+                            } else {
+                                ServiceSectionCard(title = stringResource(R.string.translation_services_ai_task_limits)) {
+                                    ServiceTextField(
+                                        value = state.batchSize,
+                                        onValueChange = { taskSettingsEditor = state.copy(batchSize = it) },
+                                        label = stringResource(R.string.translation_services_batch_size),
+                                        supportingText = stringResource(R.string.translation_services_batch_size_hint),
+                                        singleLine = true,
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                    ServiceTextField(
+                                        value = state.batchConcurrency,
+                                        onValueChange = { taskSettingsEditor = state.copy(batchConcurrency = it) },
+                                        label = stringResource(R.string.translation_services_batch_concurrency),
+                                        supportingText = stringResource(R.string.translation_services_ai_batch_concurrency_hint),
+                                        singleLine = true,
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                    ServiceTextField(
+                                        value = state.requestIntervalSeconds,
+                                        onValueChange = { taskSettingsEditor = state.copy(requestIntervalSeconds = it) },
+                                        label = stringResource(R.string.translation_services_request_interval),
+                                        supportingText = stringResource(R.string.translation_services_request_interval_hint),
+                                        singleLine = true,
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                }
+                            }
+                            if (invalidSettings) {
+                                Text(
+                                    stringResource(R.string.translation_services_task_settings_invalid),
+                                    color = MaterialTheme.colorScheme.error,
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                            }
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(vertical = 12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            NoRippleTextButton(
+                                text = stringResource(R.string.common_cancel),
+                                onClick = { taskSettingsEditor = null },
+                            )
+                            NoRippleButton(
+                                text = stringResource(R.string.translation_services_advanced_done),
+                                onClick = {
+                                    val settings = state.toTaskSettings()
+                                    if (settings == null || !settings.isValidFor(state.protocolId.category)) {
+                                        invalidSettings = true
+                                    } else {
+                                        editor = editor?.copy(taskSettings = settings)
+                                        taskSettingsEditor = null
                                     }
                                 },
                             )
@@ -908,7 +1050,7 @@ private fun MachineProviderCredentialsFields(
     state: ServiceEditor,
     onChange: (ServiceEditor) -> Unit,
 ) {
-    if (state.protocolId == TranslationProtocolId.BING_TRANSLATOR_WEB) return
+    if (!state.protocolId.requiresStoredCredentials()) return
     ServiceTextField(
         value = state.apiKey,
         onValueChange = { onChange(state.copy(apiKey = it, clearSecret = false)) },
@@ -920,7 +1062,11 @@ private fun MachineProviderCredentialsFields(
                 R.string.translation_services_machine_secret_hint
             },
         ),
-        visualTransformation = PasswordVisualTransformation(),
+        visualTransformation = if (state.protocolId == TranslationProtocolId.IFLYTEK_TRANSLATE_V2) {
+            VisualTransformation.None
+        } else {
+            PasswordVisualTransformation()
+        },
         singleLine = true,
         modifier = Modifier.fillMaxWidth(),
     )
@@ -948,6 +1094,11 @@ private fun MachineProviderCredentialsFields(
             value = state.credentialThird,
             onValueChange = { onChange(state.copy(credentialThird = it, clearSecret = false)) },
             label = stringResource(label),
+            visualTransformation = if (state.protocolId == TranslationProtocolId.IFLYTEK_TRANSLATE_V2) {
+                PasswordVisualTransformation()
+            } else {
+                VisualTransformation.None
+            },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
@@ -1018,16 +1169,23 @@ private data class MachineServiceTemplate(
     val protocolId: TranslationProtocolId,
     val nameResource: Int,
     val mark: String,
+    val iconResource: Int?,
 )
 
 private val MACHINE_SERVICE_TEMPLATES = listOf(
-    MachineServiceTemplate(TranslationProtocolId.BING_TRANSLATOR_WEB, R.string.translation_services_provider_bing, "B"),
-    MachineServiceTemplate(TranslationProtocolId.NIUTRANS_TRANSLATION_V1, R.string.translation_services_provider_niutrans, "N"),
-    MachineServiceTemplate(TranslationProtocolId.VOLCENGINE_TRANSLATE_TEXT_V1, R.string.translation_services_provider_volcengine, "V"),
-    MachineServiceTemplate(TranslationProtocolId.AZURE_TRANSLATOR_V3, R.string.translation_services_provider_azure, "AZ"),
-    MachineServiceTemplate(TranslationProtocolId.DEEPL_TRANSLATE_V2, R.string.translation_services_provider_deepl, "DL"),
-    MachineServiceTemplate(TranslationProtocolId.BAIDU_TRANSLATE_VIP_V1, R.string.translation_services_provider_baidu, "BD"),
-    MachineServiceTemplate(TranslationProtocolId.TENCENT_TMT_TEXT_TRANSLATE_V1, R.string.translation_services_provider_tencent, "TX"),
+    MachineServiceTemplate(TranslationProtocolId.BING_TRANSLATOR_WEB, R.string.translation_services_provider_bing, "B", R.drawable.ic_translation_provider_bing),
+    MachineServiceTemplate(TranslationProtocolId.NIUTRANS_TRANSLATION_V1, R.string.translation_services_provider_niutrans, "N", R.drawable.ic_translation_provider_niutrans),
+    MachineServiceTemplate(TranslationProtocolId.VOLCENGINE_TRANSLATE_TEXT_V1, R.string.translation_services_provider_volcengine, "V", R.drawable.ic_translation_provider_volcengine),
+    MachineServiceTemplate(TranslationProtocolId.AZURE_TRANSLATOR_V3, R.string.translation_services_provider_microsoft, "MS", R.drawable.ic_translation_provider_azure),
+    MachineServiceTemplate(TranslationProtocolId.DEEPL_TRANSLATE_V2, R.string.translation_services_provider_deepl, "DL", null),
+    MachineServiceTemplate(TranslationProtocolId.BAIDU_TRANSLATE_VIP_V1, R.string.translation_services_provider_baidu, "BD", R.drawable.ic_translation_provider_baidu),
+    MachineServiceTemplate(TranslationProtocolId.TENCENT_TMT_TEXT_TRANSLATE_V1, R.string.translation_services_provider_tencent, "TX", R.drawable.ic_translation_provider_tencent),
+    MachineServiceTemplate(TranslationProtocolId.ALIBABA_MT_ROA_V1, R.string.translation_services_provider_alibaba_mt, "AL", R.drawable.ic_translation_provider_aliyun),
+    MachineServiceTemplate(TranslationProtocolId.DOUBAO_TRANSLATE_RESPONSES_V1, R.string.translation_services_provider_doubao, "DB", R.drawable.ic_translation_provider_doubao),
+    MachineServiceTemplate(TranslationProtocolId.IFLYTEK_TRANSLATE_V2, R.string.translation_services_provider_iflytek, "XF", R.drawable.ic_translation_provider_xunfei),
+    MachineServiceTemplate(TranslationProtocolId.YOUDAO_TRANSLATE_WEB_V1, R.string.translation_services_provider_youdao, "YD", R.drawable.ic_translation_provider_youdao),
+    MachineServiceTemplate(TranslationProtocolId.GOOGLE_TRANSLATE_WEB_V1, R.string.translation_services_provider_google_web, "G", R.drawable.ic_translation_provider_google_web),
+    MachineServiceTemplate(TranslationProtocolId.GOOGLE_CLOUD_TRANSLATE_V2, R.string.translation_services_provider_google_cloud, "GC", R.drawable.ic_translation_provider_google_cloud),
 )
 
 private data class ServiceListRow(
@@ -1035,6 +1193,7 @@ private data class ServiceListRow(
     val displayName: String?,
     val displayNameResource: Int?,
     val mark: String,
+    val iconResource: Int? = null,
     val protocolId: TranslationProtocolId,
     val baseUrl: String,
     val profile: TranslationServiceProfile?,
@@ -1046,6 +1205,7 @@ private fun TranslationServiceProfile.toServiceListRow() = ServiceListRow(
     displayName = displayName,
     displayNameResource = null,
     mark = protocolId.serviceMark(),
+    iconResource = protocolId.serviceIconResource(),
     protocolId = protocolId,
     baseUrl = baseUrl,
     profile = this,
@@ -1069,7 +1229,29 @@ private fun TranslationProtocolId.serviceMark(): String = when (this) {
     TranslationProtocolId.GOOGLE_CLOUD_TRANSLATE_V2 -> "G"
     TranslationProtocolId.YANDEX_TRANSLATE_V2 -> "Y"
     TranslationProtocolId.HUAWEI_NLP_TRANSLATE_V1 -> "HW"
+    TranslationProtocolId.YOUDAO_TRANSLATE_WEB_V1 -> "YD"
+    TranslationProtocolId.GOOGLE_TRANSLATE_WEB_V1 -> "G"
+    TranslationProtocolId.DOUBAO_TRANSLATE_RESPONSES_V1 -> "DB"
+    TranslationProtocolId.IFLYTEK_TRANSLATE_V2 -> "XF"
 }
+
+private fun TranslationProtocolId.serviceIconResource(): Int? = when (this) {
+    TranslationProtocolId.BING_TRANSLATOR_WEB -> R.drawable.ic_translation_provider_bing
+    TranslationProtocolId.NIUTRANS_TRANSLATION_V1 -> R.drawable.ic_translation_provider_niutrans
+    TranslationProtocolId.VOLCENGINE_TRANSLATE_TEXT_V1 -> R.drawable.ic_translation_provider_volcengine
+    TranslationProtocolId.AZURE_TRANSLATOR_V3 -> R.drawable.ic_translation_provider_azure
+    TranslationProtocolId.BAIDU_TRANSLATE_VIP_V1 -> R.drawable.ic_translation_provider_baidu
+    TranslationProtocolId.TENCENT_TMT_TEXT_TRANSLATE_V1 -> R.drawable.ic_translation_provider_tencent
+    TranslationProtocolId.ALIBABA_MT_ROA_V1 -> R.drawable.ic_translation_provider_aliyun
+    TranslationProtocolId.DOUBAO_TRANSLATE_RESPONSES_V1 -> R.drawable.ic_translation_provider_doubao
+    TranslationProtocolId.IFLYTEK_TRANSLATE_V2 -> R.drawable.ic_translation_provider_xunfei
+    TranslationProtocolId.YOUDAO_TRANSLATE_WEB_V1 -> R.drawable.ic_translation_provider_youdao
+    TranslationProtocolId.GOOGLE_TRANSLATE_WEB_V1 -> R.drawable.ic_translation_provider_google_web
+    TranslationProtocolId.GOOGLE_CLOUD_TRANSLATE_V2 -> R.drawable.ic_translation_provider_google_cloud
+    else -> null
+}
+
+private fun builtinMachineProfileId(protocolId: TranslationProtocolId): String = "builtin-machine-${protocolId.wireId}"
 
 private fun TranslationProtocolId.protocolTitleResource(): Int = when (this) {
     TranslationProtocolId.OPENAI_COMPATIBLE_CHAT -> R.string.translation_services_protocol_chat_short
@@ -1119,13 +1301,22 @@ private fun TranslationServiceTemplateCard(
                         .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(
-                        text = row.mark,
-                        color = MaterialTheme.colorScheme.primary,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                    )
+                    if (row.iconResource != null) {
+                        Image(
+                            painter = painterResource(row.iconResource),
+                            contentDescription = null,
+                            modifier = Modifier.size(28.dp),
+                            contentScale = ContentScale.Fit,
+                        )
+                    } else {
+                        Text(
+                            text = row.mark,
+                            color = MaterialTheme.colorScheme.primary,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                        )
+                    }
                 }
                 Column(
                     modifier = Modifier.weight(1f),
@@ -1260,6 +1451,7 @@ private data class ServiceEditor(
     val proofreadingPrompt: String,
     val proofreadingUserPrompt: String,
     val generationOptions: TranslationGenerationOptions,
+    val taskSettings: TranslationServiceTaskSettings,
     val allowProtocolSelection: Boolean = false,
 ) {
     fun toDraft() = TranslationServiceDraft(
@@ -1274,10 +1466,11 @@ private data class ServiceEditor(
         translationUserPrompt = translationUserPrompt,
         proofreadingUserPrompt = proofreadingUserPrompt,
         generationOptions = generationOptions,
+        taskSettings = taskSettings,
         secretChange = when {
             clearSecret -> TranslationSecretChange.Remove
             protocolId.category == TranslationServiceCategory.MACHINE_TRANSLATION &&
-                protocolId != TranslationProtocolId.BING_TRANSLATOR_WEB &&
+                protocolId.requiresStoredCredentials() &&
                 listOf(apiKey, credentialSecond, credentialRegion, credentialThird).any(String::isNotBlank) ->
                 TranslationSecretChange.Replace(
                     TranslationProviderCredentialBundle.encode(
@@ -1315,6 +1508,7 @@ private data class ServiceEditor(
             proofreadingPrompt = DEFAULT_PROOFREADING_PROMPT,
             proofreadingUserPrompt = "",
             generationOptions = TranslationGenerationOptions(),
+            taskSettings = TranslationServiceTaskSettings.defaults(protocolId.category),
             allowProtocolSelection = allowProtocolSelection,
         )
 
@@ -1336,6 +1530,7 @@ private data class ServiceEditor(
             proofreadingPrompt = DEFAULT_PROOFREADING_PROMPT,
             proofreadingUserPrompt = "",
             generationOptions = TranslationGenerationOptions(),
+            taskSettings = TranslationServiceTaskSettings.defaults(protocolId.category),
         )
 
         fun from(profile: TranslationServiceProfile) = ServiceEditor(
@@ -1356,8 +1551,56 @@ private data class ServiceEditor(
             proofreadingPrompt = profile.proofreadingPrompt,
             proofreadingUserPrompt = profile.proofreadingUserPrompt,
             generationOptions = profile.generationOptions,
+            taskSettings = profile.taskSettings,
             allowProtocolSelection = profile.protocolId.category == TranslationServiceCategory.AI_TRANSLATION,
         )
+    }
+}
+
+private data class TaskSettingsEditor(
+    val protocolId: TranslationProtocolId,
+    val original: TranslationServiceTaskSettings,
+    val batchSize: String,
+    val batchConcurrency: String,
+    val requestIntervalSeconds: String,
+    val requestsPerMinute: String,
+) {
+    fun toTaskSettings(): TranslationServiceTaskSettings? {
+        val parsedBatchSize = batchSize.toIntOrNull() ?: return null
+        val parsedConcurrency = batchConcurrency.toIntOrNull() ?: return null
+        val parsedInterval = requestIntervalSeconds.toDoubleOrNull()?.takeIf(Double::isFinite) ?: return null
+        if (parsedInterval !in 0.0..60.0) return null
+        val intervalMillis = (parsedInterval * 1_000).roundToLong()
+        return when (protocolId.category) {
+            TranslationServiceCategory.MACHINE_TRANSLATION -> {
+                val parsedRpm = requestsPerMinute.toIntOrNull() ?: return null
+                original.copy(
+                    machineBatchSize = parsedBatchSize,
+                    machineBatchConcurrency = parsedConcurrency,
+                    machineRequestIntervalMillis = intervalMillis,
+                    machineRequestsPerMinute = parsedRpm,
+                )
+            }
+            TranslationServiceCategory.AI_TRANSLATION -> original.copy(
+                aiBatchSize = parsedBatchSize,
+                aiBatchConcurrency = parsedConcurrency,
+                aiRequestIntervalMillis = intervalMillis,
+            )
+        }
+    }
+
+    companion object {
+        fun from(editor: ServiceEditor): TaskSettingsEditor {
+            val settings = editor.taskSettings
+            return TaskSettingsEditor(
+                protocolId = editor.protocolId,
+                original = settings,
+                batchSize = settings.batchSize(editor.protocolId.category).toString(),
+                batchConcurrency = settings.requestConcurrency(editor.protocolId.category).toString(),
+                requestIntervalSeconds = (settings.requestIntervalMillis(editor.protocolId.category) / 1_000.0).toString(),
+                requestsPerMinute = settings.machineRequestsPerMinute.toString(),
+            )
+        }
     }
 }
 
@@ -1443,6 +1686,8 @@ private fun GeminiThinkingLevel.labelResource(): Int = when (this) {
 }
 
 private fun TranslationProtocolId.machinePrimaryCredentialLabel(): Int = when (this) {
+    TranslationProtocolId.DOUBAO_TRANSLATE_RESPONSES_V1 -> R.string.translation_services_doubao_api_key
+    TranslationProtocolId.IFLYTEK_TRANSLATE_V2 -> R.string.translation_services_iflytek_app_id
     TranslationProtocolId.NIUTRANS_TRANSLATION_V1 -> R.string.translation_services_niutrans_api_key
     TranslationProtocolId.VOLCENGINE_TRANSLATE_TEXT_V1 -> R.string.translation_services_volc_access_key
     TranslationProtocolId.AZURE_TRANSLATOR_V3 -> R.string.translation_services_azure_key
@@ -1459,6 +1704,7 @@ private fun TranslationProtocolId.machinePrimaryCredentialLabel(): Int = when (t
 }
 
 private fun TranslationProtocolId.machineSecondCredentialLabel(): Int? = when (this) {
+    TranslationProtocolId.IFLYTEK_TRANSLATE_V2 -> R.string.translation_services_iflytek_api_key
     TranslationProtocolId.VOLCENGINE_TRANSLATE_TEXT_V1 -> R.string.translation_services_volc_secret_key
     TranslationProtocolId.BAIDU_TRANSLATE_VIP_V1 -> R.string.translation_services_baidu_secret_key
     TranslationProtocolId.TENCENT_TMT_TEXT_TRANSLATE_V1 -> R.string.translation_services_tencent_secret_key
@@ -1476,12 +1722,17 @@ private fun TranslationProtocolId.machineRegionLabel(): Int? = when (this) {
 }
 
 private fun TranslationProtocolId.machineProjectIdLabel(): Int? = when (this) {
+    TranslationProtocolId.IFLYTEK_TRANSLATE_V2 -> R.string.translation_services_iflytek_api_secret
     TranslationProtocolId.HUAWEI_NLP_TRANSLATE_V1 -> R.string.translation_services_huawei_project_id
     else -> null
 }
 
 private fun TranslationProtocolId.machineProtocolNote(): Int = when (this) {
     TranslationProtocolId.BING_TRANSLATOR_WEB -> R.string.translation_services_bing_web_endpoint_note
+    TranslationProtocolId.YOUDAO_TRANSLATE_WEB_V1 -> R.string.translation_services_youdao_web_endpoint_note
+    TranslationProtocolId.GOOGLE_TRANSLATE_WEB_V1 -> R.string.translation_services_google_web_endpoint_note
+    TranslationProtocolId.DOUBAO_TRANSLATE_RESPONSES_V1 -> R.string.translation_services_doubao_protocol_note
+    TranslationProtocolId.IFLYTEK_TRANSLATE_V2 -> R.string.translation_services_iflytek_protocol_note
     TranslationProtocolId.TENCENT_TMT_TEXT_TRANSLATE_V1 -> R.string.translation_services_tencent_retirement_note
     TranslationProtocolId.CAIYUN_LINGOCLOUD_V1 -> R.string.translation_services_caiyun_protocol_note
     TranslationProtocolId.GOOGLE_CLOUD_TRANSLATE_V2 -> R.string.translation_services_google_protocol_note
@@ -1489,6 +1740,12 @@ private fun TranslationProtocolId.machineProtocolNote(): Int = when (this) {
     TranslationProtocolId.YANDEX_TRANSLATE_V2 -> R.string.translation_services_yandex_protocol_note
     else -> R.string.translation_services_machine_protocol_note
 }
+
+private fun TranslationProtocolId.requiresStoredCredentials(): Boolean = this !in setOf(
+    TranslationProtocolId.BING_TRANSLATOR_WEB,
+    TranslationProtocolId.YOUDAO_TRANSLATE_WEB_V1,
+    TranslationProtocolId.GOOGLE_TRANSLATE_WEB_V1,
+)
 
 private fun TranslationServiceErrorCode.messageResource(): Int = when (this) {
     TranslationServiceErrorCode.INVALID_CONFIGURATION -> R.string.translation_services_error_invalid_configuration

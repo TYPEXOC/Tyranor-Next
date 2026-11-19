@@ -56,6 +56,7 @@
     <string name="translation_services_machine_category_note">Machine translation: TYN provides fixed service templates. Configure a service before selecting it for translation.</string>
     <string name="translation_services_ai_category_note">AI translation: configure a preset or add a custom API. Enabled services can be used for translation or AI proofreading.</string>
     <string name="translation_services_provider_bing">Bing Translator</string>
+    <string name="translation_services_provider_microsoft">Microsoft Translator</string>
     <string name="translation_services_provider_niutrans">NiuTrans</string>
     <string name="translation_services_provider_volcengine">Volcengine Translate</string>
     <string name="translation_services_provider_azure">Azure Translator</string>
@@ -68,6 +69,10 @@
     <string name="translation_services_provider_google">Google Cloud Translation</string>
     <string name="translation_services_provider_yandex">Yandex Translate</string>
     <string name="translation_services_provider_huawei">Huawei Cloud NLP Translation</string>
+    <string name="translation_services_provider_doubao">Doubao Translate</string>
+    <string name="translation_services_provider_iflytek">iFlytek Translate</string>
+    <string name="translation_services_provider_google_web">Google Translate</string>
+    <string name="translation_services_provider_google_cloud">Google Cloud Translate</string>
     <string name="translation_services_add_bing">Add Bing Translator</string>
     <string name="translation_services_add_niutrans">Add NiuTrans</string>
     <string name="translation_services_add_volcengine">Add Volcengine Translate</string>
@@ -133,6 +138,10 @@
     <string name="translation_services_huawei_access_key_id">Huawei Cloud Access Key ID</string>
     <string name="translation_services_huawei_secret_access_key">Huawei Cloud Secret Access Key</string>
     <string name="translation_services_huawei_project_id">Huawei Cloud project ID</string>
+    <string name="translation_services_doubao_api_key">Volcengine Ark API key</string>
+    <string name="translation_services_iflytek_app_id">iFlytek APPID</string>
+    <string name="translation_services_iflytek_api_key">iFlytek APIKey</string>
+    <string name="translation_services_iflytek_api_secret">iFlytek APISecret</string>
     <string name="translation_services_machine_secret_hint">Credentials are stored in the encrypted translation secret store and are not shown again after saving.</string>
     <string name="translation_services_machine_secret_keep_hint">Saved credentials are hidden. Leave every field blank to keep them; enter the full credential set to replace them.</string>
     <string name="translation_services_key_keep_hint">Leave blank to keep the saved key. It is encrypted with Android Keystore and excluded from backups.</string>
@@ -151,6 +160,10 @@
     <string name="translation_services_anthropic_sampling_hint">Claude does not allow temperature and top_p together. Set at most one.</string>
     <string name="translation_services_machine_protocol_note">Requests use the provider-specific fixed HTTPS endpoint. Check language support, quotas, and privacy terms before use.</string>
     <string name="translation_services_bing_web_endpoint_note">Bing currently uses its webpage translation token endpoint, which is not a stable public API. Website changes or access limits may break it.</string>
+    <string name="translation_services_youdao_web_endpoint_note">The Youdao webpage translation endpoint is not a stable public API and may stop working if its site or access policy changes.</string>
+    <string name="translation_services_google_web_endpoint_note">The Google webpage translation endpoint is not a stable public API and may stop working if its site or access policy changes.</string>
+    <string name="translation_services_doubao_protocol_note">Uses the dedicated translation model on Volcengine Ark. An Ark API key is required and usage follows account billing rules.</string>
+    <string name="translation_services_iflytek_protocol_note">Uses iFlytek Machine Translation OTS v2. APPID, APIKey, and APISecret must belong to the same application.</string>
     <string name="translation_services_tencent_retirement_note">Tencent Cloud plans to stop new sales on 2027-01-31, stop renewals/support on 2027-07-31, and shut down this text-translation service on 2030-12-31. Existing paid service remains available through its valid term.</string>
     <string name="translation_services_caiyun_protocol_note">Requires a Caiyun Translation Open Platform API token, separate from a Caiyun Xiaoyi app account. Only the documented Chinese, English, and Japanese directions are supported.</string>
     <string name="translation_services_google_protocol_note">Uses Cloud Translation Basic v2. Enable the API and billing for your Google Cloud project first. The API key is sent in a request header; source language can be detected automatically.</string>
@@ -1705,4 +1718,17 @@
     <string name="translation_task_proofread_failed">AI proofreading failed</string>
     <string name="translation_error_no_proofread_candidates">There are no translated entries in the selected scope.</string>
     <string name="translation_error_invalid_review_entry">The review entry or suggestion changed. Refresh and try again.</string>
+    <string name="translation_services_task_settings">Task settings</string>
+    <string name="translation_services_machine_task_limits">Machine translation request settings</string>
+    <string name="translation_services_batch_size">Batch size</string>
+    <string name="translation_services_batch_size_hint">Maximum text entries handled by one request.</string>
+    <string name="translation_services_batch_concurrency">Concurrent batches</string>
+    <string name="translation_services_batch_concurrency_hint">Requests sent at the same time. Higher values may trigger service rate limits.</string>
+    <string name="translation_services_request_interval">Request interval (seconds)</string>
+    <string name="translation_services_request_interval_hint">Minimum wait between consecutive requests.</string>
+    <string name="translation_services_requests_per_minute">Maximum requests per minute</string>
+    <string name="translation_services_requests_per_minute_machine_hint">Request limit in a rolling 60-second window; 0 means unlimited.</string>
+    <string name="translation_services_ai_task_limits">AI translation request settings</string>
+    <string name="translation_services_ai_batch_concurrency_hint">Model requests sent at once in a task.</string>
+    <string name="translation_services_task_settings_invalid">Invalid settings. Check the allowed value ranges.</string>
 </resources>
