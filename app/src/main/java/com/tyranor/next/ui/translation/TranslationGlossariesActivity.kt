@@ -55,7 +55,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
 import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
-import top.yukonga.miuix.kmp.basic.TextField as MiuixTextField
 
 class TranslationGlossariesActivity : AppScreenActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -245,7 +244,7 @@ private fun TranslationGlossariesScreen() {
             },
             text = {
                 Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    MiuixTextField(
+                    TranslationGlossaryDialogTextField(
                         value = current.name,
                         onValueChange = { editor = current.copy(name = it) },
                         label = stringResource(R.string.translation_glossary_name),

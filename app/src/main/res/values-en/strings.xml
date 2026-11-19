@@ -213,9 +213,9 @@
     <string name="translation_add_project_extract">Extract</string>
     <string name="translation_add_project_translate">Translate</string>
     <string name="translation_add_project_proofread">Proofread</string>
-    <string name="translation_add_project_extract_hint">Select folder and engine</string>
-    <string name="translation_add_project_translate_hint">Import for translation</string>
-    <string name="translation_add_project_proofread_hint">Import for proofreading</string>
+    <string name="translation_add_project_extract_hint">Scan a game folder and extract translatable text</string>
+    <string name="translation_add_project_translate_hint">Import text and translate with a configured service</string>
+    <string name="translation_add_project_proofread_hint">Check translation issues and proofread manually or with AI</string>
     <string name="translation_add_project_engine_hint">Choose game engine</string>
     <string name="translation_add_project_engine_disabled_hint">Extraction only</string>
     <string name="translation_add_project_engine">Game engine</string>

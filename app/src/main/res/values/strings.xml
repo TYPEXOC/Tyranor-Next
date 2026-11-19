@@ -213,9 +213,9 @@
     <string name="translation_add_project_extract">提取</string>
     <string name="translation_add_project_translate">翻译</string>
     <string name="translation_add_project_proofread">校对</string>
-    <string name="translation_add_project_extract_hint">选择目录和引擎</string>
-    <string name="translation_add_project_translate_hint">导入文本项目后配置翻译服务</string>
-    <string name="translation_add_project_proofread_hint">导入译文项目后进入校对</string>
+    <string name="translation_add_project_extract_hint">扫描目录提取游戏文本</string>
+    <string name="translation_add_project_translate_hint">使用已配置服务批量翻译</string>
+    <string name="translation_add_project_proofread_hint">检查译文并进行校对</string>
     <string name="translation_add_project_engine_hint">选择对应游戏引擎</string>
     <string name="translation_add_project_engine_disabled_hint">仅提取时可选</string>
     <string name="translation_add_project_engine">游戏引擎</string>

@@ -322,7 +322,7 @@ private fun TranslationGlossaryDetailScreen(
             },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    MiuixTextField(
+                    TranslationGlossaryDialogTextField(
                         value = current.source,
                         onValueChange = { termEditor = current.copy(source = it) },
                         label = stringResource(R.string.translation_glossary_source_term),
@@ -330,7 +330,7 @@ private fun TranslationGlossaryDetailScreen(
                         enabled = !saving,
                         modifier = Modifier.fillMaxWidth(),
                     )
-                    MiuixTextField(
+                    TranslationGlossaryDialogTextField(
                         value = current.target,
                         onValueChange = { termEditor = current.copy(target = it) },
                         label = stringResource(R.string.translation_glossary_target_term),
@@ -338,7 +338,7 @@ private fun TranslationGlossaryDetailScreen(
                         enabled = !saving,
                         modifier = Modifier.fillMaxWidth(),
                     )
-                    MiuixTextField(
+                    TranslationGlossaryDialogTextField(
                         value = current.note,
                         onValueChange = { termEditor = current.copy(note = it) },
                         label = stringResource(R.string.translation_glossary_note_optional),

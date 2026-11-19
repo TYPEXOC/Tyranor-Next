@@ -694,30 +694,15 @@ private fun TranslationWorkbenchScreen() {
                         }
                     }
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        NoRippleButton(
-                            text = stringResource(R.string.common_cancel),
-                            modifier = Modifier.weight(1f).height(48.dp),
-                            enabled = !addingProject,
-                            tonal = true,
-                            onClick = {
-                                showAddDialog = false
-                                clearNewProjectSource()
-                            },
-                        )
-                        NoRippleButton(
-                            text = stringResource(
-                                if (addingProject) R.string.translation_add_project_adding
-                                else R.string.translation_add_project_confirm,
-                            ),
-                            modifier = Modifier.weight(1f).height(48.dp),
-                            enabled = addProjectSourceUri != null && sourceFormatReady && !addingProject,
-                            onClick = ::submitNewProject,
-                        )
-                    }
+                    NoRippleButton(
+                        text = stringResource(
+                            if (addingProject) R.string.translation_add_project_adding
+                            else R.string.translation_add_project_confirm,
+                        ),
+                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 16.dp).height(48.dp),
+                        enabled = addProjectSourceUri != null && sourceFormatReady && !addingProject,
+                        onClick = ::submitNewProject,
+                    )
                     }
             }
         }
