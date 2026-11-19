@@ -612,7 +612,7 @@ private fun TranslationWorkbenchScreen() {
 
                     val choosingDirectory = addProjectOperation == ProjectAddOperation.EXTRACT
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
