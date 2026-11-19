@@ -1480,6 +1480,7 @@
     <string name="translation_review_open">Open review</string>
     <string name="translation_review_error_title">Review action failed</string>
     <string name="translation_review_title">Manual review</string>
+    <string name="translation_review_entry_number">Entry %1$d</string>
     <string name="translation_review_run_rules">Run local checks</string>
     <string name="translation_review_rules_result">This check found %1$d issues</string>
     <string name="translation_review_ai_start">Start AI proofreading</string>

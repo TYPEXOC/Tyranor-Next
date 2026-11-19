@@ -1480,6 +1480,7 @@
     <string name="translation_review_open">打开校对</string>
     <string name="translation_review_error_title">校对操作失败</string>
     <string name="translation_review_title">人工校对</string>
+    <string name="translation_review_entry_number">条目 %1$d</string>
     <string name="translation_review_run_rules">运行本地规则检查</string>
     <string name="translation_review_rules_result">本次检查发现 %1$d 个问题</string>
     <string name="translation_review_ai_start">开始 AI 校对</string>
