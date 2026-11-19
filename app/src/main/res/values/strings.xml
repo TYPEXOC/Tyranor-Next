@@ -208,14 +208,10 @@
     <string name="translation_workbench_title">翻译工作台</string>
     <string name="translation_add_project">添加项目</string>
     <string name="translation_choose_project_source">选择 RPG Maker MV/MZ 游戏目录，或导入带原文与译文的项目文件。</string>
-    <string name="translation_add_project_description">选择提取、翻译或校对，并在本页选择游戏目录或项目文件。</string>
     <string name="translation_add_project_operation">操作</string>
     <string name="translation_add_project_extract">提取</string>
     <string name="translation_add_project_translate">翻译</string>
     <string name="translation_add_project_proofread">校对</string>
-    <string name="translation_add_project_extract_hint">选择游戏目录和引擎；创建项目后可开始提取。</string>
-    <string name="translation_add_project_translate_hint">导入已提取的 CSV 或标准 JSON 项目，之后可配置翻译服务。</string>
-    <string name="translation_add_project_proofread_hint">导入含有译文的 CSV 或标准 JSON 项目，之后可进入校对。</string>
     <string name="translation_add_project_engine">游戏引擎</string>
     <string name="translation_add_project_file_format">项目格式</string>
     <string name="translation_add_project_choose_directory">选择游戏目录</string>

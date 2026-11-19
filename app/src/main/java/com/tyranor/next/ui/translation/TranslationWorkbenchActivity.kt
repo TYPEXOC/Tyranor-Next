@@ -523,26 +523,15 @@ private fun TranslationWorkbenchScreen() {
                     modifier = Modifier.fillMaxWidth().heightIn(max = 500.dp).verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Text(
-                        stringResource(R.string.translation_add_project_description),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = PageSecondaryTextColor,
-                    )
                     val operationItems = listOf(
                         stringResource(R.string.translation_add_project_extract),
                         stringResource(R.string.translation_add_project_translate),
                         stringResource(R.string.translation_add_project_proofread),
                     )
-                    val operationSummary = when (addProjectOperation) {
-                        ProjectAddOperation.EXTRACT -> stringResource(R.string.translation_add_project_extract_hint)
-                        ProjectAddOperation.TRANSLATE -> stringResource(R.string.translation_add_project_translate_hint)
-                        ProjectAddOperation.PROOFREAD -> stringResource(R.string.translation_add_project_proofread_hint)
-                    }
                     OverlayDropdownPreference(
                         items = operationItems,
                         selectedIndex = addProjectOperation.ordinal,
                         title = stringResource(R.string.translation_add_project_operation),
-                        summary = operationSummary,
                         modifier = Modifier.fillMaxWidth(),
                         enabled = !addingProject,
                         renderInRootScaffold = false,

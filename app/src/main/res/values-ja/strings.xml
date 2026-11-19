@@ -208,14 +208,10 @@
     <string name="translation_workbench_title">翻訳ワークベンチ</string>
     <string name="translation_add_project">プロジェクトを追加</string>
     <string name="translation_choose_project_source">RPG Maker MV/MZ のゲームフォルダーを選ぶか、原文と訳文を含むプロジェクトを読み込みます。</string>
-    <string name="translation_add_project_description">抽出・翻訳・校正を選び、この画面でゲームフォルダーまたはプロジェクトファイルを選択します。</string>
     <string name="translation_add_project_operation">操作</string>
     <string name="translation_add_project_extract">抽出</string>
     <string name="translation_add_project_translate">翻訳</string>
     <string name="translation_add_project_proofread">校正</string>
-    <string name="translation_add_project_extract_hint">ゲームフォルダーとエンジンを選択します。プロジェクト作成後に抽出を開始できます。</string>
-    <string name="translation_add_project_translate_hint">抽出済みの CSV または標準 JSON を読み込み、翻訳サービスを設定します。</string>
-    <string name="translation_add_project_proofread_hint">訳文を含む CSV または標準 JSON を読み込み、校正に進みます。</string>
     <string name="translation_add_project_engine">ゲームエンジン</string>
     <string name="translation_add_project_file_format">プロジェクト形式</string>
     <string name="translation_add_project_choose_directory">ゲームフォルダーを選択</string>
