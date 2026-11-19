@@ -14,6 +14,7 @@ class TranslationCustomParametersTest {
         val parameters = TranslationCustomParameters(
             headers = listOf(
                 TranslationCustomParameter("X-Tenant", TranslationParameterType.STRING, secret),
+                TranslationCustomParameter("X-Client", TranslationParameterType.STRING, "Tyranor-Next"),
             ),
             body = listOf(
                 TranslationCustomParameter("attempts", TranslationParameterType.INTEGER, "3"),
@@ -32,6 +33,7 @@ class TranslationCustomParametersTest {
 
         val request = parameters.applyHeaders(Request.Builder().url("https://example.test")).build()
         assertEquals(secret, request.header("X-Tenant"))
+        assertEquals("Tyranor-Next", request.header("X-Client"))
         val body = parameters.applyBody(JSONObject())
         assertEquals(3, body.getInt("attempts"))
         assertEquals(0.4, body.getDouble("temperature"), 0.0001)

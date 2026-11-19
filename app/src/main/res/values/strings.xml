@@ -210,7 +210,7 @@
     <string name="translation_services_custom_parameter_name">参数名</string>
     <string name="translation_services_custom_parameter_type">类型</string>
     <string name="translation_services_custom_parameter_value">参数值</string>
-    <string name="translation_services_custom_headers_value_hint">请求头值必须是单行文本。</string>
+    <string name="translation_services_custom_headers_value_hint">请求头值固定为字符串，只能输入单行文本；Temperature 等参数请添加到请求体。</string>
     <string name="translation_services_custom_parameters_invalid">参数名重复、字段受保护，或参数类型和值不匹配。</string>
     <string name="translation_services_parameter_type_string">字符串</string>
     <string name="translation_services_parameter_type_integer">整数</string>

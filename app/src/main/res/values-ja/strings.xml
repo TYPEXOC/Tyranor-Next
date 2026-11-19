@@ -210,7 +210,7 @@
     <string name="translation_services_custom_parameter_name">パラメーター名</string>
     <string name="translation_services_custom_parameter_type">種類</string>
     <string name="translation_services_custom_parameter_value">値</string>
-    <string name="translation_services_custom_headers_value_hint">ヘッダー値は1行のテキストにしてください。</string>
+    <string name="translation_services_custom_headers_value_hint">ヘッダー値は文字列固定で、1行のみ入力できます。Temperature などの設定はリクエスト本文に追加してください。</string>
     <string name="translation_services_custom_parameters_invalid">名前が重複している、保護フィールドを指定している、または値が型と一致していません。</string>
     <string name="translation_services_parameter_type_string">文字列</string>
     <string name="translation_services_parameter_type_integer">整数</string>

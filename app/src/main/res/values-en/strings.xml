@@ -210,7 +210,7 @@
     <string name="translation_services_custom_parameter_name">Parameter name</string>
     <string name="translation_services_custom_parameter_type">Type</string>
     <string name="translation_services_custom_parameter_value">Value</string>
-    <string name="translation_services_custom_headers_value_hint">Header values must be single-line text.</string>
+    <string name="translation_services_custom_headers_value_hint">Header values are always strings and must be one line. Add options such as Temperature to the request body.</string>
     <string name="translation_services_custom_parameters_invalid">The name is duplicated, a field is protected, or the value does not match its type.</string>
     <string name="translation_services_parameter_type_string">String</string>
     <string name="translation_services_parameter_type_integer">Integer</string>
