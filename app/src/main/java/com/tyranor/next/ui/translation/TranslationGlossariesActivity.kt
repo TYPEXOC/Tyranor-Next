@@ -3,7 +3,6 @@ package com.tyranor.next.ui.translation
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,7 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -29,9 +28,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -142,9 +139,10 @@ private fun TranslationGlossariesScreen() {
                         }
                     }
                 }
-                items(glossaries, key = TranslationGlossary::id) { glossary ->
+                itemsIndexed(glossaries, key = { _, glossary -> glossary.id }) { index, glossary ->
                     GlossaryCard(
                         glossary = glossary,
+                        sequence = index + 1,
                         onManage = { openGlossary(glossary) },
                         onDelete = {
                             error = null
@@ -262,6 +260,7 @@ private fun TranslationGlossariesScreen() {
 @Composable
 private fun GlossaryCard(
     glossary: TranslationGlossary,
+    sequence: Int,
     onManage: () -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -280,11 +279,12 @@ private fun GlossaryCard(
                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
                 ) {
                     Box(contentAlignment = androidx.compose.ui.Alignment.Center) {
-                        Image(
-                            painter = painterResource(R.drawable.ic_translation_workbench),
-                            contentDescription = null,
-                            modifier = Modifier.size(22.dp),
-                            colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.primary),
+                        Text(
+                            sequence.toString(),
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
                         )
                     }
                 }
