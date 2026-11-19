@@ -4,18 +4,16 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -141,10 +139,9 @@ private fun TranslationGlossariesScreen() {
                         }
                     }
                 }
-                itemsIndexed(glossaries, key = { _, glossary -> glossary.id }) { index, glossary ->
+                items(glossaries, key = { glossary -> glossary.id }) { glossary ->
                     GlossaryCard(
                         glossary = glossary,
-                        sequence = index + 1,
                         onManage = { openGlossary(glossary) },
                         onDelete = {
                             error = null
@@ -260,7 +257,6 @@ private fun TranslationGlossariesScreen() {
 @Composable
 private fun GlossaryCard(
     glossary: TranslationGlossary,
-    sequence: Int,
     onManage: () -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -276,24 +272,9 @@ private fun GlossaryCard(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
             ) {
-                Surface(
-                    modifier = Modifier.size(36.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
-                ) {
-                    Box(contentAlignment = androidx.compose.ui.Alignment.Center) {
-                        Text(
-                            sequence.toString(),
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 1,
-                        )
-                    }
-                }
                 Text(
                     glossary.name,
-                    modifier = Modifier.weight(1f).padding(start = 12.dp),
+                    modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
