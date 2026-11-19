@@ -31,6 +31,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tyranor.next.R
 import com.tyranor.next.core.translation.TranslationGlossary
@@ -275,7 +276,7 @@ private fun GlossaryCard(
                 Text(
                     glossary.name,
                     modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
