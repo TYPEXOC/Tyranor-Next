@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -28,6 +29,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -60,6 +62,7 @@ import com.tyranor.next.theme.glassBorder
 import java.util.concurrent.CancellationException
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
+import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
 
 class TranslationReviewActivity : AppScreenActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -134,13 +137,23 @@ private fun TranslationReviewScreen(projectId: String) {
     }
 
     MiuixSettingsTheme {
-        Column(Modifier.fillMaxSize()) {
-            AppSecondaryTopBar(
-                title = stringResource(R.string.translation_review_title),
-                contentColor = PageTextColor,
-            )
+        MiuixScaffold(
+            modifier = Modifier.fillMaxSize(),
+            containerColor = Color.Transparent,
+            contentWindowInsets = WindowInsets(0.dp),
+            topBar = {
+                AppSecondaryTopBar(
+                    title = stringResource(R.string.translation_review_title),
+                    background = Color.Transparent,
+                    contentColor = PageTextColor,
+                )
+            },
+        ) { innerPadding ->
             LazyColumn(
-                modifier = Modifier.fillMaxSize().widthIn(max = 820.dp).padding(horizontal = 12.dp),
+                modifier = Modifier.fillMaxSize()
+                    .widthIn(max = 820.dp)
+                    .padding(top = innerPadding.calculateTopPadding())
+                    .padding(horizontal = 12.dp),
                 contentPadding = PaddingValues(top = 12.dp, bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
