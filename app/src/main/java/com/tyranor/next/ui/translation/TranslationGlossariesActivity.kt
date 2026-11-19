@@ -3,10 +3,13 @@ package com.tyranor.next.ui.translation
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -26,7 +29,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -48,7 +53,6 @@ import com.tyranor.next.ui.common.AppSecondaryTopBar
 import com.tyranor.next.ui.common.ArrowPreference
 import com.tyranor.next.ui.common.DialogTextButton
 import com.tyranor.next.ui.common.NoRippleButton
-import com.tyranor.next.ui.common.NoRippleTextButton
 import com.tyranor.next.ui.common.glassNavBottomInset
 import com.tyranor.next.ui.common.motion.startActivityWithPageTransition
 import kotlinx.coroutines.CancellationException
@@ -139,56 +143,14 @@ private fun TranslationGlossariesScreen() {
                     }
                 }
                 items(glossaries, key = TranslationGlossary::id) { glossary ->
-                    MiuixCard(
-                        modifier = Modifier.fillMaxWidth().glassBorder(),
-                        cornerRadius = AppComponentCornerRadius,
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
-                            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-                        ) {
-                            Column(
-                                modifier = Modifier.weight(1f),
-                                verticalArrangement = Arrangement.spacedBy(7.dp),
-                            ) {
-                                Text(
-                                    glossary.name,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                                Surface(
-                                    shape = RoundedCornerShape(50.dp),
-                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
-                                ) {
-                                    Text(
-                                        stringResource(R.string.translation_glossary_term_count, glossary.termCount),
-                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.primary,
-                                    )
-                                }
-                            }
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(2.dp),
-                                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-                            ) {
-                                NoRippleTextButton(
-                                    text = stringResource(R.string.translation_glossary_manage),
-                                    onClick = { openGlossary(glossary) },
-                                )
-                                NoRippleTextButton(
-                                    text = stringResource(R.string.common_delete),
-                                    contentColor = MaterialTheme.colorScheme.error,
-                                    onClick = {
-                                        error = null
-                                        deleting = glossary
-                                    },
-                                )
-                            }
-                        }
-                    }
+                    GlossaryCard(
+                        glossary = glossary,
+                        onManage = { openGlossary(glossary) },
+                        onDelete = {
+                            error = null
+                            deleting = glossary
+                        },
+                    )
                 }
                 error?.takeIf { deleting == null }?.let { code ->
                     item(key = "glossary-error") {
@@ -295,6 +257,82 @@ private fun TranslationGlossariesScreen() {
         )
     }
 
+}
+
+@Composable
+private fun GlossaryCard(
+    glossary: TranslationGlossary,
+    onManage: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    MiuixCard(
+        modifier = Modifier.fillMaxWidth().glassBorder(),
+        cornerRadius = AppComponentCornerRadius,
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                Surface(
+                    modifier = Modifier.size(42.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+                ) {
+                    Box(contentAlignment = androidx.compose.ui.Alignment.Center) {
+                        Image(
+                            painter = painterResource(R.drawable.ic_translation_workbench),
+                            contentDescription = null,
+                            modifier = Modifier.size(22.dp),
+                            colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.primary),
+                        )
+                    }
+                }
+                Column(
+                    modifier = Modifier.weight(1f).padding(start = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(
+                        glossary.name,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Surface(
+                        shape = RoundedCornerShape(50.dp),
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                    ) {
+                        Text(
+                            stringResource(R.string.translation_glossary_term_count, glossary.termCount),
+                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 3.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                }
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                NoRippleButton(
+                    text = stringResource(R.string.translation_glossary_manage),
+                    modifier = Modifier.weight(1f),
+                    tonal = true,
+                    onClick = onManage,
+                )
+                NoRippleButton(
+                    text = stringResource(R.string.common_delete),
+                    modifier = Modifier.weight(1f),
+                    tonal = true,
+                    containerColorOverride = MaterialTheme.colorScheme.error.copy(alpha = 0.12f),
+                    contentColorOverride = MaterialTheme.colorScheme.error,
+                    onClick = onDelete,
+                )
+            }
+        }
+    }
 }
 
 private data class GlossaryNameEditor(

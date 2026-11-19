@@ -1,5 +1,6 @@
 package com.tyranor.next.ui.translation
 
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import com.tyranor.next.theme.DialogItemSurface
@@ -34,5 +35,6 @@ internal fun TranslationGlossaryDialogTextField(
         minLines = minLines,
         maxLines = maxLines,
         colors = colors,
+        textStyle = MaterialTheme.typography.bodyMedium.copy(color = TextColor),
     )
 }
