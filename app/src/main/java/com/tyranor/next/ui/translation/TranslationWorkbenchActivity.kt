@@ -65,12 +65,9 @@ import com.tyranor.next.core.translation.extraction.TranslationExtractorEngineId
 import com.tyranor.next.core.translation.service.TranslationServiceProfile
 import com.tyranor.next.core.translation.service.TranslationServiceCategory
 import com.tyranor.next.theme.AppComponentCornerRadius
-import com.tyranor.next.theme.DialogItemSurface
 import com.tyranor.next.theme.MiuixSettingsTheme
 import com.tyranor.next.theme.PageSecondaryTextColor
 import com.tyranor.next.theme.PageTextColor
-import com.tyranor.next.theme.SecondaryTextColor
-import com.tyranor.next.theme.TextColor
 import com.tyranor.next.theme.glassBorder
 import com.tyranor.next.ui.common.AppAlertDialog
 import com.tyranor.next.ui.common.AppScreenActivity
@@ -89,7 +86,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.flowOf
 import java.util.Date
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
-import top.yukonga.miuix.kmp.basic.CardDefaults
 import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
 import top.yukonga.miuix.kmp.basic.TabRowWithContour
 
@@ -611,50 +607,26 @@ private fun TranslationWorkbenchScreen() {
                     )
 
                     val choosingDirectory = addProjectOperation == ProjectAddOperation.EXTRACT
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
-                        MiuixCard(
-                            modifier = Modifier.weight(1f).height(48.dp).glassBorder(),
-                            cornerRadius = AppComponentCornerRadius,
-                            colors = CardDefaults.defaultColors(
-                                color = DialogItemSurface,
-                                contentColor = TextColor,
-                            ),
-                        ) {
-                            Column(
-                                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
-                                verticalArrangement = Arrangement.spacedBy(0.dp),
-                            ) {
-                                Text(
-                                    stringResource(
-                                        if (choosingDirectory) R.string.translation_add_project_directory_label
-                                        else R.string.translation_add_project_file_label,
-                                    ),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = SecondaryTextColor,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                                Text(
-                                    addProjectSourcePath.ifBlank {
-                                        stringResource(R.string.translation_add_project_source_not_selected)
-                                    },
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = if (addProjectSourcePath.isBlank()) SecondaryTextColor else TextColor,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                            }
+                        if (addProjectSourcePath.isNotBlank()) {
+                            Text(
+                                addProjectSourcePath,
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = PageSecondaryTextColor,
+                                maxLines = 3,
+                                overflow = TextOverflow.Ellipsis,
+                            )
                         }
                         NoRippleButton(
                             text = stringResource(
                                 if (choosingDirectory) R.string.translation_add_project_choose_directory
                                 else R.string.translation_add_project_import_file,
                             ),
-                            modifier = Modifier.height(48.dp),
+                            modifier = Modifier.fillMaxWidth().height(48.dp),
                             enabled = !addingProject,
                             onClick = ::selectNewProjectSource,
                         )
