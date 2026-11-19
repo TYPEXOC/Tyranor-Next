@@ -8,8 +8,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.tyranor.next.theme.DangerFill
+import com.tyranor.next.theme.OnDangerFill
 import top.yukonga.miuix.kmp.basic.Button as MiuixButton
 import top.yukonga.miuix.kmp.basic.ButtonDefaults as MiuixButtonDefaults
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
@@ -23,14 +24,10 @@ internal fun TranslationConfirmationDialog(
     onDismissRequest: () -> Unit,
     onPrimaryClick: () -> Unit,
     onSecondaryClick: () -> Unit,
-    primaryContainerColor: Color? = null,
-    primaryContentColor: Color? = null,
     errorMessage: String? = null,
     primaryEnabled: Boolean = true,
     secondaryEnabled: Boolean = true,
 ) {
-    val resolvedPrimaryContainerColor = primaryContainerColor ?: MaterialTheme.colorScheme.primary
-    val resolvedPrimaryContentColor = primaryContentColor ?: MaterialTheme.colorScheme.onPrimary
     OverlayDialog(
         show = true,
         title = title,
@@ -53,12 +50,12 @@ internal fun TranslationConfirmationDialog(
                 modifier = Modifier.fillMaxWidth(),
                 enabled = primaryEnabled,
                 colors = MiuixButtonDefaults.buttonColors(
-                    color = resolvedPrimaryContainerColor,
-                    contentColor = resolvedPrimaryContentColor,
+                    color = DangerFill,
+                    contentColor = OnDangerFill,
                 ),
                 onClick = onPrimaryClick,
             ) {
-                Text(primaryLabel, color = resolvedPrimaryContentColor)
+                Text(primaryLabel, color = OnDangerFill)
             }
             val secondaryContentColor = MaterialTheme.colorScheme.onSurface
             MiuixButton(

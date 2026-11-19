@@ -70,8 +70,10 @@ import com.tyranor.next.core.translation.service.TranslationServiceCategory
 import com.tyranor.next.theme.AppComponentCornerRadius
 import com.tyranor.next.theme.DialogItemSurface
 import com.tyranor.next.theme.AppThemeColors
+import com.tyranor.next.theme.DangerFill
 import com.tyranor.next.theme.MiuixSettingsTheme
 import com.tyranor.next.theme.NavWhite
+import com.tyranor.next.theme.OnDangerFill
 import com.tyranor.next.theme.PageSecondaryTextColor
 import com.tyranor.next.theme.PageTextColor
 import com.tyranor.next.theme.glassBorder
@@ -527,8 +529,6 @@ private fun TranslationWorkbenchScreen() {
                         runOperation { repository.deleteProject(projectId) }
                     },
                     onSecondaryClick = { deleteProjectId = null },
-                    primaryContainerColor = MaterialTheme.colorScheme.error,
-                    primaryContentColor = MaterialTheme.colorScheme.onError,
                 )
             }
         }
@@ -1282,9 +1282,8 @@ private fun TranslationProjectCardView(
                 )
                 NoRippleButton(
                     text = stringResource(R.string.translation_card_delete),
-                    tonal = true,
-                    containerColorOverride = MaterialTheme.colorScheme.errorContainer,
-                    contentColorOverride = MaterialTheme.colorScheme.error,
+                    containerColorOverride = DangerFill,
+                    contentColorOverride = OnDangerFill,
                     onClick = onDelete,
                 )
             }

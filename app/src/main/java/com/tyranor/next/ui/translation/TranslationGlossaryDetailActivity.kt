@@ -50,7 +50,9 @@ import com.tyranor.next.core.translation.TranslationWorkbenchException
 import com.tyranor.next.core.translation.TranslationWorkbenchRepository
 import com.tyranor.next.theme.AppComponentCornerRadius
 import com.tyranor.next.theme.AppComponentShape
+import com.tyranor.next.theme.DangerFill
 import com.tyranor.next.theme.MiuixSettingsTheme
+import com.tyranor.next.theme.OnDangerFill
 import com.tyranor.next.theme.PageSecondaryTextColor
 import com.tyranor.next.theme.PageTextColor
 import com.tyranor.next.theme.glassBorder
@@ -296,8 +298,6 @@ private fun TranslationGlossaryDetailScreen(
                         errorMessage = error?.let { stringResource(it.messageResource()) },
                         primaryEnabled = !saving && name.isNotBlank(),
                         secondaryEnabled = !saving,
-                        primaryContainerColor = MaterialTheme.colorScheme.error,
-                        primaryContentColor = MaterialTheme.colorScheme.onError,
                         onDismissRequest = { if (!saving) deletingTermIndex = null },
                         onPrimaryClick = {
                             val updatedTerms = terms.filterIndexed { termIndex, _ -> termIndex != index }
@@ -427,7 +427,6 @@ private fun GlossaryTermCard(
     onDelete: () -> Unit,
 ) {
     val primary = MaterialTheme.colorScheme.primary
-    val error = MaterialTheme.colorScheme.error
     MiuixCard(
         modifier = Modifier.fillMaxWidth().glassBorder(),
         cornerRadius = AppComponentCornerRadius,
@@ -461,16 +460,17 @@ private fun GlossaryTermCard(
                         modifier = Modifier
                             .width(64.dp)
                             .clip(AppComponentShape)
-                            .background(primary.copy(alpha = 0.12f)),
+                            .background(primary),
+                        contentColor = Color.White,
                         onClick = onEdit,
                     )
                     NoRippleTextButton(
                         text = stringResource(R.string.common_delete),
-                        contentColor = error,
+                        contentColor = OnDangerFill,
                         modifier = Modifier
                             .width(64.dp)
                             .clip(AppComponentShape)
-                            .background(error.copy(alpha = 0.10f)),
+                            .background(DangerFill),
                         onClick = onDelete,
                     )
                 }

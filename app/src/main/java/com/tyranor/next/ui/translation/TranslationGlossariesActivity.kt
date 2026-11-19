@@ -188,8 +188,6 @@ private fun TranslationGlossariesScreen() {
                         }
                     },
                     onSecondaryClick = { deleting = null },
-                    primaryContainerColor = MaterialTheme.colorScheme.error,
-                    primaryContentColor = MaterialTheme.colorScheme.onError,
                 )
             }
         }

@@ -69,6 +69,7 @@ import com.tyranor.next.core.translation.service.TranslationServiceRepository
 import com.tyranor.next.core.translation.service.DEFAULT_TRANSLATION_PROMPT
 import com.tyranor.next.core.translation.service.DEFAULT_PROOFREADING_PROMPT
 import com.tyranor.next.theme.AppComponentCornerRadius
+import com.tyranor.next.theme.DangerFill
 import com.tyranor.next.theme.MiuixSettingsTheme
 import com.tyranor.next.theme.PageSecondaryTextColor
 import com.tyranor.next.theme.PageTextColor
@@ -885,6 +886,7 @@ private fun TranslationServicesScreen() {
             confirmButton = {
                 DialogTextButton(
                     text = stringResource(R.string.common_delete),
+                    contentColor = DangerFill,
                     onClick = {
                         scope.launch {
                             runCatching { repository.deleteProfile(selected.id) }
