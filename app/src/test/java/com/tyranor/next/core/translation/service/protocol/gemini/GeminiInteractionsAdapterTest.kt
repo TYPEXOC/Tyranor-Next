@@ -7,6 +7,8 @@ import com.tyranor.next.core.translation.service.TranslationInput
 import com.tyranor.next.core.translation.service.TranslationProtocolId
 import com.tyranor.next.core.translation.service.TranslationServiceErrorCode
 import com.tyranor.next.core.translation.service.TranslationServiceException
+import com.tyranor.next.core.translation.service.TranslationGenerationOptions
+import com.tyranor.next.core.translation.service.GeminiThinkingLevel
 import com.tyranor.next.core.translation.service.TranslationServiceProfile
 import com.tyranor.next.core.translation.service.TranslationServiceRepository
 import com.tyranor.next.core.translation.service.transport.TranslationHttpTransport
@@ -64,6 +66,40 @@ class GeminiInteractionsAdapterTest {
         assertEquals("application/json", body.getJSONObject("response_format").getString("mime_type"))
         assertEquals(listOf("entry"), response.successes.map { it.entryId })
         assertTrue(response.itemFailures.isEmpty())
+    }
+
+    @Test
+    fun sendsGeminiGenerationConfigAndUserPrompt() = runBlocking {
+        val result = JSONObject().put("results", JSONArray().put(
+            JSONObject().put("id", "entry").put("translation", "こんにちは"),
+        )).toString()
+        val calls = QueuedCallFactory(listOf(HttpResult(200, interactionResponse(result))))
+        GeminiInteractionsAdapter(TranslationHttpTransport(calls)).translateBatch(
+            profile().copy(
+                translationUserPrompt = "Keep the output concise.",
+                generationOptions = TranslationGenerationOptions(
+                    temperature = 0.4,
+                    topP = 0.85,
+                    maxOutputTokens = 700,
+                    geminiTopK = 32,
+                    geminiThinkingLevel = GeminiThinkingLevel.MINIMAL,
+                ),
+            ),
+            apiKey = "test-key",
+            sourceLanguage = "en",
+            targetLanguage = "ja",
+            inputs = listOf(TranslationInput("entry", "Hello", "en", "ja")),
+            glossary = emptyList(),
+        )
+
+        val body = readBody(calls.requests.single())
+        assertTrue(body.getString("input").startsWith("Keep the output concise."))
+        val config = body.getJSONObject("generation_config")
+        assertEquals(0.4, config.getDouble("temperature"), 0.001)
+        assertEquals(0.85, config.getDouble("top_p"), 0.001)
+        assertEquals(700, config.getInt("max_output_tokens"))
+        assertEquals(32, config.getInt("top_k"))
+        assertEquals("minimal", config.getString("thinking_level"))
     }
 
     @Test

@@ -4,6 +4,8 @@ import com.tyranor.next.core.translation.service.TranslationInput
 import com.tyranor.next.core.translation.service.TranslationProtocolId
 import com.tyranor.next.core.translation.service.TranslationServiceErrorCode
 import com.tyranor.next.core.translation.service.TranslationServiceException
+import com.tyranor.next.core.translation.service.TranslationGenerationOptions
+import com.tyranor.next.core.translation.service.TranslationReasoningEffort
 import com.tyranor.next.core.translation.service.TranslationServiceProfile
 import com.tyranor.next.core.translation.service.defaultBaseUrl
 import com.tyranor.next.core.translation.service.transport.TranslationHttpTransport
@@ -82,6 +84,49 @@ class OpenAiResponsesAdapterTest {
             )
         }
         assertEquals(TranslationServiceErrorCode.INVALID_RESPONSE, failure.code)
+    }
+
+    @Test
+    fun sendsResponsesGenerationOptionsAndUserPrompt() = runBlocking {
+        val response = JSONObject()
+            .put("status", "completed")
+            .put("output", org.json.JSONArray().put(
+                JSONObject().put("type", "message").put("role", "assistant").put(
+                    "content", org.json.JSONArray().put(
+                        JSONObject().put("type", "output_text")
+                            .put("text", "{\"results\":[{\"id\":\"entry\",\"translation\":\"勇者\"}]}")
+                    ),
+                ),
+            )).toString()
+        val calls = SingleCallFactory(response)
+        val options = TranslationGenerationOptions(
+            temperature = 0.2,
+            topP = 0.7,
+            maxOutputTokens = 500,
+            frequencyPenalty = 0.1,
+            presencePenalty = -0.1,
+            reasoningEffort = TranslationReasoningEffort.MEDIUM,
+        )
+        OpenAiResponsesAdapter(TranslationHttpTransport(calls)).translateBatch(
+            profile().copy(
+                translationUserPrompt = "Use the glossary consistently.",
+                generationOptions = options,
+            ),
+            apiKey = "test-key",
+            sourceLanguage = "en",
+            targetLanguage = "ja",
+            inputs = listOf(TranslationInput("entry", "Hero", "en", "ja")),
+            glossary = emptyList(),
+        )
+
+        val body = JSONObject(readBody(calls.requests.single()))
+        assertTrue(body.getString("input").startsWith("Use the glossary consistently."))
+        assertEquals(0.2, body.getDouble("temperature"), 0.001)
+        assertEquals(0.7, body.getDouble("top_p"), 0.001)
+        assertEquals(500, body.getInt("max_output_tokens"))
+        assertEquals(0.1, body.getDouble("frequency_penalty"), 0.001)
+        assertEquals(-0.1, body.getDouble("presence_penalty"), 0.001)
+        assertEquals("medium", body.getJSONObject("reasoning").getString("effort"))
     }
 
     private fun profile() = TranslationServiceProfile(

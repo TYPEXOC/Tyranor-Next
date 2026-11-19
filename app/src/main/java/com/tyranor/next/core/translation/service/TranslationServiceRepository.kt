@@ -53,10 +53,16 @@ class TranslationServiceRepository(context: Context) {
         val modelId = draft.modelId.trim()
         val translationPrompt = draft.translationPrompt.trim()
         val proofreadingPrompt = draft.proofreadingPrompt.trim().ifBlank { DEFAULT_PROOFREADING_PROMPT }
+        val translationUserPrompt = draft.translationUserPrompt.trim()
+        val proofreadingUserPrompt = draft.proofreadingUserPrompt.trim()
+        val generationOptions = draft.generationOptions
         val baseUrl = normalizeBaseUrl(draft.baseUrl, draft.protocolId)
         if (displayName.isBlank() || displayName.length > MAX_DISPLAY_NAME || modelId.length > MAX_MODEL_ID ||
             translationPrompt.isBlank() || translationPrompt.length > MAX_PROMPT_LENGTH ||
-            proofreadingPrompt.length > MAX_PROMPT_LENGTH
+            proofreadingPrompt.length > MAX_PROMPT_LENGTH ||
+            translationUserPrompt.length > MAX_PROMPT_LENGTH ||
+            proofreadingUserPrompt.length > MAX_PROMPT_LENGTH ||
+            !generationOptions.isValidFor(draft.protocolId)
         ) {
             throw TranslationServiceException(TranslationServiceErrorCode.INVALID_CONFIGURATION)
         }
@@ -105,6 +111,9 @@ class TranslationServiceRepository(context: Context) {
             revision = revision,
             translationPrompt = translationPrompt,
             proofreadingPrompt = proofreadingPrompt,
+            translationUserPrompt = translationUserPrompt,
+            proofreadingUserPrompt = proofreadingUserPrompt,
+            generationOptionsJson = generationOptions.encode(),
             secretRef = nextSecretRef,
             createdAt = old?.createdAt ?: now,
             updatedAt = now,
@@ -144,6 +153,9 @@ class TranslationServiceRepository(context: Context) {
                 enabled = enabled,
                 translationPrompt = current.translationPrompt,
                 proofreadingPrompt = current.proofreadingPrompt,
+                translationUserPrompt = current.translationUserPrompt,
+                proofreadingUserPrompt = current.proofreadingUserPrompt,
+                generationOptions = current.generationOptions,
                 secretChange = TranslationSecretChange.Keep,
             ),
         )
@@ -184,6 +196,7 @@ class TranslationServiceRepository(context: Context) {
         val protocol = TranslationProtocolId.entries.firstOrNull { it.wireId == protocolId }
             ?: throw TranslationServiceException(TranslationServiceErrorCode.UNSUPPORTED_PROTOCOL)
         val validUrl = runCatching { normalizeBaseUrl(baseUrl, protocol) }.isSuccess
+        val generationOptions = runCatching { TranslationGenerationOptions.decode(generationOptionsJson) }.getOrNull()
         return TranslationServiceProfile(
             id = id,
             displayName = displayName,
@@ -191,13 +204,17 @@ class TranslationServiceRepository(context: Context) {
             baseUrl = baseUrl,
             modelId = modelId,
             enabled = enabled,
-            configured = validUrl && (!protocol.requiresModel || modelId.isNotBlank()) &&
+            configured = validUrl && generationOptions?.isValidFor(protocol) == true &&
+                (!protocol.requiresModel || modelId.isNotBlank()) &&
                 (!protocol.requiresSecret || secretRef != null) &&
                 (protocol != TranslationProtocolId.GEMINI_INTERACTIONS || secretRef != null),
             hasSecret = secretRef != null,
             revision = revision,
             translationPrompt = translationPrompt,
             proofreadingPrompt = proofreadingPrompt.ifBlank { DEFAULT_PROOFREADING_PROMPT },
+            translationUserPrompt = translationUserPrompt,
+            proofreadingUserPrompt = proofreadingUserPrompt,
+            generationOptions = generationOptions ?: TranslationGenerationOptions(),
             secretRef = secretRef,
             updatedAt = updatedAt,
         )

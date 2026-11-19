@@ -1,6 +1,7 @@
 package com.tyranor.next.core.translation
 
 import com.tyranor.next.core.translation.service.TranslationProtocolId
+import com.tyranor.next.core.translation.service.TranslationGenerationOptions
 import com.tyranor.next.core.translation.service.TranslationServiceProfile
 import org.json.JSONArray
 import org.json.JSONObject
@@ -20,6 +21,8 @@ internal data class TranslationTaskSnapshot(
     val glossary: List<TranslationGlossaryTerm>,
     val glossaryId: String? = null,
     val glossaryName: String? = null,
+    val userPrompt: String = "",
+    val generationOptions: TranslationGenerationOptions = TranslationGenerationOptions(),
     val scope: String = SCOPE_UNTRANSLATED,
     val retryFailed: Boolean = false,
 ) {
@@ -33,6 +36,8 @@ internal data class TranslationTaskSnapshot(
         .put("sourceLanguage", sourceLanguage)
         .put("targetLanguage", targetLanguage)
         .put("prompt", prompt)
+        .put("userPrompt", userPrompt)
+        .put("generationOptions", JSONObject(generationOptions.encode()))
         .put("glossaryRevision", glossaryRevision)
         .put("glossaryId", glossaryId)
         .put("glossaryName", glossaryName)
@@ -61,6 +66,8 @@ internal data class TranslationTaskSnapshot(
             hasSecret = secretRef != null,
             revision = serviceRevision,
             translationPrompt = completePrompt,
+            translationUserPrompt = userPrompt,
+            generationOptions = generationOptions,
             secretRef = secretRef,
             updatedAt = 0,
         )
@@ -82,6 +89,9 @@ internal data class TranslationTaskSnapshot(
                 sourceLanguage = value.getString("sourceLanguage"),
                 targetLanguage = value.getString("targetLanguage"),
                 prompt = value.getString("prompt"),
+                userPrompt = value.optString("userPrompt"),
+                generationOptions = value.optJSONObject("generationOptions")?.toString()
+                    ?.let(TranslationGenerationOptions::decode) ?: TranslationGenerationOptions(),
                 glossaryRevision = value.optLong("glossaryRevision"),
                 glossary = (0 until terms.length()).mapNotNull { index ->
                     val item = terms.optJSONObject(index) ?: return@mapNotNull null

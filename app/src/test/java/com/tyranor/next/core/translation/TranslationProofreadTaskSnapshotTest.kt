@@ -1,6 +1,8 @@
 package com.tyranor.next.core.translation
 
 import com.tyranor.next.core.translation.service.TranslationProtocolId
+import com.tyranor.next.core.translation.service.TranslationGenerationOptions
+import com.tyranor.next.core.translation.service.GeminiThinkingLevel
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -25,12 +27,21 @@ class TranslationProofreadTaskSnapshotTest {
             scope = TranslationProofreadScope.RULE_HITS,
             glossaryId = "glossary-2",
             glossaryName = "地点名词",
+            userPrompt = "Prefer concise natural dialogue.",
+            generationOptions = TranslationGenerationOptions(
+                temperature = 0.1,
+                maxOutputTokens = 600,
+                geminiTopK = 20,
+                geminiThinkingLevel = GeminiThinkingLevel.LOW,
+            ),
         )
         val encoded = snapshot.encode()
 
-        assertEquals(snapshot, TranslationProofreadTaskSnapshot.decode(encoded))
+        val decoded = TranslationProofreadTaskSnapshot.decode(encoded)
+        assertEquals(snapshot, decoded)
         assertEquals("RULE_HITS", JSONObject(encoded).getString("scope"))
         assertEquals("glossary-2", JSONObject(encoded).getString("glossaryId"))
+        assertEquals("Prefer concise natural dialogue.", decoded.userPrompt)
         assertFalse(encoded.contains("apiKey"))
         assertFalse(encoded.contains("secret-value"))
     }

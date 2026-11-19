@@ -65,6 +65,9 @@ data class TranslationServiceProfile(
     val secretRef: String?,
     val updatedAt: Long,
     val proofreadingPrompt: String = DEFAULT_PROOFREADING_PROMPT,
+    val translationUserPrompt: String = "",
+    val proofreadingUserPrompt: String = "",
+    val generationOptions: TranslationGenerationOptions = TranslationGenerationOptions(),
 )
 
 data class TranslationServiceDraft(
@@ -76,6 +79,9 @@ data class TranslationServiceDraft(
     val enabled: Boolean = false,
     val translationPrompt: String = DEFAULT_TRANSLATION_PROMPT,
     val proofreadingPrompt: String = DEFAULT_PROOFREADING_PROMPT,
+    val translationUserPrompt: String = "",
+    val proofreadingUserPrompt: String = "",
+    val generationOptions: TranslationGenerationOptions = TranslationGenerationOptions(),
     val secretChange: TranslationSecretChange = TranslationSecretChange.Keep,
 ) {
     override fun toString(): String =

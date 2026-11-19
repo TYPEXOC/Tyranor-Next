@@ -50,6 +50,9 @@ class TranslationServiceClient(
             revision = existing?.revision ?: 0L,
             translationPrompt = draft.translationPrompt,
             proofreadingPrompt = draft.proofreadingPrompt,
+            translationUserPrompt = draft.translationUserPrompt,
+            proofreadingUserPrompt = draft.proofreadingUserPrompt,
+            generationOptions = draft.generationOptions,
             secretRef = existing?.secretRef,
             updatedAt = existing?.updatedAt ?: 0L,
         )

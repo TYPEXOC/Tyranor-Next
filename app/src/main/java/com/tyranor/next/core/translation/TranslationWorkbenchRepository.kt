@@ -547,6 +547,8 @@ class TranslationWorkbenchRepository(context: Context) {
                     sourceLanguage = source,
                     targetLanguage = target,
                     prompt = service.translationPrompt,
+                    userPrompt = service.translationUserPrompt,
+                    generationOptions = service.generationOptions,
                     glossaryId = reusableGlossary?.id,
                     glossaryName = reusableGlossary?.name,
                     glossaryRevision = reusableGlossary?.revision ?: 0L,
@@ -668,6 +670,8 @@ class TranslationWorkbenchRepository(context: Context) {
                 sourceLanguage = source,
                 targetLanguage = target,
                 prompt = service.proofreadingPrompt,
+                userPrompt = service.proofreadingUserPrompt,
+                generationOptions = service.generationOptions,
                 glossaryId = reusableGlossary?.id,
                 glossaryName = reusableGlossary?.name,
                 glossaryRevision = reusableGlossary?.revision ?: 0L,
@@ -918,7 +922,7 @@ class TranslationWorkbenchRepository(context: Context) {
         private const val MAX_GLOSSARY_TERM_LENGTH = 120
         private const val MAX_GLOSSARY_NOTE_LENGTH = 500
         private const val MAX_GLOSSARY_CHARS = 8_000
-        private const val MAX_TASK_SNAPSHOT_BYTES = 64 * 1024
+        private const val MAX_TASK_SNAPSHOT_BYTES = 256 * 1024
         private const val MAX_TRANSLATION_SNAPSHOT_ATTEMPTS = 3
         private const val MAX_MANUAL_TRANSLATION_LENGTH = 100_000
     }

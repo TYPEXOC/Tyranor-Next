@@ -37,6 +37,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tyranor.next.R
 import com.tyranor.next.core.translation.service.TranslationProtocolId
 import com.tyranor.next.core.translation.service.TranslationServiceCategory
+import com.tyranor.next.core.translation.service.ChatCompletionTokenLimitField
+import com.tyranor.next.core.translation.service.GeminiThinkingLevel
+import com.tyranor.next.core.translation.service.TranslationGenerationOptions
+import com.tyranor.next.core.translation.service.TranslationReasoningEffort
 import com.tyranor.next.core.translation.service.GEMINI_API_BASE_URL
 import com.tyranor.next.core.translation.service.OPENAI_RESPONSES_BASE_URL
 import com.tyranor.next.core.translation.service.TranslationProviderCredentialBundle
@@ -63,6 +67,7 @@ import com.tyranor.next.ui.common.AppScreenActivity
 import com.tyranor.next.ui.common.AppSecondaryTopBar
 import com.tyranor.next.ui.common.DialogTextButton
 import com.tyranor.next.ui.common.NoRippleButton
+import com.tyranor.next.ui.common.OverlayDropdownPreference
 import com.tyranor.next.ui.common.SwitchPreference
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
@@ -88,6 +93,7 @@ private fun TranslationServicesScreen() {
     val profiles by repository.observeProfiles().collectAsStateWithLifecycle(initialValue = emptyList())
     val scope = rememberCoroutineScope()
     var editor by remember { mutableStateOf<ServiceEditor?>(null) }
+    var advancedSettingsEditor by remember { mutableStateOf<AdvancedSettingsEditor?>(null) }
     var showAiTemplates by remember { mutableStateOf(false) }
     var deleteProfile by remember { mutableStateOf<TranslationServiceProfile?>(null) }
     var errorCode by remember { mutableStateOf<TranslationServiceErrorCode?>(null) }
@@ -106,6 +112,7 @@ private fun TranslationServicesScreen() {
         modelFetchError = null
         modelListEmpty = false
         showAiTemplates = false
+        advancedSettingsEditor = null
         editor = ServiceEditor.newAiProfile(template.protocolId, displayName, template.baseUrl)
     }
 
@@ -327,7 +334,12 @@ private fun TranslationServicesScreen() {
     editor?.let { state ->
         val isMachineTranslation = state.protocolId.category == TranslationServiceCategory.MACHINE_TRANSLATION
         AppAlertDialog(
-            onDismissRequest = { if (!isSaving) editor = null },
+            onDismissRequest = {
+                if (!isSaving) {
+                    advancedSettingsEditor = null
+                    editor = null
+                }
+            },
             title = {
                 Text(
                     stringResource(
@@ -506,27 +518,11 @@ private fun TranslationServicesScreen() {
                         style = MaterialTheme.typography.bodySmall,
                         color = PageSecondaryTextColor,
                     )
-                    if (!isMachineTranslation) DialogTextButton(
-                        text = stringResource(
-                            if (state.showPrompt) R.string.translation_services_hide_prompt
-                            else R.string.translation_services_edit_prompt,
-                        ),
-                        onClick = { editor = state.copy(showPrompt = !state.showPrompt) },
-                    )
-                    if (!isMachineTranslation && state.showPrompt) {
-                        OutlinedTextField(
-                            value = state.prompt,
-                            onValueChange = { editor = state.copy(prompt = it) },
-                            label = { Text(stringResource(R.string.translation_services_translation_prompt)) },
-                            minLines = 3,
+                    if (!isMachineTranslation) {
+                        NoRippleButton(
+                            text = stringResource(R.string.translation_services_advanced_settings),
                             modifier = Modifier.fillMaxWidth(),
-                        )
-                        OutlinedTextField(
-                            value = state.proofreadingPrompt,
-                            onValueChange = { editor = state.copy(proofreadingPrompt = it) },
-                            label = { Text(stringResource(R.string.translation_services_proofreading_prompt)) },
-                            minLines = 3,
-                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { advancedSettingsEditor = AdvancedSettingsEditor.from(state) },
                         )
                     }
                     if (state.id != null) {
@@ -534,6 +530,7 @@ private fun TranslationServicesScreen() {
                             text = stringResource(R.string.translation_services_delete_action),
                             onClick = {
                                 profiles.firstOrNull { it.id == state.id }?.let { deleteProfile = it }
+                                advancedSettingsEditor = null
                                 editor = null
                             },
                         )
@@ -550,6 +547,7 @@ private fun TranslationServicesScreen() {
                             isSaving = true
                             try {
                                 repository.saveProfile(state.toDraft())
+                                advancedSettingsEditor = null
                                 editor = null
                                 errorCode = null
                             } catch (failure: Throwable) {
@@ -565,10 +563,218 @@ private fun TranslationServicesScreen() {
                 DialogTextButton(
                     text = stringResource(R.string.common_cancel),
                     enabled = !isSaving,
-                    onClick = { editor = null },
+                    onClick = {
+                        advancedSettingsEditor = null
+                        editor = null
+                    },
                 )
             },
         )
+    }
+
+    advancedSettingsEditor?.let { state ->
+        var invalidOptions by remember { mutableStateOf(false) }
+        MiuixSettingsTheme {
+            AppAlertDialog(
+                onDismissRequest = { advancedSettingsEditor = null },
+                title = {
+                    Text(
+                        stringResource(R.string.translation_services_advanced_settings),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                },
+                text = {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().heightIn(max = 520.dp).verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(
+                            stringResource(R.string.translation_services_translation_prompts),
+                            style = MaterialTheme.typography.titleSmall,
+                        )
+                        OutlinedTextField(
+                            value = state.translationSystemPrompt,
+                            onValueChange = { advancedSettingsEditor = state.copy(translationSystemPrompt = it) },
+                            label = { Text(stringResource(R.string.translation_services_system_prompt)) },
+                            minLines = 3,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        OutlinedTextField(
+                            value = state.translationUserPrompt,
+                            onValueChange = { advancedSettingsEditor = state.copy(translationUserPrompt = it) },
+                            label = { Text(stringResource(R.string.translation_services_user_prompt)) },
+                            supportingText = { Text(stringResource(R.string.translation_services_user_prompt_hint)) },
+                            minLines = 2,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Text(
+                            stringResource(R.string.translation_services_proofreading_prompts),
+                            style = MaterialTheme.typography.titleSmall,
+                        )
+                        OutlinedTextField(
+                            value = state.proofreadingSystemPrompt,
+                            onValueChange = { advancedSettingsEditor = state.copy(proofreadingSystemPrompt = it) },
+                            label = { Text(stringResource(R.string.translation_services_system_prompt)) },
+                            minLines = 3,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        OutlinedTextField(
+                            value = state.proofreadingUserPrompt,
+                            onValueChange = { advancedSettingsEditor = state.copy(proofreadingUserPrompt = it) },
+                            label = { Text(stringResource(R.string.translation_services_user_prompt)) },
+                            supportingText = { Text(stringResource(R.string.translation_services_user_prompt_hint)) },
+                            minLines = 2,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Text(
+                            stringResource(R.string.translation_services_generation_parameters),
+                            style = MaterialTheme.typography.titleSmall,
+                        )
+                        Text(
+                            stringResource(R.string.translation_services_generation_parameters_hint),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = PageSecondaryTextColor,
+                        )
+                        OutlinedTextField(
+                            value = state.temperature,
+                            onValueChange = { advancedSettingsEditor = state.copy(temperature = it) },
+                            label = { Text(stringResource(R.string.translation_services_temperature)) },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        OutlinedTextField(
+                            value = state.topP,
+                            onValueChange = { advancedSettingsEditor = state.copy(topP = it) },
+                            label = { Text(stringResource(R.string.translation_services_top_p)) },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        OutlinedTextField(
+                            value = state.maxOutputTokens,
+                            onValueChange = { advancedSettingsEditor = state.copy(maxOutputTokens = it) },
+                            label = { Text(stringResource(R.string.translation_services_max_output_tokens)) },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        if (state.protocolId == TranslationProtocolId.OPENAI_COMPATIBLE_CHAT ||
+                            state.protocolId == TranslationProtocolId.OPENAI_RESPONSES
+                        ) {
+                            OutlinedTextField(
+                                value = state.frequencyPenalty,
+                                onValueChange = { advancedSettingsEditor = state.copy(frequencyPenalty = it) },
+                                label = { Text(stringResource(R.string.translation_services_frequency_penalty)) },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            OutlinedTextField(
+                                value = state.presencePenalty,
+                                onValueChange = { advancedSettingsEditor = state.copy(presencePenalty = it) },
+                                label = { Text(stringResource(R.string.translation_services_presence_penalty)) },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            val reasoningOptions = listOf(null) + TranslationReasoningEffort.entries
+                            val reasoningItems = listOf(
+                                stringResource(R.string.translation_services_provider_default),
+                                stringResource(R.string.translation_services_reasoning_none),
+                                stringResource(R.string.translation_services_reasoning_minimal),
+                                stringResource(R.string.translation_services_reasoning_low),
+                                stringResource(R.string.translation_services_reasoning_medium),
+                                stringResource(R.string.translation_services_reasoning_high),
+                                stringResource(R.string.translation_services_reasoning_xhigh),
+                            )
+                            OverlayDropdownPreference(
+                                items = reasoningItems,
+                                selectedIndex = reasoningOptions.indexOf(state.reasoningEffort),
+                                title = stringResource(R.string.translation_services_reasoning_effort),
+                                modifier = Modifier.fillMaxWidth(),
+                                renderInRootScaffold = false,
+                                onSelectedIndexChange = { index ->
+                                    advancedSettingsEditor = state.copy(reasoningEffort = reasoningOptions.getOrNull(index))
+                                },
+                            )
+                        }
+                        if (state.protocolId == TranslationProtocolId.OPENAI_COMPATIBLE_CHAT) {
+                            val tokenLimitOptions = ChatCompletionTokenLimitField.entries
+                            OverlayDropdownPreference(
+                                items = listOf(
+                                    stringResource(R.string.translation_services_max_tokens_legacy),
+                                    stringResource(R.string.translation_services_max_completion_tokens),
+                                ),
+                                selectedIndex = tokenLimitOptions.indexOf(state.chatTokenLimitField),
+                                title = stringResource(R.string.translation_services_chat_token_limit_field),
+                                modifier = Modifier.fillMaxWidth(),
+                                renderInRootScaffold = false,
+                                onSelectedIndexChange = { index ->
+                                    tokenLimitOptions.getOrNull(index)?.let { selected ->
+                                        advancedSettingsEditor = state.copy(chatTokenLimitField = selected)
+                                    }
+                                },
+                            )
+                        }
+                        if (state.protocolId == TranslationProtocolId.GEMINI_INTERACTIONS) {
+                            OutlinedTextField(
+                                value = state.geminiTopK,
+                                onValueChange = { advancedSettingsEditor = state.copy(geminiTopK = it) },
+                                label = { Text(stringResource(R.string.translation_services_gemini_top_k)) },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            val thinkingOptions = listOf(null) + GeminiThinkingLevel.entries
+                            OverlayDropdownPreference(
+                                items = listOf(
+                                    stringResource(R.string.translation_services_provider_default),
+                                    stringResource(R.string.translation_services_reasoning_minimal),
+                                    stringResource(R.string.translation_services_reasoning_low),
+                                    stringResource(R.string.translation_services_reasoning_medium),
+                                    stringResource(R.string.translation_services_reasoning_high),
+                                ),
+                                selectedIndex = thinkingOptions.indexOf(state.geminiThinkingLevel),
+                                title = stringResource(R.string.translation_services_gemini_thinking_level),
+                                modifier = Modifier.fillMaxWidth(),
+                                renderInRootScaffold = false,
+                                onSelectedIndexChange = { index ->
+                                    advancedSettingsEditor = state.copy(geminiThinkingLevel = thinkingOptions.getOrNull(index))
+                                },
+                            )
+                        }
+                        if (invalidOptions) {
+                            Text(
+                                stringResource(R.string.translation_services_generation_parameters_invalid),
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                    }
+                },
+                confirmButton = {
+                    DialogTextButton(
+                        text = stringResource(R.string.translation_services_advanced_done),
+                        onClick = {
+                            val options = state.toGenerationOptions()
+                            if (options == null) {
+                                invalidOptions = true
+                            } else {
+                                editor = editor?.copy(
+                                    prompt = state.translationSystemPrompt,
+                                    translationUserPrompt = state.translationUserPrompt,
+                                    proofreadingPrompt = state.proofreadingSystemPrompt,
+                                    proofreadingUserPrompt = state.proofreadingUserPrompt,
+                                    generationOptions = options,
+                                )
+                                advancedSettingsEditor = null
+                            }
+                        },
+                    )
+                },
+                dismissButton = {
+                    DialogTextButton(
+                        text = stringResource(R.string.common_cancel),
+                        onClick = { advancedSettingsEditor = null },
+                    )
+                },
+            )
+        }
     }
 
     deleteProfile?.let { selected ->
@@ -738,9 +944,11 @@ private data class ServiceEditor(
     val hasSavedSecret: Boolean,
     val clearSecret: Boolean,
     val enabled: Boolean,
-    val showPrompt: Boolean,
     val prompt: String,
+    val translationUserPrompt: String,
     val proofreadingPrompt: String,
+    val proofreadingUserPrompt: String,
+    val generationOptions: TranslationGenerationOptions,
 ) {
     fun toDraft() = TranslationServiceDraft(
         id = id,
@@ -751,6 +959,9 @@ private data class ServiceEditor(
         enabled = enabled,
         translationPrompt = prompt.ifBlank { DEFAULT_TRANSLATION_PROMPT },
         proofreadingPrompt = proofreadingPrompt.ifBlank { DEFAULT_PROOFREADING_PROMPT },
+        translationUserPrompt = translationUserPrompt,
+        proofreadingUserPrompt = proofreadingUserPrompt,
+        generationOptions = generationOptions,
         secretChange = when {
             clearSecret -> TranslationSecretChange.Remove
             protocolId.category == TranslationServiceCategory.MACHINE_TRANSLATION &&
@@ -781,9 +992,11 @@ private data class ServiceEditor(
             hasSavedSecret = false,
             clearSecret = false,
             enabled = false,
-            showPrompt = false,
             prompt = DEFAULT_TRANSLATION_PROMPT,
+            translationUserPrompt = "",
             proofreadingPrompt = DEFAULT_PROOFREADING_PROMPT,
+            proofreadingUserPrompt = "",
+            generationOptions = TranslationGenerationOptions(),
         )
 
         fun newMachine(protocolId: TranslationProtocolId) = ServiceEditor(
@@ -798,9 +1011,11 @@ private data class ServiceEditor(
             hasSavedSecret = false,
             clearSecret = false,
             enabled = false,
-            showPrompt = false,
             prompt = DEFAULT_TRANSLATION_PROMPT,
+            translationUserPrompt = "",
             proofreadingPrompt = DEFAULT_PROOFREADING_PROMPT,
+            proofreadingUserPrompt = "",
+            generationOptions = TranslationGenerationOptions(),
         )
 
         fun from(profile: TranslationServiceProfile) = ServiceEditor(
@@ -815,11 +1030,94 @@ private data class ServiceEditor(
             hasSavedSecret = profile.hasSecret,
             clearSecret = false,
             enabled = profile.enabled,
-            showPrompt = false,
             prompt = profile.translationPrompt,
+            translationUserPrompt = profile.translationUserPrompt,
             proofreadingPrompt = profile.proofreadingPrompt,
+            proofreadingUserPrompt = profile.proofreadingUserPrompt,
+            generationOptions = profile.generationOptions,
         )
     }
+}
+
+private data class AdvancedSettingsEditor(
+    val protocolId: TranslationProtocolId,
+    val translationSystemPrompt: String,
+    val translationUserPrompt: String,
+    val proofreadingSystemPrompt: String,
+    val proofreadingUserPrompt: String,
+    val temperature: String,
+    val topP: String,
+    val maxOutputTokens: String,
+    val chatTokenLimitField: ChatCompletionTokenLimitField,
+    val frequencyPenalty: String,
+    val presencePenalty: String,
+    val reasoningEffort: TranslationReasoningEffort?,
+    val geminiTopK: String,
+    val geminiThinkingLevel: GeminiThinkingLevel?,
+) {
+    fun toGenerationOptions(): TranslationGenerationOptions? {
+        if (temperature.isNotBlank() && temperature.toDoubleOrNull() == null ||
+            topP.isNotBlank() && topP.toDoubleOrNull() == null ||
+            maxOutputTokens.isNotBlank() && maxOutputTokens.toIntOrNull() == null ||
+            frequencyPenalty.isNotBlank() && frequencyPenalty.toDoubleOrNull() == null ||
+            presencePenalty.isNotBlank() && presencePenalty.toDoubleOrNull() == null ||
+            geminiTopK.isNotBlank() && geminiTopK.toIntOrNull() == null
+        ) return null
+        return TranslationGenerationOptions(
+            temperature = temperature.toDoubleOrNull(),
+            topP = topP.toDoubleOrNull(),
+            maxOutputTokens = maxOutputTokens.toIntOrNull(),
+            chatTokenLimitField = chatTokenLimitField,
+            frequencyPenalty = frequencyPenalty.toDoubleOrNull(),
+            presencePenalty = presencePenalty.toDoubleOrNull(),
+            reasoningEffort = reasoningEffort,
+            geminiTopK = geminiTopK.toIntOrNull(),
+            geminiThinkingLevel = geminiThinkingLevel,
+        ).takeIf { it.isValidFor(protocolId) }
+    }
+
+    companion object {
+        fun from(editor: ServiceEditor): AdvancedSettingsEditor {
+            val options = editor.generationOptions
+            return AdvancedSettingsEditor(
+                protocolId = editor.protocolId,
+                translationSystemPrompt = editor.prompt,
+                translationUserPrompt = editor.translationUserPrompt,
+                proofreadingSystemPrompt = editor.proofreadingPrompt,
+                proofreadingUserPrompt = editor.proofreadingUserPrompt,
+                temperature = options.temperature?.toString().orEmpty(),
+                topP = options.topP?.toString().orEmpty(),
+                maxOutputTokens = options.maxOutputTokens?.toString().orEmpty(),
+                chatTokenLimitField = options.chatTokenLimitField,
+                frequencyPenalty = options.frequencyPenalty?.toString().orEmpty(),
+                presencePenalty = options.presencePenalty?.toString().orEmpty(),
+                reasoningEffort = options.reasoningEffort,
+                geminiTopK = options.geminiTopK?.toString().orEmpty(),
+                geminiThinkingLevel = options.geminiThinkingLevel,
+            )
+        }
+    }
+}
+
+private fun ChatCompletionTokenLimitField.labelResource(): Int = when (this) {
+    ChatCompletionTokenLimitField.MAX_TOKENS -> R.string.translation_services_max_tokens_legacy
+    ChatCompletionTokenLimitField.MAX_COMPLETION_TOKENS -> R.string.translation_services_max_completion_tokens
+}
+
+private fun TranslationReasoningEffort.labelResource(): Int = when (this) {
+    TranslationReasoningEffort.NONE -> R.string.translation_services_reasoning_none
+    TranslationReasoningEffort.MINIMAL -> R.string.translation_services_reasoning_minimal
+    TranslationReasoningEffort.LOW -> R.string.translation_services_reasoning_low
+    TranslationReasoningEffort.MEDIUM -> R.string.translation_services_reasoning_medium
+    TranslationReasoningEffort.HIGH -> R.string.translation_services_reasoning_high
+    TranslationReasoningEffort.XHIGH -> R.string.translation_services_reasoning_xhigh
+}
+
+private fun GeminiThinkingLevel.labelResource(): Int = when (this) {
+    GeminiThinkingLevel.MINIMAL -> R.string.translation_services_reasoning_minimal
+    GeminiThinkingLevel.LOW -> R.string.translation_services_reasoning_low
+    GeminiThinkingLevel.MEDIUM -> R.string.translation_services_reasoning_medium
+    GeminiThinkingLevel.HIGH -> R.string.translation_services_reasoning_high
 }
 
 private fun TranslationProtocolId.machineDefaultName(): String = when (this) {

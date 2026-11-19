@@ -14,6 +14,7 @@ import com.tyranor.next.core.translation.service.TranslationServiceErrorCode
 import com.tyranor.next.core.translation.service.TranslationServiceException
 import com.tyranor.next.core.translation.service.TranslationServiceProfile
 import com.tyranor.next.core.translation.service.defaultBaseUrl
+import com.tyranor.next.core.translation.service.formatAiUserMessage
 import com.tyranor.next.core.translation.service.transport.TranslationHttpTransport
 import java.net.HttpURLConnection
 import okhttp3.HttpUrl
@@ -74,7 +75,13 @@ internal class OpenAiResponsesAdapter(
             .put("results", JSONArray().apply {
                 inputs.forEach { input -> put(JSONObject().put("id", input.entryId).put("text", input.sourceText)) }
             })
-        val response = executeResponse(profile, apiKey, profile.translationPrompt, payload.toString())
+        val response = executeResponse(
+            profile,
+            apiKey,
+            profile.translationPrompt,
+            profile.translationUserPrompt,
+            payload.toString(),
+        )
         return TranslationProtocolStructuredResultParser.parseTranslations(response, inputs)
     }
 
@@ -97,7 +104,13 @@ internal class OpenAiResponsesAdapter(
                     put(JSONObject().put("id", input.entryId).put("source", input.sourceText).put("translation", input.translatedText))
                 }
             })
-        val response = executeResponse(profile, apiKey, profile.proofreadingPrompt, payload.toString())
+        val response = executeResponse(
+            profile,
+            apiKey,
+            profile.proofreadingPrompt,
+            profile.proofreadingUserPrompt,
+            payload.toString(),
+        )
         return TranslationProtocolStructuredResultParser.parseProofreadSuggestions(response, inputs)
     }
 
@@ -105,14 +118,15 @@ internal class OpenAiResponsesAdapter(
         profile: TranslationServiceProfile,
         apiKey: String?,
         instructions: String,
+        userPrompt: String,
         input: String,
     ): String {
-        val requestBody = JSONObject()
+        val requestBody = profile.generationOptions.addOpenAiResponsesParameters(JSONObject()
             .put("model", profile.modelId)
             .put("instructions", instructions)
-            .put("input", input)
+            .put("input", formatAiUserMessage(userPrompt, input))
             .put("store", false)
-            .toString()
+        ).toString()
         if (requestBody.toByteArray(Charsets.UTF_8).size > MAX_REQUEST_BYTES) {
             throw TranslationServiceException(TranslationServiceErrorCode.REQUEST_REJECTED)
         }

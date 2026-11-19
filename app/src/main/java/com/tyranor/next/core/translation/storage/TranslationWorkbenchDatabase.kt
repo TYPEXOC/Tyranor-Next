@@ -21,7 +21,7 @@ import com.tyranor.next.core.settings.AppStorageNames
         TranslationProofreadSuggestionEntity::class,
         TranslationReviewIssueEntity::class,
     ],
-    version = 7,
+    version = 8,
     exportSchema = true,
 )
 internal abstract class TranslationWorkbenchDatabase : RoomDatabase() {
@@ -248,6 +248,14 @@ internal abstract class TranslationWorkbenchDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE translation_service_profiles ADD COLUMN translation_user_prompt TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE translation_service_profiles ADD COLUMN proofreading_user_prompt TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE translation_service_profiles ADD COLUMN generation_options_json TEXT NOT NULL DEFAULT '{}'")
+            }
+        }
+
         fun get(context: Context): TranslationWorkbenchDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(
                 context.applicationContext,
@@ -261,6 +269,7 @@ internal abstract class TranslationWorkbenchDatabase : RoomDatabase() {
                     MIGRATION_4_5,
                     MIGRATION_5_6,
                     MIGRATION_6_7,
+                    MIGRATION_7_8,
                 )
                 .fallbackToDestructiveMigrationOnDowngrade(dropAllTables = true)
                 .build()

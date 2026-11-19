@@ -14,6 +14,7 @@ import com.tyranor.next.core.translation.service.TranslationServiceErrorCode
 import com.tyranor.next.core.translation.service.TranslationServiceException
 import com.tyranor.next.core.translation.service.TranslationServiceProfile
 import com.tyranor.next.core.translation.service.TranslationServiceRepository
+import com.tyranor.next.core.translation.service.formatAiUserMessage
 import com.tyranor.next.core.translation.service.transport.TranslationHttpTransport
 import java.net.HttpURLConnection
 import okhttp3.HttpUrl
@@ -101,7 +102,13 @@ internal class GeminiInteractionsAdapter(
             .put("results", JSONArray().apply {
                 inputs.forEach { put(JSONObject().put("id", it.entryId).put("text", it.sourceText)) }
             })
-        val body = createInteractionBody(profile, profile.translationPrompt, input.toString(), translationResponseSchema())
+        val body = createInteractionBody(
+            profile,
+            profile.translationPrompt,
+            profile.translationUserPrompt,
+            input.toString(),
+            translationResponseSchema(),
+        )
         val response = postInteraction(profile, key, body)
         return TranslationProtocolStructuredResultParser.parseTranslations(response, inputs)
     }
@@ -127,7 +134,13 @@ internal class GeminiInteractionsAdapter(
                     put(JSONObject().put("id", it.entryId).put("source", it.sourceText).put("translation", it.translatedText))
                 }
             })
-        val body = createInteractionBody(profile, profile.proofreadingPrompt, input.toString(), proofreadingResponseSchema())
+        val body = createInteractionBody(
+            profile,
+            profile.proofreadingPrompt,
+            profile.proofreadingUserPrompt,
+            input.toString(),
+            proofreadingResponseSchema(),
+        )
         val response = postInteraction(profile, key, body)
         return TranslationProtocolStructuredResultParser.parseProofreadSuggestions(response, inputs)
     }
@@ -166,11 +179,12 @@ internal class GeminiInteractionsAdapter(
     private fun createInteractionBody(
         profile: TranslationServiceProfile,
         systemInstruction: String,
+        userPrompt: String,
         input: String,
         schema: JSONObject,
     ): String = JSONObject()
             .put("model", profile.modelId)
-            .put("input", input)
+            .put("input", formatAiUserMessage(userPrompt, input))
             .put("system_instruction", systemInstruction)
             .put("response_format", JSONObject()
                 .put("type", "text")
@@ -178,6 +192,10 @@ internal class GeminiInteractionsAdapter(
                 .put("schema", schema))
             .put("store", false)
             .put("stream", false)
+            .apply {
+                val generationConfig = profile.generationOptions.geminiGenerationConfig()
+                if (generationConfig.length() > 0) put("generation_config", generationConfig)
+            }
             .toString()
 
     private fun translationResponseSchema() = resultSchema(

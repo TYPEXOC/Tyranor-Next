@@ -13,6 +13,7 @@ import com.tyranor.next.core.translation.service.TranslationServiceErrorCode
 import com.tyranor.next.core.translation.service.TranslationServiceException
 import com.tyranor.next.core.translation.service.TranslationServiceProfile
 import com.tyranor.next.core.translation.service.TranslationServiceCapability
+import com.tyranor.next.core.translation.service.formatAiUserMessage
 import com.tyranor.next.core.translation.service.transport.TranslationHttpTransport
 import java.net.HttpURLConnection
 import okhttp3.MediaType.Companion.toMediaType
@@ -145,28 +146,30 @@ internal class OpenAiCompatibleChatAdapter(
         targetLanguage: String,
         inputs: List<ProofreadInput>,
     ): String {
+        val taskData = JSONObject()
+            .put("sourceLanguage", sourceLanguage)
+            .put("targetLanguage", targetLanguage)
+            .put("results", JSONArray().apply {
+                inputs.forEach { input ->
+                    put(
+                        JSONObject()
+                            .put("id", input.entryId)
+                            .put("source", input.sourceText)
+                            .put("translation", input.translatedText),
+                    )
+                }
+            })
         val messages = JSONArray()
             .put(JSONObject().put("role", "system").put("content", profile.proofreadingPrompt))
             .put(
                 JSONObject().put("role", "user").put(
                     "content",
-                    JSONObject()
-                        .put("sourceLanguage", sourceLanguage)
-                        .put("targetLanguage", targetLanguage)
-                        .put("results", JSONArray().apply {
-                            inputs.forEach { input ->
-                                put(
-                                    JSONObject()
-                                        .put("id", input.entryId)
-                                        .put("source", input.sourceText)
-                                        .put("translation", input.translatedText),
-                                )
-                            }
-                        })
-                        .toString(),
+                    formatAiUserMessage(profile.proofreadingUserPrompt, taskData.toString()),
                 ),
             )
-        return JSONObject().put("model", profile.modelId).put("messages", messages).put("stream", false).toString()
+        return profile.generationOptions.addOpenAiChatParameters(
+            JSONObject().put("model", profile.modelId).put("messages", messages).put("stream", false),
+        ).toString()
     }
 
     private fun createRequestBody(
@@ -176,6 +179,28 @@ internal class OpenAiCompatibleChatAdapter(
         inputs: List<TranslationInput>,
         glossary: List<TranslationGlossaryEntry>,
     ): String {
+        val taskData = JSONObject()
+            .put("sourceLanguage", sourceLanguage)
+            .put("targetLanguage", targetLanguage)
+            .put(
+                "glossary",
+                JSONArray().apply {
+                    glossary.forEach { term ->
+                        put(JSONObject()
+                            .put("source", term.sourceTerm)
+                            .put("target", term.targetTerm)
+                            .put("note", term.note))
+                    }
+                },
+            )
+            .put(
+                "results",
+                JSONArray().apply {
+                    inputs.forEach { input ->
+                        put(JSONObject().put("id", input.entryId).put("text", input.sourceText))
+                    }
+                },
+            )
         val messages = JSONArray()
             .put(
                 JSONObject()
@@ -187,36 +212,14 @@ internal class OpenAiCompatibleChatAdapter(
                     .put("role", "user")
                     .put(
                         "content",
-                        JSONObject()
-                            .put("sourceLanguage", sourceLanguage)
-                            .put("targetLanguage", targetLanguage)
-                            .put(
-                                "glossary",
-                                JSONArray().apply {
-                                    glossary.forEach { term ->
-                                        put(JSONObject()
-                                            .put("source", term.sourceTerm)
-                                            .put("target", term.targetTerm)
-                                            .put("note", term.note))
-                                    }
-                                },
-                            )
-                            .put(
-                                "results",
-                                JSONArray().apply {
-                                    inputs.forEach { input ->
-                                        put(JSONObject().put("id", input.entryId).put("text", input.sourceText))
-                                    }
-                                },
-                            )
-                            .toString(),
+                        formatAiUserMessage(profile.translationUserPrompt, taskData.toString()),
                     ),
             )
-        return JSONObject()
+        return profile.generationOptions.addOpenAiChatParameters(JSONObject()
             .put("model", profile.modelId)
             .put("messages", messages)
             .put("stream", false)
-            .toString()
+        ).toString()
     }
 
     private fun requestBuilder(

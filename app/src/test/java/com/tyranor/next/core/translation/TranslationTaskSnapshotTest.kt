@@ -1,6 +1,8 @@
 package com.tyranor.next.core.translation
 
 import com.tyranor.next.core.translation.service.TranslationProtocolId
+import com.tyranor.next.core.translation.service.TranslationGenerationOptions
+import com.tyranor.next.core.translation.service.TranslationReasoningEffort
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -24,6 +26,13 @@ class TranslationTaskSnapshotTest {
             glossary = listOf(TranslationGlossaryTerm("勇者", "勇者", "角色称呼")),
             glossaryId = "glossary-1",
             glossaryName = "角色名词",
+            userPrompt = "Keep proper names short.",
+            generationOptions = TranslationGenerationOptions(
+                temperature = 0.2,
+                topP = 0.8,
+                maxOutputTokens = 400,
+                reasoningEffort = TranslationReasoningEffort.LOW,
+            ),
         )
 
         val encoded = snapshot.encode()
@@ -32,6 +41,7 @@ class TranslationTaskSnapshotTest {
         assertEquals(snapshot, decoded)
         assertEquals("UNTRANSLATED", JSONObject(encoded).getString("scope"))
         assertEquals("glossary-1", JSONObject(encoded).getString("glossaryId"))
+        assertEquals("Keep proper names short.", decoded.userPrompt)
         assertFalse(encoded.contains("apiKey"))
         assertFalse(encoded.contains("secret-value"))
     }

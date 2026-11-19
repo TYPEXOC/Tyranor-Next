@@ -1,6 +1,7 @@
 package com.tyranor.next.core.translation
 
 import com.tyranor.next.core.translation.service.TranslationProtocolId
+import com.tyranor.next.core.translation.service.TranslationGenerationOptions
 import com.tyranor.next.core.translation.service.TranslationServiceProfile
 import org.json.JSONArray
 import org.json.JSONObject
@@ -21,6 +22,8 @@ internal data class TranslationProofreadTaskSnapshot(
     val scope: TranslationProofreadScope,
     val glossaryId: String? = null,
     val glossaryName: String? = null,
+    val userPrompt: String = "",
+    val generationOptions: TranslationGenerationOptions = TranslationGenerationOptions(),
     val retryFailed: Boolean = false,
 ) {
     fun encode(): String = JSONObject()
@@ -33,6 +36,8 @@ internal data class TranslationProofreadTaskSnapshot(
         .put("sourceLanguage", sourceLanguage)
         .put("targetLanguage", targetLanguage)
         .put("prompt", prompt)
+        .put("userPrompt", userPrompt)
+        .put("generationOptions", JSONObject(generationOptions.encode()))
         .put("glossaryRevision", glossaryRevision)
         .put("glossaryId", glossaryId)
         .put("glossaryName", glossaryName)
@@ -64,6 +69,8 @@ internal data class TranslationProofreadTaskSnapshot(
             secretRef = secretRef,
             updatedAt = 0,
             proofreadingPrompt = completePrompt,
+            proofreadingUserPrompt = userPrompt,
+            generationOptions = generationOptions,
         )
     }
 
@@ -97,6 +104,9 @@ internal data class TranslationProofreadTaskSnapshot(
                 scope = scope,
                 glossaryId = value.optString("glossaryId").takeIf(String::isNotBlank),
                 glossaryName = value.optString("glossaryName").takeIf(String::isNotBlank),
+                userPrompt = value.optString("userPrompt"),
+                generationOptions = value.optJSONObject("generationOptions")?.toString()
+                    ?.let(TranslationGenerationOptions::decode) ?: TranslationGenerationOptions(),
                 retryFailed = value.optBoolean("retryFailed"),
             )
         }

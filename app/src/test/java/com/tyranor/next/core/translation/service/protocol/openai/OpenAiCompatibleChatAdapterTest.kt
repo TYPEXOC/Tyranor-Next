@@ -7,6 +7,9 @@ import com.tyranor.next.core.translation.service.TranslationProtocolId
 import com.tyranor.next.core.translation.service.TranslationItemFailureCode
 import com.tyranor.next.core.translation.service.TranslationServiceErrorCode
 import com.tyranor.next.core.translation.service.TranslationServiceException
+import com.tyranor.next.core.translation.service.ChatCompletionTokenLimitField
+import com.tyranor.next.core.translation.service.TranslationGenerationOptions
+import com.tyranor.next.core.translation.service.TranslationReasoningEffort
 import com.tyranor.next.core.translation.service.TranslationServiceProfile
 import com.tyranor.next.core.translation.service.defaultBaseUrl
 import com.tyranor.next.core.translation.service.transport.TranslationHttpTransport
@@ -26,6 +29,7 @@ import kotlin.reflect.KClass
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -107,6 +111,62 @@ class OpenAiCompatibleChatAdapterTest {
         val messages = body.getJSONArray("messages")
         val userPayload = JSONObject(messages.getJSONObject(1).getString("content"))
         assertEquals("勇者", userPayload.getJSONArray("glossary").getJSONObject(0).getString("target"))
+    }
+
+    @Test
+    fun sendsOptionalGenerationOptionsAndSeparateUserPrompt() = runBlocking {
+        val response = """{"choices":[{"message":{"content":"{\"results\":[{\"id\":\"entry\",\"translation\":\"勇者\"}]}"}}]}"""
+        val callFactory = SingleCallFactory(response)
+        val options = TranslationGenerationOptions(
+            temperature = 0.3,
+            topP = 0.75,
+            maxOutputTokens = 420,
+            chatTokenLimitField = ChatCompletionTokenLimitField.MAX_TOKENS,
+            frequencyPenalty = 0.2,
+            presencePenalty = -0.1,
+            reasoningEffort = TranslationReasoningEffort.LOW,
+        )
+        OpenAiCompatibleChatAdapter(TranslationHttpTransport(callFactory)).translateBatch(
+            profile().copy(
+                translationUserPrompt = "Prefer short dialogue.",
+                generationOptions = options,
+            ),
+            apiKey = null,
+            sourceLanguage = "en",
+            targetLanguage = "ja",
+            inputs = listOf(input("entry", "Hero")),
+            glossary = emptyList(),
+        )
+
+        val body = JSONObject(readBody(callFactory.requests.single()))
+        val userMessage = body.getJSONArray("messages").getJSONObject(1).getString("content")
+        assertTrue(userMessage.startsWith("Prefer short dialogue."))
+        assertTrue(userMessage.contains("\"id\":\"entry\""))
+        assertEquals(0.3, body.getDouble("temperature"), 0.001)
+        assertEquals(0.75, body.getDouble("top_p"), 0.001)
+        assertEquals(420, body.getInt("max_tokens"))
+        assertFalse(body.has("max_completion_tokens"))
+        assertEquals(0.2, body.getDouble("frequency_penalty"), 0.001)
+        assertEquals(-0.1, body.getDouble("presence_penalty"), 0.001)
+        assertEquals("low", body.getString("reasoning_effort"))
+    }
+
+    @Test
+    fun sendsProofreadingUserPromptAsTheUserRole() = runBlocking {
+        val response = """{"choices":[{"message":{"content":"{\"results\":[{\"id\":\"entry\",\"suggestedTranslation\":\"勇者\",\"issues\":[] }]}"}}]}"""
+        val callFactory = SingleCallFactory(response)
+        OpenAiCompatibleChatAdapter(TranslationHttpTransport(callFactory)).proofreadBatch(
+            profile().copy(proofreadingUserPrompt = "Keep the established character names."),
+            apiKey = null,
+            sourceLanguage = "en",
+            targetLanguage = "ja",
+            inputs = listOf(ProofreadInput("entry", "Hero", "勇者")),
+        )
+
+        val body = JSONObject(readBody(callFactory.requests.single()))
+        val messages = body.getJSONArray("messages")
+        assertEquals("system", messages.getJSONObject(0).getString("role"))
+        assertTrue(messages.getJSONObject(1).getString("content").startsWith("Keep the established character names."))
     }
 
     @Test

@@ -2,6 +2,7 @@
 
 ## 未发布
 
+- AI 翻译服务新增“高级设置”弹窗，可分别编辑翻译与校对的系统/用户提示词，并按协议配置温度、Top P、输出 Token 上限、OpenAI 惩罚/推理参数及 Gemini Top K/思考等级。任务快照固定启动时参数；Chat Completions 可选择 `max_tokens` 或 `max_completion_tokens`，未设置的参数沿用服务端默认。模型参数支持随模型变化，真实供应商账户与设备网络验收尚未完成。
 - 翻译工作台新增可复用的命名术语表管理页，可添加术语表并逐条编辑术语与备注；开始批量翻译时可下拉选择。v6→v7 会迁移现有项目术语，并把术语表版本与内容写入新任务快照；删除术语表不影响已启动任务。尚未完成真实项目迁移设备验收。
 
 - 翻译服务新增独立 OpenAI Responses API adapter，固定官方主机并将请求设为 `store=false`；AI 服务新增 Chat Completions、Responses API、Gemini Interactions 三组模板选择，预设 OpenAI、DeepSeek、阿里云百炼（通义千问 AI）、Moonshot、智谱、MiniMax、硅基流动、OpenRouter、火山方舟、腾讯混元和百度千帆 Chat Completions 根地址。模型 ID 留空由用户获取或手动填写；厂商预设复用 Chat Completions adapter，不代表各自拥有独立协议 adapter。真实服务账号和 Android 设备网络验收尚未完成。
