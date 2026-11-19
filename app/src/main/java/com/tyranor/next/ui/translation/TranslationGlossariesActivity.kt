@@ -277,8 +277,8 @@ private fun GlossaryCard(
                 verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
             ) {
                 Surface(
-                    modifier = Modifier.size(42.dp),
-                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.size(36.dp),
+                    shape = RoundedCornerShape(12.dp),
                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
                 ) {
                     Box(contentAlignment = androidx.compose.ui.Alignment.Center) {
