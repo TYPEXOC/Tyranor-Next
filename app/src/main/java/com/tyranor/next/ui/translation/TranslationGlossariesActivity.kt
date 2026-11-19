@@ -3,11 +3,15 @@ package com.tyranor.next.ui.translation
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -267,16 +271,16 @@ private fun GlossaryCard(
     ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 42.dp),
                 verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
             ) {
                 Text(
                     glossary.name,
                     modifier = Modifier.weight(1f).padding(start = 8.dp),
-                    style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
+                    style = MaterialTheme.typography.titleMedium.copy(fontSize = 20.sp),
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -293,6 +297,13 @@ private fun GlossaryCard(
                     )
                 }
             }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp)
+                    .height(1.dp)
+                    .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)),
+            )
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
