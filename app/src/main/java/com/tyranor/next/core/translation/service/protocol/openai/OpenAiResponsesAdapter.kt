@@ -13,8 +13,10 @@ import com.tyranor.next.core.translation.service.TranslationServiceCapability
 import com.tyranor.next.core.translation.service.TranslationServiceErrorCode
 import com.tyranor.next.core.translation.service.TranslationServiceException
 import com.tyranor.next.core.translation.service.TranslationServiceProfile
+import com.tyranor.next.core.translation.service.addOpenAiResponsesFormat
 import com.tyranor.next.core.translation.service.defaultBaseUrl
 import com.tyranor.next.core.translation.service.formatAiUserMessage
+import com.tyranor.next.core.translation.service.translationResultSchema
 import com.tyranor.next.core.translation.service.transport.TranslationHttpTransport
 import java.net.HttpURLConnection
 import okhttp3.HttpUrl
@@ -35,7 +37,7 @@ internal class OpenAiResponsesAdapter(
 
     override suspend fun listModels(profile: TranslationServiceProfile, apiKey: String?): List<TranslationModelInfo> {
         requireProfile(profile, apiKey)
-        val response = transport.execute(requestBuilder(apiKey, endpoint(profile, "models")).get().build())
+        val response = transport.execute(requestBuilder(profile, apiKey, endpoint(profile, "models")).get().build())
         requireSuccess(response.statusCode, response.body, response.retryAfterMillis, modelList = true)
         val data = try {
             JSONObject(response.body).optJSONArray("data")
@@ -81,6 +83,7 @@ internal class OpenAiResponsesAdapter(
             profile.translationPrompt,
             profile.translationUserPrompt,
             payload.toString(),
+            proofreading = false,
         )
         return TranslationProtocolStructuredResultParser.parseTranslations(response, inputs)
     }
@@ -110,6 +113,7 @@ internal class OpenAiResponsesAdapter(
             profile.proofreadingPrompt,
             profile.proofreadingUserPrompt,
             payload.toString(),
+            proofreading = true,
         )
         return TranslationProtocolStructuredResultParser.parseProofreadSuggestions(response, inputs)
     }
@@ -120,18 +124,25 @@ internal class OpenAiResponsesAdapter(
         instructions: String,
         userPrompt: String,
         input: String,
+        proofreading: Boolean,
     ): String {
-        val requestBody = profile.generationOptions.addOpenAiResponsesParameters(JSONObject()
+        val body = profile.generationOptions.addOpenAiResponsesParameters(JSONObject()
             .put("model", profile.modelId)
             .put("instructions", instructions)
             .put("input", formatAiUserMessage(userPrompt, input))
             .put("store", false)
-        ).toString()
+        )
+        profile.generationOptions.structuredOutputMode.addOpenAiResponsesFormat(
+            body,
+            translationResultSchema(proofreading),
+            if (proofreading) "translation_proofread_results" else "translation_results",
+        )
+        val requestBody = profile.requestParameters.applyBody(body).toString()
         if (requestBody.toByteArray(Charsets.UTF_8).size > MAX_REQUEST_BYTES) {
             throw TranslationServiceException(TranslationServiceErrorCode.REQUEST_REJECTED)
         }
         val response = transport.execute(
-            requestBuilder(apiKey, endpoint(profile, "responses"))
+            requestBuilder(profile, apiKey, endpoint(profile, "responses"))
                 .post(requestBody.toRequestBody(JSON_MEDIA_TYPE))
                 .build(),
         )
@@ -163,11 +174,12 @@ internal class OpenAiResponsesAdapter(
         }
     }
 
-    private fun requestBuilder(apiKey: String?, url: HttpUrl): Request.Builder =
+    private fun requestBuilder(profile: TranslationServiceProfile, apiKey: String?, url: HttpUrl): Request.Builder =
         Request.Builder()
             .url(url)
             .header("Accept", "application/json")
             .header("Authorization", "Bearer ${apiKey.orEmpty()}")
+            .apply { profile.requestParameters.applyHeaders(this) }
 
     private fun endpoint(profile: TranslationServiceProfile, path: String): HttpUrl {
         val baseUrl = profile.baseUrl.toHttpUrlOrNull()

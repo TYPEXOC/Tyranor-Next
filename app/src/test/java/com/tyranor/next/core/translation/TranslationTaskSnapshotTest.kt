@@ -37,6 +37,7 @@ class TranslationTaskSnapshotTest {
             taskSettings = TranslationServiceTaskSettings.defaults(
                 com.tyranor.next.core.translation.service.TranslationServiceCategory.AI_TRANSLATION,
             ).copy(aiBatchSize = 16, aiBatchConcurrency = 3, aiRequestIntervalMillis = 250),
+            customParametersRef = "service-1:custom-parameters:7",
         )
 
         val encoded = snapshot.encode()
@@ -46,6 +47,7 @@ class TranslationTaskSnapshotTest {
         assertEquals("UNTRANSLATED", JSONObject(encoded).getString("scope"))
         assertEquals("glossary-1", JSONObject(encoded).getString("glossaryId"))
         assertEquals("Keep proper names short.", decoded.userPrompt)
+        assertEquals("service-1:custom-parameters:7", decoded.customParametersRef)
         assertFalse(encoded.contains("apiKey"))
         assertFalse(encoded.contains("secret-value"))
     }

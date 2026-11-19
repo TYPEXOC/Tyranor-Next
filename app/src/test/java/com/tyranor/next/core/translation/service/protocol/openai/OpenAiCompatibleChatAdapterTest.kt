@@ -10,6 +10,10 @@ import com.tyranor.next.core.translation.service.TranslationServiceException
 import com.tyranor.next.core.translation.service.ChatCompletionTokenLimitField
 import com.tyranor.next.core.translation.service.TranslationGenerationOptions
 import com.tyranor.next.core.translation.service.TranslationReasoningEffort
+import com.tyranor.next.core.translation.service.TranslationCustomParameter
+import com.tyranor.next.core.translation.service.TranslationCustomParameters
+import com.tyranor.next.core.translation.service.TranslationParameterType
+import com.tyranor.next.core.translation.service.TranslationStructuredOutputMode
 import com.tyranor.next.core.translation.service.TranslationServiceProfile
 import com.tyranor.next.core.translation.service.defaultBaseUrl
 import com.tyranor.next.core.translation.service.transport.TranslationHttpTransport
@@ -125,11 +129,18 @@ class OpenAiCompatibleChatAdapterTest {
             frequencyPenalty = 0.2,
             presencePenalty = -0.1,
             reasoningEffort = TranslationReasoningEffort.LOW,
+            structuredOutputMode = TranslationStructuredOutputMode.JSON_SCHEMA,
         )
         OpenAiCompatibleChatAdapter(TranslationHttpTransport(callFactory)).translateBatch(
             profile().copy(
                 translationUserPrompt = "Prefer short dialogue.",
                 generationOptions = options,
+                requestParameters = TranslationCustomParameters(
+                    headers = listOf(TranslationCustomParameter("X-Tenant", TranslationParameterType.STRING, "test-tenant")),
+                    body = listOf(
+                        TranslationCustomParameter("metadata", TranslationParameterType.OBJECT, "{\"source\":\"tyn\"}"),
+                    ),
+                ),
             ),
             apiKey = null,
             sourceLanguage = "en",
@@ -149,6 +160,10 @@ class OpenAiCompatibleChatAdapterTest {
         assertEquals(0.2, body.getDouble("frequency_penalty"), 0.001)
         assertEquals(-0.1, body.getDouble("presence_penalty"), 0.001)
         assertEquals("low", body.getString("reasoning_effort"))
+        assertEquals("test-tenant", callFactory.requests.single().header("X-Tenant"))
+        assertEquals("json_schema", body.getJSONObject("response_format").getString("type"))
+        assertEquals("translation_results", body.getJSONObject("response_format").getJSONObject("json_schema").getString("name"))
+        assertEquals("tyn", body.getJSONObject("metadata").getString("source"))
     }
 
     @Test

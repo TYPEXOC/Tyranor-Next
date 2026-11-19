@@ -8,6 +8,8 @@ import com.tyranor.next.core.translation.service.TranslationProtocolId
 import com.tyranor.next.core.translation.service.TranslationServiceErrorCode
 import com.tyranor.next.core.translation.service.TranslationServiceException
 import com.tyranor.next.core.translation.service.TranslationServiceProfile
+import com.tyranor.next.core.translation.service.TranslationGenerationOptions
+import com.tyranor.next.core.translation.service.TranslationStructuredOutputMode
 import com.tyranor.next.core.translation.service.transport.TranslationHttpTransport
 import java.io.IOException
 import java.util.ArrayDeque
@@ -107,6 +109,29 @@ class AnthropicMessagesAdapterTest {
         assertEquals("Review the translation.", readBody(calls.requests.single()).getString("system"))
         assertEquals("こんにちは {player}", result.successes.single().suggestedTranslation)
         assertEquals(setOf("TONE"), result.successes.single().issueCodes)
+    }
+
+    @Test
+    fun sendsJsonSchemaUsingAnthropicOutputConfig() = runBlocking {
+        val output = JSONObject().put("results", JSONArray().put(
+            JSONObject().put("id", "entry").put("translation", "こんにちは"),
+        )).toString()
+        val calls = QueuedCallFactory(listOf(HttpResult(200, textResponse(output))))
+        AnthropicMessagesAdapter(TranslationHttpTransport(calls)).translateBatch(
+            profile().copy(
+                generationOptions = TranslationGenerationOptions(
+                    structuredOutputMode = TranslationStructuredOutputMode.JSON_SCHEMA,
+                ),
+            ),
+            apiKey = "test-api-key",
+            sourceLanguage = "en",
+            targetLanguage = "ja",
+            inputs = listOf(TranslationInput("entry", "Hello", "en", "ja")),
+        )
+
+        val format = readBody(calls.requests.single()).getJSONObject("output_config").getJSONObject("format")
+        assertEquals("json_schema", format.getString("type"))
+        assertEquals("object", format.getJSONObject("schema").getString("type"))
     }
 
     @Test

@@ -38,6 +38,7 @@ class TranslationProofreadTaskSnapshotTest {
             ),
             taskSettings = TranslationServiceTaskSettings.defaults(TranslationServiceCategory.AI_TRANSLATION)
                 .copy(aiBatchSize = 12, aiBatchConcurrency = 3, aiRequestIntervalMillis = 100),
+            customParametersRef = "service-1:custom-parameters:4",
         )
         val encoded = snapshot.encode()
 
@@ -46,6 +47,7 @@ class TranslationProofreadTaskSnapshotTest {
         assertEquals("RULE_HITS", JSONObject(encoded).getString("scope"))
         assertEquals("glossary-2", JSONObject(encoded).getString("glossaryId"))
         assertEquals("Prefer concise natural dialogue.", decoded.userPrompt)
+        assertEquals("service-1:custom-parameters:4", decoded.customParametersRef)
         assertFalse(encoded.contains("apiKey"))
         assertFalse(encoded.contains("secret-value"))
     }

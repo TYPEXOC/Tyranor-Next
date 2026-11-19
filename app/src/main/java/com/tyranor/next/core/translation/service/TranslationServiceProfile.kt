@@ -93,9 +93,24 @@ data class TranslationServiceProfile(
     val proofreadingPrompt: String = DEFAULT_PROOFREADING_PROMPT,
     val translationUserPrompt: String = "",
     val proofreadingUserPrompt: String = "",
-    val generationOptions: TranslationGenerationOptions = TranslationGenerationOptions(),
+    val generationOptions: TranslationGenerationOptions = TranslationGenerationOptions(
+        structuredOutputMode = if (protocolId == TranslationProtocolId.GEMINI_INTERACTIONS) {
+            TranslationStructuredOutputMode.JSON_SCHEMA
+        } else {
+            TranslationStructuredOutputMode.DISABLED
+        },
+    ),
     val taskSettings: TranslationServiceTaskSettings = TranslationServiceTaskSettings.defaults(protocolId.category),
-)
+    val customParametersRef: String? = null,
+    /** Present only on an in-memory request copy assembled by TranslationServiceClient. */
+    val requestParameters: TranslationCustomParameters = TranslationCustomParameters(),
+) {
+    override fun toString(): String =
+        "TranslationServiceProfile(id=$id, displayName=$displayName, protocolId=$protocolId, " +
+            "baseUrl=$baseUrl, modelId=$modelId, enabled=$enabled, configured=$configured, " +
+            "hasSecret=$hasSecret, revision=$revision, customParametersRef=${customParametersRef != null}, " +
+            "requestParameters=$requestParameters)"
+}
 
 data class TranslationServiceDraft(
     val id: String? = null,
@@ -108,14 +123,29 @@ data class TranslationServiceDraft(
     val proofreadingPrompt: String = DEFAULT_PROOFREADING_PROMPT,
     val translationUserPrompt: String = "",
     val proofreadingUserPrompt: String = "",
-    val generationOptions: TranslationGenerationOptions = TranslationGenerationOptions(),
+    val generationOptions: TranslationGenerationOptions = TranslationGenerationOptions(
+        structuredOutputMode = if (protocolId == TranslationProtocolId.GEMINI_INTERACTIONS) {
+            TranslationStructuredOutputMode.JSON_SCHEMA
+        } else {
+            TranslationStructuredOutputMode.DISABLED
+        },
+    ),
     val taskSettings: TranslationServiceTaskSettings = TranslationServiceTaskSettings.defaults(protocolId.category),
     val secretChange: TranslationSecretChange = TranslationSecretChange.Keep,
+    val customParametersChange: TranslationCustomParametersChange = TranslationCustomParametersChange.Keep,
 ) {
     override fun toString(): String =
         "TranslationServiceDraft(id=$id, displayName=$displayName, protocolId=$protocolId, " +
         "baseUrl=$baseUrl, modelId=$modelId, enabled=$enabled, " +
-            "secretChange=${if (secretChange is TranslationSecretChange.Replace) "Replace([redacted])" else secretChange})"
+        "secretChange=${if (secretChange is TranslationSecretChange.Replace) "Replace([redacted])" else secretChange}, " +
+            "customParametersChange=$customParametersChange)"
+}
+
+sealed interface TranslationCustomParametersChange {
+    data object Keep : TranslationCustomParametersChange
+    class Replace(val value: TranslationCustomParameters) : TranslationCustomParametersChange {
+        override fun toString(): String = "Replace([redacted])"
+    }
 }
 
 sealed interface TranslationSecretChange {

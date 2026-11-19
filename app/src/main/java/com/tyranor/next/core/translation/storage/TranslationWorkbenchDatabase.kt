@@ -25,7 +25,7 @@ import com.tyranor.next.core.translation.service.defaultBaseUrl
         TranslationProofreadSuggestionEntity::class,
         TranslationReviewIssueEntity::class,
     ],
-    version = 10,
+    version = 11,
     exportSchema = true,
 )
 internal abstract class TranslationWorkbenchDatabase : RoomDatabase() {
@@ -272,6 +272,12 @@ internal abstract class TranslationWorkbenchDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE translation_service_profiles ADD COLUMN custom_parameters_ref TEXT")
+            }
+        }
+
         private val SEED_DEFAULT_MACHINE_PROFILES = object : RoomDatabase.Callback() {
             override fun onCreate(db: SupportSQLiteDatabase) {
                 seedDefaultWebTranslationProfiles(db)
@@ -328,6 +334,7 @@ internal abstract class TranslationWorkbenchDatabase : RoomDatabase() {
                     MIGRATION_7_8,
                     MIGRATION_8_9,
                     MIGRATION_9_10,
+                    MIGRATION_10_11,
                 )
                 .fallbackToDestructiveMigrationOnDowngrade(dropAllTables = true)
                 .build()

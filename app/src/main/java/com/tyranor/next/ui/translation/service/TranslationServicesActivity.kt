@@ -39,6 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -57,7 +58,6 @@ import com.tyranor.next.core.translation.service.GeminiThinkingLevel
 import com.tyranor.next.core.translation.service.TranslationGenerationOptions
 import com.tyranor.next.core.translation.service.TranslationReasoningEffort
 import com.tyranor.next.core.translation.service.GEMINI_API_BASE_URL
-import com.tyranor.next.core.translation.service.ANTHROPIC_DEFAULT_MAX_OUTPUT_TOKENS
 import com.tyranor.next.core.translation.service.TranslationProviderCredentialBundle
 import com.tyranor.next.core.translation.service.TranslationProviderCredentials
 import com.tyranor.next.core.translation.service.defaultBaseUrl
@@ -70,6 +70,12 @@ import com.tyranor.next.core.translation.service.TranslationModelInfo
 import com.tyranor.next.core.translation.service.TranslationServiceProfile
 import com.tyranor.next.core.translation.service.TranslationServiceTaskSettings
 import com.tyranor.next.core.translation.service.TranslationServiceRepository
+import com.tyranor.next.core.translation.service.TranslationCustomParametersChange
+import com.tyranor.next.core.translation.service.TranslationCustomParameter
+import com.tyranor.next.core.translation.service.TranslationCustomParameters
+import com.tyranor.next.core.translation.service.TranslationParameterType
+import com.tyranor.next.core.translation.service.TranslationStructuredOutputMode
+import com.tyranor.next.core.translation.service.supportedStructuredOutputModes
 import com.tyranor.next.core.translation.service.DEFAULT_TRANSLATION_PROMPT
 import com.tyranor.next.core.translation.service.DEFAULT_PROOFREADING_PROMPT
 import com.tyranor.next.theme.AppComponentCornerRadius
@@ -91,6 +97,7 @@ import com.tyranor.next.ui.common.Switch
 import com.tyranor.next.ui.common.motion.listItemMotion
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import java.net.URI
 import kotlin.math.roundToLong
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
 import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
@@ -116,6 +123,7 @@ private fun TranslationServicesScreen() {
     val scope = rememberCoroutineScope()
     var editor by remember { mutableStateOf<ServiceEditor?>(null) }
     var advancedSettingsEditor by remember { mutableStateOf<AdvancedSettingsEditor?>(null) }
+    var customParametersEditor by remember { mutableStateOf<CustomParametersEditor?>(null) }
     var taskSettingsEditor by remember { mutableStateOf<TaskSettingsEditor?>(null) }
     var selectedCategory by remember { mutableStateOf(TranslationServiceCategory.MACHINE_TRANSLATION) }
     var deleteProfile by remember { mutableStateOf<TranslationServiceProfile?>(null) }
@@ -165,6 +173,7 @@ private fun TranslationServicesScreen() {
                     displayNameResource = template.nameResource,
                     mark = template.mark,
                     iconResource = template.iconResource,
+                    iconTinted = template.iconTinted,
                     protocolId = template.protocolId,
                     baseUrl = profile?.baseUrl ?: template.protocolId.defaultBaseUrl(),
                     profile = profile,
@@ -194,6 +203,8 @@ private fun TranslationServicesScreen() {
                         displayName = profile?.displayName,
                         displayNameResource = template.nameResource,
                         mark = template.mark,
+                        iconResource = template.iconResource,
+                        iconTinted = template.iconTinted,
                         protocolId = template.protocolId,
                         baseUrl = profile?.baseUrl ?: template.baseUrl,
                         profile = profile,
@@ -357,6 +368,8 @@ private fun TranslationServicesScreen() {
         if (!isSaving) {
             if (taskSettingsEditor != null) {
                 taskSettingsEditor = null
+            } else if (customParametersEditor != null) {
+                customParametersEditor = null
             } else if (advancedSettingsEditor != null) {
                 advancedSettingsEditor = null
             } else {
@@ -426,7 +439,13 @@ private fun TranslationServicesScreen() {
                                                         apiKey = "",
                                                         hasSavedSecret = false,
                                                         clearSecret = state.hasSavedSecret || state.clearSecret,
-                                                        generationOptions = TranslationGenerationOptions(),
+                                                        generationOptions = TranslationGenerationOptions(
+                                                            structuredOutputMode = if (protocol == TranslationProtocolId.GEMINI_INTERACTIONS) {
+                                                                TranslationStructuredOutputMode.JSON_SCHEMA
+                                                            } else {
+                                                                TranslationStructuredOutputMode.DISABLED
+                                                            },
+                                                        ),
                                                     )
                                                     fetchedModels = emptyList()
                                                     modelSearch = ""
@@ -439,7 +458,16 @@ private fun TranslationServicesScreen() {
                                     }
                                     ServiceTextField(
                                         value = state.baseUrl,
-                                        onValueChange = { editor = state.copy(baseUrl = it) },
+                                        onValueChange = { baseUrl ->
+                                            editor = state.copy(
+                                                baseUrl = baseUrl,
+                                                generationOptions = state.generationOptions.copy(
+                                                    reasoningEffort = state.generationOptions.reasoningEffort.takeIf {
+                                                        isOpenAiProvider(state.protocolId, baseUrl)
+                                                    },
+                                                ),
+                                            )
+                                        },
                                         label = stringResource(R.string.translation_services_base_url),
                                         supportingText = stringResource(
                                             when (state.protocolId) {
@@ -545,6 +573,61 @@ private fun TranslationServicesScreen() {
                                     )
                                 }
                             }
+                            val showOpenAiReasoning = state.isOpenAiProvider()
+                            val showGeminiThinking = state.protocolId == TranslationProtocolId.GEMINI_INTERACTIONS
+                            if (showOpenAiReasoning || showGeminiThinking) {
+                                ServiceSectionCard(title = stringResource(R.string.translation_services_reasoning_settings)) {
+                                    if (showOpenAiReasoning) {
+                                        val reasoningOptions = listOf(null) + TranslationReasoningEffort.entries
+                                        val reasoningItems = listOf(
+                                            stringResource(R.string.translation_services_provider_default),
+                                            stringResource(R.string.translation_services_reasoning_none),
+                                            stringResource(R.string.translation_services_reasoning_minimal),
+                                            stringResource(R.string.translation_services_reasoning_low),
+                                            stringResource(R.string.translation_services_reasoning_medium),
+                                            stringResource(R.string.translation_services_reasoning_high),
+                                            stringResource(R.string.translation_services_reasoning_xhigh),
+                                        )
+                                        OverlayDropdownPreference(
+                                            items = reasoningItems,
+                                            selectedIndex = reasoningOptions.indexOf(state.generationOptions.reasoningEffort),
+                                            title = stringResource(R.string.translation_services_reasoning_effort),
+                                            modifier = Modifier.fillMaxWidth(),
+                                            renderInRootScaffold = false,
+                                            onSelectedIndexChange = { index ->
+                                                editor = state.copy(
+                                                    generationOptions = state.generationOptions.copy(
+                                                        reasoningEffort = reasoningOptions.getOrNull(index),
+                                                    ),
+                                                )
+                                            },
+                                        )
+                                    }
+                                    if (showGeminiThinking) {
+                                        val thinkingOptions = listOf(null) + GeminiThinkingLevel.entries
+                                        OverlayDropdownPreference(
+                                            items = listOf(
+                                                stringResource(R.string.translation_services_provider_default),
+                                                stringResource(R.string.translation_services_reasoning_minimal),
+                                                stringResource(R.string.translation_services_reasoning_low),
+                                                stringResource(R.string.translation_services_reasoning_medium),
+                                                stringResource(R.string.translation_services_reasoning_high),
+                                            ),
+                                            selectedIndex = thinkingOptions.indexOf(state.generationOptions.geminiThinkingLevel),
+                                            title = stringResource(R.string.translation_services_gemini_thinking_level),
+                                            modifier = Modifier.fillMaxWidth(),
+                                            renderInRootScaffold = false,
+                                            onSelectedIndexChange = { index ->
+                                                editor = state.copy(
+                                                    generationOptions = state.generationOptions.copy(
+                                                        geminiThinkingLevel = thinkingOptions.getOrNull(index),
+                                                    ),
+                                                )
+                                            },
+                                        )
+                                    }
+                                }
+                            }
                             ServiceSectionCard(title = stringResource(R.string.translation_services_section_credentials)) {
                                 if (!isMachineTranslation) {
                                     ServiceTextField(
@@ -610,7 +693,19 @@ private fun TranslationServicesScreen() {
                         NoRippleButton(
                             text = stringResource(R.string.translation_services_advanced_settings),
                             modifier = Modifier.fillMaxWidth(),
-                            onClick = { advancedSettingsEditor = AdvancedSettingsEditor.from(state) },
+                            onClick = {
+                                scope.launch {
+                                    try {
+                                        val parameters = state.customParameters
+                                            ?: repository.readCustomParameters(state.customParametersRef)
+                                        val loadedState = state.copy(customParameters = parameters)
+                                        editor = loadedState
+                                        advancedSettingsEditor = AdvancedSettingsEditor.from(loadedState)
+                                    } catch (failure: Throwable) {
+                                        reportFailure(failure)
+                                    }
+                                }
+                            },
                         )
                     }
                     if (state.id != null) {
@@ -797,7 +892,7 @@ private fun TranslationServicesScreen() {
         }
     }
 
-    advancedSettingsEditor?.let { state ->
+    advancedSettingsEditor?.takeIf { customParametersEditor == null }?.let { state ->
         var invalidOptions by remember { mutableStateOf(false) }
         MiuixSettingsTheme {
             MiuixScaffold(
@@ -857,81 +952,28 @@ private fun TranslationServicesScreen() {
                                 modifier = Modifier.fillMaxWidth(),
                             )
                         }
-                        ServiceSectionCard(title = stringResource(R.string.translation_services_generation_parameters)) {
-                            Text(
-                                stringResource(R.string.translation_services_generation_parameters_hint),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = PageSecondaryTextColor,
-                            )
-                            ServiceTextField(
-                            value = state.temperature,
-                            onValueChange = { advancedSettingsEditor = state.copy(temperature = it) },
-                            label = stringResource(R.string.translation_services_temperature),
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                            )
-                            ServiceTextField(
-                            value = state.topP,
-                            onValueChange = { advancedSettingsEditor = state.copy(topP = it) },
-                            label = stringResource(R.string.translation_services_top_p),
-                            supportingText = if (state.protocolId == TranslationProtocolId.ANTHROPIC_MESSAGES) {
-                                stringResource(R.string.translation_services_anthropic_sampling_hint)
-                            } else null,
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                            )
-                            ServiceTextField(
-                            value = state.maxOutputTokens,
-                            onValueChange = { advancedSettingsEditor = state.copy(maxOutputTokens = it) },
-                            label = stringResource(R.string.translation_services_max_output_tokens),
-                            supportingText = if (state.protocolId == TranslationProtocolId.ANTHROPIC_MESSAGES) {
-                                stringResource(
-                                    R.string.translation_services_anthropic_max_tokens_hint,
-                                    ANTHROPIC_DEFAULT_MAX_OUTPUT_TOKENS,
-                                )
-                            } else null,
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                            )
-                        if (state.protocolId == TranslationProtocolId.OPENAI_COMPATIBLE_CHAT ||
-                            state.protocolId == TranslationProtocolId.OPENAI_RESPONSES
-                        ) {
-                            ServiceTextField(
-                                value = state.frequencyPenalty,
-                                onValueChange = { advancedSettingsEditor = state.copy(frequencyPenalty = it) },
-                                label = stringResource(R.string.translation_services_frequency_penalty),
-                                singleLine = true,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                            ServiceTextField(
-                                value = state.presencePenalty,
-                                onValueChange = { advancedSettingsEditor = state.copy(presencePenalty = it) },
-                                label = stringResource(R.string.translation_services_presence_penalty),
-                                singleLine = true,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                            val reasoningOptions = listOf(null) + TranslationReasoningEffort.entries
-                            val reasoningItems = listOf(
-                                stringResource(R.string.translation_services_provider_default),
-                                stringResource(R.string.translation_services_reasoning_none),
-                                stringResource(R.string.translation_services_reasoning_minimal),
-                                stringResource(R.string.translation_services_reasoning_low),
-                                stringResource(R.string.translation_services_reasoning_medium),
-                                stringResource(R.string.translation_services_reasoning_high),
-                                stringResource(R.string.translation_services_reasoning_xhigh),
-                            )
+                        ServiceSectionCard(title = stringResource(R.string.translation_services_structured_output)) {
+                            val outputModes = state.protocolId.supportedStructuredOutputModes()
                             OverlayDropdownPreference(
-                                items = reasoningItems,
-                                selectedIndex = reasoningOptions.indexOf(state.reasoningEffort),
-                                title = stringResource(R.string.translation_services_reasoning_effort),
+                                items = outputModes.map { stringResource(it.labelResource()) },
+                                selectedIndex = outputModes.indexOf(state.structuredOutputMode).coerceAtLeast(0),
+                                title = stringResource(R.string.translation_services_structured_output),
                                 modifier = Modifier.fillMaxWidth(),
                                 renderInRootScaffold = false,
                                 onSelectedIndexChange = { index ->
-                                    advancedSettingsEditor = state.copy(reasoningEffort = reasoningOptions.getOrNull(index))
+                                    outputModes.getOrNull(index)?.let { mode ->
+                                        advancedSettingsEditor = state.copy(structuredOutputMode = mode)
+                                    }
                                 },
+                            )
+                            Text(
+                                stringResource(R.string.translation_services_structured_output_hint),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = PageSecondaryTextColor,
                             )
                         }
                         if (state.protocolId == TranslationProtocolId.OPENAI_COMPATIBLE_CHAT) {
+                            ServiceSectionCard(title = stringResource(R.string.translation_services_output_limit)) {
                             val tokenLimitOptions = ChatCompletionTokenLimitField.entries
                             OverlayDropdownPreference(
                                 items = listOf(
@@ -948,31 +990,29 @@ private fun TranslationServicesScreen() {
                                     }
                                 },
                             )
-                        }
-                        if (state.protocolId == TranslationProtocolId.GEMINI_INTERACTIONS) {
                             ServiceTextField(
-                                value = state.geminiTopK,
-                                onValueChange = { advancedSettingsEditor = state.copy(geminiTopK = it) },
-                                label = stringResource(R.string.translation_services_gemini_top_k),
+                                value = state.maxOutputTokens,
+                                onValueChange = { advancedSettingsEditor = state.copy(maxOutputTokens = it) },
+                                label = stringResource(R.string.translation_services_max_output_tokens),
                                 singleLine = true,
                                 modifier = Modifier.fillMaxWidth(),
                             )
-                            val thinkingOptions = listOf(null) + GeminiThinkingLevel.entries
-                            OverlayDropdownPreference(
-                                items = listOf(
-                                    stringResource(R.string.translation_services_provider_default),
-                                    stringResource(R.string.translation_services_reasoning_minimal),
-                                    stringResource(R.string.translation_services_reasoning_low),
-                                    stringResource(R.string.translation_services_reasoning_medium),
-                                    stringResource(R.string.translation_services_reasoning_high),
+                            }
+                        }
+                        ServiceSectionCard(title = stringResource(R.string.translation_services_custom_parameters)) {
+                            Text(
+                                stringResource(R.string.translation_services_custom_parameters_hint),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = PageSecondaryTextColor,
+                            )
+                            NoRippleButton(
+                                text = stringResource(
+                                    R.string.translation_services_custom_parameters_open,
+                                    state.customParameters.headers.size,
+                                    state.customParameters.body.size,
                                 ),
-                                selectedIndex = thinkingOptions.indexOf(state.geminiThinkingLevel),
-                                title = stringResource(R.string.translation_services_gemini_thinking_level),
                                 modifier = Modifier.fillMaxWidth(),
-                                renderInRootScaffold = false,
-                                onSelectedIndexChange = { index ->
-                                    advancedSettingsEditor = state.copy(geminiThinkingLevel = thinkingOptions.getOrNull(index))
-                                },
+                                onClick = { customParametersEditor = CustomParametersEditor.from(state) },
                             )
                         }
                             if (invalidOptions) {
@@ -982,7 +1022,6 @@ private fun TranslationServicesScreen() {
                                     style = MaterialTheme.typography.bodySmall,
                                 )
                             }
-                        }
                         }
                         Row(
                             modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(vertical = 12.dp),
@@ -998,7 +1037,10 @@ private fun TranslationServicesScreen() {
                                 text = stringResource(R.string.translation_services_advanced_done),
                                 enabled = !isSaving,
                                 onClick = {
-                                    val options = state.toGenerationOptions()
+                                    val options = state.toGenerationOptions(
+                                        editor?.generationOptions ?: TranslationGenerationOptions(),
+                                        editor?.isOpenAiProvider() == true,
+                                    )
                                     if (options == null) {
                                         invalidOptions = true
                                     } else {
@@ -1008,8 +1050,248 @@ private fun TranslationServicesScreen() {
                                             proofreadingPrompt = state.proofreadingSystemPrompt,
                                             proofreadingUserPrompt = state.proofreadingUserPrompt,
                                             generationOptions = options,
+                                            customParameters = state.customParameters,
                                         )
                                         advancedSettingsEditor = null
+                                    }
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    customParametersEditor?.let { initialState ->
+        var state by remember(initialState) { mutableStateOf(initialState) }
+        val headerTab = state.selectedTab == 0
+        val entries = if (headerTab) state.parameters.headers else state.parameters.body
+        val typeOptions = TranslationParameterType.entries
+        MiuixSettingsTheme {
+            MiuixScaffold(
+                modifier = Modifier.fillMaxSize(),
+                containerColor = Color.Transparent,
+                contentWindowInsets = WindowInsets(0.dp),
+                topBar = {
+                    AppSecondaryTopBar(
+                        title = stringResource(R.string.translation_services_custom_parameters_title),
+                        background = Color.Transparent,
+                        contentColor = PageTextColor,
+                    )
+                },
+            ) { innerPadding ->
+                Box(
+                    modifier = Modifier.fillMaxSize().padding(top = innerPadding.calculateTopPadding()),
+                    contentAlignment = Alignment.TopCenter,
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().widthIn(max = 760.dp).fillMaxSize().padding(horizontal = 16.dp),
+                    ) {
+                        Column(
+                            modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            SegmentedControl(
+                                options = listOf(
+                                    stringResource(R.string.translation_services_custom_headers),
+                                    stringResource(R.string.translation_services_custom_body),
+                                ),
+                                selectedIndex = state.selectedTab,
+                                onOptionSelected = { index ->
+                                    state = state.copy(
+                                        selectedTab = index,
+                                        name = "",
+                                        value = "",
+                                        editingIndex = null,
+                                        invalid = false,
+                                    )
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            ServiceSectionCard(
+                                title = stringResource(
+                                    if (headerTab) R.string.translation_services_custom_headers
+                                    else R.string.translation_services_custom_body,
+                                ),
+                            ) {
+                                Text(
+                                    stringResource(
+                                        if (headerTab) R.string.translation_services_custom_headers_hint
+                                        else R.string.translation_services_custom_body_hint,
+                                    ),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = PageSecondaryTextColor,
+                                )
+                                if (entries.isEmpty()) {
+                                    Text(
+                                        stringResource(
+                                            if (headerTab) R.string.translation_services_custom_headers_empty
+                                            else R.string.translation_services_custom_body_empty,
+                                        ),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = PageSecondaryTextColor,
+                                    )
+                                } else {
+                                    entries.forEachIndexed { index, parameter ->
+                                        ServiceSectionCard(title = parameter.name) {
+                                            Text(
+                                                stringResource(parameter.type.labelResource()),
+                                                style = MaterialTheme.typography.labelMedium,
+                                                color = PageSecondaryTextColor,
+                                            )
+                                            Text(
+                                                parameter.value,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                maxLines = 3,
+                                                overflow = TextOverflow.Ellipsis,
+                                            )
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                                            ) {
+                                                NoRippleTextButton(
+                                                    text = stringResource(R.string.translation_services_custom_parameter_edit),
+                                                    onClick = {
+                                                        state = state.copy(
+                                                            name = parameter.name,
+                                                            type = parameter.type,
+                                                            value = parameter.value,
+                                                            editingIndex = index,
+                                                            invalid = false,
+                                                        )
+                                                    },
+                                                )
+                                                NoRippleTextButton(
+                                                    text = stringResource(R.string.common_delete),
+                                                    contentColor = MaterialTheme.colorScheme.error,
+                                                    onClick = {
+                                                        val updated = entries.toMutableList().apply { removeAt(index) }
+                                                        val nextParameters = if (headerTab) {
+                                                            state.parameters.copy(headers = updated)
+                                                        } else {
+                                                            state.parameters.copy(body = updated)
+                                                        }
+                                                        state = state.copy(
+                                                            parameters = nextParameters,
+                                                            editingIndex = state.editingIndex?.let { editing ->
+                                                                when {
+                                                                    editing == index -> null
+                                                                    editing > index -> editing - 1
+                                                                    else -> editing
+                                                                }
+                                                            },
+                                                            name = if (state.editingIndex == index) "" else state.name,
+                                                            value = if (state.editingIndex == index) "" else state.value,
+                                                        )
+                                                    },
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            ServiceSectionCard(
+                                title = stringResource(
+                                    if (state.editingIndex == null) R.string.translation_services_custom_parameter_add
+                                    else R.string.translation_services_custom_parameter_edit,
+                                ),
+                            ) {
+                                ServiceTextField(
+                                    value = state.name,
+                                    onValueChange = { state = state.copy(name = it, invalid = false) },
+                                    label = stringResource(R.string.translation_services_custom_parameter_name),
+                                    singleLine = true,
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                                if (!headerTab) {
+                                    OverlayDropdownPreference(
+                                        items = typeOptions.map { stringResource(it.labelResource()) },
+                                        selectedIndex = typeOptions.indexOf(state.type).coerceAtLeast(0),
+                                        title = stringResource(R.string.translation_services_custom_parameter_type),
+                                        modifier = Modifier.fillMaxWidth(),
+                                        renderInRootScaffold = false,
+                                        onSelectedIndexChange = { index ->
+                                            typeOptions.getOrNull(index)?.let { state = state.copy(type = it, invalid = false) }
+                                        },
+                                    )
+                                }
+                                ServiceTextField(
+                                    value = state.value,
+                                    onValueChange = { state = state.copy(value = it, invalid = false) },
+                                    label = stringResource(R.string.translation_services_custom_parameter_value),
+                                    supportingText = if (headerTab) {
+                                        stringResource(R.string.translation_services_custom_headers_value_hint)
+                                    } else null,
+                                    singleLine = headerTab || state.type == TranslationParameterType.STRING,
+                                    minLines = if (!headerTab && state.type in setOf(
+                                            TranslationParameterType.OBJECT,
+                                            TranslationParameterType.ARRAY,
+                                        )
+                                    ) 3 else 1,
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                                if (state.invalid) {
+                                    Text(
+                                        stringResource(R.string.translation_services_custom_parameters_invalid),
+                                        color = MaterialTheme.colorScheme.error,
+                                        style = MaterialTheme.typography.bodySmall,
+                                    )
+                                }
+                                NoRippleButton(
+                                    text = stringResource(
+                                        if (state.editingIndex == null) R.string.translation_services_custom_parameter_add
+                                        else R.string.common_save,
+                                    ),
+                                    modifier = Modifier.fillMaxWidth(),
+                                    onClick = {
+                                        val parameter = TranslationCustomParameter(
+                                            name = state.name.trim(),
+                                            type = if (headerTab) TranslationParameterType.STRING else state.type,
+                                            value = state.value,
+                                        )
+                                        val updated = entries.toMutableList()
+                                        val editingIndex = state.editingIndex
+                                        if (editingIndex == null) updated += parameter
+                                        else if (editingIndex in updated.indices) updated[editingIndex] = parameter
+                                        val nextParameters = if (headerTab) {
+                                            state.parameters.copy(headers = updated)
+                                        } else {
+                                            state.parameters.copy(body = updated)
+                                        }
+                                        if (!nextParameters.isValidForAiRequest()) {
+                                            state = state.copy(invalid = true)
+                                        } else {
+                                            state = state.copy(
+                                                parameters = nextParameters,
+                                                name = "",
+                                                value = "",
+                                                editingIndex = null,
+                                                invalid = false,
+                                            )
+                                        }
+                                    },
+                                )
+                            }
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(vertical = 12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            NoRippleTextButton(
+                                text = stringResource(R.string.common_cancel),
+                                onClick = { customParametersEditor = null },
+                            )
+                            NoRippleButton(
+                                text = stringResource(R.string.translation_services_advanced_done),
+                                onClick = {
+                                    if (!state.parameters.isValidForAiRequest()) {
+                                        state = state.copy(invalid = true)
+                                    } else {
+                                        editor = editor?.copy(customParameters = state.parameters)
+                                        advancedSettingsEditor = advancedSettingsEditor?.copy(customParameters = state.parameters)
+                                        customParametersEditor = null
                                     }
                                 },
                             )
@@ -1170,21 +1452,22 @@ private data class MachineServiceTemplate(
     val nameResource: Int,
     val mark: String,
     val iconResource: Int?,
+    val iconTinted: Boolean = false,
 )
 
 private val MACHINE_SERVICE_TEMPLATES = listOf(
     MachineServiceTemplate(TranslationProtocolId.BING_TRANSLATOR_WEB, R.string.translation_services_provider_bing, "B", R.drawable.ic_translation_provider_bing),
+    MachineServiceTemplate(TranslationProtocolId.GOOGLE_TRANSLATE_WEB_V1, R.string.translation_services_provider_google_web, "G", R.drawable.ic_translation_provider_google_web),
+    MachineServiceTemplate(TranslationProtocolId.YOUDAO_TRANSLATE_WEB_V1, R.string.translation_services_provider_youdao, "YD", R.drawable.ic_translation_provider_youdao),
     MachineServiceTemplate(TranslationProtocolId.NIUTRANS_TRANSLATION_V1, R.string.translation_services_provider_niutrans, "N", R.drawable.ic_translation_provider_niutrans),
     MachineServiceTemplate(TranslationProtocolId.VOLCENGINE_TRANSLATE_TEXT_V1, R.string.translation_services_provider_volcengine, "V", R.drawable.ic_translation_provider_volcengine),
     MachineServiceTemplate(TranslationProtocolId.AZURE_TRANSLATOR_V3, R.string.translation_services_provider_microsoft, "MS", R.drawable.ic_translation_provider_azure),
-    MachineServiceTemplate(TranslationProtocolId.DEEPL_TRANSLATE_V2, R.string.translation_services_provider_deepl, "DL", null),
+    MachineServiceTemplate(TranslationProtocolId.DEEPL_TRANSLATE_V2, R.string.translation_services_provider_deepl, "DL", R.drawable.ic_translation_provider_deepl, iconTinted = true),
     MachineServiceTemplate(TranslationProtocolId.BAIDU_TRANSLATE_VIP_V1, R.string.translation_services_provider_baidu, "BD", R.drawable.ic_translation_provider_baidu),
     MachineServiceTemplate(TranslationProtocolId.TENCENT_TMT_TEXT_TRANSLATE_V1, R.string.translation_services_provider_tencent, "TX", R.drawable.ic_translation_provider_tencent),
     MachineServiceTemplate(TranslationProtocolId.ALIBABA_MT_ROA_V1, R.string.translation_services_provider_alibaba_mt, "AL", R.drawable.ic_translation_provider_aliyun),
     MachineServiceTemplate(TranslationProtocolId.DOUBAO_TRANSLATE_RESPONSES_V1, R.string.translation_services_provider_doubao, "DB", R.drawable.ic_translation_provider_doubao),
     MachineServiceTemplate(TranslationProtocolId.IFLYTEK_TRANSLATE_V2, R.string.translation_services_provider_iflytek, "XF", R.drawable.ic_translation_provider_xunfei),
-    MachineServiceTemplate(TranslationProtocolId.YOUDAO_TRANSLATE_WEB_V1, R.string.translation_services_provider_youdao, "YD", R.drawable.ic_translation_provider_youdao),
-    MachineServiceTemplate(TranslationProtocolId.GOOGLE_TRANSLATE_WEB_V1, R.string.translation_services_provider_google_web, "G", R.drawable.ic_translation_provider_google_web),
     MachineServiceTemplate(TranslationProtocolId.GOOGLE_CLOUD_TRANSLATE_V2, R.string.translation_services_provider_google_cloud, "GC", R.drawable.ic_translation_provider_google_cloud),
 )
 
@@ -1194,6 +1477,7 @@ private data class ServiceListRow(
     val displayNameResource: Int?,
     val mark: String,
     val iconResource: Int? = null,
+    val iconTinted: Boolean = false,
     val protocolId: TranslationProtocolId,
     val baseUrl: String,
     val profile: TranslationServiceProfile?,
@@ -1206,6 +1490,7 @@ private fun TranslationServiceProfile.toServiceListRow() = ServiceListRow(
     displayNameResource = null,
     mark = protocolId.serviceMark(),
     iconResource = protocolId.serviceIconResource(),
+    iconTinted = protocolId == TranslationProtocolId.OPENAI_RESPONSES,
     protocolId = protocolId,
     baseUrl = baseUrl,
     profile = this,
@@ -1236,6 +1521,9 @@ private fun TranslationProtocolId.serviceMark(): String = when (this) {
 }
 
 private fun TranslationProtocolId.serviceIconResource(): Int? = when (this) {
+    TranslationProtocolId.OPENAI_RESPONSES -> R.drawable.ic_translation_provider_openai
+    TranslationProtocolId.GEMINI_INTERACTIONS -> R.drawable.ic_translation_provider_gemini
+    TranslationProtocolId.ANTHROPIC_MESSAGES -> R.drawable.ic_translation_provider_anthropic
     TranslationProtocolId.BING_TRANSLATOR_WEB -> R.drawable.ic_translation_provider_bing
     TranslationProtocolId.NIUTRANS_TRANSLATION_V1 -> R.drawable.ic_translation_provider_niutrans
     TranslationProtocolId.VOLCENGINE_TRANSLATE_TEXT_V1 -> R.drawable.ic_translation_provider_volcengine
@@ -1243,6 +1531,7 @@ private fun TranslationProtocolId.serviceIconResource(): Int? = when (this) {
     TranslationProtocolId.BAIDU_TRANSLATE_VIP_V1 -> R.drawable.ic_translation_provider_baidu
     TranslationProtocolId.TENCENT_TMT_TEXT_TRANSLATE_V1 -> R.drawable.ic_translation_provider_tencent
     TranslationProtocolId.ALIBABA_MT_ROA_V1 -> R.drawable.ic_translation_provider_aliyun
+    TranslationProtocolId.DEEPL_TRANSLATE_V2 -> R.drawable.ic_translation_provider_deepl
     TranslationProtocolId.DOUBAO_TRANSLATE_RESPONSES_V1 -> R.drawable.ic_translation_provider_doubao
     TranslationProtocolId.IFLYTEK_TRANSLATE_V2 -> R.drawable.ic_translation_provider_xunfei
     TranslationProtocolId.YOUDAO_TRANSLATE_WEB_V1 -> R.drawable.ic_translation_provider_youdao
@@ -1307,6 +1596,11 @@ private fun TranslationServiceTemplateCard(
                             contentDescription = null,
                             modifier = Modifier.size(28.dp),
                             contentScale = ContentScale.Fit,
+                            colorFilter = if (row.iconTinted) {
+                                ColorFilter.tint(MaterialTheme.colorScheme.primary)
+                            } else {
+                                null
+                            },
                         )
                     } else {
                         Text(
@@ -1396,6 +1690,8 @@ private data class AiServiceTemplate(
     val protocolId: TranslationProtocolId,
     val baseUrl: String,
     val mark: String,
+    val iconResource: Int? = null,
+    val iconTinted: Boolean = false,
     val allowProtocolSelection: Boolean = false,
 )
 
@@ -1405,6 +1701,8 @@ private val AI_SERVICE_TEMPLATES = listOf(
         TranslationProtocolId.OPENAI_COMPATIBLE_CHAT,
         "https://api.openai.com/v1",
         "GPT",
+        iconResource = R.drawable.ic_translation_provider_openai,
+        iconTinted = true,
     ),
     AiServiceTemplate(
         R.string.translation_services_template_custom_chat,
@@ -1418,18 +1716,21 @@ private val AI_SERVICE_TEMPLATES = listOf(
         TranslationProtocolId.OPENAI_COMPATIBLE_CHAT,
         "https://api.deepseek.com",
         "DS",
+        iconResource = R.drawable.ic_translation_provider_deepseek,
     ),
     AiServiceTemplate(
         R.string.translation_services_template_gemini_interactions,
         TranslationProtocolId.GEMINI_INTERACTIONS,
         GEMINI_API_BASE_URL,
         "G",
+        iconResource = R.drawable.ic_translation_provider_gemini,
     ),
     AiServiceTemplate(
         R.string.translation_services_template_anthropic,
         TranslationProtocolId.ANTHROPIC_MESSAGES,
         TranslationProtocolId.ANTHROPIC_MESSAGES.defaultBaseUrl(),
         "CL",
+        iconResource = R.drawable.ic_translation_provider_anthropic,
     ),
 )
 
@@ -1453,6 +1754,8 @@ private data class ServiceEditor(
     val generationOptions: TranslationGenerationOptions,
     val taskSettings: TranslationServiceTaskSettings,
     val allowProtocolSelection: Boolean = false,
+    val customParametersRef: String? = null,
+    val customParameters: TranslationCustomParameters? = null,
 ) {
     fun toDraft() = TranslationServiceDraft(
         id = id,
@@ -1467,6 +1770,8 @@ private data class ServiceEditor(
         proofreadingUserPrompt = proofreadingUserPrompt,
         generationOptions = generationOptions,
         taskSettings = taskSettings,
+        customParametersChange = customParameters?.let { TranslationCustomParametersChange.Replace(it) }
+            ?: TranslationCustomParametersChange.Keep,
         secretChange = when {
             clearSecret -> TranslationSecretChange.Remove
             protocolId.category == TranslationServiceCategory.MACHINE_TRANSLATION &&
@@ -1507,7 +1812,13 @@ private data class ServiceEditor(
             translationUserPrompt = "",
             proofreadingPrompt = DEFAULT_PROOFREADING_PROMPT,
             proofreadingUserPrompt = "",
-            generationOptions = TranslationGenerationOptions(),
+            generationOptions = TranslationGenerationOptions(
+                structuredOutputMode = if (protocolId == TranslationProtocolId.GEMINI_INTERACTIONS) {
+                    TranslationStructuredOutputMode.JSON_SCHEMA
+                } else {
+                    TranslationStructuredOutputMode.DISABLED
+                },
+            ),
             taskSettings = TranslationServiceTaskSettings.defaults(protocolId.category),
             allowProtocolSelection = allowProtocolSelection,
         )
@@ -1550,9 +1861,11 @@ private data class ServiceEditor(
             translationUserPrompt = profile.translationUserPrompt,
             proofreadingPrompt = profile.proofreadingPrompt,
             proofreadingUserPrompt = profile.proofreadingUserPrompt,
-            generationOptions = profile.generationOptions,
+            generationOptions = profile.generationOptions.forServiceEditor(profile.protocolId, profile.baseUrl),
             taskSettings = profile.taskSettings,
             allowProtocolSelection = profile.protocolId.category == TranslationServiceCategory.AI_TRANSLATION,
+            customParametersRef = profile.customParametersRef,
+            customParameters = null,
         )
     }
 }
@@ -1604,40 +1917,49 @@ private data class TaskSettingsEditor(
     }
 }
 
+private data class CustomParametersEditor(
+    val parameters: TranslationCustomParameters,
+    val selectedTab: Int = 0,
+    val name: String = "",
+    val type: TranslationParameterType = TranslationParameterType.STRING,
+    val value: String = "",
+    val editingIndex: Int? = null,
+    val invalid: Boolean = false,
+) {
+    companion object {
+        fun from(editor: AdvancedSettingsEditor) = CustomParametersEditor(
+            parameters = editor.customParameters,
+        )
+    }
+}
+
 private data class AdvancedSettingsEditor(
     val protocolId: TranslationProtocolId,
     val translationSystemPrompt: String,
     val translationUserPrompt: String,
     val proofreadingSystemPrompt: String,
     val proofreadingUserPrompt: String,
-    val temperature: String,
-    val topP: String,
     val maxOutputTokens: String,
     val chatTokenLimitField: ChatCompletionTokenLimitField,
-    val frequencyPenalty: String,
-    val presencePenalty: String,
-    val reasoningEffort: TranslationReasoningEffort?,
-    val geminiTopK: String,
-    val geminiThinkingLevel: GeminiThinkingLevel?,
+    val structuredOutputMode: TranslationStructuredOutputMode,
+    val customParameters: TranslationCustomParameters,
 ) {
-    fun toGenerationOptions(): TranslationGenerationOptions? {
-        if (temperature.isNotBlank() && temperature.toDoubleOrNull() == null ||
-            topP.isNotBlank() && topP.toDoubleOrNull() == null ||
-            maxOutputTokens.isNotBlank() && maxOutputTokens.toIntOrNull() == null ||
-            frequencyPenalty.isNotBlank() && frequencyPenalty.toDoubleOrNull() == null ||
-            presencePenalty.isNotBlank() && presencePenalty.toDoubleOrNull() == null ||
-            geminiTopK.isNotBlank() && geminiTopK.toIntOrNull() == null
-        ) return null
+    fun toGenerationOptions(
+        current: TranslationGenerationOptions,
+        isOpenAiProvider: Boolean,
+    ): TranslationGenerationOptions? {
+        val parsedMaxOutputTokens = maxOutputTokens.toIntOrNull()
+        if (maxOutputTokens.isNotBlank() && parsedMaxOutputTokens == null) return null
         return TranslationGenerationOptions(
-            temperature = temperature.toDoubleOrNull(),
-            topP = topP.toDoubleOrNull(),
-            maxOutputTokens = maxOutputTokens.toIntOrNull(),
+            maxOutputTokens = parsedMaxOutputTokens.takeIf {
+                protocolId == TranslationProtocolId.OPENAI_COMPATIBLE_CHAT
+            },
             chatTokenLimitField = chatTokenLimitField,
-            frequencyPenalty = frequencyPenalty.toDoubleOrNull(),
-            presencePenalty = presencePenalty.toDoubleOrNull(),
-            reasoningEffort = reasoningEffort,
-            geminiTopK = geminiTopK.toIntOrNull(),
-            geminiThinkingLevel = geminiThinkingLevel,
+            reasoningEffort = current.reasoningEffort.takeIf { isOpenAiProvider },
+            geminiThinkingLevel = current.geminiThinkingLevel.takeIf {
+                protocolId == TranslationProtocolId.GEMINI_INTERACTIONS
+            },
+            structuredOutputMode = structuredOutputMode,
         ).takeIf { it.isValidFor(protocolId) }
     }
 
@@ -1650,19 +1972,41 @@ private data class AdvancedSettingsEditor(
                 translationUserPrompt = editor.translationUserPrompt,
                 proofreadingSystemPrompt = editor.proofreadingPrompt,
                 proofreadingUserPrompt = editor.proofreadingUserPrompt,
-                temperature = options.temperature?.toString().orEmpty(),
-                topP = options.topP?.toString().orEmpty(),
                 maxOutputTokens = options.maxOutputTokens?.toString().orEmpty(),
                 chatTokenLimitField = options.chatTokenLimitField,
-                frequencyPenalty = options.frequencyPenalty?.toString().orEmpty(),
-                presencePenalty = options.presencePenalty?.toString().orEmpty(),
-                reasoningEffort = options.reasoningEffort,
-                geminiTopK = options.geminiTopK?.toString().orEmpty(),
-                geminiThinkingLevel = options.geminiThinkingLevel,
+                structuredOutputMode = options.structuredOutputMode,
+                customParameters = editor.customParameters ?: TranslationCustomParameters(),
             )
         }
     }
 }
+
+private fun ServiceEditor.isOpenAiProvider(): Boolean = isOpenAiProvider(protocolId, baseUrl)
+
+private fun isOpenAiProvider(protocolId: TranslationProtocolId, baseUrl: String): Boolean {
+    if (protocolId !in setOf(
+            TranslationProtocolId.OPENAI_COMPATIBLE_CHAT,
+            TranslationProtocolId.OPENAI_RESPONSES,
+        )
+    ) return false
+    return runCatching {
+        URI(baseUrl).let { it.scheme.equals("https", ignoreCase = true) && it.host.equals("api.openai.com", ignoreCase = true) }
+    }.getOrDefault(false)
+}
+
+private fun TranslationGenerationOptions.forServiceEditor(
+    protocolId: TranslationProtocolId,
+    baseUrl: String,
+): TranslationGenerationOptions = copy(
+    temperature = null,
+    topP = null,
+    maxOutputTokens = maxOutputTokens.takeIf { protocolId == TranslationProtocolId.OPENAI_COMPATIBLE_CHAT },
+    frequencyPenalty = null,
+    presencePenalty = null,
+    reasoningEffort = reasoningEffort.takeIf { isOpenAiProvider(protocolId, baseUrl) },
+    geminiTopK = null,
+    geminiThinkingLevel = geminiThinkingLevel.takeIf { protocolId == TranslationProtocolId.GEMINI_INTERACTIONS },
+)
 
 private fun ChatCompletionTokenLimitField.labelResource(): Int = when (this) {
     ChatCompletionTokenLimitField.MAX_TOKENS -> R.string.translation_services_max_tokens_legacy
@@ -1683,6 +2027,21 @@ private fun GeminiThinkingLevel.labelResource(): Int = when (this) {
     GeminiThinkingLevel.LOW -> R.string.translation_services_reasoning_low
     GeminiThinkingLevel.MEDIUM -> R.string.translation_services_reasoning_medium
     GeminiThinkingLevel.HIGH -> R.string.translation_services_reasoning_high
+}
+
+private fun TranslationStructuredOutputMode.labelResource(): Int = when (this) {
+    TranslationStructuredOutputMode.DISABLED -> R.string.translation_services_structured_output_disabled
+    TranslationStructuredOutputMode.JSON_OBJECT -> R.string.translation_services_structured_output_json_object
+    TranslationStructuredOutputMode.JSON_SCHEMA -> R.string.translation_services_structured_output_json_schema
+}
+
+private fun TranslationParameterType.labelResource(): Int = when (this) {
+    TranslationParameterType.STRING -> R.string.translation_services_parameter_type_string
+    TranslationParameterType.INTEGER -> R.string.translation_services_parameter_type_integer
+    TranslationParameterType.FLOAT -> R.string.translation_services_parameter_type_float
+    TranslationParameterType.BOOLEAN -> R.string.translation_services_parameter_type_boolean
+    TranslationParameterType.OBJECT -> R.string.translation_services_parameter_type_object
+    TranslationParameterType.ARRAY -> R.string.translation_services_parameter_type_array
 }
 
 private fun TranslationProtocolId.machinePrimaryCredentialLabel(): Int = when (this) {

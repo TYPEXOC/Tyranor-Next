@@ -18,6 +18,7 @@ class TranslationGenerationOptionsTest {
             reasoningEffort = TranslationReasoningEffort.HIGH,
             geminiTopK = 32,
             geminiThinkingLevel = GeminiThinkingLevel.MINIMAL,
+            structuredOutputMode = TranslationStructuredOutputMode.JSON_SCHEMA,
         )
 
         assertEquals(options, TranslationGenerationOptions.decode(options.encode()))
@@ -37,5 +38,25 @@ class TranslationGenerationOptionsTest {
         assertFalse(TranslationGenerationOptions(temperature = 1.1).isValidFor(TranslationProtocolId.ANTHROPIC_MESSAGES))
         assertFalse(TranslationGenerationOptions(temperature = 0.2, topP = 0.8).isValidFor(TranslationProtocolId.ANTHROPIC_MESSAGES))
         assertFalse(TranslationGenerationOptions(reasoningEffort = TranslationReasoningEffort.HIGH).isValidFor(TranslationProtocolId.ANTHROPIC_MESSAGES))
+        assertFalse(
+            TranslationGenerationOptions(structuredOutputMode = TranslationStructuredOutputMode.JSON_OBJECT)
+                .isValidFor(TranslationProtocolId.ANTHROPIC_MESSAGES),
+        )
+        assertTrue(
+            TranslationGenerationOptions(structuredOutputMode = TranslationStructuredOutputMode.JSON_SCHEMA)
+                .isValidFor(TranslationProtocolId.ANTHROPIC_MESSAGES),
+        )
+    }
+
+    @Test
+    fun preservesLegacyGeminiSchemaBehaviorWhenModeWasNotStored() {
+        assertEquals(
+            TranslationStructuredOutputMode.JSON_SCHEMA,
+            TranslationGenerationOptions.decode("{}", TranslationProtocolId.GEMINI_INTERACTIONS).structuredOutputMode,
+        )
+        assertEquals(
+            TranslationStructuredOutputMode.DISABLED,
+            TranslationGenerationOptions.decode("{}", TranslationProtocolId.OPENAI_RESPONSES).structuredOutputMode,
+        )
     }
 }

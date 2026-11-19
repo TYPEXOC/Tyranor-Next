@@ -14,6 +14,7 @@ import com.tyranor.next.core.translation.service.TranslationServiceErrorCode
 import com.tyranor.next.core.translation.service.TranslationServiceException
 import com.tyranor.next.core.translation.service.TranslationServiceProfile
 import com.tyranor.next.core.translation.service.TranslationServiceRepository
+import com.tyranor.next.core.translation.service.geminiResponseFormat
 import com.tyranor.next.core.translation.service.formatAiUserMessage
 import com.tyranor.next.core.translation.service.transport.TranslationHttpTransport
 import java.net.HttpURLConnection
@@ -47,7 +48,7 @@ internal class GeminiInteractionsAdapter(
                 .addQueryParameter("pageSize", MODEL_PAGE_SIZE.toString())
                 .apply { pageToken?.let { addQueryParameter("pageToken", it) } }
                 .build()
-            val response = transport.execute(requestBuilder(key, url).get().build())
+            val response = transport.execute(requestBuilder(profile, key, url).get().build())
             requireSuccess(response.statusCode, response.body, response.retryAfterMillis, modelList = true)
             val root = parseObject(response.body)
             val page = root.optJSONArray("models")
@@ -150,7 +151,7 @@ internal class GeminiInteractionsAdapter(
             throw TranslationServiceException(TranslationServiceErrorCode.REQUEST_REJECTED)
         }
         val response = transport.execute(
-            requestBuilder(apiKey, endpoint(profile, listOf("v1", "interactions")))
+            requestBuilder(profile, apiKey, endpoint(profile, listOf("v1", "interactions")))
                 .post(body.toRequestBody(JSON_MEDIA_TYPE))
                 .build(),
         )
@@ -182,21 +183,22 @@ internal class GeminiInteractionsAdapter(
         userPrompt: String,
         input: String,
         schema: JSONObject,
-    ): String = JSONObject()
+    ): String {
+        val body = JSONObject()
             .put("model", profile.modelId)
             .put("input", formatAiUserMessage(userPrompt, input))
             .put("system_instruction", systemInstruction)
-            .put("response_format", JSONObject()
-                .put("type", "text")
-                .put("mime_type", "application/json")
-                .put("schema", schema))
             .put("store", false)
             .put("stream", false)
             .apply {
                 val generationConfig = profile.generationOptions.geminiGenerationConfig()
                 if (generationConfig.length() > 0) put("generation_config", generationConfig)
             }
-            .toString()
+        profile.generationOptions.structuredOutputMode.geminiResponseFormat(schema)?.let {
+            body.put("response_format", it)
+        }
+        return profile.requestParameters.applyBody(body).toString()
+    }
 
     private fun translationResponseSchema() = resultSchema(
         JSONObject()
@@ -222,10 +224,11 @@ internal class GeminiInteractionsAdapter(
 
     private fun stringSchema() = JSONObject().put("type", "string")
 
-    private fun requestBuilder(apiKey: String, url: HttpUrl): Request.Builder = Request.Builder()
+    private fun requestBuilder(profile: TranslationServiceProfile, apiKey: String, url: HttpUrl): Request.Builder = Request.Builder()
         .url(url)
         .header("Accept", "application/json")
         .header("x-goog-api-key", apiKey)
+        .apply { profile.requestParameters.applyHeaders(this) }
 
     private fun endpoint(profile: TranslationServiceProfile, segments: List<String>): HttpUrl {
         requireProtocol(profile)

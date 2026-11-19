@@ -57,6 +57,10 @@ class TranslationServiceRepository(context: Context) {
         val proofreadingUserPrompt = draft.proofreadingUserPrompt.trim()
         val generationOptions = draft.generationOptions
         val taskSettings = draft.taskSettings
+        val customParameters = when (val change = draft.customParametersChange) {
+            TranslationCustomParametersChange.Keep -> null
+            is TranslationCustomParametersChange.Replace -> change.value
+        }
         val baseUrl = normalizeBaseUrl(draft.baseUrl, draft.protocolId)
         if (displayName.isBlank() || displayName.length > MAX_DISPLAY_NAME || modelId.length > MAX_MODEL_ID ||
             translationPrompt.isBlank() || translationPrompt.length > MAX_PROMPT_LENGTH ||
@@ -64,7 +68,10 @@ class TranslationServiceRepository(context: Context) {
             translationUserPrompt.length > MAX_PROMPT_LENGTH ||
             proofreadingUserPrompt.length > MAX_PROMPT_LENGTH ||
             !generationOptions.isValidFor(draft.protocolId) ||
-            !taskSettings.isValidFor(draft.protocolId.category)
+            !taskSettings.isValidFor(draft.protocolId.category) ||
+            customParameters?.let {
+                draft.protocolId.category != TranslationServiceCategory.AI_TRANSLATION || !it.isValidForAiRequest()
+            } == true
         ) {
             throw TranslationServiceException(TranslationServiceErrorCode.INVALID_CONFIGURATION)
         }
@@ -103,6 +110,21 @@ class TranslationServiceRepository(context: Context) {
             }
             TranslationSecretChange.Remove -> null
         }
+        val nextCustomParametersRef = when (val change = draft.customParametersChange) {
+            TranslationCustomParametersChange.Keep -> old?.customParametersRef
+            is TranslationCustomParametersChange.Replace -> {
+                if (change.value.isEmpty) {
+                    null
+                } else {
+                    val reference = "$profileId:custom-parameters:$revision"
+                    if (!secretStore.write(reference, change.value.encode())) {
+                        if (nextSecretRef != null && nextSecretRef != old?.secretRef) secretStore.delete(nextSecretRef)
+                        throw TranslationServiceException(TranslationServiceErrorCode.SECRET_STORAGE_FAILED)
+                    }
+                    reference
+                }
+            }
+        }
         val entity = TranslationServiceProfileEntity(
             id = profileId,
             displayName = displayName,
@@ -118,6 +140,7 @@ class TranslationServiceRepository(context: Context) {
             generationOptionsJson = generationOptions.encode(),
             taskSettingsJson = taskSettings.encode(),
             secretRef = nextSecretRef,
+            customParametersRef = nextCustomParametersRef,
             createdAt = old?.createdAt ?: now,
             updatedAt = now,
         )
@@ -125,9 +148,15 @@ class TranslationServiceRepository(context: Context) {
             dao.upsertServiceProfile(entity)
         } catch (cancelled: CancellationException) {
             if (nextSecretRef != null && nextSecretRef != old?.secretRef) secretStore.delete(nextSecretRef)
+            if (nextCustomParametersRef != null && nextCustomParametersRef != old?.customParametersRef) {
+                secretStore.delete(nextCustomParametersRef)
+            }
             throw cancelled
         } catch (failure: Exception) {
             if (nextSecretRef != null && nextSecretRef != old?.secretRef) secretStore.delete(nextSecretRef)
+            if (nextCustomParametersRef != null && nextCustomParametersRef != old?.customParametersRef) {
+                secretStore.delete(nextCustomParametersRef)
+            }
             throw TranslationServiceException(TranslationServiceErrorCode.STORAGE_FAILURE, failure)
         }
         try {
@@ -177,11 +206,19 @@ class TranslationServiceRepository(context: Context) {
     suspend fun cleanupUnusedSecrets() = writeMutex.withLock { cleanupUnusedSecretsLocked() }
 
     private suspend fun cleanupUnusedSecretsLocked() {
-        val profileReferences = dao.getServiceProfiles().mapNotNull { it.secretRef }.toSet()
-        val taskReferences = dao.getAllTasks().mapNotNull { task ->
-            runCatching { JSONObject(task.configSnapshotJson).optString("secretRef").takeIf(String::isNotBlank) }
-                .getOrNull()
+        val profileReferences = dao.getServiceProfiles().flatMap { profile ->
+            listOfNotNull(profile.secretRef, profile.customParametersRef)
         }.toSet()
+        val taskReferences = dao.getAllTasks().mapNotNull { task ->
+            runCatching {
+                val snapshot = JSONObject(task.configSnapshotJson)
+                listOfNotNull(
+                    snapshot.optString("secretRef").takeIf(String::isNotBlank),
+                    snapshot.optString("customParametersRef").takeIf(String::isNotBlank),
+                )
+            }
+                .getOrNull()
+        }.flatten().toSet()
         if (!secretStore.deleteUnreferencedSecrets(profileReferences + taskReferences)) {
             throw TranslationServiceException(TranslationServiceErrorCode.SECRET_STORAGE_FAILED)
         }
@@ -196,11 +233,25 @@ class TranslationServiceRepository(context: Context) {
         }
     }
 
+    fun readCustomParameters(reference: String?): TranslationCustomParameters = when (reference) {
+        null -> TranslationCustomParameters()
+        else -> when (val result = secretStore.read(reference)) {
+            is TranslationSecretStore.SecretRead.Available -> runCatching {
+                TranslationCustomParameters.decode(result.value)
+            }.getOrElse {
+                throw TranslationServiceException(TranslationServiceErrorCode.SECRET_UNAVAILABLE)
+            }
+            TranslationSecretStore.SecretRead.Missing,
+            TranslationSecretStore.SecretRead.Unavailable ->
+                throw TranslationServiceException(TranslationServiceErrorCode.SECRET_UNAVAILABLE)
+        }
+    }
+
     private fun TranslationServiceProfileEntity.toModel(): TranslationServiceProfile {
         val protocol = TranslationProtocolId.entries.firstOrNull { it.wireId == protocolId }
             ?: throw TranslationServiceException(TranslationServiceErrorCode.UNSUPPORTED_PROTOCOL)
         val validUrl = runCatching { normalizeBaseUrl(baseUrl, protocol) }.isSuccess
-        val generationOptions = runCatching { TranslationGenerationOptions.decode(generationOptionsJson) }.getOrNull()
+        val generationOptions = runCatching { TranslationGenerationOptions.decode(generationOptionsJson, protocol) }.getOrNull()
         val taskSettings = TranslationServiceTaskSettings.decode(taskSettingsJson, protocol.category)
         return TranslationServiceProfile(
             id = id,
@@ -222,6 +273,7 @@ class TranslationServiceRepository(context: Context) {
             generationOptions = generationOptions ?: TranslationGenerationOptions(),
             taskSettings = taskSettings,
             secretRef = secretRef,
+            customParametersRef = customParametersRef,
             updatedAt = updatedAt,
         )
     }

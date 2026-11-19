@@ -6,6 +6,10 @@ import com.tyranor.next.core.translation.service.TranslationServiceErrorCode
 import com.tyranor.next.core.translation.service.TranslationServiceException
 import com.tyranor.next.core.translation.service.TranslationGenerationOptions
 import com.tyranor.next.core.translation.service.TranslationReasoningEffort
+import com.tyranor.next.core.translation.service.TranslationCustomParameter
+import com.tyranor.next.core.translation.service.TranslationCustomParameters
+import com.tyranor.next.core.translation.service.TranslationParameterType
+import com.tyranor.next.core.translation.service.TranslationStructuredOutputMode
 import com.tyranor.next.core.translation.service.TranslationServiceProfile
 import com.tyranor.next.core.translation.service.defaultBaseUrl
 import com.tyranor.next.core.translation.service.transport.TranslationHttpTransport
@@ -106,11 +110,16 @@ class OpenAiResponsesAdapterTest {
             frequencyPenalty = 0.1,
             presencePenalty = -0.1,
             reasoningEffort = TranslationReasoningEffort.MEDIUM,
+            structuredOutputMode = TranslationStructuredOutputMode.JSON_SCHEMA,
         )
         OpenAiResponsesAdapter(TranslationHttpTransport(calls)).translateBatch(
             profile().copy(
                 translationUserPrompt = "Use the glossary consistently.",
                 generationOptions = options,
+                requestParameters = TranslationCustomParameters(
+                    headers = listOf(TranslationCustomParameter("X-Tenant", TranslationParameterType.STRING, "tenant-a")),
+                    body = listOf(TranslationCustomParameter("metadata", TranslationParameterType.OBJECT, "{\"region\":\"test\"}")),
+                ),
             ),
             apiKey = "test-key",
             sourceLanguage = "en",
@@ -127,6 +136,10 @@ class OpenAiResponsesAdapterTest {
         assertEquals(0.1, body.getDouble("frequency_penalty"), 0.001)
         assertEquals(-0.1, body.getDouble("presence_penalty"), 0.001)
         assertEquals("medium", body.getJSONObject("reasoning").getString("effort"))
+        assertEquals("tenant-a", calls.requests.single().header("X-Tenant"))
+        assertEquals("json_schema", body.getJSONObject("text").getJSONObject("format").getString("type"))
+        assertEquals("translation_results", body.getJSONObject("text").getJSONObject("format").getString("name"))
+        assertEquals("test", body.getJSONObject("metadata").getString("region"))
     }
 
     private fun profile() = TranslationServiceProfile(

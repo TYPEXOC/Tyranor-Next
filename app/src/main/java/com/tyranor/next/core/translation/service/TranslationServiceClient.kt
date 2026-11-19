@@ -34,7 +34,8 @@ class TranslationServiceClient(
         if (runCatching { TranslationServiceRepository.normalizeBaseUrl(profile.baseUrl, profile.protocolId) }.isFailure) {
             throw TranslationServiceException(TranslationServiceErrorCode.SERVICE_NOT_CONFIGURED)
         }
-        return adapter(profile).listModels(profile, resolveSecret(profile.secretRef))
+        val requestProfile = profile.withRequestParameters(repository.readCustomParameters(profile.customParametersRef))
+        return adapter(requestProfile).listModels(requestProfile, resolveSecret(profile.secretRef))
     }
 
     suspend fun listModels(draft: TranslationServiceDraft): List<TranslationModelInfo> {
@@ -66,6 +67,11 @@ class TranslationServiceClient(
             generationOptions = draft.generationOptions,
             taskSettings = draft.taskSettings,
             secretRef = existing?.secretRef,
+            customParametersRef = existing?.customParametersRef,
+            requestParameters = when (val change = draft.customParametersChange) {
+                TranslationCustomParametersChange.Keep -> repository.readCustomParameters(existing?.customParametersRef)
+                is TranslationCustomParametersChange.Replace -> change.value
+            },
             updatedAt = existing?.updatedAt ?: 0L,
         )
         return adapter(preview).listModels(preview, apiKey)
@@ -78,14 +84,17 @@ class TranslationServiceClient(
         targetLanguage: String,
         inputs: List<TranslationInput>,
         glossary: List<TranslationGlossaryEntry> = emptyList(),
-    ): TranslationBatchResponse = adapter(profile).translateBatch(
-        profile = profile,
+    ): TranslationBatchResponse {
+        val requestProfile = profile.withRequestParameters(repository.readCustomParameters(profile.customParametersRef))
+        return adapter(requestProfile).translateBatch(
+        profile = requestProfile,
         apiKey = resolveSecret(secretRef),
         sourceLanguage = sourceLanguage,
         targetLanguage = targetLanguage,
         inputs = inputs,
         glossary = glossary,
-    )
+        )
+    }
 
     internal fun maxBatchSize(protocolId: TranslationProtocolId): Int =
         TranslationProtocolRegistry.adapter(protocolId).maxBatchSize
@@ -96,13 +105,23 @@ class TranslationServiceClient(
         sourceLanguage: String,
         targetLanguage: String,
         inputs: List<ProofreadInput>,
-    ): ProofreadBatchResponse = adapter(profile).proofreadBatch(
-        profile = profile,
+    ): ProofreadBatchResponse {
+        val requestProfile = profile.withRequestParameters(repository.readCustomParameters(profile.customParametersRef))
+        return adapter(requestProfile).proofreadBatch(
+        profile = requestProfile,
         apiKey = resolveSecret(secretRef),
         sourceLanguage = sourceLanguage,
         targetLanguage = targetLanguage,
         inputs = inputs,
-    )
+        )
+    }
+
+    private fun TranslationServiceProfile.withRequestParameters(parameters: TranslationCustomParameters): TranslationServiceProfile {
+        if (!parameters.isValidForAiRequest()) {
+            throw TranslationServiceException(TranslationServiceErrorCode.INVALID_CONFIGURATION)
+        }
+        return copy(requestParameters = parameters)
+    }
 
     private fun adapter(profile: TranslationServiceProfile): TranslationProtocolAdapter =
         TranslationProtocolRegistry.adapter(profile.protocolId)

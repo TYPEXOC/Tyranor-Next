@@ -13,7 +13,9 @@ import com.tyranor.next.core.translation.service.TranslationServiceErrorCode
 import com.tyranor.next.core.translation.service.TranslationServiceException
 import com.tyranor.next.core.translation.service.TranslationServiceProfile
 import com.tyranor.next.core.translation.service.TranslationServiceCapability
+import com.tyranor.next.core.translation.service.addOpenAiChatFormat
 import com.tyranor.next.core.translation.service.formatAiUserMessage
+import com.tyranor.next.core.translation.service.translationResultSchema
 import com.tyranor.next.core.translation.service.transport.TranslationHttpTransport
 import java.net.HttpURLConnection
 import okhttp3.MediaType.Companion.toMediaType
@@ -167,9 +169,15 @@ internal class OpenAiCompatibleChatAdapter(
                     formatAiUserMessage(profile.proofreadingUserPrompt, taskData.toString()),
                 ),
             )
-        return profile.generationOptions.addOpenAiChatParameters(
+        val body = profile.generationOptions.addOpenAiChatParameters(
             JSONObject().put("model", profile.modelId).put("messages", messages).put("stream", false),
-        ).toString()
+        )
+        profile.generationOptions.structuredOutputMode.addOpenAiChatFormat(
+            body,
+            translationResultSchema(proofreading = true),
+            "translation_proofread_results",
+        )
+        return profile.requestParameters.applyBody(body).toString()
     }
 
     private fun createRequestBody(
@@ -215,11 +223,17 @@ internal class OpenAiCompatibleChatAdapter(
                         formatAiUserMessage(profile.translationUserPrompt, taskData.toString()),
                     ),
             )
-        return profile.generationOptions.addOpenAiChatParameters(JSONObject()
+        val body = profile.generationOptions.addOpenAiChatParameters(JSONObject()
             .put("model", profile.modelId)
             .put("messages", messages)
             .put("stream", false)
-        ).toString()
+        )
+        profile.generationOptions.structuredOutputMode.addOpenAiChatFormat(
+            body,
+            translationResultSchema(proofreading = false),
+            "translation_results",
+        )
+        return profile.requestParameters.applyBody(body).toString()
     }
 
     private fun requestBuilder(
@@ -231,6 +245,7 @@ internal class OpenAiCompatibleChatAdapter(
         .header("Accept", "application/json")
         .apply {
             if (!apiKey.isNullOrBlank()) header("Authorization", "Bearer $apiKey")
+            profile.requestParameters.applyHeaders(this)
         }
 
     private fun endpoint(profile: TranslationServiceProfile, pathSegments: List<String>): HttpUrl {

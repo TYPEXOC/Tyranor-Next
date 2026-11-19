@@ -37,6 +37,7 @@ data class TranslationGenerationOptions(
     val reasoningEffort: TranslationReasoningEffort? = null,
     val geminiTopK: Int? = null,
     val geminiThinkingLevel: GeminiThinkingLevel? = null,
+    val structuredOutputMode: TranslationStructuredOutputMode = TranslationStructuredOutputMode.DISABLED,
 ) {
     fun isValidFor(protocolId: TranslationProtocolId): Boolean {
         if (temperature?.let { !it.isFinite() || it !in 0.0..2.0 } == true ||
@@ -49,16 +50,20 @@ data class TranslationGenerationOptions(
 
         return when (protocolId) {
             TranslationProtocolId.OPENAI_COMPATIBLE_CHAT ->
-                geminiTopK == null && geminiThinkingLevel == null
+                geminiTopK == null && geminiThinkingLevel == null &&
+                    structuredOutputMode in protocolId.supportedStructuredOutputModes()
             TranslationProtocolId.OPENAI_RESPONSES ->
-                geminiTopK == null && geminiThinkingLevel == null
+                geminiTopK == null && geminiThinkingLevel == null &&
+                    structuredOutputMode in protocolId.supportedStructuredOutputModes()
             TranslationProtocolId.GEMINI_INTERACTIONS ->
-                frequencyPenalty == null && presencePenalty == null && reasoningEffort == null
+                frequencyPenalty == null && presencePenalty == null && reasoningEffort == null &&
+                    structuredOutputMode in protocolId.supportedStructuredOutputModes()
             TranslationProtocolId.ANTHROPIC_MESSAGES ->
                 temperature?.let { it !in 0.0..1.0 } != true &&
                     !(temperature != null && topP != null) &&
                     frequencyPenalty == null && presencePenalty == null && reasoningEffort == null &&
-                    geminiTopK == null && geminiThinkingLevel == null
+                    geminiTopK == null && geminiThinkingLevel == null &&
+                    structuredOutputMode in protocolId.supportedStructuredOutputModes()
             else -> listOf(
                 temperature,
                 topP,
@@ -68,7 +73,7 @@ data class TranslationGenerationOptions(
                 reasoningEffort,
                 geminiTopK,
                 geminiThinkingLevel,
-            ).all { it == null }
+            ).all { it == null } && structuredOutputMode == TranslationStructuredOutputMode.DISABLED
         }
     }
 
@@ -83,6 +88,7 @@ data class TranslationGenerationOptions(
         .put("reasoningEffort", reasoningEffort?.name)
         .put("geminiTopK", geminiTopK)
         .put("geminiThinkingLevel", geminiThinkingLevel?.name)
+        .put("structuredOutputMode", structuredOutputMode.name)
         .toString()
 
     internal fun addOpenAiChatParameters(body: JSONObject): JSONObject = body.apply {
@@ -122,7 +128,10 @@ data class TranslationGenerationOptions(
         private const val MAX_OUTPUT_TOKENS = 1_000_000
         private const val MAX_GEMINI_TOP_K = 100
 
-        internal fun decode(json: String): TranslationGenerationOptions {
+        internal fun decode(
+            json: String,
+            protocolId: TranslationProtocolId? = null,
+        ): TranslationGenerationOptions {
             val value = JSONObject(json)
             return TranslationGenerationOptions(
                 temperature = value.nullableDouble("temperature"),
@@ -139,6 +148,16 @@ data class TranslationGenerationOptions(
                 geminiTopK = value.nullableInt("geminiTopK"),
                 geminiThinkingLevel = GeminiThinkingLevel.entries.firstOrNull {
                     it.name == value.optString("geminiThinkingLevel")
+                },
+                structuredOutputMode = if (value.has("structuredOutputMode")) {
+                    TranslationStructuredOutputMode.entries.firstOrNull {
+                        it.name == value.optString("structuredOutputMode")
+                    } ?: TranslationStructuredOutputMode.DISABLED
+                } else if (protocolId == TranslationProtocolId.GEMINI_INTERACTIONS) {
+                    // Older TYN Gemini requests always used its JSON Schema response format.
+                    TranslationStructuredOutputMode.JSON_SCHEMA
+                } else {
+                    TranslationStructuredOutputMode.DISABLED
                 },
             )
         }

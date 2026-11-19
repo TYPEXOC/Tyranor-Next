@@ -24,8 +24,15 @@ internal data class TranslationProofreadTaskSnapshot(
     val glossaryId: String? = null,
     val glossaryName: String? = null,
     val userPrompt: String = "",
-    val generationOptions: TranslationGenerationOptions = TranslationGenerationOptions(),
+    val generationOptions: TranslationGenerationOptions = TranslationGenerationOptions(
+        structuredOutputMode = if (protocolId == TranslationProtocolId.GEMINI_INTERACTIONS) {
+            com.tyranor.next.core.translation.service.TranslationStructuredOutputMode.JSON_SCHEMA
+        } else {
+            com.tyranor.next.core.translation.service.TranslationStructuredOutputMode.DISABLED
+        },
+    ),
     val taskSettings: TranslationServiceTaskSettings = TranslationServiceTaskSettings.defaults(protocolId.category),
+    val customParametersRef: String? = null,
     val retryFailed: Boolean = false,
 ) {
     fun encode(): String = JSONObject()
@@ -35,6 +42,7 @@ internal data class TranslationProofreadTaskSnapshot(
         .put("baseUrl", baseUrl)
         .put("modelId", modelId)
         .put("secretRef", secretRef)
+        .put("customParametersRef", customParametersRef)
         .put("sourceLanguage", sourceLanguage)
         .put("targetLanguage", targetLanguage)
         .put("prompt", prompt)
@@ -75,6 +83,7 @@ internal data class TranslationProofreadTaskSnapshot(
             proofreadingUserPrompt = userPrompt,
             generationOptions = generationOptions,
             taskSettings = taskSettings,
+            customParametersRef = customParametersRef,
         )
     }
 
@@ -110,10 +119,17 @@ internal data class TranslationProofreadTaskSnapshot(
                 glossaryName = value.optString("glossaryName").takeIf(String::isNotBlank),
                 userPrompt = value.optString("userPrompt"),
                 generationOptions = value.optJSONObject("generationOptions")?.toString()
-                    ?.let(TranslationGenerationOptions::decode) ?: TranslationGenerationOptions(),
+                    ?.let { TranslationGenerationOptions.decode(it, protocol) } ?: TranslationGenerationOptions(
+                    structuredOutputMode = if (protocol == TranslationProtocolId.GEMINI_INTERACTIONS) {
+                        com.tyranor.next.core.translation.service.TranslationStructuredOutputMode.JSON_SCHEMA
+                    } else {
+                        com.tyranor.next.core.translation.service.TranslationStructuredOutputMode.DISABLED
+                    },
+                ),
                 taskSettings = value.optJSONObject("taskSettings")?.toString()?.let {
                     TranslationServiceTaskSettings.decode(it, protocol.category)
                 } ?: TranslationServiceTaskSettings.defaults(protocol.category),
+                customParametersRef = value.optString("customParametersRef").takeIf(String::isNotBlank),
                 retryFailed = value.optBoolean("retryFailed"),
             )
         }

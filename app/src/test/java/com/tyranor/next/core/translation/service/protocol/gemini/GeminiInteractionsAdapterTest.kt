@@ -9,6 +9,10 @@ import com.tyranor.next.core.translation.service.TranslationServiceErrorCode
 import com.tyranor.next.core.translation.service.TranslationServiceException
 import com.tyranor.next.core.translation.service.TranslationGenerationOptions
 import com.tyranor.next.core.translation.service.GeminiThinkingLevel
+import com.tyranor.next.core.translation.service.TranslationCustomParameter
+import com.tyranor.next.core.translation.service.TranslationCustomParameters
+import com.tyranor.next.core.translation.service.TranslationParameterType
+import com.tyranor.next.core.translation.service.TranslationStructuredOutputMode
 import com.tyranor.next.core.translation.service.TranslationServiceProfile
 import com.tyranor.next.core.translation.service.TranslationServiceRepository
 import com.tyranor.next.core.translation.service.transport.TranslationHttpTransport
@@ -28,6 +32,7 @@ import kotlin.reflect.KClass
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
@@ -64,6 +69,7 @@ class GeminiInteractionsAdapterTest {
         assertEquals(false, body.getBoolean("stream"))
         assertEquals("勇者", JSONObject(body.getString("input")).getJSONArray("glossary").getJSONObject(0).getString("target"))
         assertEquals("application/json", body.getJSONObject("response_format").getString("mime_type"))
+        assertTrue(body.getJSONObject("response_format").has("schema"))
         assertEquals(listOf("entry"), response.successes.map { it.entryId })
         assertTrue(response.itemFailures.isEmpty())
     }
@@ -100,6 +106,45 @@ class GeminiInteractionsAdapterTest {
         assertEquals(700, config.getInt("max_output_tokens"))
         assertEquals(32, config.getInt("top_k"))
         assertEquals("minimal", config.getString("thinking_level"))
+    }
+
+    @Test
+    fun appliesJsonObjectModeAndCustomHeadersAndBodyParameters() = runBlocking {
+        val result = JSONObject().put("results", JSONArray().put(
+            JSONObject().put("id", "entry").put("translation", "こんにちは"),
+        )).toString()
+        val calls = QueuedCallFactory(listOf(HttpResult(200, interactionResponse(result))))
+        GeminiInteractionsAdapter(TranslationHttpTransport(calls)).translateBatch(
+            profile().copy(
+                generationOptions = TranslationGenerationOptions(
+                    structuredOutputMode = TranslationStructuredOutputMode.JSON_OBJECT,
+                ),
+                requestParameters = TranslationCustomParameters(
+                    headers = listOf(TranslationCustomParameter("X-Tenant", TranslationParameterType.STRING, "tenant-g")),
+                    body = listOf(
+                        TranslationCustomParameter("metadata", TranslationParameterType.OBJECT, "{\"source\":\"tyn\"}"),
+                        TranslationCustomParameter(
+                            "generation_config",
+                            TranslationParameterType.OBJECT,
+                            "{\"temperature\":0.9,\"thinking_level\":\"low\"}",
+                        ),
+                    ),
+                ),
+            ),
+            apiKey = "test-key",
+            sourceLanguage = "en",
+            targetLanguage = "ja",
+            inputs = listOf(TranslationInput("entry", "Hello", "en", "ja")),
+        )
+
+        val request = calls.requests.single()
+        val body = readBody(request)
+        assertEquals("tenant-g", request.header("X-Tenant"))
+        assertEquals("application/json", body.getJSONObject("response_format").getString("mime_type"))
+        assertFalse(body.getJSONObject("response_format").has("schema"))
+        assertEquals("tyn", body.getJSONObject("metadata").getString("source"))
+        assertEquals(0.9, body.getJSONObject("generation_config").getDouble("temperature"), 0.001)
+        assertEquals("low", body.getJSONObject("generation_config").getString("thinking_level"))
     }
 
     @Test

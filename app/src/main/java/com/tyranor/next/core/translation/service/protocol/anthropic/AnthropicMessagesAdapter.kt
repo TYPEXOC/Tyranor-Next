@@ -16,7 +16,9 @@ import com.tyranor.next.core.translation.service.TranslationServiceErrorCode
 import com.tyranor.next.core.translation.service.TranslationServiceException
 import com.tyranor.next.core.translation.service.TranslationServiceProfile
 import com.tyranor.next.core.translation.service.TranslationServiceRepository
+import com.tyranor.next.core.translation.service.addAnthropicFormat
 import com.tyranor.next.core.translation.service.formatAiUserMessage
+import com.tyranor.next.core.translation.service.translationResultSchema
 import com.tyranor.next.core.translation.service.transport.TranslationHttpTransport
 import java.net.HttpURLConnection
 import okhttp3.HttpUrl
@@ -48,7 +50,7 @@ internal class AnthropicMessagesAdapter(
                 .addQueryParameter("limit", MODEL_PAGE_SIZE.toString())
                 .apply { cursor?.let { addQueryParameter("after_id", it) } }
                 .build()
-            val response = transport.execute(request(apiKey, url).get().build())
+            val response = transport.execute(request(profile, apiKey, url).get().build())
             requireSuccess(response.statusCode, response.body, response.retryAfterMillis, modelList = true)
             val page = try {
                 JSONObject(response.body)
@@ -94,11 +96,11 @@ internal class AnthropicMessagesAdapter(
                 inputs.forEach { put(JSONObject().put("id", it.entryId).put("text", it.sourceText)) }
             })
         val body = createRequestBody(
-            profile.modelId,
+            profile,
             profile.translationPrompt,
             profile.translationUserPrompt,
-            profile.generationOptions,
             taskData,
+            proofreading = false,
         )
         return TranslationProtocolStructuredResultParser.parseTranslations(executeMessage(profile, apiKey, body), inputs)
     }
@@ -127,11 +129,11 @@ internal class AnthropicMessagesAdapter(
                 }
             })
         val body = createRequestBody(
-            profile.modelId,
+            profile,
             profile.proofreadingPrompt,
             profile.proofreadingUserPrompt,
-            profile.generationOptions,
             taskData,
+            proofreading = true,
         )
         return TranslationProtocolStructuredResultParser.parseProofreadSuggestions(executeMessage(profile, apiKey, body), inputs)
     }
@@ -139,7 +141,7 @@ internal class AnthropicMessagesAdapter(
     private suspend fun executeMessage(profile: TranslationServiceProfile, apiKey: String?, body: String): String {
         if (body.toByteArray(Charsets.UTF_8).size > MAX_REQUEST_BYTES) invalidConfiguration()
         val response = transport.execute(
-            request(apiKey, endpoint(profile, "messages"))
+            request(profile, apiKey, endpoint(profile, "messages"))
                 .post(body.toRequestBody(JSON_MEDIA_TYPE))
                 .build(),
         )
@@ -161,21 +163,28 @@ internal class AnthropicMessagesAdapter(
     }
 
     private fun createRequestBody(
-        modelId: String,
+        profile: TranslationServiceProfile,
         systemPrompt: String,
         userPrompt: String,
-        generationOptions: TranslationGenerationOptions,
         taskData: JSONObject,
-    ): String = generationOptions.addAnthropicParameters(
+        proofreading: Boolean,
+    ): String {
+        val body = profile.generationOptions.addAnthropicParameters(
             JSONObject()
-                .put("model", modelId)
+                .put("model", profile.modelId)
                 .put("system", systemPrompt)
                 .put("messages", JSONArray().put(
                     JSONObject()
                         .put("role", "user")
                         .put("content", formatAiUserMessage(userPrompt, taskData.toString())),
                 )),
-    ).toString()
+        )
+        profile.generationOptions.structuredOutputMode.addAnthropicFormat(
+            body,
+            translationResultSchema(proofreading),
+        )
+        return profile.requestParameters.applyBody(body).toString()
+    }
 
     private fun validateBatch(
         profile: TranslationServiceProfile,
@@ -203,12 +212,13 @@ internal class AnthropicMessagesAdapter(
         }
     }
 
-    private fun request(apiKey: String?, url: HttpUrl): Request.Builder =
+    private fun request(profile: TranslationServiceProfile, apiKey: String?, url: HttpUrl): Request.Builder =
         Request.Builder()
             .url(url)
             .header("Accept", "application/json")
             .header("x-api-key", apiKey.orEmpty())
             .header("anthropic-version", ANTHROPIC_API_VERSION)
+            .apply { profile.requestParameters.applyHeaders(this) }
 
     private fun endpoint(profile: TranslationServiceProfile, path: String): HttpUrl {
         val baseUrl = profile.baseUrl.toHttpUrlOrNull()
