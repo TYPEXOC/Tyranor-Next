@@ -256,7 +256,6 @@ private fun TranslationGlossaryDetailScreen(
                         text = stringResource(R.string.translation_glossary_add_entry),
                         modifier = Modifier.weight(1f),
                         enabled = loaded && !saving,
-                        tonal = true,
                         onClick = { termEditor = TermEditor(index = null, source = "", target = "", note = "") },
                     )
                     NoRippleButton(
