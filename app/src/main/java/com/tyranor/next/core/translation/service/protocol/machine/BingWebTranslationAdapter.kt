@@ -1,5 +1,6 @@
 package com.tyranor.next.core.translation.service.protocol.machine
 
+import com.tyranor.next.core.translation.TranslationTaskRequestLimiter
 import com.tyranor.next.core.translation.service.TranslationBatchResponse
 import com.tyranor.next.core.translation.service.TranslationInput
 import com.tyranor.next.core.translation.service.TranslationProtocolId
@@ -16,12 +17,22 @@ import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.regex.Pattern
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /** Bing's current webpage-backed translator endpoint. This is not a stable public API. */
 internal class BingWebTranslationAdapter(
     private val transport: TranslationHttpTransport = TranslationHttpTransport(),
+    private val beforeRequest: suspend (TranslationServiceProfile) -> Unit = {
+        TranslationTaskRequestLimiter.awaitRequestSlot(it)
+    },
 ) : MachineTranslationAdapter(TranslationProtocolId.BING_TRANSLATOR_WEB) {
     override val maxBatchSize = 1
+    override val maxConcurrentRequests = 1
+    override val handlesRequestPacing = true
+
+    private val sessionMutex = Mutex()
+    private var cachedSession: BingSession? = null
 
     override suspend fun translateBatch(
         profile: TranslationServiceProfile,
@@ -33,16 +44,29 @@ internal class BingWebTranslationAdapter(
     ): TranslationBatchResponse {
         requireInputs(profile, apiKey, sourceLanguage, targetLanguage, inputs, maxBatchSize)
         val input = inputs.single()
-        var session = fetchSession()
+        var session = session()
+        beforeRequest(profile)
         var response = requestTranslation(session, input, sourceLanguage, targetLanguage)
         if (hasExpiredSession(response.body)) {
-            session = fetchSession()
+            session = session(force = true)
+            beforeRequest(profile)
             response = requestTranslation(session, input, sourceLanguage, targetLanguage)
         }
         requireHttpSuccess(response.statusCode, response.retryAfterMillis)
         val translated = parseTranslation(response.body)
         return orderedResult(listOf(input), listOf(translated))
     }
+
+    private suspend fun session(force: Boolean = false): BingSession =
+        sessionMutex.withLock {
+            val current = cachedSession
+            if (!force && current != null &&
+                System.currentTimeMillis() - current.fetchedAt < SESSION_TTL_MILLIS
+            ) {
+                return current
+            }
+            fetchSession().also { cachedSession = it }
+        }
 
     private suspend fun fetchSession(): BingSession {
         val initialPageUrl = BING_REFERER.toHttpUrl()
@@ -60,7 +84,7 @@ internal class BingWebTranslationAdapter(
             .joinToString("; ") { "${it.name}=${it.value}" }
         val origin = pageUrl.newBuilder().encodedPath("/").query(null).fragment(null).build()
 
-        return BingSession(pageUrl, origin, cookies, token)
+        return BingSession(pageUrl, origin, cookies, token, System.currentTimeMillis())
     }
 
     private suspend fun requestTranslation(
@@ -192,6 +216,7 @@ internal class BingWebTranslationAdapter(
         val origin: HttpUrl,
         val cookie: String,
         val token: BingToken,
+        val fetchedAt: Long,
     )
 
     companion object {
@@ -199,6 +224,7 @@ internal class BingWebTranslationAdapter(
         private val BING_REDIRECT_HOSTS = setOf("www.bing.com", "cn.bing.com")
         private val REDIRECT_STATUS_CODES = 300..399
         private const val EXPIRED_SESSION_STATUS = 205
+        private const val SESSION_TTL_MILLIS = 50 * 60 * 1_000L
         private const val USER_AGENT =
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0"
         private val IG_PATTERN = Pattern.compile("\\\"ig\\\":\\\"([^\\\"]+)\\\"")

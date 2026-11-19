@@ -99,6 +99,12 @@ class TranslationServiceClient(
     internal fun maxBatchSize(protocolId: TranslationProtocolId): Int =
         TranslationProtocolRegistry.adapter(protocolId).maxBatchSize
 
+    internal fun maxConcurrentRequests(protocolId: TranslationProtocolId): Int =
+        TranslationProtocolRegistry.adapter(protocolId).maxConcurrentRequests
+
+    internal fun handlesRequestPacing(protocolId: TranslationProtocolId): Boolean =
+        TranslationProtocolRegistry.adapter(protocolId).handlesRequestPacing
+
     internal suspend fun proofreadBatch(
         profile: TranslationServiceProfile,
         secretRef: String?,

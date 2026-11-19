@@ -33,6 +33,8 @@ import okhttp3.ResponseBody.Companion.toResponseBody
 import okio.Buffer
 import okio.Timeout
 import kotlin.reflect.KClass
+import org.json.JSONArray
+import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
@@ -348,7 +350,7 @@ class MachineTranslationAdapterTest {
                 MockResponse(200, """[{"translations":[{"text":"こんにちは"}]}]"""),
             ),
         )
-        val adapter = BingWebTranslationAdapter(TranslationHttpTransport(factory))
+        val adapter = BingWebTranslationAdapter(TranslationHttpTransport(factory)) { }
         val response = adapter.translateBatch(
             profile(TranslationProtocolId.BING_TRANSLATOR_WEB),
             null,
@@ -367,6 +369,40 @@ class MachineTranslationAdapterTest {
     }
 
     @Test
+    fun bingReusesItsWebSessionAcrossSingleTextRequests() = runBlocking {
+        val html = """{"ig":"ig-value"} <div data-iid="translator.5020"></div> var params_AbusePreventionHelper = ["key-value","token-value"];"""
+        val factory = QueuedCallFactory(
+            listOf(
+                MockResponse(200, html),
+                MockResponse(200, """[{"translations":[{"text":"你好"}]}]"""),
+                MockResponse(200, """[{"translations":[{"text":"谢谢"}]}]"""),
+            ),
+        )
+        val adapter = BingWebTranslationAdapter(
+            transport = TranslationHttpTransport(factory),
+            beforeRequest = {},
+        )
+
+        val first = adapter.translateBatch(
+            profile(TranslationProtocolId.BING_TRANSLATOR_WEB),
+            null,
+            "en",
+            "zh-CN",
+            listOf(input("bing-1", "Hello")),
+        )
+        val second = adapter.translateBatch(
+            profile(TranslationProtocolId.BING_TRANSLATOR_WEB),
+            null,
+            "en",
+            "zh-CN",
+            listOf(input("bing-2", "Thank you")),
+        )
+
+        assertEquals(listOf("/translator", "/ttranslatev3", "/ttranslatev3"), factory.requests.map { it.url.encodedPath })
+        assertEquals(listOf("bing-1", "bing-2"), first.successes.map { it.entryId } + second.successes.map { it.entryId })
+    }
+
+    @Test
     fun bingFollowsKnownRegionalPageRedirectAndUsesItsHostForTranslation() = runBlocking {
         val html = """{"ig":"regional"} <div data-iid="translator.5020"></div> var params_AbusePreventionHelper = ["key","token"];"""
         val factory = QueuedCallFactory(
@@ -377,7 +413,7 @@ class MachineTranslationAdapterTest {
             ),
         )
 
-        val response = BingWebTranslationAdapter(TranslationHttpTransport(factory)).translateBatch(
+        val response = BingWebTranslationAdapter(TranslationHttpTransport(factory)) { }.translateBatch(
             profile(TranslationProtocolId.BING_TRANSLATOR_WEB),
             null,
             "en",
@@ -425,7 +461,7 @@ class MachineTranslationAdapterTest {
             ),
         )
 
-        val response = BingWebTranslationAdapter(TranslationHttpTransport(factory)).translateBatch(
+        val response = BingWebTranslationAdapter(TranslationHttpTransport(factory)) { }.translateBatch(
             profile(TranslationProtocolId.BING_TRANSLATOR_WEB),
             null,
             "en",
@@ -460,24 +496,67 @@ class MachineTranslationAdapterTest {
     }
 
     @Test
-    fun googleWebTranslationUsesStableInputIdWithoutCredentials() = runBlocking {
+    fun googleChromeLaneTranslatesTheDefaultThirtyEntryBatchInOneRequest() = runBlocking {
+        val batchSize = 30
+        val inputs = List(batchSize) { index -> input("g-$index", "Source $index") }
         val factory = QueuedCallFactory(
-            listOf(MockResponse(200, """[[["こんにちは","Hello",null,null,3]],null,"en"]""")),
+            listOf(MockResponse(200, (0 until batchSize).joinToString(prefix = "[", postfix = "]") { "\"訳文$it\"" })),
         )
-        val response = GoogleTranslateWebAdapter(TranslationHttpTransport(factory)).translateBatch(
+        val response = GoogleTranslateWebAdapter(
+            transport = TranslationHttpTransport(factory),
+            beforeRequest = {},
+        ).translateBatch(
             profile(TranslationProtocolId.GOOGLE_TRANSLATE_WEB_V1),
             null,
             "en",
             "ja",
-            listOf(input("g-1", "Hello")),
+            inputs,
         )
 
         val request = factory.requests.single()
         assertEquals("GET", request.method)
         assertEquals("translate.googleapis.com", request.url.host)
-        assertEquals("Hello", request.url.queryParameter("q"))
+        assertEquals("/translate_a/t", request.url.encodedPath)
+        assertEquals("dict-chrome-ex", request.url.queryParameter("client"))
+        assertEquals(inputs.map(TranslationInput::sourceText), request.url.queryParameterValues("q"))
         assertEquals("ja", request.url.queryParameter("tl"))
-        assertEquals(listOf("g-1"), response.successes.map { it.entryId })
+        assertEquals(inputs.map(TranslationInput::entryId), response.successes.map { it.entryId })
+        assertEquals((0 until batchSize).map { "訳文$it" }, response.successes.map { it.translatedText })
+    }
+
+    @Test
+    fun googleChromeBatchFallsBackToGtxSingleTextRequests() = runBlocking {
+        val factory = QueuedCallFactory(
+            listOf(
+                MockResponse(403, ""),
+                MockResponse(200, """[[["你好","Hello",null,null,3]],null,"en"]"""),
+                MockResponse(200, """[[["世界","World",null,null,3]],null,"en"]"""),
+            ),
+        )
+        val inputs = listOf(input("g-1", "Hello"), input("g-2", "World"))
+        val response = GoogleTranslateWebAdapter(TranslationHttpTransport(factory)) { }.translateBatch(
+            profile(TranslationProtocolId.GOOGLE_TRANSLATE_WEB_V1),
+            null,
+            "en",
+            "zh-CN",
+            inputs,
+        )
+
+        assertEquals(
+            listOf("/translate_a/t", "/translate_a/single", "/translate_a/single"),
+            factory.requests.map { it.url.encodedPath },
+        )
+        assertEquals(listOf("Hello", "World"), factory.requests.drop(1).map { it.url.queryParameter("q") })
+        assertEquals(listOf("g-1", "g-2"), response.successes.map { it.entryId })
+    }
+
+    @Test
+    fun freeWebBatchLimitsMatchProviderRequestShape() {
+        assertEquals(1, BingWebTranslationAdapter().maxConcurrentRequests)
+        assertEquals(1, BingWebTranslationAdapter().maxBatchSize)
+        assertTrue(BingWebTranslationAdapter().handlesRequestPacing)
+        assertEquals(50, GoogleTranslateWebAdapter(beforeRequest = {}).maxBatchSize)
+        assertEquals(30, YoudaoWebTranslationAdapter(beforeRequest = {}).maxBatchSize)
     }
 
     @Test
@@ -493,7 +572,10 @@ class MachineTranslationAdapterTest {
                 MockResponse(200, encryptYoudao("""{"code":0,"translateResult":[[{"src":"Hello","tgt":"こんにちは"}]]}""", aesKey, aesIv)),
             ),
         )
-        val adapter = YoudaoWebTranslationAdapter(TranslationHttpTransport(factory)) { now }
+        val adapter = YoudaoWebTranslationAdapter(
+            transport = TranslationHttpTransport(factory),
+            beforeRequest = {},
+        ) { now }
         val response = adapter.translateBatch(
             profile(TranslationProtocolId.YOUDAO_TRANSLATE_WEB_V1),
             null,
@@ -509,6 +591,45 @@ class MachineTranslationAdapterTest {
         assertTrue(factory.requests[3].bodyText().contains("i=Hello"))
         assertEquals("こんにちは", response.successes.single().translatedText)
         assertEquals("yd-1", response.successes.single().entryId)
+    }
+
+    @Test
+    fun youdaoWebTranslationPacksTheDefaultThirtyEntriesIntoOneRequest() = runBlocking {
+        val now = Instant.parse("2026-04-15T12:34:56Z")
+        val aesKey = "youdao-test-key"
+        val aesIv = "youdao-test-iv"
+        val inputs = List(30) { index -> input("yd-$index", "Source$index") }
+        val batchResponse = JSONObject()
+            .put("code", 0)
+            .put("translateResult", JSONArray().apply {
+                inputs.forEachIndexed { index, item ->
+                    put(JSONArray().put(JSONObject().put("src", item.sourceText).put("tgt", "译文$index")))
+                }
+            })
+        val factory = QueuedCallFactory(
+            listOf(
+                MockResponse(200, "<html></html>", Headers.headersOf("Set-Cookie", "OUTFOX_SEARCH_USER_ID=visitor; path=/; secure")),
+                MockResponse(200, """{"data":{"secretKey":"secret","aesKey":"$aesKey","aesIv":"$aesIv"}}"""),
+                MockResponse(200, encryptYoudao("""{"code":0,"translateResult":[[{"src":"Hello","tgt":"你好"}],[{"src":"Thank you","tgt":"谢谢"}]]}""", aesKey, aesIv)),
+                MockResponse(200, encryptYoudao(batchResponse.toString(), aesKey, aesIv)),
+            ),
+        )
+        val adapter = YoudaoWebTranslationAdapter(
+            transport = TranslationHttpTransport(factory),
+            beforeRequest = {},
+        ) { now }
+        val response = adapter.translateBatch(
+            profile(TranslationProtocolId.YOUDAO_TRANSLATE_WEB_V1),
+            null,
+            "en",
+            "ja",
+            inputs,
+        )
+
+        assertEquals(4, factory.requests.size)
+        assertTrue(factory.requests.last().bodyText().contains(inputs.joinToString("%0A", prefix = "i=") { it.sourceText }))
+        assertEquals(inputs.map(TranslationInput::entryId), response.successes.map { it.entryId })
+        assertEquals((0 until 30).map { "译文$it" }, response.successes.map { it.translatedText })
     }
 
     @Test
@@ -530,7 +651,10 @@ class MachineTranslationAdapterTest {
                 MockResponse(200, quoted("""{"code":0,"translateResult":[[{"src":"Hello","tgt":"こんにちは"}]]}""")),
             ),
         )
-        val response = YoudaoWebTranslationAdapter(TranslationHttpTransport(factory)) { now }.translateBatch(
+        val response = YoudaoWebTranslationAdapter(
+            transport = TranslationHttpTransport(factory),
+            beforeRequest = {},
+        ) { now }.translateBatch(
             profile(TranslationProtocolId.YOUDAO_TRANSLATE_WEB_V1),
             null,
             "en",

@@ -56,6 +56,8 @@ internal class TranslationBatchTaskProcessor(
                 protocolMaxBatchSize,
             )
             val batchConcurrency = snapshot.taskSettings.requestConcurrency(snapshot.protocolId.category)
+                .coerceAtMost(client.maxConcurrentRequests(snapshot.protocolId))
+                .coerceAtLeast(1)
             val windowSize = (batchSize * batchConcurrency).coerceAtMost(MAX_WINDOW_SIZE)
             val glossary = snapshot.glossary.map { term ->
                 TranslationGlossaryEntry(term.sourceTerm, term.targetTerm, term.note)
@@ -101,7 +103,9 @@ internal class TranslationBatchTaskProcessor(
                 val failures = TranslationTaskRequestPolicy.executeBatches(plan.batches, batchConcurrency) { batch ->
                     try {
                         currentCoroutineContext().ensureActive()
-                        TranslationTaskRequestLimiter.awaitRequestSlot(profile)
+                        if (!client.handlesRequestPacing(snapshot.protocolId)) {
+                            TranslationTaskRequestLimiter.awaitRequestSlot(profile)
+                        }
                         currentCoroutineContext().ensureActive()
                         val response = client.translateBatch(
                             profile = profile,

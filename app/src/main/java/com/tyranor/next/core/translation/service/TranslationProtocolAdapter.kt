@@ -59,6 +59,8 @@ interface TranslationProtocolAdapter {
     val protocolId: TranslationProtocolId
     val capabilities: Set<TranslationServiceCapability>
     val maxBatchSize: Int get() = 30
+    val maxConcurrentRequests: Int get() = Int.MAX_VALUE
+    val handlesRequestPacing: Boolean get() = false
 
     suspend fun listModels(
         profile: TranslationServiceProfile,

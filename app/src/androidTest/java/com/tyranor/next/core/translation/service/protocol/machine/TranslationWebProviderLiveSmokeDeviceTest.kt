@@ -7,6 +7,7 @@ import com.tyranor.next.core.translation.TranslationProjectSource
 import com.tyranor.next.core.translation.TranslationProjectState
 import com.tyranor.next.core.translation.TranslationTaskSnapshot
 import com.tyranor.next.core.translation.service.DEFAULT_TRANSLATION_PROMPT
+import com.tyranor.next.core.translation.service.TranslationServiceTaskSettings.Companion.DEFAULT_MACHINE_BATCH_CONCURRENCY
 import com.tyranor.next.core.translation.service.TranslationServiceTaskSettings.Companion.DEFAULT_MACHINE_BATCH_SIZE
 import com.tyranor.next.core.translation.service.TranslationInput
 import com.tyranor.next.core.translation.service.TranslationProtocolId
@@ -59,7 +60,7 @@ class TranslationWebProviderLiveSmokeDeviceTest {
     @Test
     fun bingProcessesDefaultBatchTaskAndPersistsCheckpoint() = runBlocking {
         assumeEnabled()
-        processDefaultBatchTask("Bing", TranslationProtocolId.BING_TRANSLATOR_WEB)
+        processDefaultBatchTask("Bing", TranslationProtocolId.BING_TRANSLATOR_WEB, DEFAULT_MACHINE_BATCH_SIZE)
     }
 
     @Test
@@ -83,7 +84,11 @@ class TranslationWebProviderLiveSmokeDeviceTest {
     @Test
     fun youdaoProcessesDefaultBatchTaskAndPersistsCheckpoint() = runBlocking {
         assumeEnabled()
-        processDefaultBatchTask("Youdao", TranslationProtocolId.YOUDAO_TRANSLATE_WEB_V1)
+        processDefaultBatchTask(
+            "Youdao",
+            TranslationProtocolId.YOUDAO_TRANSLATE_WEB_V1,
+            DEFAULT_MACHINE_BATCH_SIZE * DEFAULT_MACHINE_BATCH_CONCURRENCY,
+        )
     }
 
     @Test
@@ -107,17 +112,25 @@ class TranslationWebProviderLiveSmokeDeviceTest {
     @Test
     fun googleProcessesDefaultBatchTaskAndPersistsCheckpoint() = runBlocking {
         assumeEnabled()
-        processDefaultBatchTask("Google", TranslationProtocolId.GOOGLE_TRANSLATE_WEB_V1)
+        processDefaultBatchTask(
+            "Google",
+            TranslationProtocolId.GOOGLE_TRANSLATE_WEB_V1,
+            DEFAULT_MACHINE_BATCH_SIZE * DEFAULT_MACHINE_BATCH_CONCURRENCY,
+        )
     }
 
-    private suspend fun processDefaultBatchTask(provider: String, protocol: TranslationProtocolId) {
+    private suspend fun processDefaultBatchTask(
+        provider: String,
+        protocol: TranslationProtocolId,
+        entryCount: Int,
+    ) {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val dao = TranslationWorkbenchDatabase.get(context).translationDao()
         val serviceRepository = TranslationServiceRepository(context)
         val now = System.currentTimeMillis()
         val suffix = UUID.randomUUID().toString()
         val projectId = "live-batch-project-$suffix"
-        val sources = listOf(
+        val sampleSources = listOf(
             "Hello, traveler.",
             "Thank you for helping me.",
             "The train leaves at dawn.",
@@ -149,7 +162,10 @@ class TranslationWebProviderLiveSmokeDeviceTest {
             "Keep this map away from the rain.",
             "The final decision belongs to the council.",
         )
-        require(sources.size == DEFAULT_MACHINE_BATCH_SIZE)
+        val sources = List(entryCount) { index ->
+            val source = sampleSources[index % sampleSources.size]
+            if (index < sampleSources.size) source else "${index + 1}: $source"
+        }
         val entries = sources.mapIndexed { index, source ->
             TranslationEntryEntity(
                 id = "live-batch-entry-$index-$suffix",
@@ -238,7 +254,7 @@ class TranslationWebProviderLiveSmokeDeviceTest {
                 "COMPLETED",
                 completedTask.state,
             )
-            assertEquals(sources.size, completedTask.itemTotal)
+            assertEquals(entryCount, completedTask.itemTotal)
             assertEquals(sources.size, completedTask.completedItems)
             assertEquals(0, completedTask.failedItems)
             val checkpointIds = JSONObject(completedTask.checkpointJson)

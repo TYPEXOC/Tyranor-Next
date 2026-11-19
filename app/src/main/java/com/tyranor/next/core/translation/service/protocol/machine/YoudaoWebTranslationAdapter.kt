@@ -1,7 +1,10 @@
 package com.tyranor.next.core.translation.service.protocol.machine
 
+import com.tyranor.next.core.translation.TranslationTaskRequestLimiter
 import com.tyranor.next.core.translation.service.TranslationBatchResponse
 import com.tyranor.next.core.translation.service.TranslationInput
+import com.tyranor.next.core.translation.service.TranslationItemFailureCode
+import com.tyranor.next.core.translation.service.TranslationOutput
 import com.tyranor.next.core.translation.service.TranslationProtocolId
 import com.tyranor.next.core.translation.service.TranslationServiceErrorCode
 import com.tyranor.next.core.translation.service.TranslationServiceException
@@ -34,9 +37,13 @@ import org.json.JSONObject
  */
 internal class YoudaoWebTranslationAdapter(
     private val transport: TranslationHttpTransport = TranslationHttpTransport(),
+    private val beforeRequest: suspend (TranslationServiceProfile) -> Unit = {
+        TranslationTaskRequestLimiter.awaitRequestSlot(it)
+    },
     private val now: () -> Instant = Instant::now,
 ) : MachineTranslationAdapter(TranslationProtocolId.YOUDAO_TRANSLATE_WEB_V1) {
-    override val maxBatchSize = 1
+    override val maxBatchSize = MAX_ENTRIES_PER_BATCH
+    override val handlesRequestPacing = true
 
     private val sessionMutex = Mutex()
     private var cachedSession: Session? = null
@@ -50,34 +57,124 @@ internal class YoudaoWebTranslationAdapter(
         glossary: List<com.tyranor.next.core.translation.service.TranslationGlossaryEntry>,
     ): TranslationBatchResponse {
         requireInputs(profile, apiKey, sourceLanguage, targetLanguage, inputs, maxBatchSize)
-        val input = inputs.single()
-        if (input.sourceText.length > MAX_TEXT_LENGTH) {
+        if (inputs.any { it.sourceText.length > MAX_TEXT_LENGTH }) {
             throw TranslationServiceException(TranslationServiceErrorCode.REQUEST_REJECTED)
         }
-        val session = session()
-        val body = try {
-            requestTranslation(session, input.sourceText, youdaoLanguage(sourceLanguage), youdaoLanguage(targetLanguage))
-        } catch (failure: TranslationServiceException) {
-            if (failure.code != TranslationServiceErrorCode.INVALID_RESPONSE) throw failure
-            invalidateSession(session)
-            val refreshed = session()
-            requestTranslation(refreshed, input.sourceText, youdaoLanguage(sourceLanguage), youdaoLanguage(targetLanguage))
+
+        val successes = mutableListOf<TranslationOutput>()
+        val failures = mutableMapOf<String, TranslationItemFailureCode>()
+        val chunks = planInputChunks(inputs)
+        for ((index, chunk) in chunks.withIndex()) {
+            try {
+                val result = translateChunk(profile, chunk, sourceLanguage, targetLanguage)
+                successes += result.successes
+                failures += result.itemFailures
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (failure: TranslationServiceException) {
+                if (successes.isEmpty()) throw failure
+                chunks.drop(index).flatten().forEach {
+                    failures[it.entryId] = TranslationItemFailureCode.INVALID_TRANSLATION
+                }
+                break
+            }
         }
-        val translation = parseTranslation(body, input.sourceText)
-        return orderedResult(inputs, listOf(translation))
+        return TranslationBatchResponse(successes, failures, emptySet())
     }
 
-    private suspend fun session(): Session = sessionMutex.withLock {
+    private suspend fun translateChunk(
+        profile: TranslationServiceProfile,
+        inputs: List<TranslationInput>,
+        sourceLanguage: String,
+        targetLanguage: String,
+    ): TranslationBatchResponse {
+        val from = youdaoLanguage(sourceLanguage)
+        val to = youdaoLanguage(targetLanguage)
+        val body = requestChunk(profile, inputs, from, to)
+        return try {
+            orderedResult(inputs, parseChunk(body, inputs))
+        } catch (misaligned: BatchAlignmentException) {
+            if (inputs.size == 1) {
+                TranslationBatchResponse(
+                    successes = emptyList(),
+                    itemFailures = mapOf(inputs.single().entryId to TranslationItemFailureCode.INVALID_TRANSLATION),
+                    unknownResponseIds = emptySet(),
+                )
+            } else {
+                translateOneByOne(profile, inputs, from, to)
+            }
+        }
+    }
+
+    private suspend fun translateOneByOne(
+        profile: TranslationServiceProfile,
+        inputs: List<TranslationInput>,
+        from: String,
+        to: String,
+    ): TranslationBatchResponse {
+        val successes = mutableListOf<TranslationOutput>()
+        val failures = mutableMapOf<String, TranslationItemFailureCode>()
+        for ((index, input) in inputs.withIndex()) {
+            try {
+                val body = requestChunk(profile, listOf(input), from, to)
+                val translated = try {
+                    parseChunk(body, listOf(input)).single()
+                } catch (_: BatchAlignmentException) {
+                    failures[input.entryId] = TranslationItemFailureCode.INVALID_TRANSLATION
+                    continue
+                }
+                val result = orderedResult(listOf(input), listOf(translated))
+                successes += result.successes
+                failures += result.itemFailures
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (failure: TranslationServiceException) {
+                if (successes.isEmpty()) throw failure
+                inputs.drop(index).forEach {
+                    failures[it.entryId] = TranslationItemFailureCode.INVALID_TRANSLATION
+                }
+                break
+            }
+        }
+        return TranslationBatchResponse(successes, failures, emptySet())
+    }
+
+    private suspend fun requestChunk(
+        profile: TranslationServiceProfile,
+        inputs: List<TranslationInput>,
+        from: String,
+        to: String,
+    ): String {
+        var current = session(profile)
+        val text = inputs.joinToString("\n", transform = TranslationInput::sourceText)
+        repeat(MAX_SESSION_RETRIES + 1) { attempt ->
+            try {
+                beforeRequest(profile)
+                return requestTranslation(current, text, from, to)
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (failure: TranslationServiceException) {
+                if (failure.code != TranslationServiceErrorCode.INVALID_RESPONSE || attempt >= MAX_SESSION_RETRIES) {
+                    throw failure
+                }
+                invalidateSession(current)
+                current = session(profile)
+            }
+        }
+        throw TranslationServiceException(TranslationServiceErrorCode.INVALID_RESPONSE)
+    }
+
+    private suspend fun session(profile: TranslationServiceProfile): Session = sessionMutex.withLock {
         val current = cachedSession
         if (current != null && now().toEpochMilli() - current.createdAt < SESSION_TTL_MILLIS) return current
-        establishSession().also { cachedSession = it }
+        establishSession(profile).also { cachedSession = it }
     }
 
     private suspend fun invalidateSession(session: Session) = sessionMutex.withLock {
         if (cachedSession === session) cachedSession = null
     }
 
-    private suspend fun establishSession(): Session {
+    private suspend fun establishSession(profile: TranslationServiceProfile): Session {
         val home = transport.execute(
             Request.Builder().url(SITE_URL).header("User-Agent", USER_AGENT).header("Accept", "text/html").get().build(),
         )
@@ -107,6 +204,7 @@ internal class YoudaoWebTranslationAdapter(
         if (session.secretKey.isBlank() || session.aesKey.isBlank() || session.aesIv.isBlank()) {
             throw TranslationServiceException(TranslationServiceErrorCode.INVALID_RESPONSE)
         }
+        beforeRequest(profile)
         val probe = requestTranslation(session, PROBE_TEXT, "en", "zh-CHS")
         val paragraphs = parseParagraphs(probe)
         if (paragraphs.size != 2 || !paragraphs[0].second.contains("你好") || !paragraphs[1].second.contains("谢谢")) {
@@ -180,13 +278,21 @@ internal class YoudaoWebTranslationAdapter(
         )
     }
 
-    private fun parseTranslation(body: String, source: String): String {
+    private fun parseChunk(body: String, inputs: List<TranslationInput>): List<String> {
         val paragraphs = parseParagraphs(body)
-        val echoed = paragraphs.joinToString("") { it.first }
-        if (normalizeEcho(echoed) != normalizeEcho(source)) {
-            throw TranslationServiceException(TranslationServiceErrorCode.INVALID_RESPONSE)
+        if (inputs.size == 1) {
+            val input = inputs.single()
+            val echoed = paragraphs.joinToString("") { it.first }
+            if (normalizeEcho(echoed) != normalizeEcho(input.sourceText)) throw BatchAlignmentException()
+            return listOf(paragraphs.joinToString("\n") { it.second }.trimEnd('\n'))
         }
-        return paragraphs.joinToString("\n") { it.second }.trimEnd('\n')
+        if (paragraphs.size != inputs.size || inputs.indices.any { index ->
+                normalizeEcho(paragraphs[index].first) != normalizeEcho(inputs[index].sourceText)
+            }
+        ) {
+            throw BatchAlignmentException()
+        }
+        return paragraphs.map { it.second }
     }
 
     private fun parseParagraphs(body: String): List<Pair<String, String>> {
@@ -209,7 +315,7 @@ internal class YoudaoWebTranslationAdapter(
                     ?: throw TranslationServiceException(TranslationServiceErrorCode.INVALID_RESPONSE)
                 val src = sentence.optString("src")
                 val tgt = sentence.optString("tgt")
-                if (src.isBlank() || tgt.isBlank()) throw TranslationServiceException(TranslationServiceErrorCode.INVALID_RESPONSE)
+                if (src.isBlank()) throw TranslationServiceException(TranslationServiceErrorCode.INVALID_RESPONSE)
                 source.append(src)
                 target.append(tgt)
             }
@@ -253,7 +359,37 @@ internal class YoudaoWebTranslationAdapter(
     private fun normalizeEcho(value: String): String = java.text.Normalizer.normalize(value, java.text.Normalizer.Form.NFKC)
         .filterNot { it.isWhitespace() || it.isLetterOrDigit().not() }
 
+    private fun planInputChunks(inputs: List<TranslationInput>): List<List<TranslationInput>> {
+        val chunks = mutableListOf<List<TranslationInput>>()
+        var current = mutableListOf<TranslationInput>()
+        var currentLength = 0
+        fun flush() {
+            if (current.isNotEmpty()) chunks += current.toList()
+            current = mutableListOf()
+            currentLength = 0
+        }
+        inputs.forEach { input ->
+            if (input.sourceText.contains('\n') || input.sourceText.contains('\r')) {
+                flush()
+                chunks += listOf(input)
+            } else {
+                val combinedLength = currentLength + if (current.isEmpty()) 0 else 1 + input.sourceText.length
+                if (current.isNotEmpty() &&
+                    (current.size >= MAX_ENTRIES_PER_BATCH || combinedLength > MAX_TEXT_LENGTH)
+                ) {
+                    flush()
+                }
+                currentLength += if (current.isEmpty()) input.sourceText.length else 1 + input.sourceText.length
+                current += input
+            }
+        }
+        flush()
+        return chunks
+    }
+
     private data class Session(val cookie: String, val secretKey: String, val aesKey: String, val aesIv: String, val createdAt: Long)
+
+    private class BatchAlignmentException : Exception()
 
     companion object {
         private const val SITE_URL = "https://fanyi.youdao.com/"
@@ -266,6 +402,8 @@ internal class YoudaoWebTranslationAdapter(
         private const val PRODUCT = "webfanyi"
         private const val APP_VERSION = "12.0.0"
         private const val MAX_TEXT_LENGTH = 5_000
+        private const val MAX_ENTRIES_PER_BATCH = 30
+        private const val MAX_SESSION_RETRIES = 1
         private const val SESSION_TTL_MILLIS = 30 * 60 * 1_000L
         private const val PROBE_TEXT = "Hello\nThank you"
         private const val USER_AGENT =
