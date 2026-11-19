@@ -1489,8 +1489,12 @@ private fun TranslationServiceProfile.toServiceListRow() = ServiceListRow(
     displayName = displayName,
     displayNameResource = null,
     mark = protocolId.serviceMark(),
-    iconResource = protocolId.serviceIconResource(),
-    iconTinted = protocolId == TranslationProtocolId.OPENAI_RESPONSES,
+    iconResource = if (protocolId.category == TranslationServiceCategory.AI_TRANSLATION) {
+        R.drawable.ic_translation_provider_custom_api
+    } else {
+        protocolId.serviceIconResource()
+    },
+    iconTinted = protocolId.category == TranslationServiceCategory.AI_TRANSLATION,
     protocolId = protocolId,
     baseUrl = baseUrl,
     profile = this,
@@ -1521,9 +1525,6 @@ private fun TranslationProtocolId.serviceMark(): String = when (this) {
 }
 
 private fun TranslationProtocolId.serviceIconResource(): Int? = when (this) {
-    TranslationProtocolId.OPENAI_RESPONSES -> R.drawable.ic_translation_provider_openai
-    TranslationProtocolId.GEMINI_INTERACTIONS -> R.drawable.ic_translation_provider_gemini
-    TranslationProtocolId.ANTHROPIC_MESSAGES -> R.drawable.ic_translation_provider_anthropic
     TranslationProtocolId.BING_TRANSLATOR_WEB -> R.drawable.ic_translation_provider_bing
     TranslationProtocolId.NIUTRANS_TRANSLATION_V1 -> R.drawable.ic_translation_provider_niutrans
     TranslationProtocolId.VOLCENGINE_TRANSLATE_TEXT_V1 -> R.drawable.ic_translation_provider_volcengine

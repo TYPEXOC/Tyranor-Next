@@ -3,7 +3,7 @@
 ## 未发布
 
 - AI 翻译高级设置提供按协议适配的结构化输出、Chat Completions Token 字段与输出上限，以及加密保存的自定义请求头/类型化请求体参数。采样参数改由自定义请求体控制；Gemini 思考等级与 OpenAI 官方服务推理强度移到服务配置页，推理强度只对 OpenAI 官方主机显示。任务快照仍固定启动配置；Room schema v10→v11 增加自定义参数密文引用列。
-- 服务列表改用独立品牌图标：机器翻译 13 个模板均有对应图标，OpenAI、DeepSeek、Gemini、Claude AI 模板也显示图标；SmartSub 已提供的 SVG/PNG 转为 Android VectorDrawable，Google Cloud 与 Anthropic 图标取自 simple-icons。默认启用的必应、Google 网页翻译和有道网页排在机器翻译列表前面，来源与许可固定记录在第三方声明中。
+- 服务列表改用独立品牌图标：机器翻译 13 个模板均有对应图标，OpenAI、DeepSeek、Gemini、Claude AI 模板也显示图标；未匹配内置模板的自定义 AI 档案使用 TYN 自绘的通用 API 图标。SmartSub 已提供的 SVG/PNG 转为 Android VectorDrawable，Google Cloud 与 Anthropic 图标取自 simple-icons。默认启用的必应、Google 网页翻译和有道网页排在机器翻译列表前面，来源与许可固定记录在第三方声明中。
 - 翻译服务新增独立的“任务设置”完整页面，机器翻译配置批次、请求节流与 RPM，AI 配置批次大小、并发数和请求间隔；设置保存在服务档案并固定进翻译/AI 校对任务快照。AI 按条目数量拆批，不按 Token 估算拆分；无效持久化设置回退到类别默认值。
 - 补齐有道网页翻译、Google 网页翻译、火山方舟 Responses 与讯飞 OTS 四个机器翻译协议；共注册 17 个机器翻译 adapter，配置页提供 13 个模板入口。尚未完成真实服务账号与 Android 设备验收。
 - 添加项目抽屉中的来源错误提示改为替换来源路径副标题，限制单行省略，避免错误出现时额外撑高抽屉。
