@@ -785,16 +785,16 @@ private fun TranslationServicesScreen() {
                                     maxLines = 2,
                                     overflow = TextOverflow.Ellipsis,
                                 )
+                                NoRippleButton(
+                                    text = stringResource(
+                                        if (isTestingThisConnection) R.string.translation_services_test_connection_loading
+                                        else R.string.translation_services_test_connection,
+                                    ),
+                                    modifier = Modifier.fillMaxWidth(),
+                                    enabled = !isTestingThisConnection && !isSaving,
+                                    onClick = { startConnectionTest(state) },
+                                )
                             }
-                            NoRippleButton(
-                                text = stringResource(
-                                    if (isTestingThisConnection) R.string.translation_services_test_connection_loading
-                                    else R.string.translation_services_test_connection,
-                                ),
-                                modifier = Modifier.fillMaxWidth(),
-                                enabled = !isTestingThisConnection && !isSaving,
-                                onClick = { startConnectionTest(state) },
-                            )
                     NoRippleButton(
                         text = stringResource(R.string.translation_services_task_settings),
                         modifier = Modifier.fillMaxWidth(),
