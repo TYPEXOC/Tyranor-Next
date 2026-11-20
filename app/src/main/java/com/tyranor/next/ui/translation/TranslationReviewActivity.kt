@@ -1241,11 +1241,10 @@ private fun TranslationReviewEntryDetailPane(
                 MiuixTextField(
                     value = translationText,
                     onValueChange = onTranslationTextChange,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 88.dp, max = 220.dp),
-                    minLines = 2,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp, max = 220.dp),
+                    minLines = 1,
                     maxLines = 10,
                     enabled = enabled,
-                    label = stringResource(R.string.translation_review_translation),
                 )
             }
             entry.suggestedTranslation?.let { suggestion ->
