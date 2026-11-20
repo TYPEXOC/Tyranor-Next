@@ -2243,10 +2243,10 @@ private fun TranslationServiceTemplateCard(
                         .border(
                             width = 1.dp,
                             color = MaterialTheme.colorScheme.outlineVariant,
-                            shape = AppComponentShape,
+                            shape = RoundedCornerShape(10.dp),
                         ),
                     enabled = true,
-                    cornerRadius = AppComponentCornerRadius,
+                    cornerRadius = 10.dp,
                     minWidth = 49.dp,
                     minHeight = 28.dp,
                     colors = MiuixButtonDefaults.buttonColors(
