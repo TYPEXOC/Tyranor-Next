@@ -480,6 +480,29 @@ private fun TranslationServicesScreen() {
     editor?.takeIf { advancedSettingsEditor == null && taskSettingsEditor == null }?.let { state ->
         val isMachineTranslation = state.protocolId.category == TranslationServiceCategory.MACHINE_TRANSLATION
         val isTestingThisConnection = testingConnectionSessionId == editorSessionId
+        val connectionStatusText = when {
+            errorCode != null -> stringResource(errorCode!!.messageResource())
+            connectionTestError != null -> stringResource(connectionTestError!!.messageResource()) +
+                connectionTestHttpStatusCode?.let {
+                    stringResource(R.string.translation_services_http_status_code, it)
+                }.orEmpty()
+            !isMachineTranslation && modelFetchError != null ->
+                stringResource(modelFetchError!!.messageResource())
+            !isMachineTranslation && modelListEmpty ->
+                stringResource(R.string.translation_services_no_models)
+            connectionTestResult == TranslationConnectionTestResult.TranslationVerified ->
+                stringResource(R.string.translation_services_test_translation_success)
+            isMachineTranslation -> stringResource(R.string.translation_services_machine_test_connection_hint)
+            else -> stringResource(R.string.translation_services_manual_model_hint)
+        }
+        val connectionStatusIsError = errorCode != null || connectionTestError != null ||
+            (!isMachineTranslation && modelFetchError != null)
+        val connectionStatusColor = when {
+            connectionStatusIsError -> MaterialTheme.colorScheme.error
+            connectionTestResult == TranslationConnectionTestResult.TranslationVerified ->
+                MaterialTheme.colorScheme.primary
+            else -> PageSecondaryTextColor
+        }
         MiuixSettingsTheme {
             MiuixScaffold(
                 modifier = Modifier.fillMaxSize(),
@@ -689,6 +712,14 @@ private fun TranslationServicesScreen() {
                                             },
                                         )
                                     }
+                                    Text(
+                                        connectionStatusText,
+                                        modifier = Modifier.fillMaxWidth().heightIn(min = 20.dp, max = 40.dp),
+                                        color = connectionStatusColor,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
                                 }
                             }
                             if (state.protocolId.category == TranslationServiceCategory.AI_TRANSLATION) {
@@ -751,55 +782,25 @@ private fun TranslationServicesScreen() {
                                             },
                                         )
                                     }
+                                    Text(
+                                        connectionStatusText,
+                                        modifier = Modifier.fillMaxWidth().heightIn(min = 20.dp, max = 40.dp),
+                                        color = connectionStatusColor,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
                                 }
                             }
-                            val connectionStatusText = when {
-                                errorCode != null -> stringResource(errorCode!!.messageResource())
-                                connectionTestError != null -> stringResource(connectionTestError!!.messageResource()) +
-                                    connectionTestHttpStatusCode?.let {
-                                        stringResource(R.string.translation_services_http_status_code, it)
-                                    }.orEmpty()
-                                !isMachineTranslation && modelFetchError != null ->
-                                    stringResource(modelFetchError!!.messageResource())
-                                !isMachineTranslation && modelListEmpty ->
-                                    stringResource(R.string.translation_services_no_models)
-                                connectionTestResult == TranslationConnectionTestResult.TranslationVerified ->
-                                    stringResource(R.string.translation_services_test_translation_success)
-                                isMachineTranslation -> stringResource(R.string.translation_services_machine_test_connection_hint)
-                                else -> stringResource(R.string.translation_services_manual_model_hint)
-                            }
-                            val connectionStatusIsError = errorCode != null || connectionTestError != null ||
-                                (!isMachineTranslation && modelFetchError != null)
-                            val connectionStatusColor = when {
-                                connectionStatusIsError -> MaterialTheme.colorScheme.error
-                                connectionTestResult == TranslationConnectionTestResult.TranslationVerified ->
-                                    MaterialTheme.colorScheme.primary
-                                else -> PageSecondaryTextColor
-                            }
-                            Column(
+                            NoRippleButton(
+                                text = stringResource(
+                                    if (isTestingThisConnection) R.string.translation_services_test_connection_loading
+                                    else R.string.translation_services_test_connection,
+                                ),
                                 modifier = Modifier.fillMaxWidth(),
-                                verticalArrangement = Arrangement.spacedBy(4.dp),
-                            ) {
-                                Text(
-                                    connectionStatusText,
-                                    modifier = Modifier.fillMaxWidth()
-                                        .padding(horizontal = 16.dp)
-                                        .heightIn(min = 20.dp, max = 40.dp),
-                                    color = connectionStatusColor,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                                NoRippleButton(
-                                    text = stringResource(
-                                        if (isTestingThisConnection) R.string.translation_services_test_connection_loading
-                                        else R.string.translation_services_test_connection,
-                                    ),
-                                    modifier = Modifier.fillMaxWidth(),
-                                    enabled = !isTestingThisConnection && !isSaving,
-                                    onClick = { startConnectionTest(state) },
-                                )
-                            }
+                                enabled = !isTestingThisConnection && !isSaving,
+                                onClick = { startConnectionTest(state) },
+                            )
                     NoRippleButton(
                         text = stringResource(R.string.translation_services_task_settings),
                         modifier = Modifier.fillMaxWidth(),
