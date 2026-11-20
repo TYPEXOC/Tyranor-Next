@@ -915,7 +915,7 @@ private fun ReviewEntryTable(
                     val showScrollbar = listState.layoutInfo.totalItemsCount > listState.layoutInfo.visibleItemsInfo.size
                     LazyColumn(
                         state = listState,
-                        modifier = Modifier.fillMaxSize().padding(end = if (showScrollbar) 16.dp else 0.dp),
+                        modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(0.dp),
                         verticalArrangement = Arrangement.Top,
                     ) {
@@ -1015,18 +1015,18 @@ private fun ReviewEntryScrollbar(state: LazyListState, modifier: Modifier = Modi
             },
     ) {
         val metrics = reviewScrollbarMetrics(state, size.height, density) ?: return@Canvas
-        val thumbWidth = 4.dp.toPx()
-        val trackWidth = 2.dp.toPx()
-        val centerX = size.width / 2f
+        val thumbWidth = 3.dp.toPx()
+        val trackWidth = 3.dp.toPx()
+        val trackLeft = size.width - trackWidth
         drawRoundRect(
             color = PageSecondaryTextColor.copy(alpha = 0.12f),
-            topLeft = Offset(centerX - trackWidth / 2f, 0f),
+            topLeft = Offset(trackLeft, 0f),
             size = Size(trackWidth, size.height),
             cornerRadius = CornerRadius(trackWidth / 2f),
         )
         drawRoundRect(
             color = PageSecondaryTextColor.copy(alpha = 0.62f),
-            topLeft = Offset(centerX - thumbWidth / 2f, metrics.thumbTop),
+            topLeft = Offset(size.width - thumbWidth, metrics.thumbTop),
             size = Size(thumbWidth, metrics.thumbHeight),
             cornerRadius = CornerRadius(thumbWidth / 2f),
         )
