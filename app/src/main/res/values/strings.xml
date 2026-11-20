@@ -188,7 +188,7 @@
     <string name="translation_services_user_prompt">用户提示词</string>
     <string name="translation_services_user_prompt_hint">作为用户消息附加在本次结构化任务数据之前。</string>
     <string name="translation_services_prompt_restore_defaults">恢复默认</string>
-    <string name="translation_services_max_output_tokens">最大输出 Token 数</string>
+    <string name="translation_services_max_output_tokens">Token 上限</string>
     <string name="translation_services_output_limit">输出上限</string>
     <string name="translation_services_thinking_level">思考等级</string>
     <string name="translation_services_thinking_level_hint">模型支持各异；不确定时用服务默认值。</string>
@@ -201,9 +201,6 @@
     <string name="translation_services_reasoning_high">高</string>
     <string name="translation_services_reasoning_xhigh">超高</string>
     <string name="translation_services_reasoning_max">最高</string>
-    <string name="translation_services_chat_token_limit_field">Chat Completions Token 上限字段</string>
-    <string name="translation_services_max_tokens_legacy">max_tokens（旧式）</string>
-    <string name="translation_services_max_completion_tokens">max_completion_tokens（新式）</string>
     <string name="translation_services_generation_parameters_invalid">参数格式或范围无效，请检查后重试。</string>
     <string name="translation_services_structured_output">结构化输出</string>
     <string name="translation_services_structured_output_hint">控制 API 原生输出格式。关闭时依赖提示词；JSON 模式仍会校验 TYN 条目结果格式。支持情况因协议和模型而异，不支持时请求会失败。</string>
