@@ -102,6 +102,7 @@
     <string name="translation_services_delete_action">删除此服务</string>
     <string name="translation_services_section_identity">服务信息</string>
     <string name="translation_services_section_connection">连接与模型</string>
+    <string name="translation_services_section_protocol">服务协议</string>
     <string name="translation_services_section_credentials">访问凭据</string>
     <string name="translation_services_name">显示名称</string>
     <string name="translation_services_base_url">服务根地址</string>
@@ -113,6 +114,12 @@
     <string name="translation_services_fetch_models">获取模型列表</string>
     <string name="translation_services_fetch_models_short">获取模型</string>
     <string name="translation_services_fetch_models_loading_short">获取中</string>
+    <string name="translation_services_test_connection">测试连接</string>
+    <string name="translation_services_test_connection_loading">测试中</string>
+    <string name="translation_services_test_models_success">连接成功，模型列表可访问（%1$d 个模型）。</string>
+    <string name="translation_services_test_models_empty">连接成功，但服务未返回模型列表；请手动填写模型 ID。</string>
+    <string name="translation_services_test_translation_success">测试翻译成功，服务可用。</string>
+    <string name="translation_services_test_connection_hint">未填写模型 ID 时验证模型列表接口；填写后发送一条短文本验证翻译请求，可能产生少量 API 用量。</string>
     <string name="translation_services_search_models">筛选模型</string>
     <string name="translation_services_no_models">服务没有返回模型列表；仍可手动填写模型 ID。</string>
     <string name="translation_services_api_key">API Key（可选）</string>
@@ -235,6 +242,7 @@
     <string name="translation_services_error_quota">服务额度不足或已用尽。</string>
     <string name="translation_services_error_server">服务暂时不可用。</string>
     <string name="translation_services_error_model">模型不存在或当前服务无权访问。</string>
+    <string name="translation_services_error_model_list">服务不支持获取模型列表，请手动填写模型 ID。</string>
     <string name="translation_services_error_request">服务拒绝了请求，请检查接口配置。</string>
     <string name="translation_services_error_response_large">服务响应超过读取上限。</string>
     <string name="translation_services_error_response">服务返回了无法识别的数据。</string>
@@ -1749,6 +1757,8 @@
     <string name="translation_services_batch_concurrency_hint">同时发送的翻译请求数，较大的值可能触发服务限流。</string>
     <string name="translation_services_request_interval">请求间隔（秒）</string>
     <string name="translation_services_request_interval_hint">连续请求之间至少等待的时间。</string>
+    <string name="translation_services_request_timeout">请求超时（秒）</string>
+    <string name="translation_services_request_timeout_hint">单次请求的总时限，范围 5–600 秒，默认 120 秒。</string>
     <string name="translation_services_requests_per_minute">每分钟最大请求数</string>
     <string name="translation_services_requests_per_minute_machine_hint">滑动 60 秒内的请求上限；0 表示不限制。</string>
     <string name="translation_services_ai_task_limits">AI 翻译请求设置</string>

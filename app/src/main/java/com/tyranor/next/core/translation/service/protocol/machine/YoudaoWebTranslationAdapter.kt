@@ -150,7 +150,7 @@ internal class YoudaoWebTranslationAdapter(
         repeat(MAX_SESSION_RETRIES + 1) { attempt ->
             try {
                 beforeRequest(profile)
-                return requestTranslation(current, text, from, to)
+                return requestTranslation(profile, current, text, from, to)
             } catch (cancelled: kotlinx.coroutines.CancellationException) {
                 throw cancelled
             } catch (failure: TranslationServiceException) {
@@ -175,7 +175,7 @@ internal class YoudaoWebTranslationAdapter(
     }
 
     private suspend fun establishSession(profile: TranslationServiceProfile): Session {
-        val home = transport.execute(
+        val home = transport.execute(profile,
             Request.Builder().url(SITE_URL).header("User-Agent", USER_AGENT).header("Accept", "text/html").get().build(),
         )
         requireHttpSuccess(home.statusCode, home.retryAfterMillis)
@@ -190,7 +190,7 @@ internal class YoudaoWebTranslationAdapter(
             .addQueryParameter("keyid", KEY_GETTER_KEY_ID)
             .apply { signedFields(KEY_GETTER_SECRET).forEach { (name, value) -> addQueryParameter(name, value) } }
             .build()
-        val keyResponse = transport.execute(webRequest(keyUrl, cookie).get().build())
+        val keyResponse = transport.execute(profile, webRequest(keyUrl, cookie).get().build())
         requireHttpSuccess(keyResponse.statusCode, keyResponse.retryAfterMillis)
         val keyData = runCatching { JSONObject(keyResponse.body).optJSONObject("data") }.getOrNull()
             ?: throw TranslationServiceException(TranslationServiceErrorCode.INVALID_RESPONSE)
@@ -205,7 +205,7 @@ internal class YoudaoWebTranslationAdapter(
             throw TranslationServiceException(TranslationServiceErrorCode.INVALID_RESPONSE)
         }
         beforeRequest(profile)
-        val probe = requestTranslation(session, PROBE_TEXT, "en", "zh-CHS")
+        val probe = requestTranslation(profile, session, PROBE_TEXT, "en", "zh-CHS")
         val paragraphs = parseParagraphs(probe)
         if (paragraphs.size != 2 || !paragraphs[0].second.contains("你好") || !paragraphs[1].second.contains("谢谢")) {
             throw TranslationServiceException(TranslationServiceErrorCode.INVALID_RESPONSE)
@@ -213,7 +213,13 @@ internal class YoudaoWebTranslationAdapter(
         return session
     }
 
-    private suspend fun requestTranslation(session: Session, text: String, from: String, to: String): String {
+    private suspend fun requestTranslation(
+        profile: TranslationServiceProfile,
+        session: Session,
+        text: String,
+        from: String,
+        to: String,
+    ): String {
         val fields = linkedMapOf(
             "i" to text,
             "from" to from,
@@ -224,7 +230,7 @@ internal class YoudaoWebTranslationAdapter(
             "noCheckPrivate" to "false",
         ) + signedFields(session.secretKey)
         val body = FormBody.Builder().apply { fields.forEach { (name, value) -> add(name, value) } }.build()
-        val response = transport.execute(
+        val response = transport.execute(profile,
             webRequest(API_ORIGIN.toHttpUrl().newBuilder().addPathSegment("webtranslate").build(), session.cookie)
                 .post(body)
                 .build(),

@@ -48,7 +48,7 @@ internal class GeminiInteractionsAdapter(
                 .addQueryParameter("pageSize", MODEL_PAGE_SIZE.toString())
                 .apply { pageToken?.let { addQueryParameter("pageToken", it) } }
                 .build()
-            val response = transport.execute(requestBuilder(profile, key, url).get().build())
+            val response = transport.execute(profile, requestBuilder(profile, key, url).get().build())
             requireSuccess(response.statusCode, response.body, response.retryAfterMillis, modelList = true)
             val root = parseObject(response.body)
             val page = root.optJSONArray("models")
@@ -150,7 +150,7 @@ internal class GeminiInteractionsAdapter(
         if (body.toByteArray(Charsets.UTF_8).size > MAX_REQUEST_BYTES) {
             throw TranslationServiceException(TranslationServiceErrorCode.REQUEST_REJECTED)
         }
-        val response = transport.execute(
+        val response = transport.execute(profile,
             requestBuilder(profile, apiKey, endpoint(profile, listOf("v1", "interactions")))
                 .post(body.toRequestBody(JSON_MEDIA_TYPE))
                 .build(),
@@ -288,6 +288,8 @@ internal class GeminiInteractionsAdapter(
             statusCode == 429 -> TranslationServiceErrorCode.RATE_LIMITED
             statusCode == 402 -> TranslationServiceErrorCode.QUOTA_EXCEEDED
             statusCode == 408 -> TranslationServiceErrorCode.TIMEOUT
+            statusCode == HttpURLConnection.HTTP_NOT_FOUND && modelList ->
+                TranslationServiceErrorCode.MODEL_LIST_UNAVAILABLE
             statusCode == HttpURLConnection.HTTP_NOT_FOUND && !modelList -> TranslationServiceErrorCode.MODEL_NOT_FOUND
             statusCode in 500..599 -> TranslationServiceErrorCode.SERVER_ERROR
             else -> TranslationServiceErrorCode.REQUEST_REJECTED

@@ -44,7 +44,7 @@ internal class GoogleTranslateWebAdapter(
         for (chunk in planChromeChunks(inputs, sourceLanguage, targetLanguage)) {
             try {
                 beforeRequest(profile)
-                val translations = requestChrome(chunk, sourceLanguage, targetLanguage)
+                val translations = requestChrome(profile, chunk, sourceLanguage, targetLanguage)
                 val result = orderedResult(chunk, translations)
                 successes += result.successes
                 failures += result.itemFailures
@@ -60,11 +60,12 @@ internal class GoogleTranslateWebAdapter(
     }
 
     private suspend fun requestChrome(
+        profile: TranslationServiceProfile,
         inputs: List<TranslationInput>,
         sourceLanguage: String,
         targetLanguage: String,
     ): List<String> {
-        val response = transport.execute(
+        val response = transport.execute(profile,
             Request.Builder()
                 .url(chromeUrl(inputs, sourceLanguage, targetLanguage))
                 .header("User-Agent", USER_AGENT)
@@ -91,7 +92,7 @@ internal class GoogleTranslateWebAdapter(
         for ((index, input) in inputs.withIndex()) {
             try {
                 beforeRequest(profile)
-                val translated = requestGtx(input, sourceLanguage, targetLanguage)
+                val translated = requestGtx(profile, input, sourceLanguage, targetLanguage)
                 val result = orderedResult(listOf(input), listOf(translated))
                 successes += result.successes
                 failures += result.itemFailures
@@ -109,6 +110,7 @@ internal class GoogleTranslateWebAdapter(
     }
 
     private suspend fun requestGtx(
+        profile: TranslationServiceProfile,
         input: TranslationInput,
         sourceLanguage: String,
         targetLanguage: String,
@@ -120,7 +122,7 @@ internal class GoogleTranslateWebAdapter(
             .addQueryParameter("dt", "t")
             .addQueryParameter("q", input.sourceText)
             .build()
-        val response = transport.execute(
+        val response = transport.execute(profile,
             Request.Builder()
                 .url(url)
                 .header("User-Agent", USER_AGENT)

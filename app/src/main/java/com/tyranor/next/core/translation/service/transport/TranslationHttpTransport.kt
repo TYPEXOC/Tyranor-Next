@@ -2,8 +2,9 @@ package com.tyranor.next.core.translation.service.transport
 
 import java.io.ByteArrayOutputStream
 import java.io.IOException
-import java.net.SocketTimeoutException
+import java.io.InterruptedIOException
 import java.util.concurrent.TimeUnit
+import kotlin.math.min
 import javax.net.ssl.SSLException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -14,14 +15,24 @@ import okhttp3.Request
 import okhttp3.Response
 import com.tyranor.next.core.translation.service.TranslationServiceErrorCode
 import com.tyranor.next.core.translation.service.TranslationServiceException
+import com.tyranor.next.core.translation.service.TranslationServiceProfile
 import kotlin.coroutines.resume
 
 /** Dedicated translation HTTP transport. Redirects stay disabled so credentials never cross hosts. */
 internal class TranslationHttpTransport(
     private val callFactory: Call.Factory = DEFAULT_CLIENT,
 ) {
-    suspend fun execute(request: Request): TranslationHttpResponse = suspendCancellableCoroutine { continuation ->
-        val call = callFactory.newCall(request)
+    suspend fun execute(request: Request): TranslationHttpResponse = execute(request, DEFAULT_REQUEST_TIMEOUT_MILLIS)
+
+    suspend fun execute(profile: TranslationServiceProfile, request: Request): TranslationHttpResponse =
+        execute(request, profile.taskSettings.requestTimeoutMillis)
+
+    suspend fun execute(request: Request, timeoutMillis: Long): TranslationHttpResponse {
+        if (timeoutMillis !in MIN_REQUEST_TIMEOUT_MILLIS..MAX_REQUEST_TIMEOUT_MILLIS) {
+            throw TranslationServiceException(TranslationServiceErrorCode.INVALID_CONFIGURATION)
+        }
+        return suspendCancellableCoroutine { continuation ->
+        val call = newCall(request, timeoutMillis)
         continuation.invokeOnCancellation { call.cancel() }
         call.enqueue(
             object : Callback {
@@ -60,6 +71,24 @@ internal class TranslationHttpTransport(
                 }
             },
         )
+        }
+    }
+
+    private fun newCall(request: Request, timeoutMillis: Long): Call {
+        val timeout = timeoutMillis.coerceIn(MIN_REQUEST_TIMEOUT_MILLIS, MAX_REQUEST_TIMEOUT_MILLIS)
+        val client = callFactory as? OkHttpClient
+        if (client != null) {
+            return client.newBuilder()
+                .connectTimeout(min(DEFAULT_CONNECT_TIMEOUT_MILLIS, timeout), TimeUnit.MILLISECONDS)
+                .readTimeout(timeout, TimeUnit.MILLISECONDS)
+                .writeTimeout(timeout, TimeUnit.MILLISECONDS)
+                .callTimeout(timeout, TimeUnit.MILLISECONDS)
+                .build()
+                .newCall(request)
+        }
+        return callFactory.newCall(request).also { call ->
+            call.timeout().timeout(timeout, TimeUnit.MILLISECONDS)
+        }
     }
 
     private fun readBounded(input: java.io.InputStream): String {
@@ -80,7 +109,7 @@ internal class TranslationHttpTransport(
 
     private fun classify(failure: IOException): TranslationServiceErrorCode = when {
         causeChain(failure).any { it is SSLException } -> TranslationServiceErrorCode.TLS_FAILURE
-        causeChain(failure).any { it is SocketTimeoutException } -> TranslationServiceErrorCode.TIMEOUT
+        causeChain(failure).any { it is InterruptedIOException } -> TranslationServiceErrorCode.TIMEOUT
         else -> TranslationServiceErrorCode.NETWORK_UNAVAILABLE
     }
 
@@ -109,6 +138,10 @@ internal class TranslationHttpTransport(
     companion object {
         private const val MAX_RESPONSE_BYTES = 2 * 1024 * 1024
         private const val MAX_RETRY_AFTER_SECONDS = 24 * 60 * 60L
+        private const val DEFAULT_CONNECT_TIMEOUT_MILLIS = 20_000L
+        private const val DEFAULT_REQUEST_TIMEOUT_MILLIS = 120_000L
+        private const val MIN_REQUEST_TIMEOUT_MILLIS = 5_000L
+        private const val MAX_REQUEST_TIMEOUT_MILLIS = 600_000L
         private val DEFAULT_CLIENT = OkHttpClient.Builder()
             .connectTimeout(20, TimeUnit.SECONDS)
             .readTimeout(90, TimeUnit.SECONDS)

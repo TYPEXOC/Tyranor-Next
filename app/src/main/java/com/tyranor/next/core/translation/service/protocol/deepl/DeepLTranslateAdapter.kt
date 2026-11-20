@@ -62,7 +62,7 @@ internal class DeepLTranslateAdapter(
             .header("Authorization", "DeepL-Auth-Key $key")
             .post(requestBody.toRequestBody(JSON_MEDIA_TYPE))
             .build()
-        val response = transport.execute(request)
+        val response = transport.execute(profile, request)
         requireSuccess(response.statusCode, response.body, response.retryAfterMillis)
         return parseTranslations(response.body, inputs)
     }

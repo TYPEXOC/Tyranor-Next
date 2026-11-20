@@ -49,7 +49,7 @@ internal class AnthropicMessagesAdapter(
                 .addQueryParameter("limit", MODEL_PAGE_SIZE.toString())
                 .apply { cursor?.let { addQueryParameter("after_id", it) } }
                 .build()
-            val response = transport.execute(request(profile, apiKey, url).get().build())
+            val response = transport.execute(profile, request(profile, apiKey, url).get().build())
             requireSuccess(response.statusCode, response.body, response.retryAfterMillis, modelList = true)
             val page = try {
                 JSONObject(response.body)
@@ -139,7 +139,7 @@ internal class AnthropicMessagesAdapter(
 
     private suspend fun executeMessage(profile: TranslationServiceProfile, apiKey: String?, body: String): String {
         if (body.toByteArray(Charsets.UTF_8).size > MAX_REQUEST_BYTES) invalidConfiguration()
-        val response = transport.execute(
+        val response = transport.execute(profile,
             request(profile, apiKey, endpoint(profile, "messages"))
                 .post(body.toRequestBody(JSON_MEDIA_TYPE))
                 .build(),
@@ -241,6 +241,8 @@ internal class AnthropicMessagesAdapter(
             statusCode == 429 -> TranslationServiceErrorCode.RATE_LIMITED
             statusCode == 402 -> TranslationServiceErrorCode.QUOTA_EXCEEDED
             statusCode == 408 -> TranslationServiceErrorCode.TIMEOUT
+            statusCode == HttpURLConnection.HTTP_NOT_FOUND && modelList ->
+                TranslationServiceErrorCode.MODEL_LIST_UNAVAILABLE
             statusCode == HttpURLConnection.HTTP_NOT_FOUND && !modelList && "model" in body.lowercase() ->
                 TranslationServiceErrorCode.MODEL_NOT_FOUND
             statusCode == 529 || statusCode in 500..599 -> TranslationServiceErrorCode.SERVER_ERROR

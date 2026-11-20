@@ -2,7 +2,7 @@ package com.tyranor.next.core.translation.service
 
 import org.json.JSONObject
 
-/** Per-service scheduling limits captured by each task when it starts. */
+/** Per-service execution settings captured by each task when it starts. */
 data class TranslationServiceTaskSettings(
     val machineBatchSize: Int = DEFAULT_MACHINE_BATCH_SIZE,
     val machineBatchConcurrency: Int = DEFAULT_MACHINE_BATCH_CONCURRENCY,
@@ -11,17 +11,20 @@ data class TranslationServiceTaskSettings(
     val aiBatchSize: Int = DEFAULT_AI_BATCH_SIZE,
     val aiBatchConcurrency: Int = DEFAULT_AI_BATCH_CONCURRENCY,
     val aiRequestIntervalMillis: Long = DEFAULT_AI_REQUEST_INTERVAL_MILLIS,
+    val requestTimeoutMillis: Long = DEFAULT_REQUEST_TIMEOUT_MILLIS,
 ) {
     fun isValidFor(category: TranslationServiceCategory): Boolean = when (category) {
         TranslationServiceCategory.MACHINE_TRANSLATION ->
             machineBatchSize in 1..MAX_BATCH_SIZE &&
                 machineBatchConcurrency in 1..MAX_CONCURRENCY &&
                 machineRequestIntervalMillis in 0..MAX_REQUEST_INTERVAL_MILLIS &&
-                machineRequestsPerMinute in 0..MAX_REQUESTS_PER_MINUTE
+                machineRequestsPerMinute in 0..MAX_REQUESTS_PER_MINUTE &&
+                requestTimeoutMillis in MIN_REQUEST_TIMEOUT_MILLIS..MAX_REQUEST_TIMEOUT_MILLIS
         TranslationServiceCategory.AI_TRANSLATION ->
             aiBatchSize in 1..MAX_BATCH_SIZE &&
                 aiBatchConcurrency in 1..MAX_CONCURRENCY &&
-                aiRequestIntervalMillis in 0..MAX_REQUEST_INTERVAL_MILLIS
+                aiRequestIntervalMillis in 0..MAX_REQUEST_INTERVAL_MILLIS &&
+                requestTimeoutMillis in MIN_REQUEST_TIMEOUT_MILLIS..MAX_REQUEST_TIMEOUT_MILLIS
     }
 
     fun requestConcurrency(category: TranslationServiceCategory): Int = when (category) {
@@ -47,6 +50,7 @@ data class TranslationServiceTaskSettings(
         .put("aiBatchSize", aiBatchSize)
         .put("aiBatchConcurrency", aiBatchConcurrency)
         .put("aiRequestIntervalMillis", aiRequestIntervalMillis)
+        .put("requestTimeoutMillis", requestTimeoutMillis)
         .toString()
 
     companion object {
@@ -56,10 +60,13 @@ data class TranslationServiceTaskSettings(
         const val DEFAULT_AI_BATCH_SIZE = 20
         const val DEFAULT_AI_BATCH_CONCURRENCY = 1
         const val DEFAULT_AI_REQUEST_INTERVAL_MILLIS = 0L
+        const val DEFAULT_REQUEST_TIMEOUT_MILLIS = 120_000L
         const val MAX_BATCH_SIZE = 100
         const val MAX_CONCURRENCY = 8
         const val MAX_REQUESTS_PER_MINUTE = 600
         const val MAX_REQUEST_INTERVAL_MILLIS = 60_000L
+        const val MIN_REQUEST_TIMEOUT_MILLIS = 5_000L
+        const val MAX_REQUEST_TIMEOUT_MILLIS = 600_000L
 
         fun defaults(category: TranslationServiceCategory): TranslationServiceTaskSettings = when (category) {
             TranslationServiceCategory.MACHINE_TRANSLATION -> TranslationServiceTaskSettings()
@@ -88,6 +95,7 @@ data class TranslationServiceTaskSettings(
                 aiBatchSize = value.optInt("aiBatchSize", defaults.aiBatchSize),
                 aiBatchConcurrency = value.optInt("aiBatchConcurrency", defaults.aiBatchConcurrency),
                 aiRequestIntervalMillis = value.optLong("aiRequestIntervalMillis", defaults.aiRequestIntervalMillis),
+                requestTimeoutMillis = value.optLong("requestTimeoutMillis", defaults.requestTimeoutMillis),
             )
             return decoded.takeIf { it.isValidFor(category) } ?: defaults
         }

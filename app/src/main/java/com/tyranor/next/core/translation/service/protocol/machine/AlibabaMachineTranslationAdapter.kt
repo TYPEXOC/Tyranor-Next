@@ -68,7 +68,7 @@ internal class AlibabaMachineTranslationAdapter(
                 doFinal(stringToSign.toByteArray(Charsets.UTF_8))
             },
         )
-        val response = transport.execute(
+        val response = transport.execute(profile,
             Request.Builder()
                 .url("${profile.baseUrl}$PATH".toHttpUrl())
                 .header("Accept", ACCEPT)

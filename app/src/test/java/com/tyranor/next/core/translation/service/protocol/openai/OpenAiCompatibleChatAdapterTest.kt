@@ -118,6 +118,37 @@ class OpenAiCompatibleChatAdapterTest {
     }
 
     @Test
+    fun listsModelsFromCustomBaseUrlWithBearerAuthentication() = runBlocking {
+        val callFactory = SingleCallFactory("""{"data":[{"id":"model-a","owned_by":"provider"}]}""")
+        val models = OpenAiCompatibleChatAdapter(TranslationHttpTransport(callFactory)).listModels(
+            profile().copy(baseUrl = "https://api.example.test/v1"),
+            apiKey = "test-api-key",
+        )
+
+        assertEquals(listOf("model-a"), models.map { it.id })
+        assertEquals("https://api.example.test/v1/models", callFactory.requests.single().url.toString())
+        assertEquals("Bearer test-api-key", callFactory.requests.single().header("Authorization"))
+    }
+
+    @Test
+    fun modelListNotFoundReturnsManualModelEntryError() {
+        val callFactory = SingleCallFactory(
+            responseBody = """{"error":{"message":"not found"}}""",
+            responseCode = 404,
+        )
+        val failure = assertThrows(TranslationServiceException::class.java) {
+            runBlocking {
+                OpenAiCompatibleChatAdapter(TranslationHttpTransport(callFactory)).listModels(
+                    profile(),
+                    apiKey = "test-api-key",
+                )
+            }
+        }
+
+        assertEquals(TranslationServiceErrorCode.MODEL_LIST_UNAVAILABLE, failure.code)
+    }
+
+    @Test
     fun sendsOptionalGenerationOptionsAndSeparateUserPrompt() = runBlocking {
         val response = """{"choices":[{"message":{"content":"{\"results\":[{\"id\":\"entry\",\"translation\":\"勇者\"}]}"}}]}"""
         val callFactory = SingleCallFactory(response)
@@ -257,7 +288,10 @@ class OpenAiCompatibleChatAdapterTest {
         request.body!!.writeTo(buffer)
     }.readUtf8()
 
-    private class SingleCallFactory(private val responseBody: String) : Call.Factory {
+    private class SingleCallFactory(
+        private val responseBody: String,
+        private val responseCode: Int = 200,
+    ) : Call.Factory {
         val requests = mutableListOf<Request>()
 
         override fun newCall(request: Request): Call {
@@ -271,7 +305,7 @@ class OpenAiCompatibleChatAdapterTest {
                         Response.Builder()
                             .request(request)
                             .protocol(Protocol.HTTP_1_1)
-                            .code(200)
+                            .code(responseCode)
                             .message("test")
                             .body(responseBody.toResponseBody("application/json".toMediaType()))
                             .build(),

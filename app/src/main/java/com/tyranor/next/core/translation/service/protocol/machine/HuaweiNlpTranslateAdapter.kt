@@ -43,7 +43,7 @@ internal class HuaweiNlpTranslateAdapter(
             .toString()
         val timestamp = DATE_TIME.format(now().atZone(ZoneOffset.UTC))
         val authorization = authorizationFor(credentials.first, credentials.second, path, body, timestamp)
-        val response = transport.execute(
+        val response = transport.execute(profile,
             Request.Builder()
                 .url("${profile.baseUrl}$path".toHttpUrl())
                 .header("Content-Type", CONTENT_TYPE)

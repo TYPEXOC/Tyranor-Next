@@ -36,7 +36,7 @@ internal class GoogleCloudTranslateV2Adapter(
             .put("format", "text")
             .apply { if (!isAutoLanguage(sourceLanguage)) put("source", toGoogleLanguage(sourceLanguage)) }
             .toString()
-        val response = transport.execute(
+        val response = transport.execute(profile,
             Request.Builder()
                 .url(ENDPOINT.toHttpUrl())
                 .header("Accept", "application/json")

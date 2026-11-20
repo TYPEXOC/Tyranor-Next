@@ -102,6 +102,7 @@
     <string name="translation_services_delete_action">このサービスを削除</string>
     <string name="translation_services_section_identity">サービス情報</string>
     <string name="translation_services_section_connection">接続とモデル</string>
+    <string name="translation_services_section_protocol">サービスプロトコル</string>
     <string name="translation_services_section_credentials">認証情報</string>
     <string name="translation_services_name">表示名</string>
     <string name="translation_services_base_url">サービスのベース URL</string>
@@ -113,6 +114,12 @@
     <string name="translation_services_fetch_models">モデル一覧を取得</string>
     <string name="translation_services_fetch_models_short">取得</string>
     <string name="translation_services_fetch_models_loading_short">取得中</string>
+    <string name="translation_services_test_connection">接続テスト</string>
+    <string name="translation_services_test_connection_loading">テスト中</string>
+    <string name="translation_services_test_models_success">接続しました。モデル一覧を取得できます（%1$d 件）。</string>
+    <string name="translation_services_test_models_empty">接続しましたが、モデル一覧は返されませんでした。モデル ID を手動で入力してください。</string>
+    <string name="translation_services_test_translation_success">テスト翻訳に成功しました。サービスを利用できます。</string>
+    <string name="translation_services_test_connection_hint">モデル ID が空欄の場合はモデル一覧 API を確認します。入力済みの場合は短い翻訳リクエストを 1 件送信し、少量の API 利用量が発生することがあります。</string>
     <string name="translation_services_search_models">モデルを絞り込む</string>
     <string name="translation_services_no_models">モデル一覧が返されませんでした。モデル ID は手動で入力できます。</string>
     <string name="translation_services_api_key">API キー（任意）</string>
@@ -235,6 +242,7 @@
     <string name="translation_services_error_quota">サービスの利用枠が不足または上限に達しています。</string>
     <string name="translation_services_error_server">サービスは一時的に利用できません。</string>
     <string name="translation_services_error_model">モデルが存在しないか、このサービスからアクセスできません。</string>
+    <string name="translation_services_error_model_list">このサービスはモデル一覧に対応していません。モデル ID を手動で入力してください。</string>
     <string name="translation_services_error_request">サービスがリクエストを拒否しました。API 設定を確認してください。</string>
     <string name="translation_services_error_response_large">サービス応答が読み取り上限を超えています。</string>
     <string name="translation_services_error_response">サービスが解析できないデータを返しました。</string>
@@ -1749,6 +1757,8 @@
     <string name="translation_services_batch_concurrency_hint">同時に送信するリクエスト数。大きい値は制限される場合があります。</string>
     <string name="translation_services_request_interval">リクエスト間隔（秒）</string>
     <string name="translation_services_request_interval_hint">連続するリクエストの最小待機時間。</string>
+    <string name="translation_services_request_timeout">リクエストタイムアウト（秒）</string>
+    <string name="translation_services_request_timeout_hint">1 回のリクエスト全体の上限。5〜600 秒、既定値は 120 秒です。</string>
     <string name="translation_services_requests_per_minute">1 分あたりの最大リクエスト数</string>
     <string name="translation_services_requests_per_minute_machine_hint">直近 60 秒間の上限。0 は無制限。</string>
     <string name="translation_services_ai_task_limits">AI 翻訳リクエスト設定</string>

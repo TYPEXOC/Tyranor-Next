@@ -38,7 +38,7 @@ internal class NiuTransAdapter(
             .put("src_text", input.sourceText)
             .toString()
         val url = ENDPOINT.toHttpUrl()
-        val response = transport.execute(
+        val response = transport.execute(profile,
             Request.Builder()
                 .url(url)
                 .header("Accept", "application/json")

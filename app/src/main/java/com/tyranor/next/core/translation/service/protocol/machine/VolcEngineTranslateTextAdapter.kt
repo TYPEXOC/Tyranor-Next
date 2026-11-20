@@ -58,7 +58,7 @@ internal class VolcEngineTranslateTextAdapter(
             .header("Authorization", signedHeaders.authorization)
             .post(requestBody(body))
             .build()
-        val response = transport.execute(request)
+        val response = transport.execute(profile, request)
         requireHttpSuccess(response.statusCode, response.retryAfterMillis)
         return parseResponse(response.body, inputs)
     }

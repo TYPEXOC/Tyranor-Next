@@ -52,7 +52,7 @@ internal class IflytekTranslationAdapter(
         val signature = Base64.getEncoder().encodeToString(hmacSha256(credentials.third.toByteArray(StandardCharsets.UTF_8), signatureSource))
         val authorization = "api_key=\"${credentials.second}\", algorithm=\"hmac-sha256\", " +
             "headers=\"host date request-line digest\", signature=\"$signature\""
-        val response = transport.execute(
+        val response = transport.execute(profile,
             Request.Builder()
                 .url(ENDPOINT.toHttpUrl())
                 .header("Content-Type", "application/json")

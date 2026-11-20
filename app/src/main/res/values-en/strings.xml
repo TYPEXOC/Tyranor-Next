@@ -102,6 +102,7 @@
     <string name="translation_services_delete_action">Delete this service</string>
     <string name="translation_services_section_identity">Service details</string>
     <string name="translation_services_section_connection">Connection and model</string>
+    <string name="translation_services_section_protocol">Service protocol</string>
     <string name="translation_services_section_credentials">Credentials</string>
     <string name="translation_services_name">Display name</string>
     <string name="translation_services_base_url">Service base URL</string>
@@ -113,6 +114,12 @@
     <string name="translation_services_fetch_models">Fetch models</string>
     <string name="translation_services_fetch_models_short">Fetch</string>
     <string name="translation_services_fetch_models_loading_short">Loading</string>
+    <string name="translation_services_test_connection">Test connection</string>
+    <string name="translation_services_test_connection_loading">Testing</string>
+    <string name="translation_services_test_models_success">Connected. The model list is available (%1$d models).</string>
+    <string name="translation_services_test_models_empty">Connected, but the service returned no model list. Enter the model ID manually.</string>
+    <string name="translation_services_test_translation_success">Test translation succeeded. The service is available.</string>
+    <string name="translation_services_test_connection_hint">Without a model ID, this checks the model-list endpoint. With a model ID, it sends one short test translation and may use a small amount of API quota.</string>
     <string name="translation_services_search_models">Filter models</string>
     <string name="translation_services_no_models">The service returned no models. You can still enter a model ID manually.</string>
     <string name="translation_services_api_key">API key (optional)</string>
@@ -235,6 +242,7 @@
     <string name="translation_services_error_quota">The service quota is insufficient or exhausted.</string>
     <string name="translation_services_error_server">The service is temporarily unavailable.</string>
     <string name="translation_services_error_model">The model does not exist or this service cannot access it.</string>
+    <string name="translation_services_error_model_list">This service does not provide a model list. Enter the model ID manually.</string>
     <string name="translation_services_error_request">The service rejected the request. Check the API configuration.</string>
     <string name="translation_services_error_response_large">The service response exceeds the read limit.</string>
     <string name="translation_services_error_response">The service returned data that could not be parsed.</string>
@@ -1749,6 +1757,8 @@
     <string name="translation_services_batch_concurrency_hint">Requests sent at the same time. Higher values may trigger service rate limits.</string>
     <string name="translation_services_request_interval">Request interval (seconds)</string>
     <string name="translation_services_request_interval_hint">Minimum wait between consecutive requests.</string>
+    <string name="translation_services_request_timeout">Request timeout (seconds)</string>
+    <string name="translation_services_request_timeout_hint">Total time limit per request, from 5 to 600 seconds. Default: 120 seconds.</string>
     <string name="translation_services_requests_per_minute">Maximum requests per minute</string>
     <string name="translation_services_requests_per_minute_machine_hint">Request limit in a rolling 60-second window; 0 means unlimited.</string>
     <string name="translation_services_ai_task_limits">AI translation request settings</string>

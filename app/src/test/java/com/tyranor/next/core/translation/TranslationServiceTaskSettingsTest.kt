@@ -24,6 +24,8 @@ class TranslationServiceTaskSettingsTest {
         assertEquals(20, ai.aiBatchSize)
         assertEquals(1, ai.aiBatchConcurrency)
         assertEquals(0L, ai.aiRequestIntervalMillis)
+        assertEquals(120_000L, machine.requestTimeoutMillis)
+        assertEquals(120_000L, ai.requestTimeoutMillis)
     }
 
     @Test
@@ -36,6 +38,7 @@ class TranslationServiceTaskSettingsTest {
             aiBatchSize = 24,
             aiBatchConcurrency = 4,
             aiRequestIntervalMillis = 125,
+            requestTimeoutMillis = 45_000,
         )
 
         assertEquals(settings, TranslationServiceTaskSettings.decode(settings.encode(), TranslationServiceCategory.AI_TRANSLATION))
@@ -43,6 +46,7 @@ class TranslationServiceTaskSettingsTest {
         assertTrue(settings.isValidFor(TranslationServiceCategory.AI_TRANSLATION))
         assertFalse(settings.copy(aiBatchConcurrency = 9).isValidFor(TranslationServiceCategory.AI_TRANSLATION))
         assertFalse(settings.copy(machineRequestIntervalMillis = 60_001).isValidFor(TranslationServiceCategory.MACHINE_TRANSLATION))
+        assertFalse(settings.copy(requestTimeoutMillis = 4_999).isValidFor(TranslationServiceCategory.AI_TRANSLATION))
     }
 
     @Test
@@ -61,6 +65,16 @@ class TranslationServiceTaskSettingsTest {
                 TranslationServiceCategory.MACHINE_TRANSLATION,
             ),
         )
+    }
+
+    @Test
+    fun legacySettingsUseDefaultRequestTimeout() {
+        val settings = TranslationServiceTaskSettings.decode(
+            """{"aiBatchSize":12,"aiBatchConcurrency":2,"aiRequestIntervalMillis":50}""",
+            TranslationServiceCategory.AI_TRANSLATION,
+        )
+
+        assertEquals(120_000L, settings.requestTimeoutMillis)
     }
 
     @Test

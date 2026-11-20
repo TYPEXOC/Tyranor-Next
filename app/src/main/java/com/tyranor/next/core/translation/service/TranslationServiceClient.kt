@@ -39,6 +39,36 @@ class TranslationServiceClient(
     }
 
     suspend fun listModels(draft: TranslationServiceDraft): List<TranslationModelInfo> {
+        val (preview, apiKey) = previewProfile(draft)
+        return adapter(preview).listModels(preview, apiKey)
+    }
+
+    suspend fun testConnection(draft: TranslationServiceDraft): TranslationConnectionTestResult {
+        val (preview, apiKey) = previewProfile(draft)
+        val protocolAdapter = adapter(preview)
+        if (draft.modelId.isBlank()) {
+            return TranslationConnectionTestResult.ModelListAvailable(
+                protocolAdapter.listModels(preview, apiKey).size,
+            )
+        }
+
+        val testEntryId = "tyn-connection-test"
+        val result = protocolAdapter.translateBatch(
+            profile = preview,
+            apiKey = apiKey,
+            sourceLanguage = "en",
+            targetLanguage = "zh-Hans",
+            inputs = listOf(TranslationInput(testEntryId, "Connection test", "en", "zh-Hans")),
+        )
+        if (result.successes.singleOrNull()?.entryId != testEntryId ||
+            result.itemFailures.isNotEmpty() || result.unknownResponseIds.isNotEmpty()
+        ) {
+            throw TranslationServiceException(TranslationServiceErrorCode.INVALID_RESPONSE)
+        }
+        return TranslationConnectionTestResult.TranslationVerified
+    }
+
+    private suspend fun previewProfile(draft: TranslationServiceDraft): Pair<TranslationServiceProfile, String?> {
         val baseUrl = TranslationServiceRepository.normalizeBaseUrl(draft.baseUrl, draft.protocolId)
         val existing = draft.id?.let { repository.getProfile(it) }
         if (draft.id != null && existing == null) {
@@ -74,7 +104,7 @@ class TranslationServiceClient(
             },
             updatedAt = existing?.updatedAt ?: 0L,
         )
-        return adapter(preview).listModels(preview, apiKey)
+        return preview to apiKey
     }
 
     internal suspend fun translateBatch(
@@ -139,6 +169,11 @@ class TranslationServiceClient(
         }
         TranslationSecretResult.Unavailable -> throw TranslationServiceException(TranslationServiceErrorCode.SECRET_UNAVAILABLE)
     }
+}
+
+sealed interface TranslationConnectionTestResult {
+    data class ModelListAvailable(val modelCount: Int) : TranslationConnectionTestResult
+    data object TranslationVerified : TranslationConnectionTestResult
 }
 
 internal object TranslationProtocolRegistry {

@@ -42,7 +42,7 @@ internal class DoubaoTranslationAdapter(
             .put("model", MODEL)
             .put("input", JSONArray().put(JSONObject().put("role", "user").put("content", JSONArray().put(content))))
             .toString()
-        val response = transport.execute(
+        val response = transport.execute(profile,
             Request.Builder()
                 .url("${profile.baseUrl}/responses")
                 .header("Authorization", "Bearer ${credentials.first}")

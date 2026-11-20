@@ -44,20 +44,20 @@ internal class BingWebTranslationAdapter(
     ): TranslationBatchResponse {
         requireInputs(profile, apiKey, sourceLanguage, targetLanguage, inputs, maxBatchSize)
         val input = inputs.single()
-        var session = session()
+        var session = session(profile)
         beforeRequest(profile)
-        var response = requestTranslation(session, input, sourceLanguage, targetLanguage)
+        var response = requestTranslation(profile, session, input, sourceLanguage, targetLanguage)
         if (hasExpiredSession(response.body)) {
-            session = session(force = true)
+            session = session(profile, force = true)
             beforeRequest(profile)
-            response = requestTranslation(session, input, sourceLanguage, targetLanguage)
+            response = requestTranslation(profile, session, input, sourceLanguage, targetLanguage)
         }
         requireHttpSuccess(response.statusCode, response.retryAfterMillis)
         val translated = parseTranslation(response.body)
         return orderedResult(listOf(input), listOf(translated))
     }
 
-    private suspend fun session(force: Boolean = false): BingSession =
+    private suspend fun session(profile: TranslationServiceProfile, force: Boolean = false): BingSession =
         sessionMutex.withLock {
             val current = cachedSession
             if (!force && current != null &&
@@ -65,17 +65,17 @@ internal class BingWebTranslationAdapter(
             ) {
                 return current
             }
-            fetchSession().also { cachedSession = it }
+            fetchSession(profile).also { cachedSession = it }
         }
 
-    private suspend fun fetchSession(): BingSession {
+    private suspend fun fetchSession(profile: TranslationServiceProfile): BingSession {
         val initialPageUrl = BING_REFERER.toHttpUrl()
         var pageUrl = initialPageUrl
-        var page = transport.execute(translatorPageRequest(pageUrl))
+        var page = transport.execute(profile, translatorPageRequest(pageUrl))
         if (page.statusCode in REDIRECT_STATUS_CODES) {
             pageUrl = safeRedirect(pageUrl, page.location, BING_REDIRECT_HOSTS)
                 ?: throw TranslationServiceException(TranslationServiceErrorCode.REQUEST_REJECTED)
-            page = transport.execute(translatorPageRequest(pageUrl))
+            page = transport.execute(profile, translatorPageRequest(pageUrl))
         }
         requireHttpSuccess(page.statusCode, page.retryAfterMillis)
         val token = parseToken(page.body)
@@ -88,6 +88,7 @@ internal class BingWebTranslationAdapter(
     }
 
     private suspend fun requestTranslation(
+        profile: TranslationServiceProfile,
         session: BingSession,
         input: TranslationInput,
         sourceLanguage: String,
@@ -116,11 +117,11 @@ internal class BingWebTranslationAdapter(
             .apply { if (session.cookie.isNotBlank()) header("Cookie", session.cookie) }
             .post(form)
             .build()
-        var response = transport.execute(request)
+        var response = transport.execute(profile, request)
         if (response.statusCode in REDIRECT_STATUS_CODES) {
             val redirect = safeRedirect(url, response.location, setOf(origin.host))
                 ?: throw TranslationServiceException(TranslationServiceErrorCode.REQUEST_REJECTED)
-            response = transport.execute(request.newBuilder().url(redirect).build())
+            response = transport.execute(profile, request.newBuilder().url(redirect).build())
         }
         return response
     }

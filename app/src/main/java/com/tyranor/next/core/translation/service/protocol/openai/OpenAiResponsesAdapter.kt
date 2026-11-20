@@ -37,7 +37,7 @@ internal class OpenAiResponsesAdapter(
 
     override suspend fun listModels(profile: TranslationServiceProfile, apiKey: String?): List<TranslationModelInfo> {
         requireProfile(profile, apiKey)
-        val response = transport.execute(requestBuilder(profile, apiKey, endpoint(profile, "models")).get().build())
+        val response = transport.execute(profile, requestBuilder(profile, apiKey, endpoint(profile, "models")).get().build())
         requireSuccess(response.statusCode, response.body, response.retryAfterMillis, modelList = true)
         val data = try {
             JSONObject(response.body).optJSONArray("data")
@@ -143,7 +143,7 @@ internal class OpenAiResponsesAdapter(
         if (requestBody.toByteArray(Charsets.UTF_8).size > MAX_REQUEST_BYTES) {
             throw TranslationServiceException(TranslationServiceErrorCode.REQUEST_REJECTED)
         }
-        val response = transport.execute(
+        val response = transport.execute(profile,
             requestBuilder(profile, apiKey, endpoint(profile, "responses"))
                 .post(requestBody.toRequestBody(JSON_MEDIA_TYPE))
                 .build(),
@@ -202,6 +202,8 @@ internal class OpenAiResponsesAdapter(
             statusCode == 429 -> TranslationServiceErrorCode.RATE_LIMITED
             statusCode == 402 -> TranslationServiceErrorCode.QUOTA_EXCEEDED
             statusCode == 408 -> TranslationServiceErrorCode.TIMEOUT
+            statusCode == HttpURLConnection.HTTP_NOT_FOUND && modelList ->
+                TranslationServiceErrorCode.MODEL_LIST_UNAVAILABLE
             statusCode == HttpURLConnection.HTTP_NOT_FOUND && !modelList && "model" in body.lowercase() ->
                 TranslationServiceErrorCode.MODEL_NOT_FOUND
             statusCode in 500..599 -> TranslationServiceErrorCode.SERVER_ERROR

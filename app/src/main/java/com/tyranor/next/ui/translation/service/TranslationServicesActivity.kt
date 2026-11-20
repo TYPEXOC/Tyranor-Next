@@ -65,6 +65,7 @@ import com.tyranor.next.core.translation.service.defaultBaseUrl
 import com.tyranor.next.core.translation.service.TranslationSecretChange
 import com.tyranor.next.core.translation.service.TranslationServiceDraft
 import com.tyranor.next.core.translation.service.TranslationServiceClient
+import com.tyranor.next.core.translation.service.TranslationConnectionTestResult
 import com.tyranor.next.core.translation.service.TranslationServiceErrorCode
 import com.tyranor.next.core.translation.service.TranslationServiceException
 import com.tyranor.next.core.translation.service.TranslationModelInfo
@@ -133,10 +134,13 @@ private fun TranslationServicesScreen() {
     var errorCode by remember { mutableStateOf<TranslationServiceErrorCode?>(null) }
     var isSaving by remember { mutableStateOf(false) }
     var isFetchingModels by remember { mutableStateOf(false) }
+    var isTestingConnection by remember { mutableStateOf(false) }
     var fetchedModels by remember { mutableStateOf<List<TranslationModelInfo>>(emptyList()) }
     var modelSearch by remember { mutableStateOf("") }
     var showFetchedModels by remember { mutableStateOf(false) }
     var modelFetchError by remember { mutableStateOf<TranslationServiceErrorCode?>(null) }
+    var connectionTestError by remember { mutableStateOf<TranslationServiceErrorCode?>(null) }
+    var connectionTestResult by remember { mutableStateOf<TranslationConnectionTestResult?>(null) }
     var modelListEmpty by remember { mutableStateOf(false) }
 
     fun beginEditingAiTemplate(template: AiServiceTemplate, displayName: String) {
@@ -144,6 +148,8 @@ private fun TranslationServicesScreen() {
         modelSearch = ""
         showFetchedModels = false
         modelFetchError = null
+        connectionTestError = null
+        connectionTestResult = null
         modelListEmpty = false
         advancedSettingsEditor = null
         taskSettingsEditor = null
@@ -160,6 +166,15 @@ private fun TranslationServicesScreen() {
         if (failure is CancellationException) throw failure
         errorCode = (failure as? TranslationServiceException)?.code
             ?: TranslationServiceErrorCode.STORAGE_FAILURE
+    }
+
+    fun updateAiConnection(updated: ServiceEditor) {
+        editor = updated
+        errorCode = null
+        modelFetchError = null
+        connectionTestError = null
+        connectionTestResult = null
+        modelListEmpty = false
     }
 
     val matchedProfileIds = mutableSetOf<String>()
@@ -260,6 +275,8 @@ private fun TranslationServicesScreen() {
             modelSearch = ""
             showFetchedModels = false
             modelFetchError = null
+            connectionTestError = null
+            connectionTestResult = null
             modelListEmpty = false
             advancedSettingsEditor = null
             editor = ServiceEditor.from(
@@ -427,7 +444,7 @@ private fun TranslationServicesScreen() {
                                 )
                             }
                             if (!isMachineTranslation) {
-                                ServiceSectionCard(title = stringResource(R.string.translation_services_section_connection)) {
+                                ServiceSectionCard(title = stringResource(R.string.translation_services_section_protocol)) {
                                     if (state.allowProtocolSelection) {
                                         val protocolOptions = listOf(
                                             TranslationProtocolId.OPENAI_COMPATIBLE_CHAT,
@@ -442,28 +459,28 @@ private fun TranslationServicesScreen() {
                                             renderInRootScaffold = false,
                                             onSelectedIndexChange = { index ->
                                                 protocolOptions.getOrNull(index)?.let { protocol ->
-                                                    editor = state.copy(
-                                                        protocolId = protocol,
-                                                        baseUrl = protocol.defaultBaseUrl(),
-                                                        modelId = "",
-                                                        apiKey = "",
-                                                        hasSavedSecret = false,
-                                                        clearSecret = state.hasSavedSecret || state.clearSecret,
-                                                        generationOptions = TranslationGenerationOptions(
-                                                            thinkingLevel = state.generationOptions.thinkingLevel,
-                                                            structuredOutputMode = if (protocol == TranslationProtocolId.GEMINI_INTERACTIONS) {
-                                                                TranslationStructuredOutputMode.JSON_SCHEMA
-                                                            } else {
-                                                                TranslationStructuredOutputMode.DISABLED
-                                                            },
+                                                    updateAiConnection(
+                                                        state.copy(
+                                                            protocolId = protocol,
+                                                            baseUrl = protocol.defaultBaseUrl(),
+                                                            modelId = "",
+                                                            apiKey = "",
+                                                            hasSavedSecret = false,
+                                                            clearSecret = state.hasSavedSecret || state.clearSecret,
+                                                            generationOptions = TranslationGenerationOptions(
+                                                                thinkingLevel = state.generationOptions.thinkingLevel,
+                                                                structuredOutputMode = if (protocol == TranslationProtocolId.GEMINI_INTERACTIONS) {
+                                                                    TranslationStructuredOutputMode.JSON_SCHEMA
+                                                                } else {
+                                                                    TranslationStructuredOutputMode.DISABLED
+                                                                },
+                                                            ),
+                                                            showBaseUrl = true,
                                                         ),
-                                                        showBaseUrl = true,
                                                     )
                                                     fetchedModels = emptyList()
                                                     modelSearch = ""
                                                     showFetchedModels = false
-                                                    modelFetchError = null
-                                                    modelListEmpty = false
                                                 }
                                             },
                                         )
@@ -493,10 +510,24 @@ private fun TranslationServicesScreen() {
                                             )
                                         }
                                     }
+                                    Text(
+                                        stringResource(
+                                            when (state.protocolId) {
+                                                TranslationProtocolId.GEMINI_INTERACTIONS -> R.string.translation_services_gemini_protocol_note
+                                                TranslationProtocolId.OPENAI_RESPONSES -> R.string.translation_services_responses_protocol_note
+                                                TranslationProtocolId.ANTHROPIC_MESSAGES -> R.string.translation_services_anthropic_protocol_note
+                                                else -> R.string.translation_services_protocol_note
+                                            },
+                                        ),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = PageSecondaryTextColor,
+                                    )
+                                }
+                                ServiceSectionCard(title = stringResource(R.string.translation_services_section_connection)) {
                                     if (state.showBaseUrl) {
                                         ServiceTextField(
                                             value = state.baseUrl,
-                                            onValueChange = { baseUrl -> editor = state.copy(baseUrl = baseUrl) },
+                                            onValueChange = { baseUrl -> updateAiConnection(state.copy(baseUrl = baseUrl)) },
                                             label = stringResource(R.string.translation_services_base_url),
                                             supportingText = stringResource(R.string.translation_services_base_url_hint),
                                             singleLine = true,
@@ -505,7 +536,7 @@ private fun TranslationServicesScreen() {
                                     }
                                     ServiceTextField(
                                         value = state.modelId,
-                                        onValueChange = { editor = state.copy(modelId = it) },
+                                        onValueChange = { updateAiConnection(state.copy(modelId = it)) },
                                         label = stringResource(R.string.translation_services_model_id),
                                         trailingAction = {
                                             NoRippleTextButton(
@@ -537,24 +568,32 @@ private fun TranslationServicesScreen() {
                                         singleLine = true,
                                         modifier = Modifier.fillMaxWidth(),
                                     )
-                                    Text(
-                                        stringResource(R.string.translation_services_manual_model_hint),
-                                        color = PageSecondaryTextColor,
-                                        style = MaterialTheme.typography.bodySmall,
-                                    )
-                                    if (modelFetchError != null) {
-                                        Text(
-                                            stringResource(modelFetchError!!.messageResource()),
-                                            color = MaterialTheme.colorScheme.error,
-                                            style = MaterialTheme.typography.bodySmall,
-                                        )
-                                    } else if (modelListEmpty) {
-                                        Text(
-                                            stringResource(R.string.translation_services_no_models),
-                                            color = PageSecondaryTextColor,
-                                            style = MaterialTheme.typography.bodySmall,
-                                        )
+                                    val connectionStatusText = when {
+                                        errorCode != null ->
+                                            stringResource(errorCode!!.messageResource())
+                                        connectionTestError != null -> stringResource(connectionTestError!!.messageResource())
+                                        modelFetchError != null -> stringResource(modelFetchError!!.messageResource())
+                                        modelListEmpty -> stringResource(R.string.translation_services_no_models)
+                                        connectionTestResult is TranslationConnectionTestResult.ModelListAvailable -> {
+                                            val count = (connectionTestResult as TranslationConnectionTestResult.ModelListAvailable).modelCount
+                                            if (count == 0) stringResource(R.string.translation_services_test_models_empty)
+                                            else stringResource(R.string.translation_services_test_models_success, count)
+                                        }
+                                        connectionTestResult == TranslationConnectionTestResult.TranslationVerified ->
+                                            stringResource(R.string.translation_services_test_translation_success)
+                                        else -> stringResource(R.string.translation_services_manual_model_hint)
                                     }
+                                    val connectionStatusIsError = errorCode != null || connectionTestError != null ||
+                                        modelFetchError != null
+                                    Text(
+                                        connectionStatusText,
+                                        modifier = Modifier.fillMaxWidth().height(40.dp),
+                                        color = if (connectionStatusIsError) MaterialTheme.colorScheme.error
+                                        else PageSecondaryTextColor,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
                                     if (showFetchedModels) {
                                         ServiceTextField(
                                             value = modelSearch,
@@ -571,23 +610,87 @@ private fun TranslationServicesScreen() {
                                                     title = model.id,
                                                     summary = model.ownedBy,
                                                     onClick = {
-                                                        editor = state.copy(modelId = model.id)
+                                                        updateAiConnection(state.copy(modelId = model.id))
                                                         showFetchedModels = false
                                                     },
                                                 )
                                             }
                                     }
-                                    Text(
-                                        stringResource(
-                                            when (state.protocolId) {
-                                                TranslationProtocolId.GEMINI_INTERACTIONS -> R.string.translation_services_gemini_protocol_note
-                                                TranslationProtocolId.OPENAI_RESPONSES -> R.string.translation_services_responses_protocol_note
-                                                TranslationProtocolId.ANTHROPIC_MESSAGES -> R.string.translation_services_anthropic_protocol_note
-                                                else -> R.string.translation_services_protocol_note
+                                    ServiceTextField(
+                                        value = state.apiKey,
+                                        onValueChange = { updateAiConnection(state.copy(apiKey = it, clearSecret = false)) },
+                                        label = stringResource(
+                                            if (state.protocolId in setOf(
+                                                    TranslationProtocolId.GEMINI_INTERACTIONS,
+                                                    TranslationProtocolId.OPENAI_RESPONSES,
+                                                    TranslationProtocolId.ANTHROPIC_MESSAGES,
+                                                )
+                                            ) R.string.translation_services_api_key_required
+                                            else R.string.translation_services_api_key,
+                                        ),
+                                        supportingText = stringResource(
+                                            when {
+                                                state.hasSavedSecret && !state.clearSecret -> R.string.translation_services_key_keep_hint
+                                                state.protocolId == TranslationProtocolId.OPENAI_RESPONSES ->
+                                                    R.string.translation_services_responses_key_hint
+                                                state.protocolId == TranslationProtocolId.GEMINI_INTERACTIONS ->
+                                                    R.string.translation_services_gemini_key_hint
+                                                state.protocolId == TranslationProtocolId.ANTHROPIC_MESSAGES ->
+                                                    R.string.translation_services_anthropic_key_hint
+                                                else -> R.string.translation_services_key_optional_hint
                                             },
                                         ),
+                                        visualTransformation = PasswordVisualTransformation(),
+                                        singleLine = true,
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                    if (state.hasSavedSecret) {
+                                        DialogTextButton(
+                                            text = stringResource(
+                                                if (state.clearSecret) R.string.translation_services_key_will_clear
+                                                else R.string.translation_services_clear_key,
+                                            ),
+                                            onClick = {
+                                                updateAiConnection(
+                                                    state.copy(
+                                                        clearSecret = !state.clearSecret,
+                                                        apiKey = "",
+                                                        credentialSecond = "",
+                                                        credentialRegion = "",
+                                                        credentialThird = "",
+                                                    ),
+                                                )
+                                            },
+                                        )
+                                    }
+                                    Text(
+                                        stringResource(R.string.translation_services_test_connection_hint),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = PageSecondaryTextColor,
+                                    )
+                                    NoRippleButton(
+                                        text = stringResource(
+                                            if (isTestingConnection) R.string.translation_services_test_connection_loading
+                                            else R.string.translation_services_test_connection,
+                                        ),
+                                        modifier = Modifier.fillMaxWidth(),
+                                        enabled = !isTestingConnection && !isSaving,
+                                        onClick = {
+                                            scope.launch {
+                                                isTestingConnection = true
+                                                connectionTestError = null
+                                                connectionTestResult = null
+                                                try {
+                                                    connectionTestResult = client.testConnection(state.toDraft())
+                                                } catch (failure: Throwable) {
+                                                    if (failure is CancellationException) throw failure
+                                                    connectionTestError = (failure as? TranslationServiceException)?.code
+                                                        ?: TranslationServiceErrorCode.NETWORK_UNAVAILABLE
+                                                } finally {
+                                                    isTestingConnection = false
+                                                }
+                                            }
+                                        },
                                     )
                                 }
                             }
@@ -624,60 +727,31 @@ private fun TranslationServicesScreen() {
                                     )
                                 }
                             }
-                            ServiceSectionCard(title = stringResource(R.string.translation_services_section_credentials)) {
-                                if (!isMachineTranslation) {
-                                    ServiceTextField(
-                                        value = state.apiKey,
-                                        onValueChange = { editor = state.copy(apiKey = it, clearSecret = false) },
-                                        label = stringResource(
-                                            if (state.protocolId in setOf(
-                                                    TranslationProtocolId.GEMINI_INTERACTIONS,
-                                                    TranslationProtocolId.OPENAI_RESPONSES,
-                                                    TranslationProtocolId.ANTHROPIC_MESSAGES,
-                                                )
-                                            ) R.string.translation_services_api_key_required
-                                            else R.string.translation_services_api_key,
-                                        ),
-                                        supportingText = stringResource(
-                                            when {
-                                                state.hasSavedSecret && !state.clearSecret -> R.string.translation_services_key_keep_hint
-                                                state.protocolId == TranslationProtocolId.OPENAI_RESPONSES ->
-                                                    R.string.translation_services_responses_key_hint
-                                                state.protocolId == TranslationProtocolId.GEMINI_INTERACTIONS ->
-                                                    R.string.translation_services_gemini_key_hint
-                                                state.protocolId == TranslationProtocolId.ANTHROPIC_MESSAGES ->
-                                                    R.string.translation_services_anthropic_key_hint
-                                                else -> R.string.translation_services_key_optional_hint
-                                            },
-                                        ),
-                                        visualTransformation = PasswordVisualTransformation(),
-                                        singleLine = true,
-                                        modifier = Modifier.fillMaxWidth(),
-                                    )
-                                } else {
+                            if (isMachineTranslation) {
+                                ServiceSectionCard(title = stringResource(R.string.translation_services_section_credentials)) {
                                     MachineProviderCredentialsFields(state = state, onChange = { editor = it })
                                     Text(
                                         stringResource(state.protocolId.machineProtocolNote()),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = PageSecondaryTextColor,
                                     )
-                                }
-                                if (state.hasSavedSecret) {
-                                    DialogTextButton(
-                                        text = stringResource(
-                                            if (state.clearSecret) R.string.translation_services_key_will_clear
-                                            else R.string.translation_services_clear_key,
-                                        ),
-                                        onClick = {
-                                            editor = state.copy(
-                                                clearSecret = !state.clearSecret,
-                                                apiKey = "",
-                                                credentialSecond = "",
-                                                credentialRegion = "",
-                                                credentialThird = "",
-                                            )
-                                        },
-                                    )
+                                    if (state.hasSavedSecret) {
+                                        DialogTextButton(
+                                            text = stringResource(
+                                                if (state.clearSecret) R.string.translation_services_key_will_clear
+                                                else R.string.translation_services_clear_key,
+                                            ),
+                                            onClick = {
+                                                editor = state.copy(
+                                                    clearSecret = !state.clearSecret,
+                                                    apiKey = "",
+                                                    credentialSecond = "",
+                                                    credentialRegion = "",
+                                                    credentialThird = "",
+                                                )
+                                            },
+                                        )
+                                    }
                                 }
                             }
                     NoRippleButton(
@@ -713,13 +787,6 @@ private fun TranslationServicesScreen() {
                                 advancedSettingsEditor = null
                                 editor = null
                             },
-                        )
-                    }
-                    if (errorCode != null) {
-                        Text(
-                            stringResource(errorCode!!.messageResource()),
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall,
                         )
                     }
                     Spacer(Modifier.height(2.dp))
@@ -816,6 +883,14 @@ private fun TranslationServicesScreen() {
                                         modifier = Modifier.fillMaxWidth(),
                                     )
                                     ServiceTextField(
+                                        value = state.requestTimeoutSeconds,
+                                        onValueChange = { taskSettingsEditor = state.copy(requestTimeoutSeconds = it) },
+                                        label = stringResource(R.string.translation_services_request_timeout),
+                                        supportingText = stringResource(R.string.translation_services_request_timeout_hint),
+                                        singleLine = true,
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                    ServiceTextField(
                                         value = state.requestsPerMinute,
                                         onValueChange = { taskSettingsEditor = state.copy(requestsPerMinute = it) },
                                         label = stringResource(R.string.translation_services_requests_per_minute),
@@ -847,6 +922,14 @@ private fun TranslationServicesScreen() {
                                         onValueChange = { taskSettingsEditor = state.copy(requestIntervalSeconds = it) },
                                         label = stringResource(R.string.translation_services_request_interval),
                                         supportingText = stringResource(R.string.translation_services_request_interval_hint),
+                                        singleLine = true,
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                    ServiceTextField(
+                                        value = state.requestTimeoutSeconds,
+                                        onValueChange = { taskSettingsEditor = state.copy(requestTimeoutSeconds = it) },
+                                        label = stringResource(R.string.translation_services_request_timeout),
+                                        supportingText = stringResource(R.string.translation_services_request_timeout_hint),
                                         singleLine = true,
                                         modifier = Modifier.fillMaxWidth(),
                                     )
@@ -2006,6 +2089,7 @@ private data class TaskSettingsEditor(
     val batchSize: String,
     val batchConcurrency: String,
     val requestIntervalSeconds: String,
+    val requestTimeoutSeconds: String,
     val requestsPerMinute: String,
 ) {
     fun toTaskSettings(): TranslationServiceTaskSettings? {
@@ -2014,6 +2098,8 @@ private data class TaskSettingsEditor(
         val parsedInterval = requestIntervalSeconds.toDoubleOrNull()?.takeIf(Double::isFinite) ?: return null
         if (parsedInterval !in 0.0..60.0) return null
         val intervalMillis = (parsedInterval * 1_000).roundToLong()
+        val parsedTimeoutSeconds = requestTimeoutSeconds.toIntOrNull() ?: return null
+        if (parsedTimeoutSeconds !in 5..600) return null
         return when (protocolId.category) {
             TranslationServiceCategory.MACHINE_TRANSLATION -> {
                 val parsedRpm = requestsPerMinute.toIntOrNull() ?: return null
@@ -2022,12 +2108,14 @@ private data class TaskSettingsEditor(
                     machineBatchConcurrency = parsedConcurrency,
                     machineRequestIntervalMillis = intervalMillis,
                     machineRequestsPerMinute = parsedRpm,
+                    requestTimeoutMillis = parsedTimeoutSeconds * 1_000L,
                 )
             }
             TranslationServiceCategory.AI_TRANSLATION -> original.copy(
                 aiBatchSize = parsedBatchSize,
                 aiBatchConcurrency = parsedConcurrency,
                 aiRequestIntervalMillis = intervalMillis,
+                requestTimeoutMillis = parsedTimeoutSeconds * 1_000L,
             )
         }
     }
@@ -2041,6 +2129,7 @@ private data class TaskSettingsEditor(
                 batchSize = settings.batchSize(editor.protocolId.category).toString(),
                 batchConcurrency = settings.requestConcurrency(editor.protocolId.category).toString(),
                 requestIntervalSeconds = (settings.requestIntervalMillis(editor.protocolId.category) / 1_000.0).toString(),
+                requestTimeoutSeconds = (settings.requestTimeoutMillis / 1_000).toString(),
                 requestsPerMinute = settings.machineRequestsPerMinute.toString(),
             )
         }
@@ -2218,6 +2307,7 @@ private fun TranslationServiceErrorCode.messageResource(): Int = when (this) {
     TranslationServiceErrorCode.RATE_LIMITED -> R.string.translation_services_error_rate_limited
     TranslationServiceErrorCode.QUOTA_EXCEEDED -> R.string.translation_services_error_quota
     TranslationServiceErrorCode.SERVER_ERROR -> R.string.translation_services_error_server
+    TranslationServiceErrorCode.MODEL_LIST_UNAVAILABLE -> R.string.translation_services_error_model_list
     TranslationServiceErrorCode.MODEL_NOT_FOUND -> R.string.translation_services_error_model
     TranslationServiceErrorCode.REQUEST_REJECTED -> R.string.translation_services_error_request
     TranslationServiceErrorCode.RESPONSE_TOO_LARGE -> R.string.translation_services_error_response_large

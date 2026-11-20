@@ -45,7 +45,7 @@ internal class OpenAiCompatibleChatAdapter(
         val request = requestBuilder(profile, apiKey, endpoint(profile, listOf("models")))
             .get()
             .build()
-        val response = transport.execute(request)
+        val response = transport.execute(profile, request)
         requireSuccess(response.statusCode, response.body, response.retryAfterMillis, modelList = true)
         val data = try {
             JSONObject(response.body).optJSONArray("data")
@@ -88,7 +88,7 @@ internal class OpenAiCompatibleChatAdapter(
         val request = requestBuilder(profile, apiKey, endpoint(profile, listOf("chat", "completions")))
             .post(requestBody.toRequestBody(JSON_MEDIA_TYPE))
             .build()
-        val response = transport.execute(request)
+        val response = transport.execute(profile, request)
         requireSuccess(response.statusCode, response.body, response.retryAfterMillis, modelList = false)
         val content = try {
             JSONObject(response.body)
@@ -126,7 +126,7 @@ internal class OpenAiCompatibleChatAdapter(
         val request = requestBuilder(profile, apiKey, endpoint(profile, listOf("chat", "completions")))
             .post(requestBody.toRequestBody(JSON_MEDIA_TYPE))
             .build()
-        val response = transport.execute(request)
+        val response = transport.execute(profile, request)
         requireSuccess(response.statusCode, response.body, response.retryAfterMillis, modelList = false)
         val content = try {
             JSONObject(response.body)
@@ -284,6 +284,8 @@ internal class OpenAiCompatibleChatAdapter(
             statusCode == 429 -> TranslationServiceErrorCode.RATE_LIMITED
             statusCode == 402 -> TranslationServiceErrorCode.QUOTA_EXCEEDED
             statusCode == 408 -> TranslationServiceErrorCode.TIMEOUT
+            statusCode == HttpURLConnection.HTTP_NOT_FOUND && modelList ->
+                TranslationServiceErrorCode.MODEL_LIST_UNAVAILABLE
             statusCode == HttpURLConnection.HTTP_NOT_FOUND && !modelList &&
                 ("model" in remoteCode || "model" in body.lowercase()) ->
                 TranslationServiceErrorCode.MODEL_NOT_FOUND

@@ -48,7 +48,7 @@ internal class YoudaoTranslateV2Adapter(
             .add("curtime", curtime)
             .add("sign", sign)
             .build()
-        val response = transport.execute(
+        val response = transport.execute(profile,
             Request.Builder()
                 .url(ENDPOINT.toHttpUrl())
                 .header("Accept", "application/json")

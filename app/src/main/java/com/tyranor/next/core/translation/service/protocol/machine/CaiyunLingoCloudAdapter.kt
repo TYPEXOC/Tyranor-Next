@@ -40,7 +40,7 @@ internal class CaiyunLingoCloudAdapter(
             .put("request_id", requestId())
             .put("detect", isAutoLanguage(sourceLanguage))
             .toString()
-        val response = transport.execute(
+        val response = transport.execute(profile,
             Request.Builder()
                 .url(ENDPOINT.toHttpUrl())
                 .header("Accept", "application/json")

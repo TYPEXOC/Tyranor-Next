@@ -45,7 +45,7 @@ internal class BaiduTranslateVipAdapter(
             .add("salt", requestSalt)
             .add("sign", signature)
             .build()
-        val response = transport.execute(
+        val response = transport.execute(profile,
             Request.Builder()
                 .url(ENDPOINT.toHttpUrl())
                 .header("Accept", "application/json")
