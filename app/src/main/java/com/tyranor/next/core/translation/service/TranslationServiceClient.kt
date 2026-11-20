@@ -44,28 +44,37 @@ class TranslationServiceClient(
     }
 
     suspend fun testConnection(draft: TranslationServiceDraft): TranslationConnectionTestResult {
-        val (preview, apiKey) = previewProfile(draft)
-        val protocolAdapter = adapter(preview)
-        if (draft.modelId.isBlank()) {
-            return TranslationConnectionTestResult.ModelListAvailable(
-                protocolAdapter.listModels(preview, apiKey).size,
+        return TranslationConnectionTestPolicy.withDeadline {
+            val (preview, apiKey) = previewProfile(draft)
+            val testProfile = preview.copy(
+                taskSettings = preview.taskSettings.copy(
+                    requestTimeoutMillis = TranslationConnectionTestPolicy.requestTimeoutMillis(
+                        preview.taskSettings.requestTimeoutMillis,
+                    ),
+                ),
             )
+            val protocolAdapter = adapter(testProfile)
+            if (draft.modelId.isBlank()) {
+                TranslationConnectionTestResult.ModelListAvailable(
+                    protocolAdapter.listModels(testProfile, apiKey).size,
+                )
+            } else {
+                val testEntryId = "tyn-connection-test"
+                val result = protocolAdapter.translateBatch(
+                    profile = testProfile,
+                    apiKey = apiKey,
+                    sourceLanguage = "en",
+                    targetLanguage = "zh-Hans",
+                    inputs = listOf(TranslationInput(testEntryId, "Hello", "en", "zh-Hans")),
+                )
+                if (result.successes.singleOrNull()?.entryId != testEntryId ||
+                    result.itemFailures.isNotEmpty() || result.unknownResponseIds.isNotEmpty()
+                ) {
+                    throw TranslationServiceException(TranslationServiceErrorCode.INVALID_RESPONSE)
+                }
+                TranslationConnectionTestResult.TranslationVerified
+            }
         }
-
-        val testEntryId = "tyn-connection-test"
-        val result = protocolAdapter.translateBatch(
-            profile = preview,
-            apiKey = apiKey,
-            sourceLanguage = "en",
-            targetLanguage = "zh-Hans",
-            inputs = listOf(TranslationInput(testEntryId, "Connection test", "en", "zh-Hans")),
-        )
-        if (result.successes.singleOrNull()?.entryId != testEntryId ||
-            result.itemFailures.isNotEmpty() || result.unknownResponseIds.isNotEmpty()
-        ) {
-            throw TranslationServiceException(TranslationServiceErrorCode.INVALID_RESPONSE)
-        }
-        return TranslationConnectionTestResult.TranslationVerified
     }
 
     private suspend fun previewProfile(draft: TranslationServiceDraft): Pair<TranslationServiceProfile, String?> {

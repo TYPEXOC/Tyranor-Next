@@ -100,6 +100,7 @@ import com.tyranor.next.ui.common.SegmentedControl
 import com.tyranor.next.ui.common.Switch
 import com.tyranor.next.ui.common.motion.listItemMotion
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlin.math.roundToLong
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
@@ -134,7 +135,10 @@ private fun TranslationServicesScreen() {
     var errorCode by remember { mutableStateOf<TranslationServiceErrorCode?>(null) }
     var isSaving by remember { mutableStateOf(false) }
     var isFetchingModels by remember { mutableStateOf(false) }
-    var isTestingConnection by remember { mutableStateOf(false) }
+    var editorSessionId by remember { mutableStateOf(0L) }
+    var connectionTestRequestId by remember { mutableStateOf(0L) }
+    var testingConnectionSessionId by remember { mutableStateOf<Long?>(null) }
+    var connectionTestJob by remember { mutableStateOf<Job?>(null) }
     var fetchedModels by remember { mutableStateOf<List<TranslationModelInfo>>(emptyList()) }
     var modelSearch by remember { mutableStateOf("") }
     var showFetchedModels by remember { mutableStateOf(false) }
@@ -143,7 +147,20 @@ private fun TranslationServicesScreen() {
     var connectionTestResult by remember { mutableStateOf<TranslationConnectionTestResult?>(null) }
     var modelListEmpty by remember { mutableStateOf(false) }
 
+    fun cancelConnectionTest() {
+        connectionTestRequestId += 1L
+        connectionTestJob?.cancel()
+        connectionTestJob = null
+        testingConnectionSessionId = null
+    }
+
+    fun startEditorSession() {
+        cancelConnectionTest()
+        editorSessionId += 1L
+    }
+
     fun beginEditingAiTemplate(template: AiServiceTemplate, displayName: String) {
+        startEditorSession()
         fetchedModels = emptyList()
         modelSearch = ""
         showFetchedModels = false
@@ -169,6 +186,7 @@ private fun TranslationServicesScreen() {
     }
 
     fun updateAiConnection(updated: ServiceEditor) {
+        cancelConnectionTest()
         editor = updated
         errorCode = null
         modelFetchError = null
@@ -271,6 +289,7 @@ private fun TranslationServicesScreen() {
     fun openServiceEditor(row: ServiceListRow, displayName: String) {
         errorCode = null
         if (row.profile != null) {
+            startEditorSession()
             fetchedModels = emptyList()
             modelSearch = ""
             showFetchedModels = false
@@ -288,6 +307,7 @@ private fun TranslationServicesScreen() {
                 if (row.profile.id == builtinMachineProfileId(row.protocolId)) state.copy(displayName = displayName) else state
             }
         } else if (row.protocolId.category == TranslationServiceCategory.MACHINE_TRANSLATION) {
+            startEditorSession()
             editor = ServiceEditor.newMachine(row.protocolId, displayName)
         } else {
             row.aiTemplate?.let { beginEditingAiTemplate(it, displayName) }
@@ -400,6 +420,7 @@ private fun TranslationServicesScreen() {
             } else if (advancedSettingsEditor != null) {
                 advancedSettingsEditor = null
             } else {
+                cancelConnectionTest()
                 editor = null
             }
         }
@@ -407,6 +428,7 @@ private fun TranslationServicesScreen() {
 
     editor?.takeIf { advancedSettingsEditor == null && taskSettingsEditor == null }?.let { state ->
         val isMachineTranslation = state.protocolId.category == TranslationServiceCategory.MACHINE_TRANSLATION
+        val isTestingThisConnection = testingConnectionSessionId == editorSessionId
         MiuixSettingsTheme {
             MiuixScaffold(
                 modifier = Modifier.fillMaxSize(),
@@ -670,24 +692,35 @@ private fun TranslationServicesScreen() {
                                     )
                                     NoRippleButton(
                                         text = stringResource(
-                                            if (isTestingConnection) R.string.translation_services_test_connection_loading
+                                            if (isTestingThisConnection) R.string.translation_services_test_connection_loading
                                             else R.string.translation_services_test_connection,
                                         ),
                                         modifier = Modifier.fillMaxWidth(),
-                                        enabled = !isTestingConnection && !isSaving,
+                                        enabled = !isTestingThisConnection && !isSaving,
                                         onClick = {
-                                            scope.launch {
-                                                isTestingConnection = true
-                                                connectionTestError = null
-                                                connectionTestResult = null
+                                            cancelConnectionTest()
+                                            val requestId = connectionTestRequestId
+                                            val sessionId = editorSessionId
+                                            testingConnectionSessionId = sessionId
+                                            connectionTestError = null
+                                            connectionTestResult = null
+                                            connectionTestJob = scope.launch {
                                                 try {
-                                                    connectionTestResult = client.testConnection(state.toDraft())
+                                                    val result = client.testConnection(state.toDraft())
+                                                    if (connectionTestRequestId == requestId && editorSessionId == sessionId) {
+                                                        connectionTestResult = result
+                                                    }
                                                 } catch (failure: Throwable) {
                                                     if (failure is CancellationException) throw failure
-                                                    connectionTestError = (failure as? TranslationServiceException)?.code
-                                                        ?: TranslationServiceErrorCode.NETWORK_UNAVAILABLE
+                                                    if (connectionTestRequestId == requestId && editorSessionId == sessionId) {
+                                                        connectionTestError = (failure as? TranslationServiceException)?.code
+                                                            ?: TranslationServiceErrorCode.NETWORK_UNAVAILABLE
+                                                    }
                                                 } finally {
-                                                    isTestingConnection = false
+                                                    if (connectionTestRequestId == requestId) {
+                                                        testingConnectionSessionId = null
+                                                        connectionTestJob = null
+                                                    }
                                                 }
                                             }
                                         },
@@ -783,6 +816,7 @@ private fun TranslationServicesScreen() {
                             text = stringResource(R.string.translation_services_delete_action),
                             contentColor = MaterialTheme.colorScheme.error,
                             onClick = {
+                                cancelConnectionTest()
                                 profiles.firstOrNull { it.id == state.id }?.let { deleteProfile = it }
                                 advancedSettingsEditor = null
                                 editor = null
@@ -800,6 +834,7 @@ private fun TranslationServicesScreen() {
                                 text = stringResource(R.string.common_cancel),
                                 enabled = !isSaving,
                                 onClick = {
+                                    cancelConnectionTest()
                                     advancedSettingsEditor = null
                                     editor = null
                                 },
@@ -808,6 +843,7 @@ private fun TranslationServicesScreen() {
                                 text = stringResource(if (isSaving) R.string.common_loading else R.string.common_save),
                                 enabled = !isSaving,
                                 onClick = {
+                                    cancelConnectionTest()
                                     scope.launch {
                                         isSaving = true
                                         try {
