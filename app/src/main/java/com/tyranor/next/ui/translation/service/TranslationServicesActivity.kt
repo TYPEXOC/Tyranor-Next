@@ -44,6 +44,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -515,6 +516,9 @@ private fun TranslationServicesScreen() {
                 MaterialTheme.colorScheme.primary
             else -> PageSecondaryTextColor
         }
+        val connectionStatusLineHeight = with(LocalDensity.current) {
+            MaterialTheme.typography.bodySmall.lineHeight.toDp()
+        }
         MiuixSettingsTheme {
             MiuixScaffold(
                 modifier = Modifier.fillMaxSize(),
@@ -790,22 +794,30 @@ private fun TranslationServicesScreen() {
                             }
                             ServiceSectionCard(title = stringResource(R.string.translation_services_service_status)) {
                                 Column(modifier = Modifier.fillMaxWidth()) {
-                                    Text(
-                                        connectionStatusText,
-                                        color = connectionStatusColor,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        minLines = 1,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                    )
-                                    Text(
-                                        connectionStatusDetailText,
-                                        color = connectionStatusColor,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        minLines = 1,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                    )
+                                    Box(
+                                        modifier = Modifier.fillMaxWidth().height(connectionStatusLineHeight),
+                                        contentAlignment = Alignment.CenterStart,
+                                    ) {
+                                        Text(
+                                            connectionStatusText,
+                                            color = connectionStatusColor,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                    }
+                                    Box(
+                                        modifier = Modifier.fillMaxWidth().height(connectionStatusLineHeight),
+                                        contentAlignment = Alignment.CenterStart,
+                                    ) {
+                                        Text(
+                                            connectionStatusDetailText,
+                                            color = connectionStatusColor,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                    }
                                 }
                                 NoRippleButton(
                                     text = stringResource(
