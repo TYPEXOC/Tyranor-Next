@@ -27,6 +27,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.MaterialTheme
@@ -401,15 +405,17 @@ private fun TranslationWorkbenchScreen() {
             },
         ) { innerPadding ->
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-                LazyColumn(
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(if (tabletLayout) 2 else 1),
                     modifier = Modifier.fillMaxSize()
                         .widthIn(max = if (tabletLayout) 1440.dp else 760.dp)
                         .padding(top = innerPadding.calculateTopPadding())
                         .padding(horizontal = 12.dp),
                     contentPadding = PaddingValues(top = 12.dp, bottom = 24.dp + glassNavBottomInset()),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    item(key = "add-project") {
+                    item(key = "add-project", span = { GridItemSpan(maxLineSpan) }) {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             NoRippleButton(
                                 text = stringResource(R.string.translation_add_project),
@@ -435,7 +441,7 @@ private fun TranslationWorkbenchScreen() {
                             )
                         }
                     }
-                    item(key = "project-filter") {
+                    item(key = "project-filter", span = { GridItemSpan(maxLineSpan) }) {
                         val filterLabels = listOf(
                             stringResource(R.string.translation_project_filter_all, projects.size),
                             stringResource(R.string.translation_project_filter_in_progress, inProgressProjectCount),
@@ -452,7 +458,7 @@ private fun TranslationWorkbenchScreen() {
                         )
                     }
                     if (projects.isEmpty()) {
-                        item(key = "empty") {
+                        item(key = "empty", span = { GridItemSpan(maxLineSpan) }) {
                             MiuixCard(
                                 modifier = Modifier.fillMaxWidth().glassBorder(),
                                 cornerRadius = AppComponentCornerRadius,
@@ -468,7 +474,7 @@ private fun TranslationWorkbenchScreen() {
                             }
                         }
                     } else if (visibleProjects.isEmpty()) {
-                        item(key = "filter-empty") {
+                        item(key = "filter-empty", span = { GridItemSpan(maxLineSpan) }) {
                             MiuixCard(
                                 modifier = Modifier.fillMaxWidth().glassBorder(),
                                 cornerRadius = AppComponentCornerRadius,
@@ -482,7 +488,11 @@ private fun TranslationWorkbenchScreen() {
                             }
                         }
                     } else {
-                        items(visibleProjects, key = TranslationProjectCard::id) { project ->
+                        items(
+                            visibleProjects,
+                            key = TranslationProjectCard::id,
+                            span = { GridItemSpan(1) },
+                        ) { project ->
                             TranslationProjectCardView(
                                 project = project,
                                 onReview = {
