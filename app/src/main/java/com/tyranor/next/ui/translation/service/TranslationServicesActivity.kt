@@ -64,6 +64,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tyranor.next.R
 import com.tyranor.next.core.translation.service.TranslationProtocolId
 import com.tyranor.next.core.translation.service.TranslationServiceCategory
+import com.tyranor.next.core.translation.service.ChatCompletionTokenLimitField
 import com.tyranor.next.core.translation.service.TranslationGenerationOptions
 import com.tyranor.next.core.translation.service.TranslationThinkingLevel
 import com.tyranor.next.core.translation.service.GEMINI_API_BASE_URL
@@ -1276,14 +1277,29 @@ private fun TranslationServicesScreen() {
                                 color = PageSecondaryTextColor,
                             )
                         }
-                        ServiceSectionCard(title = stringResource(R.string.translation_services_output_limit)) {
-                            ServiceTextField(
-                                value = state.maxOutputTokens,
-                                onValueChange = { advancedSettingsEditor = state.copy(maxOutputTokens = it) },
-                                label = stringResource(R.string.translation_services_max_output_tokens),
-                                singleLine = true,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
+                        if (state.protocolId == TranslationProtocolId.OPENAI_COMPATIBLE_CHAT) {
+                            ServiceSectionCard(title = stringResource(R.string.translation_services_output_limit)) {
+                                val tokenLimitOptions = ChatCompletionTokenLimitField.entries
+                                OverlayDropdownPreference(
+                                    items = tokenLimitOptions.map { stringResource(it.labelResource()) },
+                                    selectedIndex = tokenLimitOptions.indexOf(state.chatTokenLimitField),
+                                    title = stringResource(R.string.translation_services_chat_token_limit_field),
+                                    modifier = Modifier.fillMaxWidth(),
+                                    renderInRootScaffold = false,
+                                    onSelectedIndexChange = { index ->
+                                        tokenLimitOptions.getOrNull(index)?.let { selected ->
+                                            advancedSettingsEditor = state.copy(chatTokenLimitField = selected)
+                                        }
+                                    },
+                                )
+                                ServiceTextField(
+                                    value = state.maxOutputTokens,
+                                    onValueChange = { advancedSettingsEditor = state.copy(maxOutputTokens = it) },
+                                    label = stringResource(R.string.translation_services_max_output_tokens),
+                                    singleLine = true,
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                            }
                         }
                         ServiceSectionCard(title = stringResource(R.string.translation_services_custom_parameters)) {
                             Text(
@@ -1367,6 +1383,19 @@ private fun TranslationServicesScreen() {
                 modifier = Modifier.fillMaxSize(),
                 containerColor = Color.Transparent,
                 contentWindowInsets = WindowInsets(0.dp),
+                floatingActionButton = {
+                    TranslationAddFloatingActionButton(R.string.translation_services_custom_parameter_add) {
+                        state = state.copy(
+                            name = "",
+                            type = TranslationParameterType.STRING,
+                            value = "",
+                            editingIndex = null,
+                            invalid = false,
+                            showParameterEditor = true,
+                        )
+                    }
+                },
+                floatingActionButtonPosition = FabPosition.End,
                 topBar = {
                     AppSecondaryTopBar(
                         title = stringResource(R.string.translation_services_custom_parameters_title),
@@ -1380,7 +1409,11 @@ private fun TranslationServicesScreen() {
                     contentAlignment = Alignment.TopCenter,
                 ) {
                     Column(
-                        modifier = Modifier.fillMaxWidth().widthIn(max = 760.dp).fillMaxSize().padding(horizontal = 16.dp),
+                        modifier = Modifier.fillMaxWidth()
+                            .widthIn(max = if (tabletLayout) 1440.dp else 760.dp)
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp)
+                            .padding(bottom = 96.dp),
                     ) {
                         Column(
                             modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()),
@@ -1415,150 +1448,84 @@ private fun TranslationServicesScreen() {
                                 } else {
                                     state.parameters.body
                                 }
-                                ServiceSectionCard(
-                                    title = stringResource(
-                                        if (showingHeaders) R.string.translation_services_custom_headers
-                                        else R.string.translation_services_custom_body,
-                                    ),
-                                ) {
-                                    Text(
-                                        stringResource(
-                                            if (showingHeaders) R.string.translation_services_custom_headers_hint
-                                            else R.string.translation_services_custom_body_hint,
+                                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    ServiceSectionCard(
+                                        title = stringResource(
+                                            if (showingHeaders) R.string.translation_services_custom_headers
+                                            else R.string.translation_services_custom_body,
                                         ),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = PageSecondaryTextColor,
-                                    )
-                                    if (visibleEntries.isEmpty()) {
+                                    ) {
                                         Text(
                                             stringResource(
+                                                if (showingHeaders) R.string.translation_services_custom_headers_hint
+                                                else R.string.translation_services_custom_body_hint,
+                                            ),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = PageSecondaryTextColor,
+                                        )
+                                    }
+                                    if (visibleEntries.isEmpty()) {
+                                        ServiceSectionCard(
+                                            title = stringResource(
                                                 if (showingHeaders) R.string.translation_services_custom_headers_empty
                                                 else R.string.translation_services_custom_body_empty,
                                             ),
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = PageSecondaryTextColor,
-                                        )
+                                        ) { }
                                     } else {
-                                        Column(modifier = Modifier.fillMaxWidth()) {
-                                            visibleEntries.forEachIndexed { index, parameter ->
-                                                if (index > 0) {
-                                                    Box(
-                                                        modifier = Modifier.fillMaxWidth()
-                                                            .height(1.dp)
-                                                            .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)),
+                                        val columnCount = if (tabletLayout) 2 else 1
+                                        visibleEntries.withIndex().toList().chunked(columnCount).forEach { rowEntries ->
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                                verticalAlignment = Alignment.Top,
+                                            ) {
+                                                rowEntries.forEach { indexedParameter ->
+                                                    val index = indexedParameter.index
+                                                    val parameter = indexedParameter.value
+                                                    CustomParameterEntryCard(
+                                                        modifier = Modifier.weight(1f),
+                                                        parameter = parameter,
+                                                        showType = !showingHeaders,
+                                                        onEdit = {
+                                                            state = state.copy(
+                                                                name = parameter.name,
+                                                                type = parameter.type,
+                                                                value = parameter.value,
+                                                                editingIndex = index,
+                                                                invalid = false,
+                                                                showParameterEditor = true,
+                                                            )
+                                                        },
+                                                        onDelete = {
+                                                            val updated = visibleEntries.toMutableList().apply { removeAt(index) }
+                                                            val nextParameters = if (showingHeaders) {
+                                                                state.parameters.copy(headers = updated)
+                                                            } else {
+                                                                state.parameters.copy(body = updated)
+                                                            }
+                                                            state = state.copy(
+                                                                parameters = nextParameters,
+                                                                editingIndex = state.editingIndex?.let { editing ->
+                                                                    when {
+                                                                        editing == index -> null
+                                                                        editing > index -> editing - 1
+                                                                        else -> editing
+                                                                    }
+                                                                },
+                                                                name = if (state.editingIndex == index) "" else state.name,
+                                                                value = if (state.editingIndex == index) "" else state.value,
+                                                            )
+                                                            editor = editor?.copy(customParameters = nextParameters)
+                                                            advancedSettingsEditor = advancedSettingsEditor?.copy(customParameters = nextParameters)
+                                                        },
                                                     )
                                                 }
-                                                Row(
-                                                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                                ) {
-                                                    Column(
-                                                        modifier = Modifier.weight(1f),
-                                                        verticalArrangement = Arrangement.spacedBy(6.dp),
-                                                    ) {
-                                                        Row(
-                                                            modifier = Modifier.fillMaxWidth(),
-                                                            verticalAlignment = Alignment.CenterVertically,
-                                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                                        ) {
-                                                            Text(
-                                                                text = parameter.name,
-                                                                modifier = Modifier.weight(1f),
-                                                                style = MaterialTheme.typography.titleSmall,
-                                                                fontWeight = FontWeight.SemiBold,
-                                                                maxLines = 1,
-                                                                overflow = TextOverflow.Ellipsis,
-                                                            )
-                                                            if (!showingHeaders) {
-                                                                Text(
-                                                                    text = stringResource(parameter.type.labelResource()),
-                                                                    modifier = Modifier.clip(AppComponentShape)
-                                                                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
-                                                                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                                                                    style = MaterialTheme.typography.labelSmall,
-                                                                    color = MaterialTheme.colorScheme.primary,
-                                                                    maxLines = 1,
-                                                                )
-                                                            }
-                                                        }
-                                                        Text(
-                                                            text = parameter.value,
-                                                            style = MaterialTheme.typography.bodyMedium,
-                                                            color = PageTextColor,
-                                                            maxLines = 2,
-                                                            overflow = TextOverflow.Ellipsis,
-                                                        )
-                                                    }
-                                                    Column(
-                                                        horizontalAlignment = Alignment.End,
-                                                        verticalArrangement = Arrangement.spacedBy(0.dp),
-                                                    ) {
-                                                        NoRippleTextButton(
-                                                            text = stringResource(R.string.translation_services_custom_parameter_edit),
-                                                            onClick = {
-                                                                state = state.copy(
-                                                                    name = parameter.name,
-                                                                    type = parameter.type,
-                                                                    value = parameter.value,
-                                                                    editingIndex = index,
-                                                                    invalid = false,
-                                                                    showParameterEditor = true,
-                                                                )
-                                                            },
-                                                        )
-                                                        NoRippleTextButton(
-                                                            text = stringResource(R.string.common_delete),
-                                                            contentColor = MaterialTheme.colorScheme.error,
-                                                            onClick = {
-                                                                val updated = visibleEntries.toMutableList().apply { removeAt(index) }
-                                                                val nextParameters = if (showingHeaders) {
-                                                                    state.parameters.copy(headers = updated)
-                                                                } else {
-                                                                    state.parameters.copy(body = updated)
-                                                                }
-                                                                state = state.copy(
-                                                                    parameters = nextParameters,
-                                                                    editingIndex = state.editingIndex?.let { editing ->
-                                                                        when {
-                                                                            editing == index -> null
-                                                                            editing > index -> editing - 1
-                                                                            else -> editing
-                                                                        }
-                                                                    },
-                                                                    name = if (state.editingIndex == index) "" else state.name,
-                                                                    value = if (state.editingIndex == index) "" else state.value,
-                                                                )
-                                                                editor = editor?.copy(customParameters = nextParameters)
-                                                                advancedSettingsEditor = advancedSettingsEditor?.copy(customParameters = nextParameters)
-                                                            },
-                                                        )
-                                                    }
-                                                }
+                                                if (rowEntries.size < columnCount) Spacer(Modifier.weight(1f))
                                             }
                                         }
                                     }
                                 }
                             }
-                        }
-                        Row(
-                            modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(vertical = 12.dp),
-                            horizontalArrangement = Arrangement.Center,
-                        ) {
-                            NoRippleButton(
-                                text = stringResource(R.string.translation_services_custom_parameter_add),
-                                modifier = Modifier.fillMaxWidth(),
-                                onClick = {
-                                    state = state.copy(
-                                        name = "",
-                                        type = TranslationParameterType.STRING,
-                                        value = "",
-                                        editingIndex = null,
-                                        invalid = false,
-                                        showParameterEditor = true,
-                                    )
-                                },
-                            )
                         }
                     }
                 }
@@ -1932,6 +1899,78 @@ private fun ServiceSectionCard(
                 content()
             },
         )
+    }
+}
+
+@Composable
+private fun CustomParameterEntryCard(
+    parameter: TranslationCustomParameter,
+    showType: Boolean,
+    modifier: Modifier = Modifier,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    MiuixCard(
+        modifier = modifier.fillMaxWidth().glassBorder(),
+        cornerRadius = AppComponentCornerRadius,
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        text = parameter.name,
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    if (showType) {
+                        Text(
+                            text = stringResource(parameter.type.labelResource()),
+                            modifier = Modifier.clip(AppComponentShape)
+                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            maxLines = 1,
+                        )
+                    }
+                }
+                Text(
+                    text = parameter.value,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = PageTextColor,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(0.dp),
+            ) {
+                NoRippleTextButton(
+                    text = stringResource(R.string.translation_services_custom_parameter_edit),
+                    onClick = onEdit,
+                )
+                NoRippleTextButton(
+                    text = stringResource(R.string.common_delete),
+                    contentColor = MaterialTheme.colorScheme.error,
+                    onClick = onDelete,
+                )
+            }
+        }
     }
 }
 
@@ -2501,6 +2540,7 @@ private data class AdvancedSettingsEditor(
     val proofreadingSystemPrompt: String,
     val proofreadingUserPrompt: String,
     val maxOutputTokens: String,
+    val chatTokenLimitField: ChatCompletionTokenLimitField,
     val structuredOutputMode: TranslationStructuredOutputMode,
     val customParameters: TranslationCustomParameters,
 ) {
@@ -2513,7 +2553,7 @@ private data class AdvancedSettingsEditor(
             maxOutputTokens = parsedMaxOutputTokens.takeIf {
                 protocolId.category == TranslationServiceCategory.AI_TRANSLATION
             },
-            chatTokenLimitField = current.chatTokenLimitField,
+            chatTokenLimitField = chatTokenLimitField,
             thinkingLevel = current.thinkingLevel.takeIf {
                 protocolId.category == TranslationServiceCategory.AI_TRANSLATION
             },
@@ -2531,6 +2571,7 @@ private data class AdvancedSettingsEditor(
                 proofreadingSystemPrompt = editor.proofreadingPrompt,
                 proofreadingUserPrompt = editor.proofreadingUserPrompt,
                 maxOutputTokens = options.maxOutputTokens?.toString().orEmpty(),
+                chatTokenLimitField = options.chatTokenLimitField,
                 structuredOutputMode = options.structuredOutputMode,
                 customParameters = editor.customParameters ?: TranslationCustomParameters(),
             )
@@ -2549,6 +2590,11 @@ private fun TranslationGenerationOptions.forServiceEditor(
     geminiTopK = null,
     thinkingLevel = thinkingLevel.takeIf { protocolId.category == TranslationServiceCategory.AI_TRANSLATION },
 )
+
+private fun ChatCompletionTokenLimitField.labelResource(): Int = when (this) {
+    ChatCompletionTokenLimitField.MAX_TOKENS -> R.string.translation_services_max_tokens_legacy
+    ChatCompletionTokenLimitField.MAX_COMPLETION_TOKENS -> R.string.translation_services_max_completion_tokens
+}
 
 private fun TranslationStructuredOutputMode.labelResource(): Int = when (this) {
     TranslationStructuredOutputMode.DISABLED -> R.string.translation_services_structured_output_disabled

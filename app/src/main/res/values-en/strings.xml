@@ -190,6 +190,9 @@
     <string name="translation_services_prompt_restore_defaults">Restore defaults</string>
     <string name="translation_services_max_output_tokens">Token limit</string>
     <string name="translation_services_output_limit">Output limit</string>
+    <string name="translation_services_chat_token_limit_field">Token limit field</string>
+    <string name="translation_services_max_tokens_legacy">max_tokens</string>
+    <string name="translation_services_max_completion_tokens">max_completion_tokens</string>
     <string name="translation_services_thinking_level">Thinking level</string>
     <string name="translation_services_thinking_level_hint">Support varies by model; use the provider default if unsure.</string>
     <string name="translation_services_reasoning_settings">Thinking and reasoning</string>

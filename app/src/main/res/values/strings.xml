@@ -190,6 +190,9 @@
     <string name="translation_services_prompt_restore_defaults">恢复默认</string>
     <string name="translation_services_max_output_tokens">Token 上限</string>
     <string name="translation_services_output_limit">输出上限</string>
+    <string name="translation_services_chat_token_limit_field">Token 上限字段</string>
+    <string name="translation_services_max_tokens_legacy">max_tokens</string>
+    <string name="translation_services_max_completion_tokens">max_completion_tokens</string>
     <string name="translation_services_thinking_level">思考等级</string>
     <string name="translation_services_thinking_level_hint">模型支持各异；不确定时用服务默认值。</string>
     <string name="translation_services_reasoning_settings">思考与推理</string>
