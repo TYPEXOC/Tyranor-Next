@@ -1253,22 +1253,27 @@ private fun TranslationReviewEntryDetailPane(
             }
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(stringResource(R.string.translation_review_translation), style = MaterialTheme.typography.labelMedium)
-                MiuixTextField(
-                    value = translationText,
-                    onValueChange = onTranslationTextChange,
-                    modifier = Modifier.fillMaxWidth().heightIn(max = 220.dp),
-                    insideMargin = DpSize(14.dp, 14.dp),
-                    colors = MiuixTextFieldDefaults.textFieldColors(
-                        backgroundColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.58f),
-                        labelColor = PageSecondaryTextColor,
-                        borderColor = MaterialTheme.colorScheme.primary,
-                    ),
-                    cornerRadius = AppComponentCornerRadius,
-                    minLines = 1,
-                    maxLines = 10,
-                    enabled = enabled,
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(color = PageTextColor),
-                )
+                Box(
+                    modifier = Modifier.fillMaxWidth().clip(AppComponentShape)
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.58f)),
+                ) {
+                    MiuixTextField(
+                        value = translationText,
+                        onValueChange = onTranslationTextChange,
+                        modifier = Modifier.fillMaxWidth().heightIn(max = 220.dp),
+                        insideMargin = DpSize(14.dp, 14.dp),
+                        colors = MiuixTextFieldDefaults.textFieldColors(
+                            backgroundColor = Color.Transparent,
+                            labelColor = PageSecondaryTextColor,
+                            borderColor = MaterialTheme.colorScheme.primary,
+                        ),
+                        cornerRadius = AppComponentCornerRadius,
+                        minLines = 1,
+                        maxLines = 10,
+                        enabled = enabled,
+                        textStyle = MaterialTheme.typography.bodyMedium.copy(color = PageTextColor),
+                    )
+                }
             }
             entry.suggestedTranslation?.let { suggestion ->
                 Column(
