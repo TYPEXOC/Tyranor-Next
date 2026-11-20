@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -113,6 +114,7 @@ import top.yukonga.miuix.kmp.basic.CardDefaults as MiuixCardDefaults
 import top.yukonga.miuix.kmp.basic.CircularProgressIndicator as MiuixCircularProgressIndicator
 import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
 import top.yukonga.miuix.kmp.basic.TextField as MiuixTextField
+import top.yukonga.miuix.kmp.basic.RadioButton as MiuixRadioButton
 import androidx.compose.foundation.Image
 
 class TranslationWorkbenchActivity : AppScreenActivity() {
@@ -137,6 +139,11 @@ private enum class ProjectListFilter {
     IN_PROGRESS,
     CONTINUABLE,
     TRANSLATED,
+}
+
+private enum class ReviewStartMode {
+    MANUAL,
+    AI,
 }
 
 private fun TranslationProjectCard.isInProgress(): Boolean =
@@ -187,6 +194,8 @@ private fun TranslationWorkbenchScreen() {
     var addProjectErrorCode by remember { mutableStateOf<TranslationWorkbenchError?>(null) }
     var addingProject by remember { mutableStateOf(false) }
     var deleteProjectId by remember { mutableStateOf<String?>(null) }
+    var reviewSetupProjectId by remember { mutableStateOf<String?>(null) }
+    var selectedReviewStartMode by remember { mutableStateOf(ReviewStartMode.MANUAL) }
     var errorCode by remember { mutableStateOf<TranslationWorkbenchError?>(null) }
     var pendingRelinkProjectId by remember { mutableStateOf<String?>(null) }
     var exportProjectId by remember { mutableStateOf<String?>(null) }
@@ -550,10 +559,15 @@ private fun TranslationWorkbenchScreen() {
                                             TranslationProjectCardView(
                                                 project = project,
                                                 onReview = {
-                                                    startActivityWithPageTransition(
-                                                        context,
-                                                        TranslationReviewActivity.createIntent(context, project.id),
-                                                    )
+                                                    if (project.reviewCompletedAt != null) {
+                                                        startActivityWithPageTransition(
+                                                            context,
+                                                            TranslationReviewActivity.createIntent(context, project.id),
+                                                        )
+                                                    } else {
+                                                        selectedReviewStartMode = ReviewStartMode.MANUAL
+                                                        reviewSetupProjectId = project.id
+                                                    }
                                                 },
                                                 onStart = { runOperation { repository.startExtraction(project.id) } },
                                                 onContinue = { taskId ->
@@ -636,6 +650,25 @@ private fun TranslationWorkbenchScreen() {
                         )
                     }
                 }
+            },
+        )
+    }
+
+    reviewSetupProjectId?.let { projectId ->
+        TranslationReviewModeDialog(
+            mode = selectedReviewStartMode,
+            onModeChange = { selectedReviewStartMode = it },
+            onDismiss = { reviewSetupProjectId = null },
+            onConfirm = {
+                reviewSetupProjectId = null
+                startActivityWithPageTransition(
+                    context,
+                    TranslationReviewActivity.createIntent(
+                        context,
+                        projectId,
+                        openProofreadSetup = selectedReviewStartMode == ReviewStartMode.AI,
+                    ),
+                )
             },
         )
     }
@@ -926,6 +959,69 @@ private fun TranslationWorkbenchScreen() {
                 )
             },
         )
+    }
+}
+
+@Composable
+private fun TranslationReviewModeDialog(
+    mode: ReviewStartMode,
+    onModeChange: (ReviewStartMode) -> Unit,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    MiuixSettingsTheme {
+        AppAlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text(stringResource(R.string.translation_review_mode_title), style = MaterialTheme.typography.titleMedium) },
+            text = {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ReviewModeChoiceCard(
+                        title = stringResource(R.string.translation_review_mode_manual),
+                        summary = stringResource(R.string.translation_review_mode_manual_hint),
+                        selected = mode == ReviewStartMode.MANUAL,
+                        onClick = { onModeChange(ReviewStartMode.MANUAL) },
+                    )
+                    ReviewModeChoiceCard(
+                        title = stringResource(R.string.translation_review_mode_ai),
+                        summary = stringResource(R.string.translation_review_mode_ai_hint),
+                        selected = mode == ReviewStartMode.AI,
+                        onClick = { onModeChange(ReviewStartMode.AI) },
+                    )
+                }
+            },
+            confirmButton = {
+                DialogTextButton(
+                    text = stringResource(R.string.translation_review_mode_enter),
+                    onClick = onConfirm,
+                )
+            },
+            dismissButton = { DialogTextButton(stringResource(R.string.common_cancel), onClick = onDismiss) },
+        )
+    }
+}
+
+@Composable
+private fun ReviewModeChoiceCard(
+    title: String,
+    summary: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    MiuixCard(
+        modifier = Modifier.fillMaxWidth().glassBorder().clickable(onClick = onClick),
+        cornerRadius = AppComponentCornerRadius,
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            MiuixRadioButton(selected = selected, onClick = onClick)
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                Text(summary, style = MaterialTheme.typography.bodySmall, color = PageSecondaryTextColor)
+            }
+        }
     }
 }
 

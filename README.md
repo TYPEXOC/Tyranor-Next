@@ -210,3 +210,5 @@ System4 运行时包含 libjpeg-turbo；依 IJG 许可要求，随分发文档�
 - [Anime4K](https://github.com/bloc97/Anime4K):（bloc97，MIT）：KRKR 游戏画面实时超分（线条重建 CNN 着色器）
 - [OnscripterYuri](https://github.com/YuriSizuku/OnscripterYuri): ONS引擎
 - [UsefulUnpack](https://github.com/znso4pa/usefulunpack)（znso4pa，MIT）：XP3 / KSD 解封包 Rust 实现（`engine/rust` 的 `lib.rs` / `common.rs` / `ksd.rs` 来源，许可证见 `engine/rust/LICENSE.usefulunpack`）
+
+校对入口先让用户选择人工或 AI 校对；本地规则在进入校对工作区时自动检查。工作区筛选使用 Miuix 弹窗，平板并排显示条目表与译文详情，手机仍按列表进入详情。

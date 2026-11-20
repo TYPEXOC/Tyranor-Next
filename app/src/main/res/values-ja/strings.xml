@@ -1714,6 +1714,12 @@
     <string name="translation_review_rules_result">今回の確認で %1$d 件の問題が見つかりました</string>
     <string name="translation_review_ai_start">AI 校正を開始</string>
     <string name="translation_review_ai_start_title">AI 校正の範囲とサービス</string>
+    <string name="translation_review_mode_title">校正方法を選択</string>
+    <string name="translation_review_mode_manual">手動校正</string>
+    <string name="translation_review_mode_manual_hint">項目を絞り込み、訳文を編集して確定します。</string>
+    <string name="translation_review_mode_ai">AI 校正</string>
+    <string name="translation_review_mode_ai_hint">サービスと範囲を選び、提案を確認してから確定します。</string>
+    <string name="translation_review_mode_enter">続行</string>
     <string name="translation_review_ai_scope_rule_hits">ルールに一致した項目のみ</string>
     <string name="translation_review_ai_scope_all">翻訳済みのすべての項目</string>
     <string name="translation_review_ai_scope_required">校正範囲を選択してください</string>
@@ -1722,6 +1728,13 @@
     <string name="translation_review_filter_all">すべて</string>
     <string name="translation_review_filter_pending">確認待ち</string>
     <string name="translation_review_filter_issues">問題あり</string>
+    <string name="translation_review_filter_label">絞り込み</string>
+    <string name="translation_review_filter_dialog_title">項目を絞り込む</string>
+    <string name="translation_review_column_sequence">番号</string>
+    <string name="translation_review_column_status">状態</string>
+    <string name="translation_review_entry_position">#%1$03d / %2$d</string>
+    <string name="translation_review_workspace_title">校正と編集</string>
+    <string name="translation_review_workspace_notice">一覧には原文と現在の訳文が一緒に表示されます。項目を選ぶと提案の確認、編集、訳文の確定ができます。</string>
     <string name="translation_review_source">原文</string>
     <string name="translation_review_translation">現在の訳文</string>
     <string name="translation_review_no_translation">訳文はまだありません</string>

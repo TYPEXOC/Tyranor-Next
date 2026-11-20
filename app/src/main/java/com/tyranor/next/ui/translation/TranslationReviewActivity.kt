@@ -3,7 +3,12 @@ package com.tyranor.next.ui.translation
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.os.Environment
+import android.net.Uri
+import android.provider.DocumentsContract
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,13 +20,17 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -35,25 +44,31 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tyranor.next.R
+import com.tyranor.next.core.engine.EngineType
 import com.tyranor.next.core.translation.TranslationProofreadScope
 import com.tyranor.next.core.translation.TranslationProjectCard
 import com.tyranor.next.core.translation.TranslationReviewEntry
 import com.tyranor.next.core.translation.TranslationReviewIssue
 import com.tyranor.next.core.translation.TranslationReviewIssueCode
 import com.tyranor.next.core.translation.TranslationReviewState
-import com.tyranor.next.core.translation.TranslationTaskScheduleResult
 import com.tyranor.next.core.translation.TranslationWorkbenchError
 import com.tyranor.next.core.translation.TranslationWorkbenchException
 import com.tyranor.next.core.translation.TranslationWorkbenchRepository
+import com.tyranor.next.core.translation.extraction.TranslationExtractorEngineIds
 import com.tyranor.next.core.translation.service.TranslationServiceProfile
 import com.tyranor.next.theme.AppComponentCornerRadius
+import com.tyranor.next.theme.AppComponentShape
 import com.tyranor.next.theme.MiuixSettingsTheme
 import com.tyranor.next.theme.PageSecondaryTextColor
 import com.tyranor.next.theme.PageTextColor
@@ -71,8 +86,13 @@ import java.util.concurrent.CancellationException
 import kotlinx.coroutines.launch
 import com.tyranor.next.theme.glassBorder
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
+import top.yukonga.miuix.kmp.basic.HorizontalDivider as MiuixHorizontalDivider
+import top.yukonga.miuix.kmp.basic.RadioButton as MiuixRadioButton
+import top.yukonga.miuix.kmp.basic.VerticalDivider as MiuixVerticalDivider
 import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
 import top.yukonga.miuix.kmp.basic.TextField as MiuixTextField
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class TranslationReviewActivity : AppScreenActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -82,19 +102,26 @@ class TranslationReviewActivity : AppScreenActivity() {
             finish()
             return
         }
-        setAppScreenContent { TranslationReviewScreen(projectId) }
+        val openProofreadSetup = intent.getBooleanExtra(EXTRA_OPEN_PROOFREAD_SETUP, false)
+        setAppScreenContent { TranslationReviewScreen(projectId, openProofreadSetup) }
     }
 
     companion object {
         private const val EXTRA_PROJECT_ID = "translation_project_id"
+        private const val EXTRA_OPEN_PROOFREAD_SETUP = "translation_open_proofread_setup"
 
-        fun createIntent(context: Context, projectId: String): Intent =
-            Intent(context, TranslationReviewActivity::class.java).putExtra(EXTRA_PROJECT_ID, projectId)
+        fun createIntent(
+            context: Context,
+            projectId: String,
+            openProofreadSetup: Boolean = false,
+        ): Intent = Intent(context, TranslationReviewActivity::class.java)
+            .putExtra(EXTRA_PROJECT_ID, projectId)
+            .putExtra(EXTRA_OPEN_PROOFREAD_SETUP, openProofreadSetup)
     }
 }
 
 @Composable
-private fun TranslationReviewScreen(projectId: String) {
+private fun TranslationReviewScreen(projectId: String, openProofreadSetup: Boolean) {
     val context = LocalContext.current
     val repository = remember(context) { TranslationWorkbenchRepository(context.applicationContext) }
     val scope = rememberCoroutineScope()
@@ -105,20 +132,48 @@ private fun TranslationReviewScreen(projectId: String) {
     val services by remember(repository) { repository.observeEnabledProofreadingServices() }
         .collectAsStateWithLifecycle(initialValue = emptyList())
 
-    var filter by remember { mutableStateOf(ReviewFilter.PENDING) }
+    var sourceLocation by remember(projectId) { mutableStateOf("") }
+    var filter by remember { mutableStateOf(ReviewFilter.ALL) }
     var selectedEntryId by remember { mutableStateOf<String?>(null) }
     var editorText by remember { mutableStateOf("") }
-    var showProofreadDialog by remember { mutableStateOf(false) }
+    var showProofreadDialog by remember(projectId) { mutableStateOf(openProofreadSetup) }
+    var showFilterDialog by remember { mutableStateOf(false) }
+    var draftFilter by remember { mutableStateOf(ReviewFilter.ALL) }
     var selectedServiceId by remember { mutableStateOf<String?>(null) }
     var selectedScope by remember { mutableStateOf<TranslationProofreadScope?>(null) }
     var sourceLanguage by remember { mutableStateOf("") }
     var targetLanguage by remember { mutableStateOf("") }
     var errorCode by remember { mutableStateOf<TranslationWorkbenchError?>(null) }
-    var checkedIssueCount by remember { mutableStateOf<Int?>(null) }
+    var localRulesInitialized by remember(projectId) { mutableStateOf(false) }
+
+    LaunchedEffect(project?.id, project?.sourceTreeUri) {
+        sourceLocation = project?.let { current ->
+            current.sourceTreeUri?.let { uri ->
+                queryReviewSourcePath(context, Uri.parse(uri), current.title)
+            } ?: context.getString(R.string.translation_card_imported_source)
+        }.orEmpty()
+    }
 
     LaunchedEffect(project?.sourceLanguage, project?.targetLanguage) {
         if (sourceLanguage.isBlank()) sourceLanguage = project?.sourceLanguage.orEmpty()
         if (targetLanguage.isBlank()) targetLanguage = project?.targetLanguage.orEmpty()
+    }
+
+    LaunchedEffect(services) {
+        if (selectedServiceId == null) selectedServiceId = services.firstOrNull()?.id
+    }
+
+    LaunchedEffect(project?.id, entries.size) {
+        if (project != null && entries.isNotEmpty() && !localRulesInitialized) {
+            localRulesInitialized = true
+            try {
+                repository.runLocalRules(projectId)
+            } catch (failure: Exception) {
+                if (failure is CancellationException) throw failure
+                errorCode = (failure as? TranslationWorkbenchException)?.code
+                    ?: TranslationWorkbenchError.STORAGE_FAILURE
+            }
+        }
     }
 
     fun reportFailure(failure: Throwable) {
@@ -169,10 +224,11 @@ private fun TranslationReviewScreen(projectId: String) {
             contentWindowInsets = WindowInsets(0.dp),
             topBar = {
                 AppSecondaryTopBar(
-                    title = stringResource(
-                        if (mobileDetailEntryId != null) R.string.translation_review_edit
-                        else R.string.translation_review_title,
-                    ),
+                    title = when {
+                        mobileDetailEntryId != null -> stringResource(R.string.translation_review_edit)
+                        project != null -> "${project.title} · ${stringResource(R.string.translation_review_title)}"
+                        else -> stringResource(R.string.translation_review_title)
+                    },
                     background = Color.Transparent,
                     contentColor = PageTextColor,
                 )
@@ -196,6 +252,8 @@ private fun TranslationReviewScreen(projectId: String) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
                         TranslationReviewEntryDetailPane(
                             entry = paneEntry,
+                            sequence = entries.indexOfFirst { it.id == paneEntry.id } + 1,
+                            totalCount = entries.size,
                             translationText = paneTranslationText,
                             enabled = !active,
                             modifier = Modifier.fillMaxSize()
@@ -206,14 +264,14 @@ private fun TranslationReviewScreen(projectId: String) {
                             onSave = {
                                 runOperation {
                                     repository.saveManualTranslation(projectId, paneEntry.id, paneTranslationText)
-                                    checkedIssueCount = repository.runLocalRules(projectId)
+                                    repository.runLocalRules(projectId)
                                     selectedEntryId = null
                                 }
                             },
                             onApplySuggestion = { suggestionId ->
                                 runOperation {
                                     repository.applyProofreadSuggestion(projectId, paneEntry.id, suggestionId)
-                                    checkedIssueCount = repository.runLocalRules(projectId)
+                                    repository.runLocalRules(projectId)
                                 }
                             },
                             onConfirm = { runOperation { repository.confirmCurrentTranslation(projectId, paneEntry.id) } },
@@ -221,6 +279,136 @@ private fun TranslationReviewScreen(projectId: String) {
                                 runOperation { repository.updateReviewIssue(projectId, issue.id, ignore) }
                             },
                         )
+                    }
+                } else if (tabletLayout) {
+                    Column(
+                        modifier = Modifier.fillMaxSize()
+                            .widthIn(max = 1440.dp)
+                            .padding(top = topPadding, start = 16.dp, end = 16.dp, bottom = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        if (project != null) {
+                            ReviewProjectContextCard(
+                                project = project,
+                                sourceLocation = sourceLocation,
+                                engineName = project.reviewEngineName(),
+                            )
+                        }
+                        MiuixCard(
+                            modifier = Modifier.weight(1f).fillMaxWidth().glassBorder(),
+                            cornerRadius = AppComponentCornerRadius,
+                        ) {
+                            Column(
+                                modifier = Modifier.fillMaxSize().padding(18.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp),
+                            ) {
+                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Text(
+                                        stringResource(R.string.translation_review_workspace_title),
+                                        style = MaterialTheme.typography.titleLarge,
+                                        fontWeight = FontWeight.Bold,
+                                    )
+                                }
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                                    ReviewFilterTrigger(
+                                        filter = filter,
+                                        onClick = {
+                                            draftFilter = filter
+                                            showFilterDialog = true
+                                        },
+                                        modifier = Modifier.widthIn(min = 220.dp, max = 300.dp),
+                                    )
+                                }
+                                if (active && project != null && project.itemTotal > 0) {
+                                    LinearProgressIndicator(
+                                        progress = { (project.completedItems.toFloat() / project.itemTotal).coerceIn(0f, 1f) },
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                    Text(
+                                        stringResource(R.string.translation_item_progress, project.completedItems, project.itemTotal),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = PageSecondaryTextColor,
+                                    )
+                                }
+                                if (project?.latestTaskState == "COMPLETED" && proofreadTask) {
+                                    Text(stringResource(R.string.translation_task_proofread_completed), color = MaterialTheme.colorScheme.primary)
+                                }
+                                if (project?.latestTaskState == "COMPLETED_WITH_ERRORS" && project.failedItems > 0) {
+                                    Text(
+                                        stringResource(R.string.translation_failed_items, project.failedItems),
+                                        color = MaterialTheme.colorScheme.error,
+                                    )
+                                }
+                                if (project?.latestTaskFailureCode != null && project.latestTaskState == "FAILED") {
+                                    Text(stringResource(R.string.translation_task_proofread_failed), color = MaterialTheme.colorScheme.error)
+                                }
+                                Row(
+                                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                ) {
+                                    ReviewEntryTable(
+                                        entries = filteredEntries,
+                                        allEntries = entries,
+                                        selectedEntryId = selectedEntry?.id,
+                                        modifier = Modifier.weight(1.08f).fillMaxHeight(),
+                                        onSelect = { entry ->
+                                            selectedEntryId = entry.id
+                                            editorText = entry.translatedText.orEmpty()
+                                        },
+                                    )
+                                    if (selectedEntry != null) {
+                                        TranslationReviewEntryDetailPane(
+                                            entry = selectedEntry,
+                                            sequence = entries.indexOfFirst { it.id == selectedEntry.id } + 1,
+                                            totalCount = entries.size,
+                                            translationText = editorText,
+                                            enabled = !active,
+                                            modifier = Modifier.weight(0.92f).fillMaxHeight(),
+                                            onTranslationTextChange = { editorText = it },
+                                            onSave = {
+                                                runOperation {
+                                                    repository.saveManualTranslation(projectId, selectedEntry.id, editorText)
+                                                    repository.runLocalRules(projectId)
+                                                }
+                                            },
+                                            onApplySuggestion = { suggestionId ->
+                                                runOperation {
+                                                    repository.applyProofreadSuggestion(projectId, selectedEntry.id, suggestionId)
+                                                    repository.runLocalRules(projectId)
+                                                }
+                                            },
+                                            onConfirm = {
+                                                runOperation { repository.confirmCurrentTranslation(projectId, selectedEntry.id) }
+                                            },
+                                            onIssueState = { issue, ignore ->
+                                                runOperation { repository.updateReviewIssue(projectId, issue.id, ignore) }
+                                            },
+                                        )
+                                    } else {
+                                        ReviewInfoCard(
+                                            text = stringResource(
+                                                if (entries.isEmpty()) R.string.translation_review_no_entries
+                                                else R.string.translation_review_no_matches,
+                                            ),
+                                            modifier = Modifier.weight(0.92f).fillMaxHeight(),
+                                        )
+                                    }
+                                }
+                                ReviewInfoCard(
+                                    text = stringResource(R.string.translation_review_workspace_notice),
+                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.End,
+                                ) {
+                                    NoRippleButton(
+                                        text = stringResource(R.string.translation_review_complete_round),
+                                        enabled = !active && entries.isNotEmpty(),
+                                        onClick = { runOperation { repository.completeReviewRound(projectId) } },
+                                    )
+                                }
+                            }
+                        }
                     }
                 } else {
                     Row(
@@ -253,59 +441,6 @@ private fun TranslationReviewScreen(projectId: String) {
                                         if (project?.reviewCompletedAt != null) {
                                             Text(stringResource(R.string.translation_review_completed), color = MaterialTheme.colorScheme.primary)
                                         }
-                                        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                            NoRippleButton(
-                                                text = stringResource(R.string.translation_review_run_rules),
-                                                enabled = !active && entries.isNotEmpty(),
-                                                tonal = true,
-                                                onClick = { runOperation { checkedIssueCount = repository.runLocalRules(projectId) } },
-                                            )
-                                            NoRippleTextButton(
-                                                text = stringResource(R.string.translation_review_ai_start),
-                                                enabled = !active && entries.any { !it.translatedText.isNullOrBlank() },
-                                                onClick = {
-                                                    selectedScope = null
-                                                    selectedServiceId = services.firstOrNull()?.id
-                                                    showProofreadDialog = true
-                                                },
-                                            )
-                                            if (!active && proofreadTask &&
-                                                project.latestTaskState in setOf("FAILED", "CANCELLED", "COMPLETED_WITH_ERRORS")
-                                            ) {
-                                                NoRippleTextButton(
-                                                    text = stringResource(R.string.translation_retry_proofread),
-                                                    onClick = {
-                                                        val taskId = project.latestTaskId ?: return@NoRippleTextButton
-                                                        runOperation {
-                                                            when (repository.continueProofreading(projectId, taskId)) {
-                                                                is TranslationTaskScheduleResult.Started,
-                                                                is TranslationTaskScheduleResult.AlreadyActive -> Unit
-                                                            }
-                                                        }
-                                                    },
-                                                )
-                                            }
-                                            if (active && proofreadTask && project.latestTaskId != null) {
-                                                NoRippleTextButton(
-                                                    text = stringResource(R.string.translation_cancel_task),
-                                                    onClick = {
-                                                        runOperation { repository.cancelTask(project.latestTaskId) }
-                                                    },
-                                                )
-                                            }
-                                            NoRippleTextButton(
-                                                text = stringResource(R.string.translation_review_complete_round),
-                                                enabled = !active && entries.isNotEmpty(),
-                                                onClick = { runOperation { repository.completeReviewRound(projectId) } },
-                                            )
-                                        }
-                                        if (checkedIssueCount != null) {
-                                            Text(
-                                                stringResource(R.string.translation_review_rules_result, checkedIssueCount!!),
-                                                color = PageSecondaryTextColor,
-                                                style = MaterialTheme.typography.bodySmall,
-                                            )
-                                        }
                                         if (active && project != null && project.itemTotal > 0) {
                                             LinearProgressIndicator(
                                                 progress = { (project.completedItems.toFloat() / project.itemTotal).coerceIn(0f, 1f) },
@@ -333,14 +468,15 @@ private fun TranslationReviewScreen(projectId: String) {
                                 }
                             }
                             item(key = "review-filters") {
-                                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    ReviewFilter.entries.forEach { option ->
-                                        NoRippleTextButton(
-                                            text = stringResource(option.label),
-                                            contentColor = if (filter == option) MaterialTheme.colorScheme.primary else PageTextColor,
-                                            onClick = { filter = option },
-                                        )
-                                    }
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                                    ReviewFilterTrigger(
+                                        filter = filter,
+                                        onClick = {
+                                            draftFilter = filter
+                                            showFilterDialog = true
+                                        },
+                                        modifier = Modifier.widthIn(min = 220.dp, max = 300.dp),
+                                    )
                                 }
                             }
                             if (entries.isEmpty()) {
@@ -365,11 +501,22 @@ private fun TranslationReviewScreen(projectId: String) {
                                     )
                                 }
                             }
+                            item(key = "review-complete") {
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                                    NoRippleButton(
+                                        text = stringResource(R.string.translation_review_complete_round),
+                                        enabled = !active && entries.isNotEmpty(),
+                                        onClick = { runOperation { repository.completeReviewRound(projectId) } },
+                                    )
+                                }
+                            }
                         }
                         if (tabletLayout) {
                             if (selectedEntry != null) {
                                 TranslationReviewEntryDetailPane(
                                     entry = selectedEntry,
+                                    sequence = entries.indexOfFirst { it.id == selectedEntry.id } + 1,
+                                    totalCount = entries.size,
                                     translationText = editorText,
                                     enabled = !active,
                                     modifier = Modifier.weight(0.56f).fillMaxHeight().padding(top = topPadding),
@@ -377,13 +524,13 @@ private fun TranslationReviewScreen(projectId: String) {
                                     onSave = {
                                         runOperation {
                                             repository.saveManualTranslation(projectId, selectedEntry.id, editorText)
-                                            checkedIssueCount = repository.runLocalRules(projectId)
+                                            repository.runLocalRules(projectId)
                                         }
                                     },
                                     onApplySuggestion = { suggestionId ->
                                         runOperation {
                                             repository.applyProofreadSuggestion(projectId, selectedEntry.id, suggestionId)
-                                            checkedIssueCount = repository.runLocalRules(projectId)
+                                            repository.runLocalRules(projectId)
                                         }
                                     },
                                     onConfirm = { runOperation { repository.confirmCurrentTranslation(projectId, selectedEntry.id) } },
@@ -409,6 +556,44 @@ private fun TranslationReviewScreen(projectId: String) {
                 }
             }
         }
+    }
+
+    if (showFilterDialog) {
+        AppAlertDialog(
+            onDismissRequest = { showFilterDialog = false },
+            title = { Text(stringResource(R.string.translation_review_filter_dialog_title), style = MaterialTheme.typography.titleMedium) },
+            text = {
+                Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    ReviewFilter.entries.forEach { option ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth()
+                                .clickable { draftFilter = option }
+                                .padding(horizontal = 6.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            MiuixRadioButton(
+                                selected = draftFilter == option,
+                                onClick = { draftFilter = option },
+                            )
+                            Text(stringResource(option.label), style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                DialogTextButton(
+                    text = stringResource(R.string.common_confirm),
+                    onClick = {
+                        filter = draftFilter
+                        showFilterDialog = false
+                    },
+                )
+            },
+            dismissButton = {
+                DialogTextButton(stringResource(R.string.common_cancel)) { showFilterDialog = false }
+            },
+        )
     }
 
     if (showProofreadDialog) {
@@ -531,6 +716,227 @@ private fun ProofreadStartDialog(
 }
 
 @Composable
+private fun ReviewProjectContextCard(
+    project: TranslationProjectCard,
+    sourceLocation: String,
+    engineName: String,
+) {
+    MiuixCard(modifier = Modifier.fillMaxWidth().glassBorder(), cornerRadius = AppComponentCornerRadius) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Box(
+                modifier = Modifier.size(40.dp).clip(AppComponentShape)
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Image(
+                    painter = painterResource(R.drawable.ic_translation_workbench),
+                    contentDescription = null,
+                    colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.primary),
+                    modifier = Modifier.size(24.dp),
+                )
+            }
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(
+                    project.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    "$engineName · $sourceLocation",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = PageSecondaryTextColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    stringResource(R.string.translation_entry_summary, project.entryCount, project.translatedCount),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = PageSecondaryTextColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            val status = when {
+                project.latestTaskState in setOf("QUEUED", "RUNNING") && project.latestTaskType == "AI_PROOFREAD" ->
+                    stringResource(R.string.translation_task_proofreading)
+                project.reviewCompletedAt != null -> stringResource(R.string.translation_card_review_completed)
+                project.pendingSuggestionCount > 0 -> stringResource(
+                    R.string.translation_card_review_pending_count,
+                    project.pendingSuggestionCount,
+                )
+                else -> stringResource(R.string.translation_card_review_pending)
+            }
+            Text(
+                status,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ReviewEntryTable(
+    entries: List<TranslationReviewEntry>,
+    allEntries: List<TranslationReviewEntry>,
+    selectedEntryId: String?,
+    modifier: Modifier = Modifier,
+    onSelect: (TranslationReviewEntry) -> Unit,
+) {
+    val sequenceById = remember(allEntries) { allEntries.mapIndexed { index, entry -> entry.id to index + 1 }.toMap() }
+    MiuixCard(
+        modifier = modifier.glassBorder(),
+        cornerRadius = AppComponentCornerRadius,
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            Row(
+                modifier = Modifier.fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    stringResource(R.string.translation_review_column_sequence),
+                    modifier = Modifier.width(42.dp),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = PageSecondaryTextColor,
+                    textAlign = TextAlign.Center,
+                )
+                MiuixVerticalDivider(modifier = Modifier.height(28.dp))
+                Text(
+                    stringResource(R.string.translation_review_source),
+                    modifier = Modifier.weight(1f).padding(horizontal = 10.dp),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = PageSecondaryTextColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                MiuixVerticalDivider(modifier = Modifier.height(28.dp))
+                Text(
+                    stringResource(R.string.translation_review_translation),
+                    modifier = Modifier.weight(1f).padding(horizontal = 10.dp),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = PageSecondaryTextColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                MiuixVerticalDivider(modifier = Modifier.height(28.dp))
+                Text(
+                    stringResource(R.string.translation_review_column_status),
+                    modifier = Modifier.width(94.dp),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = PageSecondaryTextColor,
+                    textAlign = TextAlign.Center,
+                )
+            }
+            MiuixHorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f))
+            if (entries.isEmpty()) {
+                Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Text(
+                        stringResource(
+                            if (allEntries.isEmpty()) R.string.translation_review_no_entries
+                            else R.string.translation_review_no_matches,
+                        ),
+                        modifier = Modifier.padding(20.dp),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = PageSecondaryTextColor,
+                    )
+                }
+            } else {
+                LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                    itemsIndexed(entries, key = { _, entry -> entry.id }) { index, entry ->
+                        val selected = entry.id == selectedEntryId
+                        Row(
+                            modifier = Modifier.fillMaxWidth()
+                                .pressSquishGroup()
+                                .background(
+                                    if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)
+                                    else Color.Transparent,
+                                )
+                                .clickable { onSelect(entry) }
+                                .padding(horizontal = 10.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                (sequenceById[entry.id] ?: index + 1).toString(),
+                                modifier = Modifier.width(42.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = PageSecondaryTextColor,
+                                textAlign = TextAlign.Center,
+                            )
+                            MiuixVerticalDivider(modifier = Modifier.height(54.dp))
+                            Text(
+                                entry.sourceText,
+                                modifier = Modifier.weight(1f).padding(horizontal = 10.dp),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = PageTextColor,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            MiuixVerticalDivider(modifier = Modifier.height(54.dp))
+                            Text(
+                                entry.translatedText.orEmpty().ifBlank { stringResource(R.string.translation_review_no_translation) },
+                                modifier = Modifier.weight(1f).padding(horizontal = 10.dp),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (entry.translatedText.isNullOrBlank()) PageSecondaryTextColor else PageTextColor,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            MiuixVerticalDivider(modifier = Modifier.height(54.dp))
+                            Box(modifier = Modifier.width(94.dp), contentAlignment = Alignment.Center) {
+                                ReviewEntryStatusBadge(entry)
+                            }
+                        }
+                        if (index != entries.lastIndex) {
+                            MiuixHorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReviewEntryStatusBadge(entry: TranslationReviewEntry) {
+    val openIssue = entry.issues.firstOrNull { it.state == "OPEN" }
+    val label = when {
+        openIssue != null -> stringResource(openIssue.code.labelResource())
+        entry.reviewState == TranslationReviewState.CONFIRMED -> stringResource(R.string.translation_review_confirmed)
+        entry.suggestionId != null -> stringResource(R.string.translation_review_suggestion)
+        else -> stringResource(R.string.translation_review_filter_pending)
+    }
+    val tint = when {
+        openIssue != null -> MaterialTheme.colorScheme.error
+        entry.reviewState == TranslationReviewState.CONFIRMED -> MaterialTheme.colorScheme.primary
+        entry.suggestionId != null -> MaterialTheme.colorScheme.tertiary
+        else -> MaterialTheme.colorScheme.secondary
+    }
+    Box(
+        modifier = Modifier.clip(RoundedCornerShape(8.dp))
+            .background(tint.copy(alpha = 0.12f))
+            .padding(horizontal = 7.dp, vertical = 5.dp),
+    ) {
+        Text(
+            label,
+            color = tint,
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
 private fun TranslationReviewEntryCard(
     entry: TranslationReviewEntry,
     sequence: Int,
@@ -596,6 +1002,8 @@ private fun TranslationReviewEntryCard(
 @Composable
 private fun TranslationReviewEntryDetailPane(
     entry: TranslationReviewEntry,
+    sequence: Int,
+    totalCount: Int,
     translationText: String,
     enabled: Boolean,
     modifier: Modifier = Modifier,
@@ -607,36 +1015,75 @@ private fun TranslationReviewEntryDetailPane(
 ) {
     Column(
         modifier = modifier.verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         MiuixCard(modifier = Modifier.fillMaxWidth().glassBorder(), cornerRadius = AppComponentCornerRadius) {
             Column(
                 Modifier.fillMaxWidth().padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        stringResource(R.string.translation_review_entry_position, sequence, totalCount),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = PageSecondaryTextColor,
+                    )
+                    ReviewEntryStatusBadge(entry)
+                }
                 Text(entry.sourceKey, style = MaterialTheme.typography.labelSmall, color = PageSecondaryTextColor)
-                Text(stringResource(R.string.translation_review_source), style = MaterialTheme.typography.labelMedium)
-                Text(entry.sourceText, style = MaterialTheme.typography.bodyMedium)
-                Text(stringResource(R.string.translation_review_translation), style = MaterialTheme.typography.labelMedium)
-                MiuixTextField(
-                    value = translationText,
-                    onValueChange = onTranslationTextChange,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 140.dp),
-                    minLines = 5,
-                    enabled = enabled,
-                    label = stringResource(R.string.translation_review_translation),
-                )
-                entry.suggestedTranslation?.let { suggestion ->
-                    Text(stringResource(R.string.translation_review_suggestion), style = MaterialTheme.typography.labelMedium)
-                    Text(suggestion, style = MaterialTheme.typography.bodyMedium)
-                    NoRippleTextButton(
-                        text = stringResource(R.string.translation_review_apply_suggestion),
-                        enabled = enabled && entry.suggestionId != null,
-                        onClick = { entry.suggestionId?.let(onApplySuggestion) },
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(stringResource(R.string.translation_review_source), style = MaterialTheme.typography.labelMedium)
+                    Box(
+                        modifier = Modifier.fillMaxWidth().clip(AppComponentShape)
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.58f))
+                            .padding(14.dp),
+                    ) {
+                        Text(entry.sourceText, style = MaterialTheme.typography.bodyMedium, color = PageTextColor)
+                    }
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(stringResource(R.string.translation_review_translation), style = MaterialTheme.typography.labelMedium)
+                    MiuixTextField(
+                        value = translationText,
+                        onValueChange = onTranslationTextChange,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 132.dp),
+                        minLines = 4,
+                        enabled = enabled,
+                        label = stringResource(R.string.translation_review_translation),
                     )
                 }
+                entry.suggestedTranslation?.let { suggestion ->
+                    Column(
+                        modifier = Modifier.fillMaxWidth().clip(AppComponentShape)
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
+                            .padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(
+                            stringResource(R.string.translation_review_suggestion),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                        Text(suggestion, style = MaterialTheme.typography.bodyMedium)
+                        NoRippleButton(
+                            text = stringResource(R.string.translation_review_apply_suggestion),
+                            enabled = enabled && entry.suggestionId != null,
+                            tonal = true,
+                            onClick = { entry.suggestionId?.let(onApplySuggestion) },
+                        )
+                    }
+                }
                 entry.issues.filter { it.state == "OPEN" }.forEach { issue ->
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().clip(AppComponentShape)
+                            .background(MaterialTheme.colorScheme.error.copy(alpha = 0.08f))
+                            .padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
                         Text(
                             stringResource(issue.code.labelResource()),
                             color = MaterialTheme.colorScheme.error,
@@ -677,9 +1124,40 @@ private fun TranslationReviewEntryDetailPane(
 }
 
 @Composable
-private fun ReviewInfoCard(text: String) {
-    MiuixCard(modifier = Modifier.fillMaxWidth().glassBorder(), cornerRadius = AppComponentCornerRadius) {
+private fun ReviewInfoCard(text: String, modifier: Modifier = Modifier) {
+    MiuixCard(modifier = modifier.fillMaxWidth().glassBorder(), cornerRadius = AppComponentCornerRadius) {
         Text(text, modifier = Modifier.padding(18.dp), style = MaterialTheme.typography.bodyMedium, color = PageSecondaryTextColor)
+    }
+}
+
+@Composable
+private fun ReviewFilterTrigger(
+    filter: ReviewFilter,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    MiuixCard(
+        modifier = modifier.glassBorder().pressSquishGroup().clickable(onClick = onClick),
+        cornerRadius = AppComponentCornerRadius,
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Image(
+                painter = painterResource(R.drawable.ic_game_filter),
+                contentDescription = null,
+                colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.primary),
+                modifier = Modifier.size(18.dp),
+            )
+            Text(
+                stringResource(R.string.translation_review_filter_label),
+                style = MaterialTheme.typography.labelMedium,
+                modifier = Modifier.weight(1f),
+            )
+            Text(stringResource(filter.label), style = MaterialTheme.typography.bodyMedium, color = PageSecondaryTextColor)
+        }
     }
 }
 
@@ -688,6 +1166,38 @@ private enum class ReviewFilter(val label: Int) {
     PENDING(R.string.translation_review_filter_pending),
     ISSUES(R.string.translation_review_filter_issues),
 }
+
+@Composable
+private fun TranslationProjectCard.reviewEngineName(): String = when (engineId) {
+    EngineType.RPG_MV.name -> stringResource(R.string.translation_engine_rpg_maker_mv)
+    EngineType.RPG_MZ.name -> stringResource(R.string.translation_engine_rpg_maker_mz)
+    TranslationExtractorEngineIds.RPG_MAKER_2000_2003 -> stringResource(R.string.translation_engine_rpg2k)
+    TranslationExtractorEngineIds.RPG_MAKER_RGSS -> stringResource(R.string.translation_engine_rgss)
+    else -> engineId?.let { id -> runCatching { EngineType.valueOf(id).displayName }.getOrNull() }
+        ?.takeIf(String::isNotBlank)
+        ?: stringResource(R.string.translation_engine_unknown)
+}
+
+private suspend fun queryReviewSourcePath(context: Context, uri: Uri, fallbackName: String): String =
+    withContext(Dispatchers.IO) {
+        val documentId = runCatching { DocumentsContract.getTreeDocumentId(uri) }.getOrNull()
+        val rawPath = documentId?.removePrefix("raw:")?.takeIf { it.startsWith('/') }
+        if (rawPath != null) return@withContext rawPath
+        if (uri.authority == "com.android.externalstorage.documents" && documentId != null) {
+            val separator = documentId.indexOf(':')
+            if (separator > 0) {
+                val volumeId = documentId.substring(0, separator)
+                val relativePath = documentId.substring(separator + 1).trim('/')
+                val root = if (volumeId.equals("primary", ignoreCase = true)) {
+                    Environment.getExternalStorageDirectory().absolutePath
+                } else {
+                    "/storage/$volumeId"
+                }
+                return@withContext if (relativePath.isBlank()) root else "$root/$relativePath"
+            }
+        }
+        fallbackName
+    }
 
 private fun TranslationReviewIssueCode.labelResource(): Int = when (this) {
     TranslationReviewIssueCode.MISSING_TRANSLATION -> R.string.translation_review_issue_missing_translation

@@ -1714,6 +1714,12 @@
     <string name="translation_review_rules_result">This check found %1$d issues</string>
     <string name="translation_review_ai_start">Start AI proofreading</string>
     <string name="translation_review_ai_start_title">AI proofreading scope and service</string>
+    <string name="translation_review_mode_title">Choose proofreading mode</string>
+    <string name="translation_review_mode_manual">Manual proofreading</string>
+    <string name="translation_review_mode_manual_hint">Filter entries, edit translations, and confirm them directly.</string>
+    <string name="translation_review_mode_ai">AI proofreading</string>
+    <string name="translation_review_mode_ai_hint">Choose a service and scope, then review its suggestions yourself.</string>
+    <string name="translation_review_mode_enter">Continue</string>
     <string name="translation_review_ai_scope_rule_hits">Rule matched entries only</string>
     <string name="translation_review_ai_scope_all">All translated entries</string>
     <string name="translation_review_ai_scope_required">Choose a proofreading scope</string>
@@ -1722,6 +1728,13 @@
     <string name="translation_review_filter_all">All</string>
     <string name="translation_review_filter_pending">Needs review</string>
     <string name="translation_review_filter_issues">Issues</string>
+    <string name="translation_review_filter_label">Filter</string>
+    <string name="translation_review_filter_dialog_title">Filter entries</string>
+    <string name="translation_review_column_sequence">No.</string>
+    <string name="translation_review_column_status">Status</string>
+    <string name="translation_review_entry_position">#%1$03d / %2$d</string>
+    <string name="translation_review_workspace_title">Proofreading and editing</string>
+    <string name="translation_review_workspace_notice">The list shows source text and its current translation together. Select an entry to review suggestions, edit, or confirm the translation.</string>
     <string name="translation_review_source">Source</string>
     <string name="translation_review_translation">Current translation</string>
     <string name="translation_review_no_translation">No translation yet</string>
