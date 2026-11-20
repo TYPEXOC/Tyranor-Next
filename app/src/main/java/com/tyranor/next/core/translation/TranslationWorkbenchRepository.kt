@@ -45,7 +45,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
@@ -55,8 +61,22 @@ class TranslationWorkbenchRepository(context: Context) {
     private val dao = TranslationWorkbenchDatabase.get(appContext).translationDao()
     private val serviceRepository = TranslationServiceRepository(appContext)
 
-    fun observeProjects(): Flow<List<TranslationProjectCard>> =
-        dao.observeProjectCards().map { rows -> rows.map(TranslationProjectCardRow::toModel) }
+    /** Read the current card snapshot before the page transition so the first frame can show the list. */
+    suspend fun preloadProjects() = projectPreloadMutex.withLock {
+        val projects = withContext(Dispatchers.IO) {
+            dao.observeProjectCards().first().map(TranslationProjectCardRow::toModel)
+        }
+        projectCardsSnapshot.value = projects
+    }
+
+    fun observeProjects(): Flow<List<TranslationProjectCard>> = flow {
+        projectCardsSnapshot.value?.let { emit(it) }
+        emitAll(
+            dao.observeProjectCards()
+                .map { rows -> rows.map(TranslationProjectCardRow::toModel) }
+                .onEach { projectCardsSnapshot.value = it },
+        )
+    }
 
     fun observeEntries(projectId: String): Flow<List<TranslationTextEntry>> =
         dao.observeEntries(projectId).map { rows ->
@@ -923,6 +943,8 @@ class TranslationWorkbenchRepository(context: Context) {
     }
 
     companion object {
+        private val projectCardsSnapshot = kotlinx.coroutines.flow.MutableStateFlow<List<TranslationProjectCard>?>(null)
+        private val projectPreloadMutex = Mutex()
         private const val MAX_LANGUAGE_LENGTH = 64
         private const val MAX_GLOSSARY_TERMS = 100
         private const val MAX_GLOSSARY_NAME_LENGTH = 80
