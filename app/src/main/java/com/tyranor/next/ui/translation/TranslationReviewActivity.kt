@@ -916,6 +916,7 @@ private fun ReviewEntryTable(
                     LazyColumn(
                         state = listState,
                         modifier = Modifier.fillMaxSize(),
+                        overscrollEffect = null,
                         contentPadding = PaddingValues(0.dp),
                         verticalArrangement = Arrangement.Top,
                     ) {
