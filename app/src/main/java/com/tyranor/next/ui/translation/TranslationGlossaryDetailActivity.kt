@@ -63,7 +63,7 @@ import com.tyranor.next.ui.common.AppScreenActivity
 import com.tyranor.next.ui.common.AppSecondaryTopBar
 import com.tyranor.next.ui.common.DialogTextButton
 import com.tyranor.next.ui.common.isTabletScreen
-import com.tyranor.next.ui.common.NoRippleTextButton
+import com.tyranor.next.ui.common.NoRippleButton
 import com.tyranor.next.ui.common.notice.AppNotice
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
@@ -439,7 +439,6 @@ private fun GlossaryTermCard(
     onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    val primary = MaterialTheme.colorScheme.primary
     MiuixCard(
         modifier = Modifier.fillMaxWidth().glassBorder(),
         cornerRadius = AppComponentCornerRadius,
@@ -468,22 +467,18 @@ private fun GlossaryTermCard(
                     )
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    NoRippleTextButton(
+                    NoRippleButton(
                         text = stringResource(R.string.translation_glossary_edit),
-                        modifier = Modifier
-                            .width(64.dp)
-                            .clip(AppComponentShape)
-                            .background(primary),
-                        contentColor = Color.White,
+                        modifier = Modifier.width(72.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
                         onClick = onEdit,
                     )
-                    NoRippleTextButton(
+                    NoRippleButton(
                         text = stringResource(R.string.common_delete),
-                        contentColor = OnDangerFill,
-                        modifier = Modifier
-                            .width(64.dp)
-                            .clip(AppComponentShape)
-                            .background(DangerFill),
+                        modifier = Modifier.width(72.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+                        containerColorOverride = DangerFill,
+                        contentColorOverride = OnDangerFill,
                         onClick = onDelete,
                     )
                 }
