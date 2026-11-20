@@ -824,39 +824,6 @@ private fun TranslationServicesScreen() {
                                     }
                                 }
                             }
-                            if (state.protocolId.category == TranslationServiceCategory.AI_TRANSLATION) {
-                                ServiceSectionCard(title = stringResource(R.string.translation_services_reasoning_settings)) {
-                                    val thinkingOptions = listOf(null) + TranslationThinkingLevel.entries
-                                    OverlayDropdownPreference(
-                                        items = listOf(
-                                            stringResource(R.string.translation_services_provider_default),
-                                            stringResource(R.string.translation_services_reasoning_none),
-                                            stringResource(R.string.translation_services_reasoning_minimal),
-                                            stringResource(R.string.translation_services_reasoning_low),
-                                            stringResource(R.string.translation_services_reasoning_medium),
-                                            stringResource(R.string.translation_services_reasoning_high),
-                                            stringResource(R.string.translation_services_reasoning_xhigh),
-                                            stringResource(R.string.translation_services_reasoning_max),
-                                        ),
-                                        selectedIndex = thinkingOptions.indexOf(state.generationOptions.thinkingLevel),
-                                        title = stringResource(R.string.translation_services_thinking_level),
-                                        modifier = Modifier.fillMaxWidth(),
-                                        renderInRootScaffold = false,
-                                        onSelectedIndexChange = { index ->
-                                            editor = state.copy(
-                                                generationOptions = state.generationOptions.copy(
-                                                    thinkingLevel = thinkingOptions.getOrNull(index),
-                                                ),
-                                            )
-                                        },
-                                    )
-                                    Text(
-                                        stringResource(R.string.translation_services_thinking_level_hint),
-                                        color = PageSecondaryTextColor,
-                                        style = MaterialTheme.typography.bodySmall,
-                                    )
-                                }
-                            }
                             if (isMachineTranslation) {
                                 ServiceSectionCard(title = stringResource(R.string.translation_services_section_credentials)) {
                                     MachineProviderCredentialsFields(state = state, onChange = ::updateMachineConnection)
@@ -922,6 +889,39 @@ private fun TranslationServicesScreen() {
                                     enabled = !isTestingThisConnection && !isSaving,
                                     onClick = { startConnectionTest(state) },
                                 )
+                            }
+                            if (state.protocolId.category == TranslationServiceCategory.AI_TRANSLATION) {
+                                ServiceSectionCard(title = stringResource(R.string.translation_services_reasoning_settings)) {
+                                    val thinkingOptions = listOf(null) + TranslationThinkingLevel.entries
+                                    OverlayDropdownPreference(
+                                        items = listOf(
+                                            stringResource(R.string.translation_services_provider_default),
+                                            stringResource(R.string.translation_services_reasoning_none),
+                                            stringResource(R.string.translation_services_reasoning_minimal),
+                                            stringResource(R.string.translation_services_reasoning_low),
+                                            stringResource(R.string.translation_services_reasoning_medium),
+                                            stringResource(R.string.translation_services_reasoning_high),
+                                            stringResource(R.string.translation_services_reasoning_xhigh),
+                                            stringResource(R.string.translation_services_reasoning_max),
+                                        ),
+                                        selectedIndex = thinkingOptions.indexOf(state.generationOptions.thinkingLevel),
+                                        title = stringResource(R.string.translation_services_thinking_level),
+                                        modifier = Modifier.fillMaxWidth(),
+                                        renderInRootScaffold = false,
+                                        onSelectedIndexChange = { index ->
+                                            editor = state.copy(
+                                                generationOptions = state.generationOptions.copy(
+                                                    thinkingLevel = thinkingOptions.getOrNull(index),
+                                                ),
+                                            )
+                                        },
+                                    )
+                                    Text(
+                                        stringResource(R.string.translation_services_thinking_level_hint),
+                                        color = PageSecondaryTextColor,
+                                        style = MaterialTheme.typography.bodySmall,
+                                    )
+                                }
                             }
                     NoRippleButton(
                         text = stringResource(R.string.translation_services_task_settings),
