@@ -682,23 +682,7 @@ private fun TranslationServicesScreen() {
                                             onSelectedIndexChange = { index ->
                                                 protocolOptions.getOrNull(index)?.let { protocol ->
                                                     updateAiConnection(
-                                                        state.copy(
-                                                            protocolId = protocol,
-                                                            baseUrl = protocol.defaultBaseUrl(),
-                                                            modelId = "",
-                                                            apiKey = "",
-                                                            hasSavedSecret = false,
-                                                            clearSecret = state.hasSavedSecret || state.clearSecret,
-                                                            generationOptions = TranslationGenerationOptions(
-                                                                thinkingLevel = state.generationOptions.thinkingLevel,
-                                                                structuredOutputMode = if (protocol == TranslationProtocolId.GEMINI_INTERACTIONS) {
-                                                                    TranslationStructuredOutputMode.JSON_SCHEMA
-                                                                } else {
-                                                                    TranslationStructuredOutputMode.DISABLED
-                                                                },
-                                                            ),
-                                                            showBaseUrl = true,
-                                                        ),
+                                                        state.copy(protocolId = protocol),
                                                     )
                                                     fetchedModels = emptyList()
                                                     modelSearch = ""
