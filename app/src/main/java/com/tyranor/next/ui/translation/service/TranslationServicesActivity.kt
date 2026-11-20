@@ -48,6 +48,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -262,6 +263,7 @@ private fun TranslationServicesScreen() {
             editor = ServiceEditor.from(
                 row.profile,
                 showBaseUrl = row.aiTemplate == null,
+                allowProtocolSelection = row.aiTemplate == null,
             ).let { state ->
                 if (row.profile.id == builtinMachineProfileId(row.protocolId)) state.copy(displayName = displayName) else state
             }
@@ -462,6 +464,31 @@ private fun TranslationServicesScreen() {
                                                 }
                                             },
                                         )
+                                    } else {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth()
+                                                .clip(AppComponentShape)
+                                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f))
+                                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically,
+                                        ) {
+                                            Text(
+                                                text = stringResource(R.string.translation_services_protocol_select),
+                                                color = PageSecondaryTextColor,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                            )
+                                            Text(
+                                                text = stringResource(state.protocolId.protocolTitleResource()),
+                                                modifier = Modifier.weight(1f).padding(start = 16.dp),
+                                                color = PageTextColor,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                fontWeight = FontWeight.Medium,
+                                                textAlign = TextAlign.End,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                            )
+                                        }
                                     }
                                     if (state.showBaseUrl) {
                                         ServiceTextField(
@@ -1933,7 +1960,11 @@ private data class ServiceEditor(
             taskSettings = TranslationServiceTaskSettings.defaults(protocolId.category),
         )
 
-        fun from(profile: TranslationServiceProfile, showBaseUrl: Boolean) = ServiceEditor(
+        fun from(
+            profile: TranslationServiceProfile,
+            showBaseUrl: Boolean,
+            allowProtocolSelection: Boolean,
+        ) = ServiceEditor(
             id = profile.id,
             protocolId = profile.protocolId,
             displayName = profile.displayName,
@@ -1952,7 +1983,8 @@ private data class ServiceEditor(
             proofreadingUserPrompt = profile.proofreadingUserPrompt,
             generationOptions = profile.generationOptions.forServiceEditor(profile.protocolId),
             taskSettings = profile.taskSettings,
-            allowProtocolSelection = profile.protocolId.category == TranslationServiceCategory.AI_TRANSLATION &&
+            allowProtocolSelection = allowProtocolSelection &&
+                profile.protocolId.category == TranslationServiceCategory.AI_TRANSLATION &&
                 profile.protocolId != TranslationProtocolId.GEMINI_INTERACTIONS,
             showBaseUrl = showBaseUrl,
             customParametersRef = profile.customParametersRef,

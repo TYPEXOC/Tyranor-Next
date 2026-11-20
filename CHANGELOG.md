@@ -2,7 +2,7 @@
 
 ## 未发布
 
-- AI 内置模板隐藏预设 API 地址；自定义 API 保留 Chat Completions、OpenAI Responses、Anthropic Messages 三种协议并可配置兼容服务根地址，Gemini Interactions 继续通过官方模板配置。
+- AI 内置模板隐藏预设 API 地址，并在连接区域显示固定只读协议名称；自定义 API 保留 Chat Completions、OpenAI Responses、Anthropic Messages 三种可选协议并可配置兼容服务根地址，Gemini Interactions 继续通过官方模板配置。
 - AI 翻译高级设置提供按协议适配的结构化输出、Chat Completions Token 字段与输出上限，以及加密保存的自定义请求头/类型化请求体参数。采样参数改由自定义请求体控制；所有 AI 服务配置统一显示“跟随默认、关闭思考、极低、低、中、高、超高、最高”选项，并由 Chat Completions、Responses、Gemini Interactions、Anthropic Messages 按协议和模型能力映射，任务快照固定启动等级；旧 OpenAI / Gemini 专用字段读取时兼容迁移。
 - 翻译与 AI 校对提示词卡片增加“恢复默认”按钮，分别恢复系统提示词默认内容并清空对应的用户提示词。
 - 服务列表改用独立品牌图标：机器翻译 13 个模板均有对应图标，OpenAI、DeepSeek、Gemini、Claude AI 模板也显示图标；未匹配内置模板的自定义 AI 档案使用 TYN 自绘的通用 API 图标。SmartSub 已提供的 SVG/PNG 转为 Android VectorDrawable，Google Cloud 与 Anthropic 图标取自 simple-icons。默认启用的必应、Google 网页翻译和有道网页排在机器翻译列表前面，来源与许可固定记录在第三方声明中。
