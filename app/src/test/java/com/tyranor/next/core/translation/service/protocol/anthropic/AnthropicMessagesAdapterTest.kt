@@ -43,6 +43,7 @@ class AnthropicMessagesAdapterTest {
         val calls = QueuedCallFactory(listOf(HttpResult(200, textResponse(output))))
         val result = AnthropicMessagesAdapter(TranslationHttpTransport(calls)).translateBatch(
             profile().copy(
+                baseUrl = "https://proxy.example.test/anthropic/v1",
                 translationPrompt = "Translate this game text.",
                 translationUserPrompt = "Keep it concise.",
             ),
@@ -53,7 +54,7 @@ class AnthropicMessagesAdapterTest {
         )
 
         val request = calls.requests.single()
-        assertEquals("/v1/messages", request.url.encodedPath)
+        assertEquals("/anthropic/v1/messages", request.url.encodedPath)
         assertEquals("test-api-key", request.header("x-api-key"))
         assertEquals("2023-06-01", request.header("anthropic-version"))
         assertEquals(null, request.header("Authorization"))

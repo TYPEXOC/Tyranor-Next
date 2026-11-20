@@ -301,9 +301,9 @@ class TranslationServiceRepository(context: Context) {
 
         fun normalizeBaseUrl(value: String, protocolId: TranslationProtocolId): String = when (protocolId) {
             TranslationProtocolId.OPENAI_COMPATIBLE_CHAT -> normalizeBaseUrl(value)
-            TranslationProtocolId.OPENAI_RESPONSES -> normalizeOpenAiResponsesBaseUrl(value)
+            TranslationProtocolId.OPENAI_RESPONSES -> normalizeBaseUrl(value)
             TranslationProtocolId.GEMINI_INTERACTIONS -> normalizeGeminiBaseUrl(value)
-            TranslationProtocolId.ANTHROPIC_MESSAGES -> normalizeAnthropicBaseUrl(value)
+            TranslationProtocolId.ANTHROPIC_MESSAGES -> normalizeBaseUrl(value)
             TranslationProtocolId.BING_TRANSLATOR_WEB,
             TranslationProtocolId.NIUTRANS_TRANSLATION_V1,
             TranslationProtocolId.VOLCENGINE_TRANSLATE_TEXT_V1,
@@ -354,32 +354,5 @@ class TranslationServiceRepository(context: Context) {
             return GEMINI_API_BASE_URL
         }
 
-        private fun normalizeOpenAiResponsesBaseUrl(value: String): String {
-            val trimmed = value.trim().trimEnd('/')
-            val uri = runCatching { URI(trimmed) }.getOrNull()
-                ?: throw TranslationServiceException(TranslationServiceErrorCode.INVALID_CONFIGURATION)
-            if (trimmed.length > 256 || uri.scheme?.lowercase() != "https" ||
-                !uri.host.equals("api.openai.com", ignoreCase = true) || uri.rawUserInfo != null ||
-                uri.rawQuery != null || uri.rawFragment != null || uri.port !in setOf(-1, 443) ||
-                uri.path !in setOf("", "/", "/v1")
-            ) {
-                throw TranslationServiceException(TranslationServiceErrorCode.INVALID_CONFIGURATION)
-            }
-            return OPENAI_RESPONSES_BASE_URL
-        }
-
-        private fun normalizeAnthropicBaseUrl(value: String): String {
-            val trimmed = value.trim().trimEnd('/')
-            val uri = runCatching { URI(trimmed) }.getOrNull()
-                ?: throw TranslationServiceException(TranslationServiceErrorCode.INVALID_CONFIGURATION)
-            if (trimmed.length > 256 || uri.scheme?.lowercase() != "https" ||
-                !uri.host.equals("api.anthropic.com", ignoreCase = true) || uri.rawUserInfo != null ||
-                uri.rawQuery != null || uri.rawFragment != null || uri.port !in setOf(-1, 443) ||
-                uri.path.orEmpty().isNotEmpty() && uri.path != "/"
-            ) {
-                throw TranslationServiceException(TranslationServiceErrorCode.INVALID_CONFIGURATION)
-            }
-            return ANTHROPIC_API_BASE_URL
-        }
     }
 }

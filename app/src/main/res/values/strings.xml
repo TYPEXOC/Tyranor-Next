@@ -25,7 +25,7 @@
     <string name="translation_services_title">翻译服务</string>
     <string name="translation_services_add_ai_service">添加自定义API</string>
     <string name="translation_services_ai_templates_title">选择 AI 服务模板</string>
-    <string name="translation_services_ai_templates_hint">模板只预设协议和服务根地址。模型 ID 不预填，可获取模型列表或按服务商说明手动填写。</string>
+    <string name="translation_services_ai_templates_hint">模板已预设连接地址和协议；填写 API Key 与模型 ID 即可，可获取模型列表或手动填写。</string>
     <string name="translation_services_protocol_chat_completions">OpenAI Chat Completions 兼容协议</string>
     <string name="translation_services_protocol_responses">OpenAI Responses API</string>
     <string name="translation_services_protocol_gemini">Google Gemini Interactions API</string>
@@ -105,7 +105,7 @@
     <string name="translation_services_section_credentials">访问凭据</string>
     <string name="translation_services_name">显示名称</string>
     <string name="translation_services_base_url">服务根地址</string>
-    <string name="translation_services_base_url_hint">填写协议根地址，可包含 /v1；不要填写 /chat/completions。公网地址建议使用 HTTPS。</string>
+    <string name="translation_services_base_url_hint">填写服务协议根地址，可包含版本路径；不要填写具体请求路径。公网地址建议使用 HTTPS。</string>
     <string name="translation_services_gemini_base_url_hint">使用固定的 Gemini Developer API 官方 HTTPS 地址；当前不支持 Vertex AI 或自定义代理地址。</string>
     <string name="translation_services_responses_base_url_hint">固定使用 OpenAI 官方 HTTPS 地址 https://api.openai.com/v1；不接受代理地址。</string>
     <string name="translation_services_model_id">模型 ID</string>

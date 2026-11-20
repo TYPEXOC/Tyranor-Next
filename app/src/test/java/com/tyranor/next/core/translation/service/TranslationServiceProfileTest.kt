@@ -58,20 +58,26 @@ class TranslationServiceProfileTest {
     }
 
     @Test
-    fun acceptsOnlyOfficialOpenAiResponsesApiBaseUrl() {
+    fun acceptsCustomOpenAiResponsesApiBaseUrls() {
         assertEquals(
-            OPENAI_RESPONSES_BASE_URL,
+            "https://api.openai.com",
             TranslationServiceRepository.normalizeBaseUrl(
                 "https://api.openai.com/",
                 TranslationProtocolId.OPENAI_RESPONSES,
             ),
         )
+        assertEquals(
+            "https://proxy.example.test/openai/v1",
+            TranslationServiceRepository.normalizeBaseUrl(
+                "https://proxy.example.test/openai/v1/",
+                TranslationProtocolId.OPENAI_RESPONSES,
+            ),
+        )
         listOf(
-            "http://api.openai.com/v1",
-            "https://proxy.example.test/v1",
-            "https://api.openai.com/v2",
-            "https://api.openai.com/v1?key=secret",
-            "https://api.openai.com:8443/v1",
+            "https://user:password@proxy.example.test/v1",
+            "https://proxy.example.test/v1?key=secret",
+            "https://proxy.example.test/v1/../private",
+            "ftp://proxy.example.test/v1",
         ).forEach { value ->
             val failure = assertThrows(TranslationServiceException::class.java) {
                 TranslationServiceRepository.normalizeBaseUrl(value, TranslationProtocolId.OPENAI_RESPONSES)
@@ -81,7 +87,7 @@ class TranslationServiceProfileTest {
     }
 
     @Test
-    fun acceptsOnlyOfficialAnthropicApiBaseUrl() {
+    fun acceptsCustomAnthropicMessagesApiBaseUrls() {
         assertEquals(
             ANTHROPIC_API_BASE_URL,
             TranslationServiceRepository.normalizeBaseUrl(
@@ -89,12 +95,18 @@ class TranslationServiceProfileTest {
                 TranslationProtocolId.ANTHROPIC_MESSAGES,
             ),
         )
+        assertEquals(
+            "https://proxy.example.test/anthropic/v1",
+            TranslationServiceRepository.normalizeBaseUrl(
+                "https://proxy.example.test/anthropic/v1/",
+                TranslationProtocolId.ANTHROPIC_MESSAGES,
+            ),
+        )
         listOf(
-            "http://api.anthropic.com",
-            "https://proxy.example.test",
-            "https://api.anthropic.com/v1",
-            "https://api.anthropic.com?key=secret",
-            "https://api.anthropic.com:8443",
+            "https://user:password@proxy.example.test",
+            "https://proxy.example.test?key=secret",
+            "https://proxy.example.test/v1/../private",
+            "ftp://proxy.example.test",
         ).forEach { invalid ->
             val failure = assertThrows(TranslationServiceException::class.java) {
                 TranslationServiceRepository.normalizeBaseUrl(invalid, TranslationProtocolId.ANTHROPIC_MESSAGES)

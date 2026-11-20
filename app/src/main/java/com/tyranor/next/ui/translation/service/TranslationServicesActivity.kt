@@ -259,7 +259,10 @@ private fun TranslationServicesScreen() {
             modelFetchError = null
             modelListEmpty = false
             advancedSettingsEditor = null
-            editor = ServiceEditor.from(row.profile).let { state ->
+            editor = ServiceEditor.from(
+                row.profile,
+                showBaseUrl = row.aiTemplate == null,
+            ).let { state ->
                 if (row.profile.id == builtinMachineProfileId(row.protocolId)) state.copy(displayName = displayName) else state
             }
         } else if (row.protocolId.category == TranslationServiceCategory.MACHINE_TRANSLATION) {
@@ -449,6 +452,7 @@ private fun TranslationServicesScreen() {
                                                                 TranslationStructuredOutputMode.DISABLED
                                                             },
                                                         ),
+                                                        showBaseUrl = true,
                                                     )
                                                     fetchedModels = emptyList()
                                                     modelSearch = ""
@@ -459,26 +463,16 @@ private fun TranslationServicesScreen() {
                                             },
                                         )
                                     }
-                                    ServiceTextField(
-                                        value = state.baseUrl,
-                                        onValueChange = { baseUrl -> editor = state.copy(baseUrl = baseUrl) },
-                                        label = stringResource(R.string.translation_services_base_url),
-                                        supportingText = stringResource(
-                                            when (state.protocolId) {
-                                                TranslationProtocolId.GEMINI_INTERACTIONS -> R.string.translation_services_gemini_base_url_hint
-                                                TranslationProtocolId.OPENAI_RESPONSES -> R.string.translation_services_responses_base_url_hint
-                                                TranslationProtocolId.ANTHROPIC_MESSAGES -> R.string.translation_services_anthropic_base_url_hint
-                                                else -> R.string.translation_services_base_url_hint
-                                            },
-                                        ),
-                                        readOnly = state.protocolId in setOf(
-                                            TranslationProtocolId.GEMINI_INTERACTIONS,
-                                            TranslationProtocolId.OPENAI_RESPONSES,
-                                            TranslationProtocolId.ANTHROPIC_MESSAGES,
-                                        ),
-                                        singleLine = true,
-                                        modifier = Modifier.fillMaxWidth(),
-                                    )
+                                    if (state.showBaseUrl) {
+                                        ServiceTextField(
+                                            value = state.baseUrl,
+                                            onValueChange = { baseUrl -> editor = state.copy(baseUrl = baseUrl) },
+                                            label = stringResource(R.string.translation_services_base_url),
+                                            supportingText = stringResource(R.string.translation_services_base_url_hint),
+                                            singleLine = true,
+                                            modifier = Modifier.fillMaxWidth(),
+                                        )
+                                    }
                                     ServiceTextField(
                                         value = state.modelId,
                                         onValueChange = { editor = state.copy(modelId = it) },
@@ -1729,13 +1723,15 @@ private fun TranslationServiceTemplateCard(
                             maxLines = 1,
                         )
                     }
-                    Text(
-                        text = row.baseUrl,
-                        color = PageSecondaryTextColor,
-                        style = MaterialTheme.typography.labelSmall,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                    if (row.protocolId.category != TranslationServiceCategory.AI_TRANSLATION || row.aiTemplate == null) {
+                        Text(
+                            text = row.baseUrl,
+                            color = PageSecondaryTextColor,
+                            style = MaterialTheme.typography.labelSmall,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                     if (row.protocolId.category == TranslationServiceCategory.AI_TRANSLATION) {
                         val model = profile?.modelId?.takeIf(String::isNotBlank)
                         val protocol = stringResource(row.protocolId.protocolTitleResource())
@@ -1845,6 +1841,7 @@ private data class ServiceEditor(
     val generationOptions: TranslationGenerationOptions,
     val taskSettings: TranslationServiceTaskSettings,
     val allowProtocolSelection: Boolean = false,
+    val showBaseUrl: Boolean = false,
     val customParametersRef: String? = null,
     val customParameters: TranslationCustomParameters? = null,
 ) {
@@ -1912,6 +1909,7 @@ private data class ServiceEditor(
             ),
             taskSettings = TranslationServiceTaskSettings.defaults(protocolId.category),
             allowProtocolSelection = allowProtocolSelection,
+            showBaseUrl = allowProtocolSelection,
         )
 
         fun newMachine(protocolId: TranslationProtocolId, displayName: String) = ServiceEditor(
@@ -1935,7 +1933,7 @@ private data class ServiceEditor(
             taskSettings = TranslationServiceTaskSettings.defaults(protocolId.category),
         )
 
-        fun from(profile: TranslationServiceProfile) = ServiceEditor(
+        fun from(profile: TranslationServiceProfile, showBaseUrl: Boolean) = ServiceEditor(
             id = profile.id,
             protocolId = profile.protocolId,
             displayName = profile.displayName,
@@ -1954,7 +1952,9 @@ private data class ServiceEditor(
             proofreadingUserPrompt = profile.proofreadingUserPrompt,
             generationOptions = profile.generationOptions.forServiceEditor(profile.protocolId),
             taskSettings = profile.taskSettings,
-            allowProtocolSelection = profile.protocolId.category == TranslationServiceCategory.AI_TRANSLATION,
+            allowProtocolSelection = profile.protocolId.category == TranslationServiceCategory.AI_TRANSLATION &&
+                profile.protocolId != TranslationProtocolId.GEMINI_INTERACTIONS,
+            showBaseUrl = showBaseUrl,
             customParametersRef = profile.customParametersRef,
             customParameters = null,
         )

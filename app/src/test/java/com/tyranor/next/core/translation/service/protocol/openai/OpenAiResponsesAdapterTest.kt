@@ -60,7 +60,7 @@ class OpenAiResponsesAdapterTest {
         val adapter = OpenAiResponsesAdapter(TranslationHttpTransport(callFactory))
 
         val result = adapter.translateBatch(
-            profile(),
+            profile().copy(baseUrl = "https://proxy.example.test/openai/v1"),
             apiKey = "test-key",
             sourceLanguage = "en",
             targetLanguage = "ja",
@@ -70,7 +70,7 @@ class OpenAiResponsesAdapterTest {
 
         val request = callFactory.requests.single()
         val body = JSONObject(readBody(request))
-        assertEquals("https://api.openai.com/v1/responses", request.url.toString())
+        assertEquals("https://proxy.example.test/openai/v1/responses", request.url.toString())
         assertEquals("Bearer test-key", request.header("Authorization"))
         assertEquals("gpt-test", body.getString("model"))
         assertEquals("Translate.", body.getString("instructions"))

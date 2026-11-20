@@ -13,8 +13,8 @@ import com.tyranor.next.core.translation.service.TranslationServiceCapability
 import com.tyranor.next.core.translation.service.TranslationServiceErrorCode
 import com.tyranor.next.core.translation.service.TranslationServiceException
 import com.tyranor.next.core.translation.service.TranslationServiceProfile
+import com.tyranor.next.core.translation.service.TranslationServiceRepository
 import com.tyranor.next.core.translation.service.addOpenAiResponsesFormat
-import com.tyranor.next.core.translation.service.defaultBaseUrl
 import com.tyranor.next.core.translation.service.formatAiUserMessage
 import com.tyranor.next.core.translation.service.translationResultSchema
 import com.tyranor.next.core.translation.service.transport.TranslationHttpTransport
@@ -28,7 +28,7 @@ import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 
-/** OpenAI's fixed-host Responses API adapter. */
+/** OpenAI Responses API protocol adapter. */
 internal class OpenAiResponsesAdapter(
     private val transport: TranslationHttpTransport = TranslationHttpTransport(),
 ) : TranslationProtocolAdapter {
@@ -153,11 +153,10 @@ internal class OpenAiResponsesAdapter(
     }
 
     private fun requireProfile(profile: TranslationServiceProfile, apiKey: String?) {
-        if (profile.protocolId != protocolId || profile.baseUrl != TranslationProtocolId.OPENAI_RESPONSES.defaultBaseUrl() ||
-            apiKey.isNullOrBlank()
-        ) {
+        if (profile.protocolId != protocolId || apiKey.isNullOrBlank()) {
             throw TranslationServiceException(TranslationServiceErrorCode.INVALID_CONFIGURATION)
         }
+        TranslationServiceRepository.normalizeBaseUrl(profile.baseUrl, protocolId)
     }
 
     private fun requireBatch(

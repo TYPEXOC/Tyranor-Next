@@ -25,7 +25,7 @@
     <string name="translation_services_title">Translation services</string>
     <string name="translation_services_add_ai_service">Add custom API</string>
     <string name="translation_services_ai_templates_title">Choose an AI service template</string>
-    <string name="translation_services_ai_templates_hint">Templates prefill only the protocol and service base URL. Model IDs are left blank; fetch the model list or enter one supplied by the provider.</string>
+    <string name="translation_services_ai_templates_hint">Templates prefill the connection address and protocol. Enter an API key and model ID; fetch the model list or enter an ID manually.</string>
     <string name="translation_services_protocol_chat_completions">OpenAI Chat Completions compatible</string>
     <string name="translation_services_protocol_responses">OpenAI Responses API</string>
     <string name="translation_services_protocol_gemini">Google Gemini Interactions API</string>
@@ -105,7 +105,7 @@
     <string name="translation_services_section_credentials">Credentials</string>
     <string name="translation_services_name">Display name</string>
     <string name="translation_services_base_url">Service base URL</string>
-    <string name="translation_services_base_url_hint">Enter the API root, optionally including /v1. Do not append /chat/completions. Use HTTPS for public services.</string>
+    <string name="translation_services_base_url_hint">Enter the protocol base URL, optionally including a version path; do not include the endpoint path. Use HTTPS for public endpoints.</string>
     <string name="translation_services_gemini_base_url_hint">Uses the fixed official HTTPS origin for Gemini Developer API. Vertex AI and custom proxy addresses are not supported.</string>
     <string name="translation_services_responses_base_url_hint">Uses the fixed official OpenAI HTTPS address https://api.openai.com/v1. Proxy addresses are not supported.</string>
     <string name="translation_services_model_id">Model ID</string>

@@ -1,6 +1,5 @@
 package com.tyranor.next.core.translation.service.protocol.anthropic
 
-import com.tyranor.next.core.translation.service.ANTHROPIC_API_BASE_URL
 import com.tyranor.next.core.translation.service.ProofreadBatchResponse
 import com.tyranor.next.core.translation.service.ProofreadInput
 import com.tyranor.next.core.translation.service.TranslationBatchResponse
@@ -208,9 +207,7 @@ internal class AnthropicMessagesAdapter(
                 else TranslationServiceErrorCode.SERVICE_NOT_CONFIGURED,
             )
         }
-        if (TranslationServiceRepository.normalizeBaseUrl(profile.baseUrl, protocolId) != ANTHROPIC_API_BASE_URL) {
-            invalidConfiguration()
-        }
+        TranslationServiceRepository.normalizeBaseUrl(profile.baseUrl, protocolId)
     }
 
     private fun request(profile: TranslationServiceProfile, apiKey: String?, url: HttpUrl): Request.Builder =
@@ -224,7 +221,11 @@ internal class AnthropicMessagesAdapter(
     private fun endpoint(profile: TranslationServiceProfile, path: String): HttpUrl {
         val baseUrl = profile.baseUrl.toHttpUrlOrNull()
             ?: throw TranslationServiceException(TranslationServiceErrorCode.INVALID_CONFIGURATION)
-        return baseUrl.newBuilder().addPathSegment("v1").addPathSegment(path).build()
+        val builder = baseUrl.newBuilder()
+        if (baseUrl.pathSegments.lastOrNull { it.isNotBlank() } != "v1") {
+            builder.addPathSegment("v1")
+        }
+        return builder.addPathSegment(path).build()
     }
 
     private fun requireSuccess(statusCode: Int, body: String, retryAfterMillis: Long?, modelList: Boolean) {

@@ -25,7 +25,7 @@
     <string name="translation_services_title">翻訳サービス</string>
     <string name="translation_services_add_ai_service">カスタム API を追加</string>
     <string name="translation_services_ai_templates_title">AI サービスのテンプレートを選択</string>
-    <string name="translation_services_ai_templates_hint">テンプレートに設定されるのはプロトコルとベース URL だけです。モデル ID は空欄のままです。モデル一覧の取得または手動入力を行ってください。</string>
+    <string name="translation_services_ai_templates_hint">テンプレートには接続先とプロトコルが設定されています。API キーとモデル ID を入力し、モデル一覧から取得するか手動で入力してください。</string>
     <string name="translation_services_protocol_chat_completions">OpenAI Chat Completions 互換</string>
     <string name="translation_services_protocol_responses">OpenAI Responses API</string>
     <string name="translation_services_protocol_gemini">Google Gemini Interactions API</string>
@@ -105,7 +105,7 @@
     <string name="translation_services_section_credentials">認証情報</string>
     <string name="translation_services_name">表示名</string>
     <string name="translation_services_base_url">サービスのベース URL</string>
-    <string name="translation_services_base_url_hint">API のルートを入力します。/v1 は指定できますが、/chat/completions は追加しないでください。公開サービスには HTTPS を推奨します。</string>
+    <string name="translation_services_base_url_hint">プロトコルのベース URL を入力してください。バージョンパスを含められますが、リクエストパスは含めないでください。公開エンドポイントでは HTTPS を使用してください。</string>
     <string name="translation_services_gemini_base_url_hint">Gemini Developer API の公式 HTTPS アドレスを固定で使用します。Vertex AI とカスタムプロキシは未対応です。</string>
     <string name="translation_services_responses_base_url_hint">OpenAI 公式 HTTPS アドレス https://api.openai.com/v1 を固定で使用します。プロキシアドレスは使用できません。</string>
     <string name="translation_services_model_id">モデル ID</string>
