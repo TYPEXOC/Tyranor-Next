@@ -36,10 +36,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
@@ -114,6 +116,8 @@ import com.tyranor.next.ui.translation.TranslationAddFloatingActionButton
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
+import kotlin.math.abs
 import kotlin.math.roundToLong
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
 import top.yukonga.miuix.kmp.basic.FabPosition
@@ -131,6 +135,14 @@ class TranslationServicesActivity : AppScreenActivity() {
     }
 }
 
+private enum class TranslationServicesPage {
+    LIST,
+    EDITOR,
+    TASK_SETTINGS,
+    ADVANCED_SETTINGS,
+    CUSTOM_PARAMETERS,
+}
+
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
 private fun TranslationServicesScreen() {
@@ -144,6 +156,7 @@ private fun TranslationServicesScreen() {
     var advancedSettingsEditor by remember { mutableStateOf<AdvancedSettingsEditor?>(null) }
     var customParametersEditor by remember { mutableStateOf<CustomParametersEditor?>(null) }
     var taskSettingsEditor by remember { mutableStateOf<TaskSettingsEditor?>(null) }
+    var activePage by remember { mutableStateOf(TranslationServicesPage.LIST) }
     var selectedCategory by remember { mutableStateOf(TranslationServiceCategory.MACHINE_TRANSLATION) }
     var deleteProfile by remember { mutableStateOf<TranslationServiceProfile?>(null) }
     var errorCode by remember { mutableStateOf<TranslationServiceErrorCode?>(null) }
@@ -161,6 +174,39 @@ private fun TranslationServicesScreen() {
     var connectionTestHttpStatusCode by remember { mutableStateOf<Int?>(null) }
     var connectionTestResult by remember { mutableStateOf<TranslationConnectionTestResult?>(null) }
     var modelListEmpty by remember { mutableStateOf(false) }
+    val pagePager = key(MotionMode.enhanced) {
+        rememberTabPagerState(selectedIndex = { activePage.ordinal }, count = TranslationServicesPage.entries.size)
+    }
+
+    LaunchedEffect(activePage, pagePager) {
+        val targetPage = activePage
+        snapshotFlow {
+            pagePager.pageOffset(targetPage.ordinal) to pagePager.pageAlpha(targetPage.ordinal)
+        }.first { (offset, alpha) -> abs(offset) < 0.02f && alpha > 0.98f }
+        when (targetPage) {
+            TranslationServicesPage.LIST -> {
+                editor = null
+                initialServiceEditor = null
+                taskSettingsEditor = null
+                advancedSettingsEditor = null
+                customParametersEditor = null
+            }
+            TranslationServicesPage.EDITOR -> {
+                taskSettingsEditor = null
+                advancedSettingsEditor = null
+                customParametersEditor = null
+            }
+            TranslationServicesPage.TASK_SETTINGS -> {
+                advancedSettingsEditor = null
+                customParametersEditor = null
+            }
+            TranslationServicesPage.ADVANCED_SETTINGS -> {
+                taskSettingsEditor = null
+                customParametersEditor = null
+            }
+            TranslationServicesPage.CUSTOM_PARAMETERS -> Unit
+        }
+    }
 
     fun cancelConnectionTest() {
         connectionTestRequestId += 1L
@@ -194,6 +240,7 @@ private fun TranslationServicesScreen() {
         modelListEmpty = false
         advancedSettingsEditor = null
         taskSettingsEditor = null
+        customParametersEditor = null
         errorCode = null
         editor = ServiceEditor.newAiProfile(
             template.protocolId,
@@ -202,6 +249,7 @@ private fun TranslationServicesScreen() {
             allowProtocolSelection = template.allowProtocolSelection,
         )
         initialServiceEditor = editor
+        activePage = TranslationServicesPage.EDITOR
     }
 
     fun reportFailure(failure: Throwable) {
@@ -373,19 +421,25 @@ private fun TranslationServicesScreen() {
             row.aiTemplate?.let { beginEditingAiTemplate(it, displayName) }
         }
         initialServiceEditor = editor
+        activePage = TranslationServicesPage.EDITOR
     }
 
-    if (editor == null) {
-        val tabletLayout = isTabletScreen()
-        val pager = key(MotionMode.enhanced) {
-            rememberTabPagerState(
-                selectedIndex = {
-                    if (selectedCategory == TranslationServiceCategory.MACHINE_TRANSLATION) 0 else 1
-                },
-                count = 2,
-            )
-        }
-        val activePage = if (selectedCategory == TranslationServiceCategory.MACHINE_TRANSLATION) 0 else 1
+    val tabletLayout = isTabletScreen()
+    val categoryPager = key(MotionMode.enhanced) {
+        rememberTabPagerState(
+            selectedIndex = {
+                if (selectedCategory == TranslationServiceCategory.MACHINE_TRANSLATION) 0 else 1
+            },
+            count = 2,
+        )
+    }
+    val activeCategoryPage = if (selectedCategory == TranslationServiceCategory.MACHINE_TRANSLATION) 0 else 1
+    Box(Modifier.fillMaxSize()) {
+        TabPagerPageHost(
+            pageTab = TranslationServicesPage.LIST.ordinal,
+            pager = pagePager,
+            activePage = activePage.ordinal,
+        ) {
         MiuixSettingsTheme {
             MiuixScaffold(
             modifier = Modifier.fillMaxSize(),
@@ -413,7 +467,7 @@ private fun TranslationServicesScreen() {
                 ) {
                     SegmentedControl(
                         options = tabs,
-                        selectedIndex = activePage,
+                    selectedIndex = activeCategoryPage,
                         onOptionSelected = { index ->
                             selectedCategory = if (index == 0) TranslationServiceCategory.MACHINE_TRANSLATION
                             else TranslationServiceCategory.AI_TRANSLATION
@@ -424,7 +478,7 @@ private fun TranslationServicesScreen() {
                             .padding(top = 12.dp),
                     )
                     Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                        TabPagerPageHost(pageTab = 0, pager = pager, activePage = activePage) {
+                        TabPagerPageHost(pageTab = 0, pager = categoryPager, activePage = activeCategoryPage) {
                             TranslationServiceCategoryGrid(
                                 rows = machineRows,
                                 categoryTitle = machineCategoryTitle,
@@ -444,7 +498,7 @@ private fun TranslationServicesScreen() {
                                 },
                             )
                         }
-                        TabPagerPageHost(pageTab = 1, pager = pager, activePage = activePage) {
+                        TabPagerPageHost(pageTab = 1, pager = categoryPager, activePage = activeCategoryPage) {
                             TranslationServiceCategoryGrid(
                                 rows = aiRows,
                                 categoryTitle = aiCategoryTitle,
@@ -470,44 +524,48 @@ private fun TranslationServicesScreen() {
         }
     }
 
-    BackHandler(enabled = editor != null) {
+    BackHandler(enabled = activePage != TranslationServicesPage.LIST) {
         if (!isSaving) {
-            if (taskSettingsEditor != null) {
-                taskSettingsEditor = null
-            } else if (customParametersEditor != null) {
-                customParametersEditor = null
-            } else if (advancedSettingsEditor != null) {
-                advancedSettingsEditor = null
-            } else {
-                cancelConnectionTest()
-                val current = editor
-                if (current != null &&
-                    current.protocolId.category == TranslationServiceCategory.MACHINE_TRANSLATION &&
-                    current.isBuiltInTemplate &&
-                    current != initialServiceEditor
-                ) {
-                    scope.launch {
-                        isSaving = true
-                        try {
-                            repository.saveProfile(current.toDraft())
-                            editor = null
-                            initialServiceEditor = null
-                            errorCode = null
-                        } catch (failure: Throwable) {
-                            reportFailure(failure)
-                        } finally {
-                            isSaving = false
+            when (activePage) {
+                TranslationServicesPage.TASK_SETTINGS -> activePage = TranslationServicesPage.EDITOR
+                TranslationServicesPage.CUSTOM_PARAMETERS -> activePage = TranslationServicesPage.ADVANCED_SETTINGS
+                TranslationServicesPage.ADVANCED_SETTINGS -> activePage = TranslationServicesPage.EDITOR
+                TranslationServicesPage.EDITOR -> {
+                    cancelConnectionTest()
+                    showModelPicker = false
+                    val current = editor
+                    if (current != null &&
+                        current.protocolId.category == TranslationServiceCategory.MACHINE_TRANSLATION &&
+                        current.isBuiltInTemplate &&
+                        current != initialServiceEditor
+                    ) {
+                        scope.launch {
+                            isSaving = true
+                            try {
+                                repository.saveProfile(current.toDraft())
+                                activePage = TranslationServicesPage.LIST
+                                errorCode = null
+                            } catch (failure: Throwable) {
+                                reportFailure(failure)
+                            } finally {
+                                isSaving = false
+                            }
                         }
+                    } else {
+                        activePage = TranslationServicesPage.LIST
                     }
-                } else {
-                    editor = null
-                    initialServiceEditor = null
                 }
+                TranslationServicesPage.LIST -> Unit
             }
         }
     }
 
-    editor?.takeIf { advancedSettingsEditor == null && taskSettingsEditor == null }?.let { state ->
+    TabPagerPageHost(
+        pageTab = TranslationServicesPage.EDITOR.ordinal,
+        pager = pagePager,
+        activePage = activePage.ordinal,
+    ) {
+    editor?.let { state ->
         val isMachineTranslation = state.protocolId.category == TranslationServiceCategory.MACHINE_TRANSLATION
         val isFixedMachineTemplate = isMachineTranslation && state.isBuiltInTemplate
         val isTestingThisConnection = testingConnectionSessionId == editorSessionId
@@ -870,7 +928,10 @@ private fun TranslationServicesScreen() {
                     NoRippleButton(
                         text = stringResource(R.string.translation_services_task_settings),
                         modifier = Modifier.fillMaxWidth(),
-                        onClick = { taskSettingsEditor = TaskSettingsEditor.from(state) },
+                        onClick = {
+                            taskSettingsEditor = TaskSettingsEditor.from(state)
+                            activePage = TranslationServicesPage.TASK_SETTINGS
+                        },
                     )
                     if (!isMachineTranslation) {
                         NoRippleButton(
@@ -884,6 +945,7 @@ private fun TranslationServicesScreen() {
                                         val loadedState = state.copy(customParameters = parameters)
                                         editor = loadedState
                                         advancedSettingsEditor = AdvancedSettingsEditor.from(loadedState)
+                                        activePage = TranslationServicesPage.ADVANCED_SETTINGS
                                     } catch (failure: Throwable) {
                                         reportFailure(failure)
                                     }
@@ -898,8 +960,8 @@ private fun TranslationServicesScreen() {
                             onClick = {
                                 cancelConnectionTest()
                                 profiles.firstOrNull { it.id == state.id }?.let { deleteProfile = it }
-                                advancedSettingsEditor = null
-                                editor = null
+                                showModelPicker = false
+                                activePage = TranslationServicesPage.LIST
                             },
                         )
                     }
@@ -916,9 +978,8 @@ private fun TranslationServicesScreen() {
                                     enabled = !isSaving,
                                     onClick = {
                                         cancelConnectionTest()
-                                        advancedSettingsEditor = null
-                                        editor = null
-                                        initialServiceEditor = null
+                                        showModelPicker = false
+                                        activePage = TranslationServicesPage.LIST
                                     },
                                 )
                                 NoRippleButton(
@@ -930,10 +991,9 @@ private fun TranslationServicesScreen() {
                                             isSaving = true
                                             try {
                                                 repository.saveProfile(state.toDraft())
-                                                advancedSettingsEditor = null
-                                                editor = null
-                                                initialServiceEditor = null
                                                 errorCode = null
+                                                showModelPicker = false
+                                                activePage = TranslationServicesPage.LIST
                                             } catch (failure: Throwable) {
                                                 reportFailure(failure)
                                             } finally {
@@ -949,7 +1009,13 @@ private fun TranslationServicesScreen() {
             }
         }
     }
+    }
 
+    TabPagerPageHost(
+        pageTab = TranslationServicesPage.TASK_SETTINGS.ordinal,
+        pager = pagePager,
+        activePage = activePage.ordinal,
+    ) {
     taskSettingsEditor?.let { state ->
         var invalidSettings by remember { mutableStateOf(false) }
         MiuixSettingsTheme {
@@ -1070,7 +1136,7 @@ private fun TranslationServicesScreen() {
                         ) {
                             NoRippleTextButton(
                                 text = stringResource(R.string.common_cancel),
-                                onClick = { taskSettingsEditor = null },
+                                onClick = { activePage = TranslationServicesPage.EDITOR },
                             )
                             NoRippleButton(
                                 text = stringResource(R.string.translation_services_advanced_done),
@@ -1080,7 +1146,7 @@ private fun TranslationServicesScreen() {
                                         invalidSettings = true
                                     } else {
                                         editor = editor?.copy(taskSettings = settings)
-                                        taskSettingsEditor = null
+                                        activePage = TranslationServicesPage.EDITOR
                                     }
                                 },
                             )
@@ -1090,8 +1156,14 @@ private fun TranslationServicesScreen() {
             }
         }
     }
+    }
 
-    advancedSettingsEditor?.takeIf { customParametersEditor == null }?.let { state ->
+    TabPagerPageHost(
+        pageTab = TranslationServicesPage.ADVANCED_SETTINGS.ordinal,
+        pager = pagePager,
+        activePage = activePage.ordinal,
+    ) {
+    advancedSettingsEditor?.let { state ->
         var invalidOptions by remember { mutableStateOf(false) }
         MiuixSettingsTheme {
             MiuixScaffold(
@@ -1239,7 +1311,10 @@ private fun TranslationServicesScreen() {
                                     state.customParameters.body.size,
                                 ),
                                 modifier = Modifier.fillMaxWidth(),
-                                onClick = { customParametersEditor = CustomParametersEditor.from(state) },
+                                onClick = {
+                                    customParametersEditor = CustomParametersEditor.from(state)
+                                    activePage = TranslationServicesPage.CUSTOM_PARAMETERS
+                                },
                             )
                         }
                             if (invalidOptions) {
@@ -1258,7 +1333,7 @@ private fun TranslationServicesScreen() {
                             NoRippleTextButton(
                                 text = stringResource(R.string.common_cancel),
                                 enabled = !isSaving,
-                                onClick = { advancedSettingsEditor = null },
+                                onClick = { activePage = TranslationServicesPage.EDITOR },
                             )
                             NoRippleButton(
                                 text = stringResource(R.string.translation_services_advanced_done),
@@ -1278,7 +1353,7 @@ private fun TranslationServicesScreen() {
                                             generationOptions = options,
                                             customParameters = state.customParameters,
                                         )
-                                        advancedSettingsEditor = null
+                                        activePage = TranslationServicesPage.EDITOR
                                     }
                                 },
                             )
@@ -1288,7 +1363,13 @@ private fun TranslationServicesScreen() {
             }
         }
     }
+    }
 
+    TabPagerPageHost(
+        pageTab = TranslationServicesPage.CUSTOM_PARAMETERS.ordinal,
+        pager = pagePager,
+        activePage = activePage.ordinal,
+    ) {
     customParametersEditor?.let { initialState ->
         var state by remember(initialState) { mutableStateOf(initialState) }
         val headerTab = state.selectedTab == 0
@@ -1601,6 +1682,7 @@ private fun TranslationServicesScreen() {
             }
         }
     }
+    }
 
     if (showModelPicker && editor?.protocolId?.category == TranslationServiceCategory.AI_TRANSLATION) {
         val visibleModels = fetchedModels.filter { it.id.contains(modelSearch, ignoreCase = true) }
@@ -1681,6 +1763,7 @@ private fun TranslationServicesScreen() {
                 DialogTextButton(text = stringResource(R.string.common_cancel), onClick = { deleteProfile = null })
             },
         )
+    }
     }
 }
 

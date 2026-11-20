@@ -33,6 +33,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Surface
@@ -40,6 +41,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -91,10 +93,14 @@ import com.tyranor.next.ui.common.DialogTextButton
 import com.tyranor.next.ui.common.NoRippleButton
 import com.tyranor.next.ui.common.NoRippleTextButton
 import com.tyranor.next.ui.common.OverlayDropdownPreference
+import com.tyranor.next.ui.common.SlidingTabRow
+import com.tyranor.next.ui.common.TabPagerPageHost
+import com.tyranor.next.ui.common.rememberTabPagerState
 import com.tyranor.next.ui.common.MotionLinearProgressIndicator
 import com.tyranor.next.ui.common.isTabletScreen
 import com.tyranor.next.ui.common.glassNavBottomInset
 import com.tyranor.next.ui.common.motion.listItemMotion
+import com.tyranor.next.ui.common.motion.MotionMode
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -104,7 +110,6 @@ import java.util.Date
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
 import top.yukonga.miuix.kmp.basic.CardDefaults as MiuixCardDefaults
 import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
-import top.yukonga.miuix.kmp.basic.TabRowWithContour
 import top.yukonga.miuix.kmp.basic.TextField as MiuixTextField
 import androidx.compose.foundation.Image
 
@@ -151,14 +156,11 @@ private fun TranslationWorkbenchScreen() {
         repository.observeEnabledTranslationServices()
     }.collectAsStateWithLifecycle(initialValue = emptyList())
     var projectFilter by rememberSaveable { mutableStateOf(ProjectListFilter.ALL) }
+    val filterPager = key(MotionMode.enhanced) {
+        rememberTabPagerState({ projectFilter.ordinal }, ProjectListFilter.entries.size)
+    }
     val inProgressProjectCount = projects.count(TranslationProjectCard::isInProgress)
     val fullyTranslatedProjectCount = projects.count(TranslationProjectCard::isFullyTranslated)
-    val visibleProjects = when (projectFilter) {
-        ProjectListFilter.ALL -> projects
-        ProjectListFilter.IN_PROGRESS -> projects.filter(TranslationProjectCard::isInProgress)
-        ProjectListFilter.CONTINUABLE -> projects.filterNot(TranslationProjectCard::isInProgress)
-        ProjectListFilter.TRANSLATED -> projects.filter(TranslationProjectCard::isFullyTranslated)
-    }
     var showAddDialog by remember { mutableStateOf(false) }
     var addProjectOperation by remember { mutableStateOf(ProjectAddOperation.EXTRACT) }
     var addProjectEngineId by remember { mutableStateOf(EngineType.RPG_MV.name) }
@@ -405,126 +407,158 @@ private fun TranslationWorkbenchScreen() {
             },
         ) { innerPadding ->
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(if (tabletLayout) 2 else 1),
+                val filterLabels = listOf(
+                    stringResource(R.string.translation_project_filter_all, projects.size),
+                    stringResource(R.string.translation_project_filter_in_progress, inProgressProjectCount),
+                    stringResource(R.string.translation_project_filter_continuable, projects.size - inProgressProjectCount),
+                    stringResource(R.string.translation_project_filter_translated, fullyTranslatedProjectCount),
+                )
+                Column(
                     modifier = Modifier.fillMaxSize()
                         .widthIn(max = if (tabletLayout) 1440.dp else 760.dp)
                         .padding(top = innerPadding.calculateTopPadding())
                         .padding(horizontal = 12.dp),
-                    contentPadding = PaddingValues(top = 12.dp, bottom = 24.dp + glassNavBottomInset()),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    item(key = "add-project", span = { GridItemSpan(maxLineSpan) }) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            NoRippleButton(
-                                text = stringResource(R.string.translation_add_project),
-                                modifier = Modifier.weight(1f),
-                                onClick = {
-                                    addProjectOperation = ProjectAddOperation.EXTRACT
-                                    addProjectEngineId = EngineType.RPG_MV.name
-                                    addProjectSourceFormat = null
-                                    clearNewProjectSource()
-                                    addingProject = false
-                                    showAddDialog = true
-                                },
-                            )
-                            NoRippleButton(
-                                text = stringResource(R.string.translation_glossaries_title),
-                                modifier = Modifier.weight(1f),
-                                onClick = {
-                                    startActivityWithPageTransition(
-                                        context,
-                                        TranslationGlossariesActivity.createIntent(context),
-                                    )
-                                },
-                            )
-                        }
-                    }
-                    item(key = "project-filter", span = { GridItemSpan(maxLineSpan) }) {
-                        val filterLabels = listOf(
-                            stringResource(R.string.translation_project_filter_all, projects.size),
-                            stringResource(R.string.translation_project_filter_in_progress, inProgressProjectCount),
-                            stringResource(R.string.translation_project_filter_continuable, projects.size - inProgressProjectCount),
-                            stringResource(R.string.translation_project_filter_translated, fullyTranslatedProjectCount),
-                        )
-                        TabRowWithContour(
-                            tabs = filterLabels,
-                            selectedTabIndex = projectFilter.ordinal,
-                            onTabSelected = { index ->
-                                projectFilter = ProjectListFilter.entries.getOrNull(index) ?: ProjectListFilter.ALL
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        NoRippleButton(
+                            text = stringResource(R.string.translation_add_project),
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                addProjectOperation = ProjectAddOperation.EXTRACT
+                                addProjectEngineId = EngineType.RPG_MV.name
+                                addProjectSourceFormat = null
+                                clearNewProjectSource()
+                                addingProject = false
+                                showAddDialog = true
                             },
-                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        NoRippleButton(
+                            text = stringResource(R.string.translation_glossaries_title),
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                startActivityWithPageTransition(
+                                    context,
+                                    TranslationGlossariesActivity.createIntent(context),
+                                )
+                            },
                         )
                     }
-                    if (projects.isEmpty()) {
-                        item(key = "empty", span = { GridItemSpan(maxLineSpan) }) {
-                            MiuixCard(
-                                modifier = Modifier.fillMaxWidth().glassBorder(),
-                                cornerRadius = AppComponentCornerRadius,
+                    SlidingTabRow(
+                        tabs = filterLabels,
+                        selectedIndex = projectFilter.ordinal,
+                        onTabSelected = { index ->
+                            projectFilter = ProjectListFilter.entries.getOrNull(index) ?: ProjectListFilter.ALL
+                        },
+                        pager = filterPager,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Box(
+                        modifier = Modifier.weight(1f).fillMaxWidth().clipToBounds(),
+                    ) {
+                        ProjectListFilter.entries.forEach { filter ->
+                            val pageProjects = when (filter) {
+                                ProjectListFilter.ALL -> projects
+                                ProjectListFilter.IN_PROGRESS -> projects.filter(TranslationProjectCard::isInProgress)
+                                ProjectListFilter.CONTINUABLE -> projects.filterNot(TranslationProjectCard::isInProgress)
+                                ProjectListFilter.TRANSLATED -> projects.filter(TranslationProjectCard::isFullyTranslated)
+                            }
+                            TabPagerPageHost(
+                                pageTab = filter.ordinal,
+                                pager = filterPager,
+                                activePage = projectFilter.ordinal,
                             ) {
-                                Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Text(stringResource(R.string.translation_no_projects), style = MaterialTheme.typography.titleMedium)
-                                    Text(
-                                        stringResource(R.string.translation_no_projects_hint),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = PageSecondaryTextColor,
-                                    )
+                                LazyVerticalGrid(
+                                    columns = GridCells.Fixed(if (tabletLayout) 2 else 1),
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentPadding = PaddingValues(bottom = 24.dp + glassNavBottomInset()),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                                ) {
+                                    if (projects.isEmpty()) {
+                                        item(key = "empty", span = { GridItemSpan(maxLineSpan) }) {
+                                            MiuixCard(
+                                                modifier = Modifier.fillMaxWidth().glassBorder(),
+                                                cornerRadius = AppComponentCornerRadius,
+                                            ) {
+                                                Column(
+                                                    Modifier.fillMaxWidth().padding(18.dp),
+                                                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                                                ) {
+                                                    Text(
+                                                        stringResource(R.string.translation_no_projects),
+                                                        style = MaterialTheme.typography.titleMedium,
+                                                    )
+                                                    Text(
+                                                        stringResource(R.string.translation_no_projects_hint),
+                                                        style = MaterialTheme.typography.bodyMedium,
+                                                        color = PageSecondaryTextColor,
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    } else if (pageProjects.isEmpty()) {
+                                        item(key = "filter-empty", span = { GridItemSpan(maxLineSpan) }) {
+                                            MiuixCard(
+                                                modifier = Modifier.fillMaxWidth().glassBorder(),
+                                                cornerRadius = AppComponentCornerRadius,
+                                            ) {
+                                                Text(
+                                                    stringResource(R.string.translation_project_filter_empty),
+                                                    modifier = Modifier.fillMaxWidth().padding(18.dp),
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    color = PageSecondaryTextColor,
+                                                )
+                                            }
+                                        }
+                                    } else {
+                                        items(
+                                            pageProjects,
+                                            key = TranslationProjectCard::id,
+                                            span = { GridItemSpan(1) },
+                                        ) { project ->
+                                            TranslationProjectCardView(
+                                                project = project,
+                                                onReview = {
+                                                    startActivityWithPageTransition(
+                                                        context,
+                                                        TranslationReviewActivity.createIntent(context, project.id),
+                                                    )
+                                                },
+                                                onStart = { runOperation { repository.startExtraction(project.id) } },
+                                                onContinue = { taskId ->
+                                                    runOperation { repository.continueExtraction(project.id, taskId) }
+                                                },
+                                                onCancel = { taskId -> runOperation { repository.cancelExtraction(taskId) } },
+                                                onTranslate = {
+                                                    translationProjectId = project.id
+                                                    selectedTranslationServiceId = enabledTranslationServices.firstOrNull()?.id
+                                                    selectedTranslationGlossaryId = null
+                                                    translationSourceLanguage = ""
+                                                    translationTargetLanguage = ""
+                                                },
+                                                onContinueTranslation = { taskId ->
+                                                    runOperation { repository.continueTranslation(project.id, taskId) }
+                                                },
+                                                onRelink = {
+                                                    pendingRelinkProjectId = project.id
+                                                    chooseGameDirectory.launch(null)
+                                                },
+                                                onExport = {
+                                                    exportProjectId = project.id
+                                                    exportDestinationUri = null
+                                                    exportDestinationPath = ""
+                                                },
+                                                onDelete = { deleteProjectId = project.id },
+                                                modifier = listItemMotion(),
+                                            )
+                                        }
+                                    }
                                 }
                             }
-                        }
-                    } else if (visibleProjects.isEmpty()) {
-                        item(key = "filter-empty", span = { GridItemSpan(maxLineSpan) }) {
-                            MiuixCard(
-                                modifier = Modifier.fillMaxWidth().glassBorder(),
-                                cornerRadius = AppComponentCornerRadius,
-                            ) {
-                                Text(
-                                    stringResource(R.string.translation_project_filter_empty),
-                                    modifier = Modifier.fillMaxWidth().padding(18.dp),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = PageSecondaryTextColor,
-                                )
-                            }
-                        }
-                    } else {
-                        items(
-                            visibleProjects,
-                            key = TranslationProjectCard::id,
-                            span = { GridItemSpan(1) },
-                        ) { project ->
-                            TranslationProjectCardView(
-                                project = project,
-                                onReview = {
-                                    startActivityWithPageTransition(context, TranslationReviewActivity.createIntent(context, project.id))
-                                },
-                                onStart = { runOperation { repository.startExtraction(project.id) } },
-                                onContinue = { taskId ->
-                                    runOperation { repository.continueExtraction(project.id, taskId) }
-                                },
-                                onCancel = { taskId -> runOperation { repository.cancelExtraction(taskId) } },
-                                onTranslate = {
-                                    translationProjectId = project.id
-                                    selectedTranslationServiceId = enabledTranslationServices.firstOrNull()?.id
-                                    selectedTranslationGlossaryId = null
-                                    translationSourceLanguage = ""
-                                    translationTargetLanguage = ""
-                                },
-                                onContinueTranslation = { taskId ->
-                                    runOperation { repository.continueTranslation(project.id, taskId) }
-                                },
-                                onRelink = {
-                                    pendingRelinkProjectId = project.id
-                                    chooseGameDirectory.launch(null)
-                                },
-                                onExport = {
-                                    exportProjectId = project.id
-                                    exportDestinationUri = null
-                                    exportDestinationPath = ""
-                                },
-                                onDelete = { deleteProjectId = project.id },
-                                modifier = listItemMotion(),
-                            )
                         }
                     }
                 }
