@@ -302,21 +302,23 @@ private fun TranslationReviewScreen(projectId: String, openProofreadSetup: Boole
                                 modifier = Modifier.fillMaxSize().padding(18.dp),
                                 verticalArrangement = Arrangement.spacedBy(12.dp),
                             ) {
-                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                ) {
                                     Text(
                                         stringResource(R.string.translation_review_workspace_title),
                                         style = MaterialTheme.typography.titleLarge,
                                         fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.weight(1f),
                                     )
-                                }
-                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                                     ReviewFilterTrigger(
                                         filter = filter,
                                         onClick = {
                                             draftFilter = filter
                                             showFilterDialog = true
                                         },
-                                        modifier = Modifier.widthIn(min = 220.dp, max = 300.dp),
                                     )
                                 }
                                 if (active && project != null && project.itemTotal > 0) {
@@ -476,7 +478,6 @@ private fun TranslationReviewScreen(projectId: String, openProofreadSetup: Boole
                                             draftFilter = filter
                                             showFilterDialog = true
                                         },
-                                        modifier = Modifier.widthIn(min = 220.dp, max = 300.dp),
                                     )
                                 }
                             }
@@ -1139,29 +1140,17 @@ private fun ReviewFilterTrigger(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    MiuixCard(
-        modifier = modifier.glassBorder().pressSquishGroup().clickable(onClick = onClick),
-        cornerRadius = AppComponentCornerRadius,
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Image(
-                painter = painterResource(R.drawable.ic_game_filter),
-                contentDescription = null,
-                colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.primary),
-                modifier = Modifier.size(18.dp),
-            )
-            Text(
-                stringResource(R.string.translation_review_filter_label),
-                style = MaterialTheme.typography.labelMedium,
-                modifier = Modifier.weight(1f),
-            )
-            Text(stringResource(filter.label), style = MaterialTheme.typography.bodyMedium, color = PageSecondaryTextColor)
-        }
-    }
+    NoRippleButton(
+        text = stringResource(
+            R.string.translation_review_filter_button,
+            stringResource(filter.label),
+        ),
+        modifier = modifier,
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 7.dp),
+        tonal = true,
+        leadingIcon = painterResource(R.drawable.ic_game_filter),
+        onClick = onClick,
+    )
 }
 
 private enum class ReviewFilter(val label: Int) {

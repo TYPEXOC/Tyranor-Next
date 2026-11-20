@@ -1728,7 +1728,7 @@
     <string name="translation_review_filter_all">All</string>
     <string name="translation_review_filter_pending">Needs review</string>
     <string name="translation_review_filter_issues">Issues</string>
-    <string name="translation_review_filter_label">Filter</string>
+    <string name="translation_review_filter_button">Filter · %1$s</string>
     <string name="translation_review_filter_dialog_title">Filter entries</string>
     <string name="translation_review_column_sequence">No.</string>
     <string name="translation_review_column_status">Status</string>

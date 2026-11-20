@@ -1728,7 +1728,7 @@
     <string name="translation_review_filter_all">すべて</string>
     <string name="translation_review_filter_pending">確認待ち</string>
     <string name="translation_review_filter_issues">問題あり</string>
-    <string name="translation_review_filter_label">絞り込み</string>
+    <string name="translation_review_filter_button">絞り込み · %1$s</string>
     <string name="translation_review_filter_dialog_title">項目を絞り込む</string>
     <string name="translation_review_column_sequence">番号</string>
     <string name="translation_review_column_status">状態</string>
