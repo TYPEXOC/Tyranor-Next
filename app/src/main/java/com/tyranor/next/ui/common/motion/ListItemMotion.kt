@@ -30,20 +30,35 @@ private inline fun itemMotion(enabled: Boolean, animate: () -> Modifier): Modifi
 fun LazyItemScope.listItemMotion(
     placement: ListItemPlacement = ListItemPlacement.Layout,
     enabled: Boolean = true,
+    animateInsertion: Boolean = true,
 ): Modifier = itemMotion(enabled) {
-    Modifier.animateItem(fadeInSpec = itemFadeIn, placementSpec = placement.spec, fadeOutSpec = itemFadeOut)
+    Modifier.animateItem(
+        fadeInSpec = if (animateInsertion) itemFadeIn else null,
+        placementSpec = placement.spec,
+        fadeOutSpec = itemFadeOut,
+    )
 }
 
 fun LazyGridItemScope.listItemMotion(
     placement: ListItemPlacement = ListItemPlacement.Layout,
     enabled: Boolean = true,
+    animateInsertion: Boolean = true,
 ): Modifier = itemMotion(enabled) {
-    Modifier.animateItem(fadeInSpec = itemFadeIn, placementSpec = placement.spec, fadeOutSpec = itemFadeOut)
+    Modifier.animateItem(
+        fadeInSpec = if (animateInsertion) itemFadeIn else null,
+        placementSpec = placement.spec,
+        fadeOutSpec = itemFadeOut,
+    )
 }
 
 fun LazyStaggeredGridItemScope.listItemMotion(
     placement: ListItemPlacement = ListItemPlacement.Layout,
     enabled: Boolean = true,
+    animateInsertion: Boolean = true,
 ): Modifier = itemMotion(enabled) {
-    Modifier.animateItem(fadeInSpec = itemFadeIn, placementSpec = placement.spec, fadeOutSpec = itemFadeOut)
+    Modifier.animateItem(
+        fadeInSpec = if (animateInsertion) itemFadeIn else null,
+        placementSpec = placement.spec,
+        fadeOutSpec = itemFadeOut,
+    )
 }

@@ -40,6 +40,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -157,6 +158,14 @@ private fun TranslationWorkbenchScreen() {
         .collectAsStateWithLifecycle<List<TranslationProjectCard>?>(initialValue = null)
     val projects = observedProjects.orEmpty()
     val projectsLoaded = observedProjects != null
+    var projectInsertionMotionEnabled by remember { mutableStateOf(false) }
+    LaunchedEffect(projectsLoaded) {
+        if (projectsLoaded && !projectInsertionMotionEnabled) {
+            // 首次 Room 结果先稳定绘制一帧，避免项目卡淡入与 Activity 侧推动画叠加。
+            withFrameNanos { }
+            projectInsertionMotionEnabled = true
+        }
+    }
     val enabledTranslationServices by remember(repository) {
         repository.observeEnabledTranslationServices()
     }.collectAsStateWithLifecycle(initialValue = emptyList())
@@ -569,7 +578,9 @@ private fun TranslationWorkbenchScreen() {
                                                     exportDestinationPath = ""
                                                 },
                                                 onDelete = { deleteProjectId = project.id },
-                                                modifier = listItemMotion(),
+                                                modifier = listItemMotion(
+                                                    animateInsertion = projectInsertionMotionEnabled,
+                                                ),
                                             )
                                         }
                                     }
