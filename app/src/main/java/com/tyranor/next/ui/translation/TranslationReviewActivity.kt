@@ -7,9 +7,12 @@ import android.os.Environment
 import android.net.Uri
 import android.provider.DocumentsContract
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -50,17 +53,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import java.util.concurrent.atomic.AtomicReference
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tyranor.next.R
 import com.tyranor.next.core.engine.EngineType
@@ -85,6 +90,7 @@ import com.tyranor.next.theme.PageSecondaryTextColor
 import com.tyranor.next.theme.PageTextColor
 import com.tyranor.next.theme.TextColor
 import com.tyranor.next.ui.common.AppAlertDialog
+import com.tyranor.next.ui.common.AppSearchField
 import com.tyranor.next.ui.common.AppScreenActivity
 import com.tyranor.next.ui.common.AppSecondaryTopBar
 import com.tyranor.next.ui.common.DialogTextButton
@@ -353,12 +359,12 @@ private fun TranslationReviewScreen(projectId: String, openProofreadSetup: Boole
                                         style = MiuixTheme.textStyles.headline1.copy(fontWeight = FontWeight.Bold),
                                         modifier = Modifier.weight(1f),
                                     )
-                                    MiuixTextField(
-                                        value = searchQuery,
-                                        onValueChange = { searchQuery = it },
-                                        modifier = Modifier.widthIn(min = 160.dp, max = 240.dp),
-                                        singleLine = true,
-                                        label = stringResource(R.string.translation_review_search),
+                                    AppSearchField(
+                                        query = searchQuery,
+                                        onQueryChange = { searchQuery = it },
+                                        iconContentDescription = stringResource(R.string.translation_review_search),
+                                        textStyle = MaterialTheme.typography.bodySmall,
+                                        modifier = Modifier.widthIn(min = 150.dp, max = 190.dp).height(48.dp),
                                     )
                                     ReviewFilterTrigger(
                                         filter = filter,
@@ -510,12 +516,12 @@ private fun TranslationReviewScreen(projectId: String, openProofreadSetup: Boole
                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
-                                    MiuixTextField(
-                                        value = searchQuery,
-                                        onValueChange = { searchQuery = it },
-                                        modifier = Modifier.weight(1f),
-                                        singleLine = true,
-                                        label = stringResource(R.string.translation_review_search),
+                                    AppSearchField(
+                                        query = searchQuery,
+                                        onQueryChange = { searchQuery = it },
+                                        iconContentDescription = stringResource(R.string.translation_review_search),
+                                        textStyle = MaterialTheme.typography.bodySmall,
+                                        modifier = Modifier.weight(1f).height(48.dp),
                                     )
                                     ReviewFilterTrigger(
                                         filter = filter,
@@ -905,55 +911,64 @@ private fun ReviewEntryTable(
                     )
                 }
             } else {
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier.weight(1f).fillMaxWidth().translationReviewScrollbar(listState),
-                    contentPadding = PaddingValues(0.dp),
-                    verticalArrangement = Arrangement.Top,
-                ) {
-                    itemsIndexed(entries, key = { _, entry -> entry.id }) { index, entry ->
-                        val selected = entry.id == selectedEntryId
-                        Row(
-                            modifier = Modifier.fillMaxWidth()
-                                .pressSquishGroup()
-                                .background(
-                                    if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
-                                    else Color.Transparent,
+                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                    val showScrollbar = listState.layoutInfo.totalItemsCount > listState.layoutInfo.visibleItemsInfo.size
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier.fillMaxSize().padding(end = if (showScrollbar) 16.dp else 0.dp),
+                        contentPadding = PaddingValues(0.dp),
+                        verticalArrangement = Arrangement.Top,
+                    ) {
+                        itemsIndexed(entries, key = { _, entry -> entry.id }) { index, entry ->
+                            val selected = entry.id == selectedEntryId
+                            Row(
+                                modifier = Modifier.fillMaxWidth()
+                                    .pressSquishGroup()
+                                    .background(
+                                        if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
+                                        else Color.Transparent,
+                                    )
+                                    .clickable { onSelect(entry) }
+                                    .heightIn(min = 36.dp)
+                                    .padding(horizontal = 10.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    (sequenceById[entry.id] ?: index + 1).toString(),
+                                    modifier = Modifier.width(42.dp),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = PageSecondaryTextColor,
+                                    textAlign = TextAlign.Center,
                                 )
-                                .clickable { onSelect(entry) }
-                                .heightIn(min = 36.dp)
-                                .padding(horizontal = 10.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(
-                                (sequenceById[entry.id] ?: index + 1).toString(),
-                                modifier = Modifier.width(42.dp),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = PageSecondaryTextColor,
-                                textAlign = TextAlign.Center,
-                            )
-                            MiuixVerticalDivider(modifier = Modifier.height(24.dp))
-                            Text(
-                                entry.sourceText,
-                                modifier = Modifier.weight(1f).padding(horizontal = 10.dp),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = PageTextColor,
-                            )
-                            MiuixVerticalDivider(modifier = Modifier.height(24.dp))
-                            Text(
-                                entry.translatedText.orEmpty().ifBlank { stringResource(R.string.translation_review_no_translation) },
-                                modifier = Modifier.weight(1f).padding(horizontal = 10.dp),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = if (entry.translatedText.isNullOrBlank()) PageSecondaryTextColor else PageTextColor,
-                            )
-                            MiuixVerticalDivider(modifier = Modifier.height(24.dp))
-                            Box(modifier = Modifier.width(94.dp), contentAlignment = Alignment.Center) {
-                                ReviewEntryStatusBadge(entry)
+                                MiuixVerticalDivider(modifier = Modifier.height(24.dp))
+                                Text(
+                                    entry.sourceText,
+                                    modifier = Modifier.weight(1f).padding(horizontal = 10.dp),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = PageTextColor,
+                                )
+                                MiuixVerticalDivider(modifier = Modifier.height(24.dp))
+                                Text(
+                                    entry.translatedText.orEmpty().ifBlank { stringResource(R.string.translation_review_no_translation) },
+                                    modifier = Modifier.weight(1f).padding(horizontal = 10.dp),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = if (entry.translatedText.isNullOrBlank()) PageSecondaryTextColor else PageTextColor,
+                                )
+                                MiuixVerticalDivider(modifier = Modifier.height(24.dp))
+                                Box(modifier = Modifier.width(94.dp), contentAlignment = Alignment.Center) {
+                                    ReviewEntryStatusBadge(entry)
+                                }
+                            }
+                            if (index != entries.lastIndex) {
+                                MiuixHorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
                             }
                         }
-                        if (index != entries.lastIndex) {
-                            MiuixHorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
-                        }
+                    }
+                    if (showScrollbar) {
+                        ReviewEntryScrollbar(
+                            state = listState,
+                            modifier = Modifier.align(Alignment.CenterEnd),
+                        )
                     }
                 }
             }
@@ -961,38 +976,106 @@ private fun ReviewEntryTable(
     }
 }
 
-private fun Modifier.translationReviewScrollbar(state: LazyListState): Modifier = drawWithContent {
-    drawContent()
+@Composable
+private fun ReviewEntryScrollbar(state: LazyListState, modifier: Modifier = Modifier) {
+    val density = LocalDensity.current.density
+    val scrollScope = rememberCoroutineScope()
+    val scrollJob = remember(state) { AtomicReference<kotlinx.coroutines.Job?>(null) }
+
+    Canvas(
+        modifier = modifier
+            .width(16.dp)
+            .fillMaxHeight()
+            .pointerInput(state, density) {
+                detectTapGestures { position ->
+                    val metrics = reviewScrollbarMetrics(state, size.height.toFloat(), density)
+                        ?: return@detectTapGestures
+                    val fraction = scrollbarFractionForPosition(position.y, size.height.toFloat(), metrics.thumbHeight)
+                    scrollJob.getAndSet(scrollScope.launch { scrollReviewTableToFraction(state, fraction, density) })?.cancel()
+                }
+            }
+            .pointerInput(state, density) {
+                detectDragGestures(
+                    onDragStart = { position ->
+                        val metrics = reviewScrollbarMetrics(state, size.height.toFloat(), density)
+                        if (metrics != null) {
+                            val fraction = scrollbarFractionForPosition(position.y, size.height.toFloat(), metrics.thumbHeight)
+                            scrollJob.getAndSet(scrollScope.launch { scrollReviewTableToFraction(state, fraction, density) })?.cancel()
+                        }
+                    },
+                    onDrag = { change, _ ->
+                        val metrics = reviewScrollbarMetrics(state, size.height.toFloat(), density)
+                        if (metrics != null) {
+                            val fraction = scrollbarFractionForPosition(change.position.y, size.height.toFloat(), metrics.thumbHeight)
+                            scrollJob.getAndSet(scrollScope.launch { scrollReviewTableToFraction(state, fraction, density) })?.cancel()
+                        }
+                        change.consume()
+                    },
+                )
+            },
+    ) {
+        val metrics = reviewScrollbarMetrics(state, size.height, density) ?: return@Canvas
+        val thumbWidth = 4.dp.toPx()
+        val trackWidth = 2.dp.toPx()
+        val centerX = size.width / 2f
+        drawRoundRect(
+            color = PageSecondaryTextColor.copy(alpha = 0.12f),
+            topLeft = Offset(centerX - trackWidth / 2f, 0f),
+            size = Size(trackWidth, size.height),
+            cornerRadius = CornerRadius(trackWidth / 2f),
+        )
+        drawRoundRect(
+            color = PageSecondaryTextColor.copy(alpha = 0.62f),
+            topLeft = Offset(centerX - thumbWidth / 2f, metrics.thumbTop),
+            size = Size(thumbWidth, metrics.thumbHeight),
+            cornerRadius = CornerRadius(thumbWidth / 2f),
+        )
+    }
+}
+
+private data class ReviewScrollbarMetrics(
+    val averageItemHeight: Float,
+    val thumbHeight: Float,
+    val thumbTop: Float,
+    val maxScrollOffset: Float,
+)
+
+private fun reviewScrollbarMetrics(
+    state: LazyListState,
+    viewportHeight: Float,
+    density: Float,
+): ReviewScrollbarMetrics? {
     val layoutInfo = state.layoutInfo
     val visibleItems = layoutInfo.visibleItemsInfo
     val totalItems = layoutInfo.totalItemsCount
-    val viewportHeight = size.height
-    if (totalItems <= visibleItems.size || visibleItems.isEmpty() || viewportHeight <= 0f) return@drawWithContent
+    if (totalItems <= visibleItems.size || visibleItems.isEmpty() || viewportHeight <= 0f) return null
 
-    val averageItemHeight = visibleItems.map { it.size.toFloat() }.average().toFloat().coerceAtLeast(1f)
+    val averageItemHeight = visibleItems.sumOf { it.size.toDouble() }.toFloat()
+        .div(visibleItems.size)
+        .coerceAtLeast(1f)
     val estimatedContentHeight = averageItemHeight * totalItems
-    val minimumThumbHeight = minOf(24.dp.toPx(), viewportHeight)
+    val maxScrollOffset = (estimatedContentHeight - viewportHeight).coerceAtLeast(1f)
+    val minimumThumbHeight = minOf(24.dp.value * density, viewportHeight)
     val thumbHeight = (viewportHeight * viewportHeight / estimatedContentHeight)
         .coerceIn(minimumThumbHeight, viewportHeight)
-    val scrollFraction = (
-        (state.firstVisibleItemIndex + state.firstVisibleItemScrollOffset / averageItemHeight) / totalItems.toFloat()
-        ).coerceIn(0f, 1f)
+    val currentScrollOffset = state.firstVisibleItemIndex * averageItemHeight + state.firstVisibleItemScrollOffset
+    val scrollFraction = (currentScrollOffset / maxScrollOffset).coerceIn(0f, 1f)
     val thumbTop = (viewportHeight - thumbHeight) * scrollFraction
-    val thumbWidth = 3.dp.toPx()
-    val trackLeft = size.width - thumbWidth
+    return ReviewScrollbarMetrics(averageItemHeight, thumbHeight, thumbTop, maxScrollOffset)
+}
 
-    drawRoundRect(
-        color = PageSecondaryTextColor.copy(alpha = 0.12f),
-        topLeft = Offset(trackLeft, 0f),
-        size = Size(thumbWidth, viewportHeight),
-        cornerRadius = CornerRadius(thumbWidth / 2f),
-    )
-    drawRoundRect(
-        color = PageSecondaryTextColor.copy(alpha = 0.52f),
-        topLeft = Offset(trackLeft, thumbTop),
-        size = Size(thumbWidth, thumbHeight),
-        cornerRadius = CornerRadius(thumbWidth / 2f),
-    )
+private fun scrollbarFractionForPosition(positionY: Float, viewportHeight: Float, thumbHeight: Float): Float {
+    val thumbTravel = (viewportHeight - thumbHeight).coerceAtLeast(1f)
+    return ((positionY - thumbHeight / 2f) / thumbTravel).coerceIn(0f, 1f)
+}
+
+private suspend fun scrollReviewTableToFraction(state: LazyListState, fraction: Float, density: Float) {
+    val metrics = reviewScrollbarMetrics(state, state.layoutInfo.viewportSize.height.toFloat(), density) ?: return
+    val totalItems = state.layoutInfo.totalItemsCount
+    val targetOffset = metrics.maxScrollOffset * fraction
+    val index = (targetOffset / metrics.averageItemHeight).toInt().coerceIn(0, totalItems - 1)
+    val itemOffset = (targetOffset - index * metrics.averageItemHeight).toInt().coerceAtLeast(0)
+    state.scrollToItem(index, itemOffset)
 }
 
 @Composable
