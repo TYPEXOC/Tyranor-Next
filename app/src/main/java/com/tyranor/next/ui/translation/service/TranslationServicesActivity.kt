@@ -100,6 +100,7 @@ import com.tyranor.next.ui.common.AppScreenActivity
 import com.tyranor.next.ui.common.AppSecondaryTopBar
 import com.tyranor.next.ui.common.ArrowPreference
 import com.tyranor.next.ui.common.DialogTextButton
+import com.tyranor.next.ui.common.NoIndication
 import com.tyranor.next.ui.common.NoRippleButton
 import com.tyranor.next.ui.common.NoRippleTextButton
 import com.tyranor.next.ui.common.OverlayDropdownPreference
@@ -108,6 +109,7 @@ import com.tyranor.next.ui.common.TabPagerPageHost
 import com.tyranor.next.ui.common.rememberTabPagerState
 import com.tyranor.next.ui.common.motion.MotionMode
 import com.tyranor.next.ui.common.motion.BlurCrossfade
+import com.tyranor.next.ui.common.motion.pressSquish
 import com.tyranor.next.ui.common.Switch
 import com.tyranor.next.ui.common.isTabletScreen
 import com.tyranor.next.ui.common.motion.listItemMotion
@@ -119,6 +121,8 @@ import kotlinx.coroutines.flow.first
 import kotlin.math.abs
 import kotlin.math.roundToLong
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
+import top.yukonga.miuix.kmp.basic.Button as MiuixButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults as MiuixButtonDefaults
 import top.yukonga.miuix.kmp.basic.FabPosition
 import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
 import top.yukonga.miuix.kmp.basic.TextField as MiuixTextField
@@ -2231,15 +2235,32 @@ private fun TranslationServiceTemplateCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End,
             ) {
-                NoRippleTextButton(
-                    text = stringResource(R.string.translation_services_configure),
-                    modifier = Modifier.border(
+                MiuixButton(
+                    onClick = onConfigure,
+                    modifier = Modifier.pressSquish().border(
                         width = 1.dp,
                         color = MaterialTheme.colorScheme.outlineVariant,
-                        shape = RoundedCornerShape(10.dp),
+                        shape = AppComponentShape,
                     ),
-                    onClick = onConfigure,
-                )
+                    enabled = true,
+                    cornerRadius = AppComponentCornerRadius,
+                    minWidth = 64.dp,
+                    minHeight = 40.dp,
+                    colors = MiuixButtonDefaults.buttonColors(
+                        color = Color.Transparent,
+                        disabledColor = Color.Transparent,
+                        contentColor = MaterialTheme.colorScheme.primary,
+                        disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                    ),
+                    insideMargin = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                    indication = NoIndication,
+                ) {
+                    Text(
+                        text = stringResource(R.string.translation_services_configure),
+                        color = MaterialTheme.colorScheme.primary,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
             }
         }
     }
