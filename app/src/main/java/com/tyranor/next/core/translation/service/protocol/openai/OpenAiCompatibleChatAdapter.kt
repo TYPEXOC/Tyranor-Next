@@ -13,6 +13,9 @@ import com.tyranor.next.core.translation.service.TranslationServiceErrorCode
 import com.tyranor.next.core.translation.service.TranslationServiceException
 import com.tyranor.next.core.translation.service.TranslationServiceProfile
 import com.tyranor.next.core.translation.service.TranslationServiceCapability
+import com.tyranor.next.core.translation.service.TranslationOutput
+import com.tyranor.next.core.translation.service.TranslationStructuredOutputMode
+import com.tyranor.next.core.translation.service.TranslationTextIntegrity
 import com.tyranor.next.core.translation.service.addOpenAiChatFormat
 import com.tyranor.next.core.translation.service.formatAiUserMessage
 import com.tyranor.next.core.translation.service.translationResultSchema
@@ -72,6 +75,38 @@ internal class OpenAiCompatibleChatAdapter(
         targetLanguage: String,
         inputs: List<TranslationInput>,
         glossary: List<TranslationGlossaryEntry>,
+    ): TranslationBatchResponse = translateBatchInternal(
+        profile = profile,
+        apiKey = apiKey,
+        sourceLanguage = sourceLanguage,
+        targetLanguage = targetLanguage,
+        inputs = inputs,
+        glossary = glossary,
+        allowPlainTextProbe = false,
+    )
+
+    override suspend fun testTranslation(
+        profile: TranslationServiceProfile,
+        apiKey: String?,
+        input: TranslationInput,
+    ): TranslationBatchResponse = translateBatchInternal(
+        profile = profile,
+        apiKey = apiKey,
+        sourceLanguage = input.sourceLanguage,
+        targetLanguage = input.targetLanguage,
+        inputs = listOf(input),
+        glossary = emptyList(),
+        allowPlainTextProbe = profile.generationOptions.structuredOutputMode == TranslationStructuredOutputMode.DISABLED,
+    )
+
+    private suspend fun translateBatchInternal(
+        profile: TranslationServiceProfile,
+        apiKey: String?,
+        sourceLanguage: String,
+        targetLanguage: String,
+        inputs: List<TranslationInput>,
+        glossary: List<TranslationGlossaryEntry>,
+        allowPlainTextProbe: Boolean,
     ): TranslationBatchResponse {
         requireProtocol(profile)
         if (!profile.configured || profile.modelId.isBlank() || sourceLanguage.isBlank() || targetLanguage.isBlank() ||
@@ -101,7 +136,26 @@ internal class OpenAiCompatibleChatAdapter(
         } catch (failure: JSONException) {
             throw TranslationServiceException(TranslationServiceErrorCode.INVALID_RESPONSE)
         }
-        return parseBatchContent(content, inputs)
+        return try {
+            parseBatchContent(content, inputs)
+        } catch (failure: TranslationServiceException) {
+            val plainText = content.trim()
+            if (!allowPlainTextProbe || failure.code != TranslationServiceErrorCode.INVALID_RESPONSE ||
+                plainText.isBlank() || plainText.startsWith('{') || plainText.startsWith('[') ||
+                plainText.startsWith("```")
+            ) {
+                throw failure
+            }
+            val input = inputs.single()
+            if (TranslationTextIntegrity.compare(input.sourceText, plainText).isNotEmpty()) {
+                throw failure
+            }
+            TranslationBatchResponse(
+                successes = listOf(TranslationOutput(input.entryId, plainText)),
+                itemFailures = emptyMap(),
+                unknownResponseIds = emptySet(),
+            )
+        }
     }
 
     override suspend fun proofreadBatch(

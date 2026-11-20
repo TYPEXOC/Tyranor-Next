@@ -91,8 +91,67 @@ class OpenAiCompatibleChatAdapterTest {
     @Test
     fun invalidJsonResponseFailsWithTypedError() {
         val failure = assertThrows(TranslationServiceException::class.java) {
-            OpenAiCompatibleChatAdapter.parseBatchContent("not-json", listOf(input("entry", "source")))
+            OpenAiCompatibleChatAdapter.parseBatchContent("{not-json}", listOf(input("entry", "source")))
         }
+        assertEquals(TranslationServiceErrorCode.INVALID_RESPONSE, failure.code)
+    }
+
+    @Test
+    fun connectionProbeAcceptsPlainSingleTranslationWhenStructuredOutputIsDisabled() = runBlocking {
+        val callFactory = SingleCallFactory(
+            """{"choices":[{"message":{"content":"你好"}}]}""",
+        )
+        val result = OpenAiCompatibleChatAdapter(TranslationHttpTransport(callFactory)).testTranslation(
+            profile(),
+            apiKey = null,
+            input = TranslationInput("probe", "Hello", "en", "zh-Hans"),
+        )
+
+        assertEquals(listOf("probe"), result.successes.map { it.entryId })
+        assertEquals("你好", result.successes.single().translatedText)
+        assertTrue(result.itemFailures.isEmpty())
+        assertTrue(result.unknownResponseIds.isEmpty())
+    }
+
+    @Test
+    fun normalBatchStillRejectsPlainTextWithoutStableIds() {
+        val callFactory = SingleCallFactory(
+            """{"choices":[{"message":{"content":"你好"}}]}""",
+        )
+        val failure = assertThrows(TranslationServiceException::class.java) {
+            runBlocking {
+                OpenAiCompatibleChatAdapter(TranslationHttpTransport(callFactory)).translateBatch(
+                    profile(),
+                    apiKey = null,
+                    sourceLanguage = "en",
+                    targetLanguage = "zh-Hans",
+                    inputs = listOf(TranslationInput("entry", "Hello", "en", "zh-Hans")),
+                )
+            }
+        }
+
+        assertEquals(TranslationServiceErrorCode.INVALID_RESPONSE, failure.code)
+    }
+
+    @Test
+    fun connectionProbeDoesNotBypassExplicitStructuredOutputMode() {
+        val callFactory = SingleCallFactory(
+            """{"choices":[{"message":{"content":"你好"}}]}""",
+        )
+        val failure = assertThrows(TranslationServiceException::class.java) {
+            runBlocking {
+                OpenAiCompatibleChatAdapter(TranslationHttpTransport(callFactory)).testTranslation(
+                    profile().copy(
+                        generationOptions = TranslationGenerationOptions(
+                            structuredOutputMode = TranslationStructuredOutputMode.JSON_OBJECT,
+                        ),
+                    ),
+                    apiKey = null,
+                    input = TranslationInput("probe", "Hello", "en", "zh-Hans"),
+                )
+            }
+        }
+
         assertEquals(TranslationServiceErrorCode.INVALID_RESPONSE, failure.code)
     }
 

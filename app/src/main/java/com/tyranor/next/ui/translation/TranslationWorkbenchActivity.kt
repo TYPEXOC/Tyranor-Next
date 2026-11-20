@@ -88,6 +88,7 @@ import com.tyranor.next.ui.common.NoRippleButton
 import com.tyranor.next.ui.common.NoRippleTextButton
 import com.tyranor.next.ui.common.OverlayDropdownPreference
 import com.tyranor.next.ui.common.MotionLinearProgressIndicator
+import com.tyranor.next.ui.common.isTabletScreen
 import com.tyranor.next.ui.common.glassNavBottomInset
 import com.tyranor.next.ui.common.motion.listItemMotion
 import kotlinx.coroutines.CancellationException
@@ -138,6 +139,7 @@ private fun TranslationProjectCard.isFullyTranslated(): Boolean =
 private fun TranslationWorkbenchScreen() {
     val context = LocalContext.current
     val appContext = context.applicationContext
+    val tabletLayout = isTabletScreen()
     val scope = rememberCoroutineScope()
     val repository = remember(appContext) { TranslationWorkbenchRepository(appContext) }
     val projects by repository.observeProjects().collectAsStateWithLifecycle(initialValue = emptyList())
@@ -401,7 +403,7 @@ private fun TranslationWorkbenchScreen() {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize()
-                        .widthIn(max = 760.dp)
+                        .widthIn(max = if (tabletLayout) 1440.dp else 760.dp)
                         .padding(top = innerPadding.calculateTopPadding())
                         .padding(horizontal = 12.dp),
                     contentPadding = PaddingValues(top = 12.dp, bottom = 24.dp + glassNavBottomInset()),
@@ -974,6 +976,7 @@ private fun TranslationProjectCardView(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    val tabletLayout = isTabletScreen()
     val isGameDirectory = project.sourceType == TranslationProjectSource.GAME_DIRECTORY.name
     val isActive = project.isInProgress()
     val canContinue = project.latestTaskState == "CANCELLED" || project.latestTaskState == "FAILED"
@@ -1124,8 +1127,8 @@ private fun TranslationProjectCardView(
         cornerRadius = AppComponentCornerRadius,
     ) {
         Column(
-            Modifier.fillMaxWidth().padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(9.dp),
+            Modifier.fillMaxWidth().padding(if (tabletLayout) 18.dp else 14.dp),
+            verticalArrangement = Arrangement.spacedBy(if (tabletLayout) 12.dp else 9.dp),
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(9.dp), verticalAlignment = Alignment.CenterVertically) {
                 Surface(shape = RoundedCornerShape(10.dp), color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)) {
@@ -1133,20 +1136,20 @@ private fun TranslationProjectCardView(
                         painter = painterResource(R.drawable.ic_translation_workbench),
                         contentDescription = null,
                         colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.primary),
-                        modifier = Modifier.size(28.dp).padding(5.dp),
+                        modifier = Modifier.size(if (tabletLayout) 34.dp else 28.dp).padding(5.dp),
                     )
                 }
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
                     Text(
                         project.title,
-                        style = MaterialTheme.typography.titleSmall,
+                        style = if (tabletLayout) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
                         engineLabel,
-                        style = MaterialTheme.typography.bodySmall,
+                        style = if (tabletLayout) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodySmall,
                         color = PageSecondaryTextColor,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -1166,8 +1169,8 @@ private fun TranslationProjectCardView(
                         } else {
                             stringResource(statusRes)
                         },
-                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
-                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.padding(horizontal = 9.dp, vertical = if (tabletLayout) 6.dp else 5.dp),
+                        style = if (tabletLayout) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelSmall,
                         color = if (project.projectState == TranslationProjectState.FAILED.name) {
                             MaterialTheme.colorScheme.error
                         } else {
@@ -1179,7 +1182,7 @@ private fun TranslationProjectCardView(
             }
             Text(
                 sourcePath.ifBlank { stringResource(R.string.translation_card_imported_source) },
-                style = MaterialTheme.typography.bodySmall,
+                style = if (tabletLayout) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodySmall,
                 color = PageSecondaryTextColor,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -1198,6 +1201,7 @@ private fun TranslationProjectCardView(
                         },
                     ),
                     phase = extractionPhase,
+                    tabletLayout = tabletLayout,
                     modifier = Modifier.weight(1f),
                 )
                 Text("›", color = PageSecondaryTextColor, style = MaterialTheme.typography.labelSmall)
@@ -1211,6 +1215,7 @@ private fun TranslationProjectCardView(
                         },
                     ),
                     phase = translationPhase,
+                    tabletLayout = tabletLayout,
                     modifier = Modifier.weight(1f),
                 )
                 Text("›", color = PageSecondaryTextColor, style = MaterialTheme.typography.labelSmall)
@@ -1223,6 +1228,7 @@ private fun TranslationProjectCardView(
                         },
                     ),
                     phase = reviewPhase,
+                    tabletLayout = tabletLayout,
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -1234,7 +1240,7 @@ private fun TranslationProjectCardView(
                 Text(
                     progressLabel,
                     modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.bodySmall,
+                    style = if (tabletLayout) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodySmall,
                     color = progressLabelColor,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -1242,7 +1248,7 @@ private fun TranslationProjectCardView(
                 Text(
                     progress?.let { stringResource(R.string.translation_card_progress_percent, (it * 100).toInt()) }
                         ?: stringResource(R.string.translation_card_progress_indeterminate),
-                    style = MaterialTheme.typography.labelSmall,
+                    style = if (tabletLayout) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelSmall,
                     color = PageSecondaryTextColor,
                 )
             }
@@ -1297,7 +1303,12 @@ private data class ProjectCardAction(
 )
 
 @Composable
-private fun ProjectPhaseChip(text: String, phase: ProjectPhase, modifier: Modifier = Modifier) {
+private fun ProjectPhaseChip(
+    text: String,
+    phase: ProjectPhase,
+    tabletLayout: Boolean,
+    modifier: Modifier = Modifier,
+) {
     val container = when (phase) {
         ProjectPhase.COMPLETE -> MaterialTheme.colorScheme.secondaryContainer
         ProjectPhase.CURRENT -> MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
@@ -1312,7 +1323,7 @@ private fun ProjectPhaseChip(text: String, phase: ProjectPhase, modifier: Modifi
         Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 5.dp)) {
             Text(
                 text = text,
-                style = MaterialTheme.typography.labelSmall,
+                style = if (tabletLayout) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelSmall,
                 color = content,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,

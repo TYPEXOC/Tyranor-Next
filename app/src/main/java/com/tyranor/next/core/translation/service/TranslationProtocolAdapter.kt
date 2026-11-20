@@ -76,6 +76,19 @@ interface TranslationProtocolAdapter {
         glossary: List<TranslationGlossaryEntry> = emptyList(),
     ): TranslationBatchResponse
 
+    /** Runs the single-item probe used by the service editor. Protocols may accept a plain translation here. */
+    suspend fun testTranslation(
+        profile: TranslationServiceProfile,
+        apiKey: String?,
+        input: TranslationInput,
+    ): TranslationBatchResponse = translateBatch(
+        profile = profile,
+        apiKey = apiKey,
+        sourceLanguage = input.sourceLanguage,
+        targetLanguage = input.targetLanguage,
+        inputs = listOf(input),
+    )
+
     suspend fun proofreadBatch(
         profile: TranslationServiceProfile,
         apiKey: String?,
