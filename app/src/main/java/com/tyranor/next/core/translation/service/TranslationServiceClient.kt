@@ -29,30 +29,34 @@ class TranslationServiceClient(
     private val repository: TranslationServiceRepository = TranslationServiceRepository(context),
 ) {
     suspend fun listModels(serviceId: String): List<TranslationModelInfo> {
-        val profile = repository.getProfile(serviceId)
-            ?: throw TranslationServiceException(TranslationServiceErrorCode.SERVICE_NOT_FOUND)
-        if (runCatching { TranslationServiceRepository.normalizeBaseUrl(profile.baseUrl, profile.protocolId) }.isFailure) {
-            throw TranslationServiceException(TranslationServiceErrorCode.SERVICE_NOT_CONFIGURED)
+        return TranslationServiceProbePolicy.withDeadline {
+            val profile = repository.getProfile(serviceId)
+                ?: throw TranslationServiceException(TranslationServiceErrorCode.SERVICE_NOT_FOUND)
+            if (runCatching {
+                    TranslationServiceRepository.normalizeBaseUrl(profile.baseUrl, profile.protocolId)
+                }.isFailure
+            ) {
+                throw TranslationServiceException(TranslationServiceErrorCode.SERVICE_NOT_CONFIGURED)
+            }
+            val requestProfile = profile
+                .withRequestParameters(repository.readCustomParameters(profile.customParametersRef))
+                .withInteractiveRequestTimeout()
+            adapter(requestProfile).listModels(requestProfile, resolveSecret(profile.secretRef))
         }
-        val requestProfile = profile.withRequestParameters(repository.readCustomParameters(profile.customParametersRef))
-        return adapter(requestProfile).listModels(requestProfile, resolveSecret(profile.secretRef))
     }
 
     suspend fun listModels(draft: TranslationServiceDraft): List<TranslationModelInfo> {
-        val (preview, apiKey) = previewProfile(draft)
-        return adapter(preview).listModels(preview, apiKey)
+        return TranslationServiceProbePolicy.withDeadline {
+            val (preview, apiKey) = previewProfile(draft)
+            val requestProfile = preview.withInteractiveRequestTimeout()
+            adapter(requestProfile).listModels(requestProfile, apiKey)
+        }
     }
 
     suspend fun testConnection(draft: TranslationServiceDraft): TranslationConnectionTestResult {
-        return TranslationConnectionTestPolicy.withDeadline {
+        return TranslationServiceProbePolicy.withDeadline {
             val (preview, apiKey) = previewProfile(draft)
-            val testProfile = preview.copy(
-                taskSettings = preview.taskSettings.copy(
-                    requestTimeoutMillis = TranslationConnectionTestPolicy.requestTimeoutMillis(
-                        preview.taskSettings.requestTimeoutMillis,
-                    ),
-                ),
-            )
+            val testProfile = preview.withInteractiveRequestTimeout()
             val protocolAdapter = adapter(testProfile)
             TranslationConnectionTestPolicy.verifyTranslation(protocolAdapter, testProfile, apiKey)
         }
@@ -148,6 +152,14 @@ class TranslationServiceClient(
         }
         return copy(requestParameters = parameters)
     }
+
+    private fun TranslationServiceProfile.withInteractiveRequestTimeout(): TranslationServiceProfile = copy(
+        taskSettings = taskSettings.copy(
+            requestTimeoutMillis = TranslationServiceProbePolicy.requestTimeoutMillis(
+                taskSettings.requestTimeoutMillis,
+            ),
+        ),
+    )
 
     private fun adapter(profile: TranslationServiceProfile): TranslationProtocolAdapter =
         TranslationProtocolRegistry.adapter(profile.protocolId)
