@@ -803,7 +803,7 @@ private fun ReviewEntryTable(
             Row(
                 modifier = Modifier.fillMaxWidth()
                     .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
-                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                    .padding(horizontal = 10.dp, vertical = 5.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
@@ -813,7 +813,7 @@ private fun ReviewEntryTable(
                     color = PageSecondaryTextColor,
                     textAlign = TextAlign.Center,
                 )
-                MiuixVerticalDivider(modifier = Modifier.height(28.dp))
+                MiuixVerticalDivider(modifier = Modifier.height(22.dp))
                 Text(
                     stringResource(R.string.translation_review_source),
                     modifier = Modifier.weight(1f).padding(horizontal = 10.dp),
@@ -822,7 +822,7 @@ private fun ReviewEntryTable(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                MiuixVerticalDivider(modifier = Modifier.height(28.dp))
+                MiuixVerticalDivider(modifier = Modifier.height(22.dp))
                 Text(
                     stringResource(R.string.translation_review_translation),
                     modifier = Modifier.weight(1f).padding(horizontal = 10.dp),
@@ -831,7 +831,7 @@ private fun ReviewEntryTable(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                MiuixVerticalDivider(modifier = Modifier.height(28.dp))
+                MiuixVerticalDivider(modifier = Modifier.height(22.dp))
                 Text(
                     stringResource(R.string.translation_review_column_status),
                     modifier = Modifier.width(94.dp),
@@ -865,7 +865,7 @@ private fun ReviewEntryTable(
                                     else Color.Transparent,
                                 )
                                 .clickable { onSelect(entry) }
-                                .padding(horizontal = 10.dp, vertical = 8.dp),
+                                .padding(horizontal = 10.dp, vertical = 4.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
@@ -875,7 +875,7 @@ private fun ReviewEntryTable(
                                 color = PageSecondaryTextColor,
                                 textAlign = TextAlign.Center,
                             )
-                            MiuixVerticalDivider(modifier = Modifier.height(54.dp))
+                            MiuixVerticalDivider(modifier = Modifier.height(36.dp))
                             Text(
                                 entry.sourceText,
                                 modifier = Modifier.weight(1f).padding(horizontal = 10.dp),
@@ -884,7 +884,7 @@ private fun ReviewEntryTable(
                                 maxLines = 2,
                                 overflow = TextOverflow.Ellipsis,
                             )
-                            MiuixVerticalDivider(modifier = Modifier.height(54.dp))
+                            MiuixVerticalDivider(modifier = Modifier.height(36.dp))
                             Text(
                                 entry.translatedText.orEmpty().ifBlank { stringResource(R.string.translation_review_no_translation) },
                                 modifier = Modifier.weight(1f).padding(horizontal = 10.dp),
@@ -893,7 +893,7 @@ private fun ReviewEntryTable(
                                 maxLines = 2,
                                 overflow = TextOverflow.Ellipsis,
                             )
-                            MiuixVerticalDivider(modifier = Modifier.height(54.dp))
+                            MiuixVerticalDivider(modifier = Modifier.height(36.dp))
                             Box(modifier = Modifier.width(94.dp), contentAlignment = Alignment.Center) {
                                 ReviewEntryStatusBadge(entry)
                             }
