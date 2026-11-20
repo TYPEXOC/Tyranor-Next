@@ -1255,7 +1255,7 @@ private fun TranslationReviewEntryDetailPane(
                 Text(stringResource(R.string.translation_review_translation), style = MaterialTheme.typography.labelMedium)
                 Box(
                     modifier = Modifier.fillMaxWidth().clip(AppComponentShape)
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.58f)),
+                        .background(MiuixTheme.colorScheme.secondaryContainer),
                 ) {
                     MiuixTextField(
                         value = translationText,
