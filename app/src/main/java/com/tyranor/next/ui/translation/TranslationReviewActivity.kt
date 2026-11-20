@@ -75,6 +75,7 @@ import com.tyranor.next.theme.DialogItemSurface
 import com.tyranor.next.theme.MiuixSettingsTheme
 import com.tyranor.next.theme.PageSecondaryTextColor
 import com.tyranor.next.theme.PageTextColor
+import com.tyranor.next.theme.TextColor
 import com.tyranor.next.ui.common.AppAlertDialog
 import com.tyranor.next.ui.common.AppScreenActivity
 import com.tyranor.next.ui.common.AppSecondaryTopBar
@@ -90,6 +91,7 @@ import java.util.concurrent.CancellationException
 import kotlinx.coroutines.launch
 import com.tyranor.next.theme.glassBorder
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
+import top.yukonga.miuix.kmp.basic.CardDefaults as MiuixCardDefaults
 import top.yukonga.miuix.kmp.basic.FabPosition
 import top.yukonga.miuix.kmp.basic.FloatingActionButton as MiuixFloatingActionButton
 import top.yukonga.miuix.kmp.basic.HorizontalDivider as MiuixHorizontalDivider
@@ -801,11 +803,15 @@ private fun ReviewEntryTable(
     MiuixCard(
         modifier = modifier.glassBorder(),
         cornerRadius = AppComponentCornerRadius,
+        colors = MiuixCardDefaults.defaultColors(
+            color = DialogItemSurface,
+            contentColor = TextColor,
+        ),
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             Row(
                 modifier = Modifier.fillMaxWidth()
-                    .background(DialogItemSurface)
+                    .background(MiuixTheme.colorScheme.surfaceContainer)
                     .padding(horizontal = 10.dp, vertical = 5.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -1020,112 +1026,114 @@ private fun TranslationReviewEntryDetailPane(
     onConfirm: () -> Unit,
     onIssueState: (TranslationReviewIssue, Boolean) -> Unit,
 ) {
-    Column(
-        modifier = modifier.verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+    MiuixCard(
+        modifier = modifier.verticalScroll(rememberScrollState()).glassBorder(),
+        cornerRadius = AppComponentCornerRadius,
+        colors = MiuixCardDefaults.defaultColors(
+            color = DialogItemSurface,
+            contentColor = TextColor,
+        ),
     ) {
-        MiuixCard(modifier = Modifier.fillMaxWidth().glassBorder(), cornerRadius = AppComponentCornerRadius) {
-            Column(
-                Modifier.fillMaxWidth().padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+        Column(
+            Modifier.fillMaxWidth().padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
+                Text(
+                    stringResource(R.string.translation_review_entry_position, sequence, totalCount),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = PageSecondaryTextColor,
+                )
+                ReviewEntryStatusBadge(entry)
+            }
+            Text(entry.sourceKey, style = MaterialTheme.typography.labelSmall, color = PageSecondaryTextColor)
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(stringResource(R.string.translation_review_source), style = MaterialTheme.typography.labelMedium)
+                Box(
+                    modifier = Modifier.fillMaxWidth().clip(AppComponentShape)
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.58f))
+                        .padding(14.dp),
+                ) {
+                    Text(entry.sourceText, style = MaterialTheme.typography.bodyMedium, color = PageTextColor)
+                }
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(stringResource(R.string.translation_review_translation), style = MaterialTheme.typography.labelMedium)
+                MiuixTextField(
+                    value = translationText,
+                    onValueChange = onTranslationTextChange,
+                    modifier = Modifier.fillMaxWidth().height(editorHeight),
+                    minLines = 5,
+                    maxLines = 10,
+                    enabled = enabled,
+                    label = stringResource(R.string.translation_review_translation),
+                )
+            }
+            entry.suggestedTranslation?.let { suggestion ->
+                Column(
+                    modifier = Modifier.fillMaxWidth().clip(AppComponentShape)
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
+                        .padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Text(
-                        stringResource(R.string.translation_review_entry_position, sequence, totalCount),
+                        stringResource(R.string.translation_review_suggestion),
                         style = MaterialTheme.typography.labelMedium,
-                        color = PageSecondaryTextColor,
+                        color = MaterialTheme.colorScheme.primary,
                     )
-                    ReviewEntryStatusBadge(entry)
-                }
-                Text(entry.sourceKey, style = MaterialTheme.typography.labelSmall, color = PageSecondaryTextColor)
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(stringResource(R.string.translation_review_source), style = MaterialTheme.typography.labelMedium)
-                    Box(
-                        modifier = Modifier.fillMaxWidth().clip(AppComponentShape)
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.58f))
-                            .padding(14.dp),
-                    ) {
-                        Text(entry.sourceText, style = MaterialTheme.typography.bodyMedium, color = PageTextColor)
-                    }
-                }
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(stringResource(R.string.translation_review_translation), style = MaterialTheme.typography.labelMedium)
-                    MiuixTextField(
-                        value = translationText,
-                        onValueChange = onTranslationTextChange,
-                        modifier = Modifier.fillMaxWidth().height(editorHeight),
-                        minLines = 5,
-                        maxLines = 10,
-                        enabled = enabled,
-                        label = stringResource(R.string.translation_review_translation),
-                    )
-                }
-                entry.suggestedTranslation?.let { suggestion ->
-                    Column(
-                        modifier = Modifier.fillMaxWidth().clip(AppComponentShape)
-                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
-                            .padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Text(
-                            stringResource(R.string.translation_review_suggestion),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                        Text(suggestion, style = MaterialTheme.typography.bodyMedium)
-                        NoRippleButton(
-                            text = stringResource(R.string.translation_review_apply_suggestion),
-                            enabled = enabled && entry.suggestionId != null,
-                            tonal = true,
-                            onClick = { entry.suggestionId?.let(onApplySuggestion) },
-                        )
-                    }
-                }
-                entry.issues.filter { it.state == "OPEN" }.forEach { issue ->
-                    Column(
-                        modifier = Modifier.fillMaxWidth().clip(AppComponentShape)
-                            .background(MaterialTheme.colorScheme.error.copy(alpha = 0.08f))
-                            .padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        Text(
-                            stringResource(issue.code.labelResource()),
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            NoRippleTextButton(
-                                text = stringResource(R.string.translation_review_resolve_issue),
-                                enabled = enabled,
-                                onClick = { onIssueState(issue, false) },
-                            )
-                            NoRippleTextButton(
-                                text = stringResource(R.string.translation_review_ignore_issue),
-                                enabled = enabled,
-                                onClick = { onIssueState(issue, true) },
-                            )
-                        }
-                    }
-                }
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(suggestion, style = MaterialTheme.typography.bodyMedium)
                     NoRippleButton(
-                        text = stringResource(R.string.translation_review_save_translation),
-                        enabled = enabled,
-                        onClick = onSave,
-                    )
-                    NoRippleTextButton(
-                        text = stringResource(
-                            if (entry.reviewState == TranslationReviewState.CONFIRMED) R.string.translation_review_confirmed
-                            else R.string.translation_review_confirm,
-                        ),
-                        enabled = enabled && !translationText.isBlank() && entry.reviewState != TranslationReviewState.CONFIRMED,
-                        onClick = onConfirm,
+                        text = stringResource(R.string.translation_review_apply_suggestion),
+                        enabled = enabled && entry.suggestionId != null,
+                        tonal = true,
+                        onClick = { entry.suggestionId?.let(onApplySuggestion) },
                     )
                 }
+            }
+            entry.issues.filter { it.state == "OPEN" }.forEach { issue ->
+                Column(
+                    modifier = Modifier.fillMaxWidth().clip(AppComponentShape)
+                        .background(MaterialTheme.colorScheme.error.copy(alpha = 0.08f))
+                        .padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text(
+                        stringResource(issue.code.labelResource()),
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        NoRippleTextButton(
+                            text = stringResource(R.string.translation_review_resolve_issue),
+                            enabled = enabled,
+                            onClick = { onIssueState(issue, false) },
+                        )
+                        NoRippleTextButton(
+                            text = stringResource(R.string.translation_review_ignore_issue),
+                            enabled = enabled,
+                            onClick = { onIssueState(issue, true) },
+                        )
+                    }
+                }
+            }
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                NoRippleButton(
+                    text = stringResource(R.string.translation_review_save_translation),
+                    enabled = enabled,
+                    onClick = onSave,
+                )
+                NoRippleTextButton(
+                    text = stringResource(
+                        if (entry.reviewState == TranslationReviewState.CONFIRMED) R.string.translation_review_confirmed
+                        else R.string.translation_review_confirm,
+                    ),
+                    enabled = enabled && !translationText.isBlank() && entry.reviewState != TranslationReviewState.CONFIRMED,
+                    onClick = onConfirm,
+                )
             }
         }
     }
