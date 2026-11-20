@@ -1705,7 +1705,7 @@
     <string name="engine_settings_systemnnn_layout_ext_none">None</string>
     <string name="engine_settings_systemnnn_layout_ext_unknown">Analysis failed</string>
     <string name="engine_settings_systemnnn_layout_ext_hint">Games requiring EXT blocks need a resolved starting code to launch. Use the button below to analyze and regenerate the configuration.</string>
-    <string name="translation_review_open">Open review</string>
+    <string name="translation_review_open">View review</string>
     <string name="translation_start_manual_review">Start review</string>
     <string name="translation_review_error_title">Review action failed</string>
     <string name="translation_review_title">Manual review</string>
@@ -1729,6 +1729,7 @@
     <string name="translation_review_filter_pending">Needs review</string>
     <string name="translation_review_filter_issues">Issues</string>
     <string name="translation_review_filter_button">Filter · %1$s</string>
+    <string name="translation_review_search">Search source or translation</string>
     <string name="translation_review_filter_dialog_title">Filter entries</string>
     <string name="translation_review_column_sequence">No.</string>
     <string name="translation_review_column_status">Status</string>
@@ -1749,7 +1750,7 @@
     <string name="translation_review_complete_round">Complete this review round</string>
     <string name="translation_review_completed">This review round is complete</string>
     <string name="translation_review_no_entries">This project has no extracted or imported text yet.</string>
-    <string name="translation_review_no_matches">No entries match this filter.</string>
+    <string name="translation_review_no_matches">No entries match the current criteria.</string>
     <string name="translation_review_rule_hits_empty">No rule matched entries. You can choose all translated entries instead.</string>
     <string name="translation_review_issue_missing_translation">Missing translation</string>
     <string name="translation_review_issue_placeholder_mismatch">Control code or placeholder mismatch</string>

@@ -1705,7 +1705,7 @@
     <string name="save_systemnnn_clear_resources">清理导入的游戏资源</string>
     <string name="save_systemnnn_clear_resources_message">清理应用内副本的游戏资源可以释放空间，原游戏目录和副本中的全部存档都会保留。下次启动时需要从原目录重新导入资源。</string>
     <string name="save_systemnnn_clear_resources_done">已清理导入的游戏资源</string>
-    <string name="translation_review_open">打开校对</string>
+    <string name="translation_review_open">查看校对</string>
     <string name="translation_start_manual_review">开始校对</string>
     <string name="translation_review_error_title">校对操作失败</string>
     <string name="translation_review_title">人工校对</string>
@@ -1729,6 +1729,7 @@
     <string name="translation_review_filter_pending">待确认</string>
     <string name="translation_review_filter_issues">有问题</string>
     <string name="translation_review_filter_button">筛选 · %1$s</string>
+    <string name="translation_review_search">搜索原文或译文</string>
     <string name="translation_review_filter_dialog_title">筛选条目</string>
     <string name="translation_review_column_sequence">序号</string>
     <string name="translation_review_column_status">状态</string>
@@ -1749,7 +1750,7 @@
     <string name="translation_review_complete_round">完成本轮校对</string>
     <string name="translation_review_completed">本轮校对已完成</string>
     <string name="translation_review_no_entries">项目还没有提取或导入文本。</string>
-    <string name="translation_review_no_matches">当前筛选没有条目。</string>
+    <string name="translation_review_no_matches">当前条件下没有条目。</string>
     <string name="translation_review_rule_hits_empty">没有规则命中条目。可改选全部已翻译条目。</string>
     <string name="translation_review_issue_missing_translation">缺少译文</string>
     <string name="translation_review_issue_placeholder_mismatch">控制码或占位符与原文不一致</string>

@@ -1705,7 +1705,7 @@
     <string name="engine_settings_systemnnn_layout_ext_none">なし</string>
     <string name="engine_settings_systemnnn_layout_ext_unknown">解析失敗</string>
     <string name="engine_settings_systemnnn_layout_ext_hint">EXT が必要なゲームは開始番号を確定するまで起動できません。下のボタンで解析し、設定を再生成してください。</string>
-    <string name="translation_review_open">校正を開く</string>
+    <string name="translation_review_open">校正を見る</string>
     <string name="translation_start_manual_review">校正を開始</string>
     <string name="translation_review_error_title">校正操作に失敗しました</string>
     <string name="translation_review_title">手動校正</string>
@@ -1729,6 +1729,7 @@
     <string name="translation_review_filter_pending">確認待ち</string>
     <string name="translation_review_filter_issues">問題あり</string>
     <string name="translation_review_filter_button">絞り込み · %1$s</string>
+    <string name="translation_review_search">原文または訳文を検索</string>
     <string name="translation_review_filter_dialog_title">項目を絞り込む</string>
     <string name="translation_review_column_sequence">番号</string>
     <string name="translation_review_column_status">状態</string>
@@ -1749,7 +1750,7 @@
     <string name="translation_review_complete_round">今回の校正を完了</string>
     <string name="translation_review_completed">今回の校正は完了しました</string>
     <string name="translation_review_no_entries">このプロジェクトには抽出またはインポートされたテキストがありません。</string>
-    <string name="translation_review_no_matches">このフィルターに一致する項目はありません。</string>
+    <string name="translation_review_no_matches">現在の条件に一致する項目はありません。</string>
     <string name="translation_review_rule_hits_empty">ルールに一致した項目はありません。翻訳済みのすべての項目を選択できます。</string>
     <string name="translation_review_issue_missing_translation">訳文なし</string>
     <string name="translation_review_issue_placeholder_mismatch">制御コードまたはプレースホルダーが原文と異なります</string>

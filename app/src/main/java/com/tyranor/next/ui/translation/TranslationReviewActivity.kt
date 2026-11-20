@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
@@ -32,7 +31,9 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -49,6 +50,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -87,6 +92,7 @@ import com.tyranor.next.ui.common.NoRippleButton
 import com.tyranor.next.ui.common.NoRippleTextButton
 import com.tyranor.next.ui.common.isTabletScreen
 import com.tyranor.next.ui.common.motion.BlurCrossfade
+import com.tyranor.next.ui.common.motion.PageTransitions
 import com.tyranor.next.ui.common.motion.listItemMotion
 import com.tyranor.next.ui.common.motion.pressSquish
 import com.tyranor.next.ui.common.motion.pressSquishGroup
@@ -148,6 +154,7 @@ private fun TranslationReviewScreen(projectId: String, openProofreadSetup: Boole
 
     var sourceLocation by remember(projectId) { mutableStateOf("") }
     var filter by remember { mutableStateOf(ReviewFilter.ALL) }
+    var searchQuery by remember(projectId) { mutableStateOf("") }
     var selectedEntryId by remember { mutableStateOf<String?>(null) }
     var editorText by remember { mutableStateOf("") }
     var showProofreadDialog by remember(projectId) { mutableStateOf(openProofreadSetup) }
@@ -205,14 +212,26 @@ private fun TranslationReviewScreen(projectId: String, openProofreadSetup: Boole
         }
     }
 
+    fun completeReviewRoundAndReturn() {
+        runOperation {
+            repository.completeReviewRound(projectId)
+            PageTransitions.findActivity(context)?.finish()
+        }
+    }
+
     val active = project?.latestTaskState in setOf("QUEUED", "RUNNING")
     val proofreadTask = project?.latestTaskType == "AI_PROOFREAD"
+    val normalizedSearchQuery = searchQuery.trim()
     val filteredEntries = entries.filter { entry ->
-        when (filter) {
+        val matchesFilter = when (filter) {
             ReviewFilter.ALL -> true
             ReviewFilter.PENDING -> entry.reviewState != TranslationReviewState.CONFIRMED
             ReviewFilter.ISSUES -> entry.issues.any { it.state == "OPEN" }
         }
+        val matchesSearch = normalizedSearchQuery.isBlank() ||
+            entry.sourceText.contains(normalizedSearchQuery, ignoreCase = true) ||
+            entry.translatedText.orEmpty().contains(normalizedSearchQuery, ignoreCase = true)
+        matchesFilter && matchesSearch
     }
     val tabletLayout = isTabletScreen()
     val filteredSelection = filteredEntries.firstOrNull { it.id == selectedEntryId }
@@ -239,7 +258,7 @@ private fun TranslationReviewScreen(projectId: String, openProofreadSetup: Boole
             floatingActionButton = {
                 if (tabletLayout && !active && entries.isNotEmpty()) {
                     ReviewCompleteFloatingActionButton {
-                        runOperation { repository.completeReviewRound(projectId) }
+                        completeReviewRoundAndReturn()
                     }
                 }
             },
@@ -333,6 +352,13 @@ private fun TranslationReviewScreen(projectId: String, openProofreadSetup: Boole
                                         text = stringResource(R.string.translation_review_workspace_title),
                                         style = MiuixTheme.textStyles.headline1.copy(fontWeight = FontWeight.Bold),
                                         modifier = Modifier.weight(1f),
+                                    )
+                                    MiuixTextField(
+                                        value = searchQuery,
+                                        onValueChange = { searchQuery = it },
+                                        modifier = Modifier.widthIn(min = 160.dp, max = 240.dp),
+                                        singleLine = true,
+                                        label = stringResource(R.string.translation_review_search),
                                     )
                                     ReviewFilterTrigger(
                                         filter = filter,
@@ -479,7 +505,18 @@ private fun TranslationReviewScreen(projectId: String, openProofreadSetup: Boole
                                 }
                             }
                             item(key = "review-filters") {
-                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    MiuixTextField(
+                                        value = searchQuery,
+                                        onValueChange = { searchQuery = it },
+                                        modifier = Modifier.weight(1f),
+                                        singleLine = true,
+                                        label = stringResource(R.string.translation_review_search),
+                                    )
                                     ReviewFilterTrigger(
                                         filter = filter,
                                         onClick = {
@@ -516,7 +553,7 @@ private fun TranslationReviewScreen(projectId: String, openProofreadSetup: Boole
                                     NoRippleButton(
                                         text = stringResource(R.string.translation_review_complete_round),
                                         enabled = !active && entries.isNotEmpty(),
-                                        onClick = { runOperation { repository.completeReviewRound(projectId) } },
+                                        onClick = { completeReviewRoundAndReturn() },
                                     )
                                 }
                             }
@@ -804,6 +841,7 @@ private fun ReviewEntryTable(
 ) {
     val sequenceById = remember(allEntries) { allEntries.mapIndexed { index, entry -> entry.id to index + 1 }.toMap() }
     val panelBorder = translationReviewPanelBorderColor()
+    val listState = rememberLazyListState()
     MiuixCard(
         modifier = modifier.border(1.dp, panelBorder, AppComponentShape).glassBorder(),
         cornerRadius = AppComponentCornerRadius,
@@ -867,7 +905,12 @@ private fun ReviewEntryTable(
                     )
                 }
             } else {
-                LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.weight(1f).fillMaxWidth().translationReviewScrollbar(listState),
+                    contentPadding = PaddingValues(0.dp),
+                    verticalArrangement = Arrangement.Top,
+                ) {
                     itemsIndexed(entries, key = { _, entry -> entry.id }) { index, entry ->
                         val selected = entry.id == selectedEntryId
                         Row(
@@ -878,8 +921,8 @@ private fun ReviewEntryTable(
                                     else Color.Transparent,
                                 )
                                 .clickable { onSelect(entry) }
-                                .padding(horizontal = 10.dp, vertical = 4.dp)
-                                .height(IntrinsicSize.Min),
+                                .heightIn(min = 36.dp)
+                                .padding(horizontal = 10.dp, vertical = 4.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
@@ -889,25 +932,21 @@ private fun ReviewEntryTable(
                                 color = PageSecondaryTextColor,
                                 textAlign = TextAlign.Center,
                             )
-                            MiuixVerticalDivider(modifier = Modifier.fillMaxHeight())
+                            MiuixVerticalDivider(modifier = Modifier.height(24.dp))
                             Text(
                                 entry.sourceText,
                                 modifier = Modifier.weight(1f).padding(horizontal = 10.dp),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = PageTextColor,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
                             )
-                            MiuixVerticalDivider(modifier = Modifier.fillMaxHeight())
+                            MiuixVerticalDivider(modifier = Modifier.height(24.dp))
                             Text(
                                 entry.translatedText.orEmpty().ifBlank { stringResource(R.string.translation_review_no_translation) },
                                 modifier = Modifier.weight(1f).padding(horizontal = 10.dp),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = if (entry.translatedText.isNullOrBlank()) PageSecondaryTextColor else PageTextColor,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
                             )
-                            MiuixVerticalDivider(modifier = Modifier.fillMaxHeight())
+                            MiuixVerticalDivider(modifier = Modifier.height(24.dp))
                             Box(modifier = Modifier.width(94.dp), contentAlignment = Alignment.Center) {
                                 ReviewEntryStatusBadge(entry)
                             }
@@ -920,6 +959,40 @@ private fun ReviewEntryTable(
             }
         }
     }
+}
+
+private fun Modifier.translationReviewScrollbar(state: LazyListState): Modifier = drawWithContent {
+    drawContent()
+    val layoutInfo = state.layoutInfo
+    val visibleItems = layoutInfo.visibleItemsInfo
+    val totalItems = layoutInfo.totalItemsCount
+    val viewportHeight = size.height
+    if (totalItems <= visibleItems.size || visibleItems.isEmpty() || viewportHeight <= 0f) return@drawWithContent
+
+    val averageItemHeight = visibleItems.map { it.size.toFloat() }.average().toFloat().coerceAtLeast(1f)
+    val estimatedContentHeight = averageItemHeight * totalItems
+    val minimumThumbHeight = minOf(24.dp.toPx(), viewportHeight)
+    val thumbHeight = (viewportHeight * viewportHeight / estimatedContentHeight)
+        .coerceIn(minimumThumbHeight, viewportHeight)
+    val scrollFraction = (
+        (state.firstVisibleItemIndex + state.firstVisibleItemScrollOffset / averageItemHeight) / totalItems.toFloat()
+        ).coerceIn(0f, 1f)
+    val thumbTop = (viewportHeight - thumbHeight) * scrollFraction
+    val thumbWidth = 3.dp.toPx()
+    val trackLeft = size.width - thumbWidth
+
+    drawRoundRect(
+        color = PageSecondaryTextColor.copy(alpha = 0.12f),
+        topLeft = Offset(trackLeft, 0f),
+        size = Size(thumbWidth, viewportHeight),
+        cornerRadius = CornerRadius(thumbWidth / 2f),
+    )
+    drawRoundRect(
+        color = PageSecondaryTextColor.copy(alpha = 0.52f),
+        topLeft = Offset(trackLeft, thumbTop),
+        size = Size(thumbWidth, thumbHeight),
+        cornerRadius = CornerRadius(thumbWidth / 2f),
+    )
 }
 
 @Composable
