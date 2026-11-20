@@ -54,26 +54,7 @@ class TranslationServiceClient(
                 ),
             )
             val protocolAdapter = adapter(testProfile)
-            if (draft.modelId.isBlank()) {
-                TranslationConnectionTestResult.ModelListAvailable(
-                    protocolAdapter.listModels(testProfile, apiKey).size,
-                )
-            } else {
-                val testEntryId = "tyn-connection-test"
-                val result = protocolAdapter.translateBatch(
-                    profile = testProfile,
-                    apiKey = apiKey,
-                    sourceLanguage = "en",
-                    targetLanguage = "zh-Hans",
-                    inputs = listOf(TranslationInput(testEntryId, "Hello", "en", "zh-Hans")),
-                )
-                if (result.successes.singleOrNull()?.entryId != testEntryId ||
-                    result.itemFailures.isNotEmpty() || result.unknownResponseIds.isNotEmpty()
-                ) {
-                    throw TranslationServiceException(TranslationServiceErrorCode.INVALID_RESPONSE)
-                }
-                TranslationConnectionTestResult.TranslationVerified
-            }
+            TranslationConnectionTestPolicy.verifyTranslation(protocolAdapter, testProfile, apiKey)
         }
     }
 
@@ -181,7 +162,6 @@ class TranslationServiceClient(
 }
 
 sealed interface TranslationConnectionTestResult {
-    data class ModelListAvailable(val modelCount: Int) : TranslationConnectionTestResult
     data object TranslationVerified : TranslationConnectionTestResult
 }
 

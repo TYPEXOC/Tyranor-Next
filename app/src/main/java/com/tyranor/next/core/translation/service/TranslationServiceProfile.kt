@@ -172,6 +172,7 @@ enum class TranslationServiceErrorCode {
     QUOTA_EXCEEDED,
     SERVER_ERROR,
     MODEL_LIST_UNAVAILABLE,
+    MODEL_REQUIRED,
     MODEL_NOT_FOUND,
     REQUEST_REJECTED,
     RESPONSE_TOO_LARGE,
@@ -183,6 +184,7 @@ class TranslationServiceException(
     val code: TranslationServiceErrorCode,
     cause: Throwable? = null,
     val retryAfterMillis: Long? = null,
+    val httpStatusCode: Int? = null,
 ) : Exception(code.name, cause)
 
 sealed interface TranslationSecretResult {

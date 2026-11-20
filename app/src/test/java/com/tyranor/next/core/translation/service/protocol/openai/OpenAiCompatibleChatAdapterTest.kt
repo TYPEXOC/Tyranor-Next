@@ -149,6 +149,29 @@ class OpenAiCompatibleChatAdapterTest {
     }
 
     @Test
+    fun translationHttpFailurePreservesStatusCodeForConnectionTestFeedback() {
+        val callFactory = SingleCallFactory(
+            responseBody = """{"error":{"message":"rate limited","type":"rate_limit_error"}}""",
+            responseCode = 429,
+        )
+        val failure = assertThrows(TranslationServiceException::class.java) {
+            runBlocking {
+                OpenAiCompatibleChatAdapter(TranslationHttpTransport(callFactory)).translateBatch(
+                    profile(),
+                    apiKey = "test-api-key",
+                    sourceLanguage = "en",
+                    targetLanguage = "zh-Hans",
+                    inputs = listOf(TranslationInput("test", "Hello", "en", "zh-Hans")),
+                )
+            }
+        }
+
+        assertEquals(TranslationServiceErrorCode.RATE_LIMITED, failure.code)
+        assertEquals(429, failure.httpStatusCode)
+        assertEquals(1, callFactory.requests.size)
+    }
+
+    @Test
     fun sendsOptionalGenerationOptionsAndSeparateUserPrompt() = runBlocking {
         val response = """{"choices":[{"message":{"content":"{\"results\":[{\"id\":\"entry\",\"translation\":\"勇者\"}]}"}}]}"""
         val callFactory = SingleCallFactory(response)

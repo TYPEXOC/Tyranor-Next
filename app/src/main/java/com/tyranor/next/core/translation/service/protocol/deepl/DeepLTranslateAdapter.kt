@@ -160,7 +160,7 @@ internal class DeepLTranslateAdapter(
             statusCode in 500..599 -> TranslationServiceErrorCode.SERVER_ERROR
             else -> TranslationServiceErrorCode.REQUEST_REJECTED
         }
-        throw TranslationServiceException(code, retryAfterMillis = retryAfterMillis)
+        throw TranslationServiceException(code, retryAfterMillis = retryAfterMillis, httpStatusCode = statusCode)
     }
 
     private fun toApiLanguage(value: String): String {

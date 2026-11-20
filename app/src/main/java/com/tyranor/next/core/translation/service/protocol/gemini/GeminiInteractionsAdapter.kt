@@ -294,7 +294,7 @@ internal class GeminiInteractionsAdapter(
             statusCode in 500..599 -> TranslationServiceErrorCode.SERVER_ERROR
             else -> TranslationServiceErrorCode.REQUEST_REJECTED
         }
-        throw TranslationServiceException(code, retryAfterMillis = retryAfterMillis)
+        throw TranslationServiceException(code, retryAfterMillis = retryAfterMillis, httpStatusCode = statusCode)
     }
 
     companion object {

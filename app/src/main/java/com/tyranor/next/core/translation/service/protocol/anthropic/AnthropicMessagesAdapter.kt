@@ -248,7 +248,7 @@ internal class AnthropicMessagesAdapter(
             statusCode == 529 || statusCode in 500..599 -> TranslationServiceErrorCode.SERVER_ERROR
             else -> TranslationServiceErrorCode.REQUEST_REJECTED
         }
-        throw TranslationServiceException(code, retryAfterMillis = retryAfterMillis)
+        throw TranslationServiceException(code, retryAfterMillis = retryAfterMillis, httpStatusCode = statusCode)
     }
 
     private fun invalidConfiguration(): Nothing =

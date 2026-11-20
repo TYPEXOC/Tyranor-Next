@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.widthIn
@@ -141,9 +142,10 @@ private fun TranslationServicesScreen() {
     var connectionTestJob by remember { mutableStateOf<Job?>(null) }
     var fetchedModels by remember { mutableStateOf<List<TranslationModelInfo>>(emptyList()) }
     var modelSearch by remember { mutableStateOf("") }
-    var showFetchedModels by remember { mutableStateOf(false) }
+    var showModelPicker by remember { mutableStateOf(false) }
     var modelFetchError by remember { mutableStateOf<TranslationServiceErrorCode?>(null) }
     var connectionTestError by remember { mutableStateOf<TranslationServiceErrorCode?>(null) }
+    var connectionTestHttpStatusCode by remember { mutableStateOf<Int?>(null) }
     var connectionTestResult by remember { mutableStateOf<TranslationConnectionTestResult?>(null) }
     var modelListEmpty by remember { mutableStateOf(false) }
 
@@ -157,15 +159,24 @@ private fun TranslationServicesScreen() {
     fun startEditorSession() {
         cancelConnectionTest()
         editorSessionId += 1L
+        fetchedModels = emptyList()
+        modelSearch = ""
+        showModelPicker = false
+        connectionTestError = null
+        connectionTestHttpStatusCode = null
+        connectionTestResult = null
+        modelFetchError = null
+        modelListEmpty = false
     }
 
     fun beginEditingAiTemplate(template: AiServiceTemplate, displayName: String) {
         startEditorSession()
         fetchedModels = emptyList()
         modelSearch = ""
-        showFetchedModels = false
+        showModelPicker = false
         modelFetchError = null
         connectionTestError = null
+        connectionTestHttpStatusCode = null
         connectionTestResult = null
         modelListEmpty = false
         advancedSettingsEditor = null
@@ -191,8 +202,48 @@ private fun TranslationServicesScreen() {
         errorCode = null
         modelFetchError = null
         connectionTestError = null
+        connectionTestHttpStatusCode = null
         connectionTestResult = null
         modelListEmpty = false
+    }
+
+    fun updateMachineConnection(updated: ServiceEditor) {
+        cancelConnectionTest()
+        editor = updated
+        errorCode = null
+        connectionTestError = null
+        connectionTestHttpStatusCode = null
+        connectionTestResult = null
+    }
+
+    fun startConnectionTest(state: ServiceEditor) {
+        cancelConnectionTest()
+        val requestId = connectionTestRequestId
+        val sessionId = editorSessionId
+        testingConnectionSessionId = sessionId
+        connectionTestError = null
+        connectionTestHttpStatusCode = null
+        connectionTestResult = null
+        connectionTestJob = scope.launch {
+            try {
+                val result = client.testConnection(state.toDraft())
+                if (connectionTestRequestId == requestId && editorSessionId == sessionId) {
+                    connectionTestResult = result
+                }
+            } catch (failure: Throwable) {
+                if (failure is CancellationException) throw failure
+                if (connectionTestRequestId == requestId && editorSessionId == sessionId) {
+                    val serviceFailure = failure as? TranslationServiceException
+                    connectionTestError = serviceFailure?.code ?: TranslationServiceErrorCode.NETWORK_UNAVAILABLE
+                    connectionTestHttpStatusCode = serviceFailure?.httpStatusCode
+                }
+            } finally {
+                if (connectionTestRequestId == requestId) {
+                    testingConnectionSessionId = null
+                    connectionTestJob = null
+                }
+            }
+        }
     }
 
     val matchedProfileIds = mutableSetOf<String>()
@@ -292,7 +343,7 @@ private fun TranslationServicesScreen() {
             startEditorSession()
             fetchedModels = emptyList()
             modelSearch = ""
-            showFetchedModels = false
+            showModelPicker = false
             modelFetchError = null
             connectionTestError = null
             connectionTestResult = null
@@ -502,7 +553,7 @@ private fun TranslationServicesScreen() {
                                                     )
                                                     fetchedModels = emptyList()
                                                     modelSearch = ""
-                                                    showFetchedModels = false
+                                                    showModelPicker = false
                                                 }
                                             },
                                         )
@@ -575,7 +626,8 @@ private fun TranslationServicesScreen() {
                                                         try {
                                                             fetchedModels = client.listModels(state.toDraft())
                                                             modelListEmpty = fetchedModels.isEmpty()
-                                                            showFetchedModels = fetchedModels.isNotEmpty()
+                                                            modelSearch = ""
+                                                            showModelPicker = fetchedModels.isNotEmpty()
                                                         } catch (failure: Throwable) {
                                                             if (failure is CancellationException) throw failure
                                                             modelFetchError = (failure as? TranslationServiceException)?.code
@@ -593,14 +645,12 @@ private fun TranslationServicesScreen() {
                                     val connectionStatusText = when {
                                         errorCode != null ->
                                             stringResource(errorCode!!.messageResource())
-                                        connectionTestError != null -> stringResource(connectionTestError!!.messageResource())
+                                        connectionTestError != null -> stringResource(connectionTestError!!.messageResource()) +
+                                            connectionTestHttpStatusCode?.let {
+                                                stringResource(R.string.translation_services_http_status_code, it)
+                                            }.orEmpty()
                                         modelFetchError != null -> stringResource(modelFetchError!!.messageResource())
                                         modelListEmpty -> stringResource(R.string.translation_services_no_models)
-                                        connectionTestResult is TranslationConnectionTestResult.ModelListAvailable -> {
-                                            val count = (connectionTestResult as TranslationConnectionTestResult.ModelListAvailable).modelCount
-                                            if (count == 0) stringResource(R.string.translation_services_test_models_empty)
-                                            else stringResource(R.string.translation_services_test_models_success, count)
-                                        }
                                         connectionTestResult == TranslationConnectionTestResult.TranslationVerified ->
                                             stringResource(R.string.translation_services_test_translation_success)
                                         else -> stringResource(R.string.translation_services_manual_model_hint)
@@ -609,35 +659,13 @@ private fun TranslationServicesScreen() {
                                         modelFetchError != null
                                     Text(
                                         connectionStatusText,
-                                        modifier = Modifier.fillMaxWidth().height(40.dp),
+                                        modifier = Modifier.fillMaxWidth().heightIn(min = 20.dp, max = 40.dp),
                                         color = if (connectionStatusIsError) MaterialTheme.colorScheme.error
                                         else PageSecondaryTextColor,
                                         style = MaterialTheme.typography.bodySmall,
                                         maxLines = 2,
                                         overflow = TextOverflow.Ellipsis,
                                     )
-                                    if (showFetchedModels) {
-                                        ServiceTextField(
-                                            value = modelSearch,
-                                            onValueChange = { modelSearch = it },
-                                            label = stringResource(R.string.translation_services_search_models),
-                                            singleLine = true,
-                                            modifier = Modifier.fillMaxWidth(),
-                                        )
-                                        fetchedModels.asSequence()
-                                            .filter { it.id.contains(modelSearch, ignoreCase = true) }
-                                            .take(30)
-                                            .forEach { model ->
-                                                ArrowPreference(
-                                                    title = model.id,
-                                                    summary = model.ownedBy,
-                                                    onClick = {
-                                                        updateAiConnection(state.copy(modelId = model.id))
-                                                        showFetchedModels = false
-                                                    },
-                                                )
-                                            }
-                                    }
                                     ServiceTextField(
                                         value = state.apiKey,
                                         onValueChange = { updateAiConnection(state.copy(apiKey = it, clearSecret = false)) },
@@ -697,33 +725,7 @@ private fun TranslationServicesScreen() {
                                         ),
                                         modifier = Modifier.fillMaxWidth(),
                                         enabled = !isTestingThisConnection && !isSaving,
-                                        onClick = {
-                                            cancelConnectionTest()
-                                            val requestId = connectionTestRequestId
-                                            val sessionId = editorSessionId
-                                            testingConnectionSessionId = sessionId
-                                            connectionTestError = null
-                                            connectionTestResult = null
-                                            connectionTestJob = scope.launch {
-                                                try {
-                                                    val result = client.testConnection(state.toDraft())
-                                                    if (connectionTestRequestId == requestId && editorSessionId == sessionId) {
-                                                        connectionTestResult = result
-                                                    }
-                                                } catch (failure: Throwable) {
-                                                    if (failure is CancellationException) throw failure
-                                                    if (connectionTestRequestId == requestId && editorSessionId == sessionId) {
-                                                        connectionTestError = (failure as? TranslationServiceException)?.code
-                                                            ?: TranslationServiceErrorCode.NETWORK_UNAVAILABLE
-                                                    }
-                                                } finally {
-                                                    if (connectionTestRequestId == requestId) {
-                                                        testingConnectionSessionId = null
-                                                        connectionTestJob = null
-                                                    }
-                                                }
-                                            }
-                                        },
+                                        onClick = { startConnectionTest(state) },
                                     )
                                 }
                             }
@@ -762,7 +764,7 @@ private fun TranslationServicesScreen() {
                             }
                             if (isMachineTranslation) {
                                 ServiceSectionCard(title = stringResource(R.string.translation_services_section_credentials)) {
-                                    MachineProviderCredentialsFields(state = state, onChange = { editor = it })
+                                    MachineProviderCredentialsFields(state = state, onChange = ::updateMachineConnection)
                                     Text(
                                         stringResource(state.protocolId.machineProtocolNote()),
                                         style = MaterialTheme.typography.bodySmall,
@@ -775,16 +777,45 @@ private fun TranslationServicesScreen() {
                                                 else R.string.translation_services_clear_key,
                                             ),
                                             onClick = {
-                                                editor = state.copy(
-                                                    clearSecret = !state.clearSecret,
-                                                    apiKey = "",
-                                                    credentialSecond = "",
-                                                    credentialRegion = "",
-                                                    credentialThird = "",
+                                                updateMachineConnection(
+                                                    state.copy(
+                                                        clearSecret = !state.clearSecret,
+                                                        apiKey = "",
+                                                        credentialSecond = "",
+                                                        credentialRegion = "",
+                                                        credentialThird = "",
+                                                    ),
                                                 )
                                             },
                                         )
                                     }
+                                    val machineTestStatus = when {
+                                        connectionTestError != null -> stringResource(connectionTestError!!.messageResource()) +
+                                            connectionTestHttpStatusCode?.let {
+                                                stringResource(R.string.translation_services_http_status_code, it)
+                                            }.orEmpty()
+                                        connectionTestResult == TranslationConnectionTestResult.TranslationVerified ->
+                                            stringResource(R.string.translation_services_test_translation_success)
+                                        else -> stringResource(R.string.translation_services_machine_test_connection_hint)
+                                    }
+                                    Text(
+                                        machineTestStatus,
+                                        modifier = Modifier.fillMaxWidth().heightIn(min = 20.dp, max = 40.dp),
+                                        color = if (connectionTestError != null) MaterialTheme.colorScheme.error
+                                        else PageSecondaryTextColor,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                    NoRippleButton(
+                                        text = stringResource(
+                                            if (isTestingThisConnection) R.string.translation_services_test_connection_loading
+                                            else R.string.translation_services_test_connection,
+                                        ),
+                                        modifier = Modifier.fillMaxWidth(),
+                                        enabled = !isTestingThisConnection && !isSaving,
+                                        onClick = { startConnectionTest(state) },
+                                    )
                                 }
                             }
                     NoRippleButton(
@@ -1516,6 +1547,63 @@ private fun TranslationServicesScreen() {
                 }
             }
         }
+    }
+
+    if (showModelPicker && editor?.protocolId?.category == TranslationServiceCategory.AI_TRANSLATION) {
+        val visibleModels = fetchedModels.filter { it.id.contains(modelSearch, ignoreCase = true) }
+        AppAlertDialog(
+            onDismissRequest = {
+                showModelPicker = false
+                modelSearch = ""
+            },
+            title = {
+                Text(
+                    stringResource(R.string.translation_services_select_model_title),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 200.dp, max = 420.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    ServiceTextField(
+                        value = modelSearch,
+                        onValueChange = { modelSearch = it },
+                        label = stringResource(R.string.translation_services_search_models),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    if (visibleModels.isEmpty()) {
+                        Text(
+                            stringResource(R.string.translation_services_model_filter_empty),
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                            color = PageSecondaryTextColor,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.weight(1f).fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(2.dp),
+                        ) {
+                            items(visibleModels, key = TranslationModelInfo::id) { model ->
+                                ArrowPreference(
+                                    title = model.id,
+                                    summary = model.ownedBy,
+                                    onClick = {
+                                        editor?.let { updateAiConnection(it.copy(modelId = model.id)) }
+                                        showModelPicker = false
+                                        modelSearch = ""
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            showButtonRow = false,
+        )
     }
 
     deleteProfile?.let { selected ->
@@ -2344,6 +2432,7 @@ private fun TranslationServiceErrorCode.messageResource(): Int = when (this) {
     TranslationServiceErrorCode.QUOTA_EXCEEDED -> R.string.translation_services_error_quota
     TranslationServiceErrorCode.SERVER_ERROR -> R.string.translation_services_error_server
     TranslationServiceErrorCode.MODEL_LIST_UNAVAILABLE -> R.string.translation_services_error_model_list
+    TranslationServiceErrorCode.MODEL_REQUIRED -> R.string.translation_services_error_model_required
     TranslationServiceErrorCode.MODEL_NOT_FOUND -> R.string.translation_services_error_model
     TranslationServiceErrorCode.REQUEST_REJECTED -> R.string.translation_services_error_request
     TranslationServiceErrorCode.RESPONSE_TOO_LARGE -> R.string.translation_services_error_response_large
