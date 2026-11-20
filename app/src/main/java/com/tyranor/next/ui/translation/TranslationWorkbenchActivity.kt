@@ -99,6 +99,7 @@ import com.tyranor.next.ui.common.rememberTabPagerState
 import com.tyranor.next.ui.common.MotionLinearProgressIndicator
 import com.tyranor.next.ui.common.isTabletScreen
 import com.tyranor.next.ui.common.glassNavBottomInset
+import com.tyranor.next.ui.common.motion.DelayedProgress
 import com.tyranor.next.ui.common.motion.listItemMotion
 import com.tyranor.next.ui.common.motion.MotionMode
 import kotlinx.coroutines.CancellationException
@@ -109,6 +110,7 @@ import kotlinx.coroutines.flow.flowOf
 import java.util.Date
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
 import top.yukonga.miuix.kmp.basic.CardDefaults as MiuixCardDefaults
+import top.yukonga.miuix.kmp.basic.CircularProgressIndicator as MiuixCircularProgressIndicator
 import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
 import top.yukonga.miuix.kmp.basic.TextField as MiuixTextField
 import androidx.compose.foundation.Image
@@ -151,7 +153,10 @@ private fun TranslationWorkbenchScreen() {
     val tabletLayout = isTabletScreen()
     val scope = rememberCoroutineScope()
     val repository = remember(appContext) { TranslationWorkbenchRepository(appContext) }
-    val projects by repository.observeProjects().collectAsStateWithLifecycle(initialValue = emptyList())
+    val observedProjects by repository.observeProjects()
+        .collectAsStateWithLifecycle<List<TranslationProjectCard>?>(initialValue = null)
+    val projects = observedProjects.orEmpty()
+    val projectsLoaded = observedProjects != null
     val enabledTranslationServices by remember(repository) {
         repository.observeEnabledTranslationServices()
     }.collectAsStateWithLifecycle(initialValue = emptyList())
@@ -478,7 +483,18 @@ private fun TranslationWorkbenchScreen() {
                                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                                     verticalArrangement = Arrangement.spacedBy(12.dp),
                                 ) {
-                                    if (projects.isEmpty()) {
+                                    if (!projectsLoaded) {
+                                        item(key = "loading", span = { GridItemSpan(maxLineSpan) }) {
+                                            Box(
+                                                modifier = Modifier.fillMaxWidth().height(72.dp),
+                                                contentAlignment = Alignment.Center,
+                                            ) {
+                                                DelayedProgress {
+                                                    MiuixCircularProgressIndicator()
+                                                }
+                                            }
+                                        }
+                                    } else if (projects.isEmpty()) {
                                         item(key = "empty", span = { GridItemSpan(maxLineSpan) }) {
                                             MiuixCard(
                                                 modifier = Modifier.fillMaxWidth().glassBorder(),
