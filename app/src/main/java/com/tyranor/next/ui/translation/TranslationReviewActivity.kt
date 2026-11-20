@@ -94,6 +94,7 @@ import top.yukonga.miuix.kmp.basic.FloatingActionButton as MiuixFloatingActionBu
 import top.yukonga.miuix.kmp.basic.HorizontalDivider as MiuixHorizontalDivider
 import top.yukonga.miuix.kmp.basic.Icon as MiuixIcon
 import top.yukonga.miuix.kmp.basic.RadioButton as MiuixRadioButton
+import top.yukonga.miuix.kmp.basic.Text as MiuixText
 import top.yukonga.miuix.kmp.basic.VerticalDivider as MiuixVerticalDivider
 import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
 import top.yukonga.miuix.kmp.basic.TextField as MiuixTextField
@@ -322,10 +323,9 @@ private fun TranslationReviewScreen(projectId: String, openProofreadSetup: Boole
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                 ) {
-                                    Text(
-                                        stringResource(R.string.translation_review_workspace_title),
-                                        style = MaterialTheme.typography.titleLarge,
-                                        fontWeight = FontWeight.Bold,
+                                    MiuixText(
+                                        text = stringResource(R.string.translation_review_workspace_title),
+                                        style = MiuixTheme.textStyles.headline1.copy(fontWeight = FontWeight.Bold),
                                         modifier = Modifier.weight(1f),
                                     )
                                     ReviewFilterTrigger(
