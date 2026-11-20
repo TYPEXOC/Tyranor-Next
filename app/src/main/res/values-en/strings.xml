@@ -188,11 +188,6 @@
     <string name="translation_services_user_prompt">User prompt</string>
     <string name="translation_services_user_prompt_hint">Added to the user message before the structured task data.</string>
     <string name="translation_services_prompt_restore_defaults">Restore defaults</string>
-    <string name="translation_services_max_output_tokens">Token limit</string>
-    <string name="translation_services_output_limit">Output limit</string>
-    <string name="translation_services_chat_token_limit_field">Token limit field</string>
-    <string name="translation_services_max_tokens_legacy">max_tokens</string>
-    <string name="translation_services_max_completion_tokens">max_completion_tokens</string>
     <string name="translation_services_thinking_level">Thinking level</string>
     <string name="translation_services_thinking_level_hint">Support varies by model; use the provider default if unsure.</string>
     <string name="translation_services_reasoning_settings">Thinking and reasoning</string>
@@ -210,6 +205,8 @@
     <string name="translation_services_structured_output_disabled">Disabled</string>
     <string name="translation_services_structured_output_json_object">JSON Object (standard JSON object)</string>
     <string name="translation_services_structured_output_json_schema">JSON Schema (validated structure)</string>
+    <string name="translation_services_echo_alignment">Translation echo check</string>
+    <string name="translation_services_echo_alignment_hint">AI translation only. Ask the model to echo each source and verify the match. Mismatched items fail and can be retried. Extra output uses more service quota.</string>
     <string name="translation_services_custom_parameters">Custom parameters</string>
     <string name="translation_services_custom_parameters_hint">Configure request headers and model parameters. Generation settings such as Temperature and Top P can also be set in the request body.</string>
     <string name="translation_services_custom_parameters_open">Configure parameters (headers %1$d · body %2$d)</string>

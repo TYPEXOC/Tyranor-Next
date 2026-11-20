@@ -676,7 +676,7 @@ class TranslationWorkbenchRepository(context: Context) {
                 targetLanguage = target,
                 prompt = service.proofreadingPrompt,
                 userPrompt = service.proofreadingUserPrompt,
-                generationOptions = service.generationOptions,
+                generationOptions = service.generationOptions.copy(echoAlignmentEnabled = false),
                 taskSettings = service.taskSettings,
                 customParametersRef = service.customParametersRef,
                 glossaryId = reusableGlossary?.id,

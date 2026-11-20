@@ -16,6 +16,7 @@ import com.tyranor.next.core.translation.service.TranslationServiceProfile
 import com.tyranor.next.core.translation.service.TranslationServiceRepository
 import com.tyranor.next.core.translation.service.addOpenAiResponsesFormat
 import com.tyranor.next.core.translation.service.formatAiUserMessage
+import com.tyranor.next.core.translation.service.applyEchoAlignmentInstruction
 import com.tyranor.next.core.translation.service.translationResultSchema
 import com.tyranor.next.core.translation.service.transport.TranslationHttpTransport
 import java.net.HttpURLConnection
@@ -80,12 +81,16 @@ internal class OpenAiResponsesAdapter(
         val response = executeResponse(
             profile,
             apiKey,
-            profile.translationPrompt,
+            profile.generationOptions.applyEchoAlignmentInstruction(profile.translationPrompt),
             profile.translationUserPrompt,
             payload.toString(),
             proofreading = false,
         )
-        return TranslationProtocolStructuredResultParser.parseTranslations(response, inputs)
+        return TranslationProtocolStructuredResultParser.parseTranslations(
+            response,
+            inputs,
+            profile.generationOptions.echoAlignmentEnabled,
+        )
     }
 
     override suspend fun proofreadBatch(
@@ -136,7 +141,10 @@ internal class OpenAiResponsesAdapter(
         )
         profile.generationOptions.structuredOutputMode.addOpenAiResponsesFormat(
             body,
-            translationResultSchema(proofreading),
+            translationResultSchema(
+                proofreading = proofreading,
+                requireSourceEcho = !proofreading && profile.generationOptions.echoAlignmentEnabled,
+            ),
             if (proofreading) "translation_proofread_results" else "translation_results",
         )
         val requestBody = profile.requestParameters.applyBody(body).toString()

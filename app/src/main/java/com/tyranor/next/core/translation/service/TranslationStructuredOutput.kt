@@ -20,7 +20,10 @@ internal fun TranslationProtocolId.supportedStructuredOutputModes(): List<Transl
     else -> listOf(TranslationStructuredOutputMode.DISABLED)
 }
 
-internal fun translationResultSchema(proofreading: Boolean): JSONObject {
+internal fun translationResultSchema(
+    proofreading: Boolean,
+    requireSourceEcho: Boolean = false,
+): JSONObject {
     val resultProperties = JSONObject()
         .put("id", JSONObject().put("type", "string"))
         .put(
@@ -28,6 +31,10 @@ internal fun translationResultSchema(proofreading: Boolean): JSONObject {
             JSONObject().put("type", "string"),
         )
     val required = JSONArray().put("id").put(if (proofreading) "suggestedTranslation" else "translation")
+    if (!proofreading && requireSourceEcho) {
+        resultProperties.put("src", JSONObject().put("type", "string"))
+        required.put("src")
+    }
     if (proofreading) {
         resultProperties.put("issues", JSONObject().put("type", "array").put("items", JSONObject().put("type", "string")))
         required.put("issues")

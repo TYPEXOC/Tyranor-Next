@@ -5,6 +5,13 @@ import org.json.JSONObject
 internal fun formatAiUserMessage(userPrompt: String, taskData: String): String =
     userPrompt.trim().takeIf(String::isNotEmpty)?.let { "$it\n\n$taskData" } ?: taskData
 
+internal fun TranslationGenerationOptions.applyEchoAlignmentInstruction(prompt: String): String =
+    if (!echoAlignmentEnabled) {
+        prompt
+    } else {
+        "$prompt\n\nFor every result, return the exact source text in the `src` field and its translation in the `translation` field. Keep the original item `id`. Do not merge, split, reorder, or omit items. Return only the required JSON object."
+    }
+
 enum class ChatCompletionTokenLimitField(val apiName: String) {
     MAX_TOKENS("max_tokens"),
     MAX_COMPLETION_TOKENS("max_completion_tokens"),
@@ -32,8 +39,10 @@ data class TranslationGenerationOptions(
     val thinkingLevel: TranslationThinkingLevel? = null,
     val geminiTopK: Int? = null,
     val structuredOutputMode: TranslationStructuredOutputMode = TranslationStructuredOutputMode.DISABLED,
+    val echoAlignmentEnabled: Boolean = false,
 ) {
     fun isValidFor(protocolId: TranslationProtocolId): Boolean {
+        if (protocolId.category != TranslationServiceCategory.AI_TRANSLATION && echoAlignmentEnabled) return false
         if (temperature?.let { !it.isFinite() || it !in 0.0..2.0 } == true ||
             topP?.let { !it.isFinite() || it !in 0.0..1.0 } == true ||
             maxOutputTokens?.let { it !in 1..MAX_OUTPUT_TOKENS } == true ||
@@ -80,6 +89,7 @@ data class TranslationGenerationOptions(
         .put("thinkingLevel", thinkingLevel?.name)
         .put("geminiTopK", geminiTopK)
         .put("structuredOutputMode", structuredOutputMode.name)
+        .put("echoAlignmentEnabled", echoAlignmentEnabled)
         .toString()
 
     internal fun addOpenAiChatParameters(body: JSONObject, modelId: String? = null): JSONObject = body.apply {
@@ -292,6 +302,7 @@ data class TranslationGenerationOptions(
                 } else {
                     TranslationStructuredOutputMode.DISABLED
                 },
+                echoAlignmentEnabled = value.optBoolean("echoAlignmentEnabled", false),
             )
         }
 

@@ -17,6 +17,7 @@ import com.tyranor.next.core.translation.service.TranslationServiceProfile
 import com.tyranor.next.core.translation.service.TranslationServiceRepository
 import com.tyranor.next.core.translation.service.addAnthropicFormat
 import com.tyranor.next.core.translation.service.formatAiUserMessage
+import com.tyranor.next.core.translation.service.applyEchoAlignmentInstruction
 import com.tyranor.next.core.translation.service.translationResultSchema
 import com.tyranor.next.core.translation.service.transport.TranslationHttpTransport
 import java.net.HttpURLConnection
@@ -96,12 +97,16 @@ internal class AnthropicMessagesAdapter(
             })
         val body = createRequestBody(
             profile,
-            profile.translationPrompt,
+            profile.generationOptions.applyEchoAlignmentInstruction(profile.translationPrompt),
             profile.translationUserPrompt,
             taskData,
             proofreading = false,
         )
-        return TranslationProtocolStructuredResultParser.parseTranslations(executeMessage(profile, apiKey, body), inputs)
+        return TranslationProtocolStructuredResultParser.parseTranslations(
+            executeMessage(profile, apiKey, body),
+            inputs,
+            profile.generationOptions.echoAlignmentEnabled,
+        )
     }
 
     override suspend fun proofreadBatch(
@@ -181,7 +186,10 @@ internal class AnthropicMessagesAdapter(
         )
         profile.generationOptions.structuredOutputMode.addAnthropicFormat(
             body,
-            translationResultSchema(proofreading),
+            translationResultSchema(
+                proofreading = proofreading,
+                requireSourceEcho = !proofreading && profile.generationOptions.echoAlignmentEnabled,
+            ),
         )
         return profile.requestParameters.applyBody(body).toString()
     }

@@ -5,10 +5,14 @@ import org.json.JSONObject
 
 /** Validates provider-independent structured results against the submitted stable entry IDs. */
 internal object TranslationProtocolStructuredResultParser {
-    fun parseTranslations(content: String, inputs: List<TranslationInput>): TranslationBatchResponse {
+    fun parseTranslations(
+        content: String,
+        inputs: List<TranslationInput>,
+        requireSourceEcho: Boolean = false,
+    ): TranslationBatchResponse {
         val results = results(content)
         val requested = inputs.associateBy(TranslationInput::entryId)
-        val returned = mutableMapOf<String, MutableList<String?>>()
+        val returned = mutableMapOf<String, MutableList<TranslationCandidate>>()
         val unknown = mutableSetOf<String>()
         for (index in 0 until results.length()) {
             val result = results.optJSONObject(index) ?: continue
@@ -16,7 +20,8 @@ internal object TranslationProtocolStructuredResultParser {
             if (id.isBlank()) continue
             if (id !in requested) unknown += id
             val translation = result.optString("translation").takeIf { result.has("translation") }
-            returned.getOrPut(id, ::mutableListOf).add(translation)
+            val sourceEcho = result.opt("src") as? String
+            returned.getOrPut(id, ::mutableListOf).add(TranslationCandidate(sourceEcho, translation))
         }
 
         val successes = mutableListOf<TranslationOutput>()
@@ -26,9 +31,13 @@ internal object TranslationProtocolStructuredResultParser {
             when {
                 candidates.isEmpty() -> failures[input.entryId] = TranslationItemFailureCode.MISSING_RESPONSE
                 candidates.size > 1 -> failures[input.entryId] = TranslationItemFailureCode.DUPLICATE_RESPONSE
-                candidates.single().isNullOrBlank() -> failures[input.entryId] = TranslationItemFailureCode.INVALID_TRANSLATION
+                candidates.single().translation.isNullOrBlank() -> failures[input.entryId] = TranslationItemFailureCode.INVALID_TRANSLATION
+                requireSourceEcho && !TranslationSourceEchoAlignment.matches(
+                    input.sourceText,
+                    candidates.single().sourceEcho.orEmpty(),
+                ) -> failures[input.entryId] = TranslationItemFailureCode.SOURCE_ECHO_MISMATCH
                 else -> {
-                    val translated = candidates.single()!!
+                    val translated = candidates.single().translation!!
                     if (TranslationTextIntegrity.compare(input.sourceText, translated).isNotEmpty()) {
                         failures[input.entryId] = TranslationItemFailureCode.PLACEHOLDER_MISMATCH
                     } else {
@@ -99,4 +108,9 @@ internal object TranslationProtocolStructuredResultParser {
     }
 
     private val PROOFREAD_ISSUE_CODES = setOf("GRAMMAR", "MEANING", "TERMINOLOGY", "CONSISTENCY", "TONE", "OTHER")
+
+    private data class TranslationCandidate(
+        val sourceEcho: String?,
+        val translation: String?,
+    )
 }

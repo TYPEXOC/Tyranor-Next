@@ -188,11 +188,6 @@
     <string name="translation_services_user_prompt">ユーザープロンプト</string>
     <string name="translation_services_user_prompt_hint">構造化されたタスクデータの前にユーザーメッセージへ追加します。</string>
     <string name="translation_services_prompt_restore_defaults">デフォルトに戻す</string>
-    <string name="translation_services_max_output_tokens">トークン上限</string>
-    <string name="translation_services_output_limit">出力上限</string>
-    <string name="translation_services_chat_token_limit_field">トークン上限フィールド</string>
-    <string name="translation_services_max_tokens_legacy">max_tokens</string>
-    <string name="translation_services_max_completion_tokens">max_completion_tokens</string>
     <string name="translation_services_thinking_level">思考レベル</string>
     <string name="translation_services_thinking_level_hint">モデルにより異なります。不明な場合はサービスの既定値を使用してください。</string>
     <string name="translation_services_reasoning_settings">思考と推論</string>
@@ -210,6 +205,8 @@
     <string name="translation_services_structured_output_disabled">無効</string>
     <string name="translation_services_structured_output_json_object">JSON Object（標準 JSON オブジェクト）</string>
     <string name="translation_services_structured_output_json_schema">JSON Schema（構造を検証）</string>
+    <string name="translation_services_echo_alignment">翻訳エコー照合</string>
+    <string name="translation_services_echo_alignment_hint">AI 翻訳のみ：各原文のエコーを求め、対応関係を確認します。不一致の項目は失敗として再試行できます。追加出力により利用量が増えます。</string>
     <string name="translation_services_custom_parameters">カスタムパラメーター</string>
     <string name="translation_services_custom_parameters_hint">リクエストヘッダーとモデルパラメーターを設定します。Temperature や Top P などの生成設定も本文に指定できます。</string>
     <string name="translation_services_custom_parameters_open">パラメーター設定（ヘッダー %1$d・本文 %2$d）</string>

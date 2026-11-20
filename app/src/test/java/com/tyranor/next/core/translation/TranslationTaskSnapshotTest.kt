@@ -33,6 +33,7 @@ class TranslationTaskSnapshotTest {
                 topP = 0.8,
                 maxOutputTokens = 400,
                 thinkingLevel = TranslationThinkingLevel.LOW,
+                echoAlignmentEnabled = true,
             ),
             taskSettings = TranslationServiceTaskSettings.defaults(
                 com.tyranor.next.core.translation.service.TranslationServiceCategory.AI_TRANSLATION,

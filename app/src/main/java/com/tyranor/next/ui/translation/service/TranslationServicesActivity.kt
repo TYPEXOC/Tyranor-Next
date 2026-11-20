@@ -64,7 +64,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tyranor.next.R
 import com.tyranor.next.core.translation.service.TranslationProtocolId
 import com.tyranor.next.core.translation.service.TranslationServiceCategory
-import com.tyranor.next.core.translation.service.ChatCompletionTokenLimitField
 import com.tyranor.next.core.translation.service.TranslationGenerationOptions
 import com.tyranor.next.core.translation.service.TranslationThinkingLevel
 import com.tyranor.next.core.translation.service.GEMINI_API_BASE_URL
@@ -1277,27 +1276,23 @@ private fun TranslationServicesScreen() {
                                 color = PageSecondaryTextColor,
                             )
                         }
-                        if (state.protocolId == TranslationProtocolId.OPENAI_COMPATIBLE_CHAT) {
-                            ServiceSectionCard(title = stringResource(R.string.translation_services_output_limit)) {
-                                val tokenLimitOptions = ChatCompletionTokenLimitField.entries
-                                OverlayDropdownPreference(
-                                    items = tokenLimitOptions.map { stringResource(it.labelResource()) },
-                                    selectedIndex = tokenLimitOptions.indexOf(state.chatTokenLimitField),
-                                    title = stringResource(R.string.translation_services_chat_token_limit_field),
-                                    modifier = Modifier.fillMaxWidth(),
-                                    renderInRootScaffold = false,
-                                    onSelectedIndexChange = { index ->
-                                        tokenLimitOptions.getOrNull(index)?.let { selected ->
-                                            advancedSettingsEditor = state.copy(chatTokenLimitField = selected)
-                                        }
-                                    },
+                        ServiceSectionCard(title = stringResource(R.string.translation_services_echo_alignment)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    stringResource(R.string.translation_services_echo_alignment_hint),
+                                    modifier = Modifier.weight(1f),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = PageSecondaryTextColor,
                                 )
-                                ServiceTextField(
-                                    value = state.maxOutputTokens,
-                                    onValueChange = { advancedSettingsEditor = state.copy(maxOutputTokens = it) },
-                                    label = stringResource(R.string.translation_services_max_output_tokens),
-                                    singleLine = true,
-                                    modifier = Modifier.fillMaxWidth(),
+                                Switch(
+                                    checked = state.echoAlignmentEnabled,
+                                    onCheckedChange = { enabled ->
+                                        advancedSettingsEditor = state.copy(echoAlignmentEnabled = enabled)
+                                    },
                                 )
                             }
                         }
@@ -2539,25 +2534,22 @@ private data class AdvancedSettingsEditor(
     val translationUserPrompt: String,
     val proofreadingSystemPrompt: String,
     val proofreadingUserPrompt: String,
-    val maxOutputTokens: String,
-    val chatTokenLimitField: ChatCompletionTokenLimitField,
     val structuredOutputMode: TranslationStructuredOutputMode,
+    val echoAlignmentEnabled: Boolean,
     val customParameters: TranslationCustomParameters,
 ) {
     fun toGenerationOptions(
         current: TranslationGenerationOptions,
     ): TranslationGenerationOptions? {
-        val parsedMaxOutputTokens = maxOutputTokens.toIntOrNull()
-        if (maxOutputTokens.isNotBlank() && parsedMaxOutputTokens == null) return null
         return TranslationGenerationOptions(
-            maxOutputTokens = parsedMaxOutputTokens.takeIf {
-                protocolId.category == TranslationServiceCategory.AI_TRANSLATION
-            },
-            chatTokenLimitField = chatTokenLimitField,
+            maxOutputTokens = null,
+            chatTokenLimitField = current.chatTokenLimitField,
             thinkingLevel = current.thinkingLevel.takeIf {
                 protocolId.category == TranslationServiceCategory.AI_TRANSLATION
             },
             structuredOutputMode = structuredOutputMode,
+            echoAlignmentEnabled = echoAlignmentEnabled &&
+                protocolId.category == TranslationServiceCategory.AI_TRANSLATION,
         ).takeIf { it.isValidFor(protocolId) }
     }
 
@@ -2570,9 +2562,8 @@ private data class AdvancedSettingsEditor(
                 translationUserPrompt = editor.translationUserPrompt,
                 proofreadingSystemPrompt = editor.proofreadingPrompt,
                 proofreadingUserPrompt = editor.proofreadingUserPrompt,
-                maxOutputTokens = options.maxOutputTokens?.toString().orEmpty(),
-                chatTokenLimitField = options.chatTokenLimitField,
                 structuredOutputMode = options.structuredOutputMode,
+                echoAlignmentEnabled = options.echoAlignmentEnabled,
                 customParameters = editor.customParameters ?: TranslationCustomParameters(),
             )
         }
@@ -2589,12 +2580,8 @@ private fun TranslationGenerationOptions.forServiceEditor(
     presencePenalty = null,
     geminiTopK = null,
     thinkingLevel = thinkingLevel.takeIf { protocolId.category == TranslationServiceCategory.AI_TRANSLATION },
+    echoAlignmentEnabled = echoAlignmentEnabled && protocolId.category == TranslationServiceCategory.AI_TRANSLATION,
 )
-
-private fun ChatCompletionTokenLimitField.labelResource(): Int = when (this) {
-    ChatCompletionTokenLimitField.MAX_TOKENS -> R.string.translation_services_max_tokens_legacy
-    ChatCompletionTokenLimitField.MAX_COMPLETION_TOKENS -> R.string.translation_services_max_completion_tokens
-}
 
 private fun TranslationStructuredOutputMode.labelResource(): Int = when (this) {
     TranslationStructuredOutputMode.DISABLED -> R.string.translation_services_structured_output_disabled

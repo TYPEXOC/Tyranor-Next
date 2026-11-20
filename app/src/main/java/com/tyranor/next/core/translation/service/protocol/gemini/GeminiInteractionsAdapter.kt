@@ -16,6 +16,7 @@ import com.tyranor.next.core.translation.service.TranslationServiceProfile
 import com.tyranor.next.core.translation.service.TranslationServiceRepository
 import com.tyranor.next.core.translation.service.geminiResponseFormat
 import com.tyranor.next.core.translation.service.formatAiUserMessage
+import com.tyranor.next.core.translation.service.applyEchoAlignmentInstruction
 import com.tyranor.next.core.translation.service.transport.TranslationHttpTransport
 import java.net.HttpURLConnection
 import okhttp3.HttpUrl
@@ -105,13 +106,17 @@ internal class GeminiInteractionsAdapter(
             })
         val body = createInteractionBody(
             profile,
-            profile.translationPrompt,
+            profile.generationOptions.applyEchoAlignmentInstruction(profile.translationPrompt),
             profile.translationUserPrompt,
             input.toString(),
-            translationResponseSchema(),
+            translationResponseSchema(profile.generationOptions.echoAlignmentEnabled),
         )
         val response = postInteraction(profile, key, body)
-        return TranslationProtocolStructuredResultParser.parseTranslations(response, inputs)
+        return TranslationProtocolStructuredResultParser.parseTranslations(
+            response,
+            inputs,
+            profile.generationOptions.echoAlignmentEnabled,
+        )
     }
 
     override suspend fun proofreadBatch(
@@ -200,11 +205,13 @@ internal class GeminiInteractionsAdapter(
         return profile.requestParameters.applyBody(body).toString()
     }
 
-    private fun translationResponseSchema() = resultSchema(
-        JSONObject()
-            .put("id", stringSchema())
-            .put("translation", stringSchema()),
-        JSONArray().put("id").put("translation"),
+    private fun translationResponseSchema(requireSourceEcho: Boolean) = resultSchema(
+        JSONObject().apply {
+            put("id", stringSchema())
+            put("translation", stringSchema())
+            if (requireSourceEcho) put("src", stringSchema())
+        },
+        JSONArray().put("id").put("translation").apply { if (requireSourceEcho) put("src") },
     )
 
     private fun proofreadingResponseSchema() = resultSchema(

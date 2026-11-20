@@ -18,6 +18,7 @@ import com.tyranor.next.core.translation.service.TranslationStructuredOutputMode
 import com.tyranor.next.core.translation.service.TranslationTextIntegrity
 import com.tyranor.next.core.translation.service.addOpenAiChatFormat
 import com.tyranor.next.core.translation.service.formatAiUserMessage
+import com.tyranor.next.core.translation.service.applyEchoAlignmentInstruction
 import com.tyranor.next.core.translation.service.translationResultSchema
 import com.tyranor.next.core.translation.service.transport.TranslationHttpTransport
 import java.net.HttpURLConnection
@@ -127,7 +128,8 @@ internal class OpenAiCompatibleChatAdapter(
         val response = transport.execute(profile, request)
         requireSuccess(response.statusCode, response.body, response.retryAfterMillis, modelList = false)
         val content = extractAssistantContent(response.body)
-        val parsed = runCatching { parseBatchContent(content, inputs) }
+        val requireSourceEcho = profile.generationOptions.echoAlignmentEnabled && !allowPlainTextProbe
+        val parsed = runCatching { parseBatchContent(content, inputs, requireSourceEcho) }
             .getOrElse { failure ->
                 if (failure !is TranslationServiceException || !allowPlainTextProbe) throw failure
                 null
@@ -252,7 +254,7 @@ internal class OpenAiCompatibleChatAdapter(
             .put(
                 JSONObject()
                     .put("role", "system")
-                    .put("content", profile.translationPrompt),
+                    .put("content", profile.generationOptions.applyEchoAlignmentInstruction(profile.translationPrompt)),
             )
             .put(
                 JSONObject()
@@ -271,7 +273,10 @@ internal class OpenAiCompatibleChatAdapter(
         )
         profile.generationOptions.structuredOutputMode.addOpenAiChatFormat(
             body,
-            translationResultSchema(proofreading = false),
+            translationResultSchema(
+                proofreading = false,
+                requireSourceEcho = profile.generationOptions.echoAlignmentEnabled,
+            ),
             "translation_results",
         )
         return profile.requestParameters.applyBody(body).toString()
@@ -453,7 +458,12 @@ internal class OpenAiCompatibleChatAdapter(
         internal fun parseBatchContent(
             content: String,
             inputs: List<TranslationInput>,
-        ): TranslationBatchResponse = TranslationProtocolStructuredResultParser.parseTranslations(content, inputs)
+            requireSourceEcho: Boolean = false,
+        ): TranslationBatchResponse = TranslationProtocolStructuredResultParser.parseTranslations(
+            content,
+            inputs,
+            requireSourceEcho,
+        )
 
         internal fun parseProofreadContent(content: String, inputs: List<ProofreadInput>): ProofreadBatchResponse =
             TranslationProtocolStructuredResultParser.parseProofreadSuggestions(content, inputs)

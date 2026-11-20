@@ -19,6 +19,7 @@ class TranslationGenerationOptionsTest {
             thinkingLevel = TranslationThinkingLevel.HIGH,
             geminiTopK = 32,
             structuredOutputMode = TranslationStructuredOutputMode.JSON_SCHEMA,
+            echoAlignmentEnabled = true,
         )
 
         assertEquals(options, TranslationGenerationOptions.decode(options.encode()))
@@ -34,6 +35,7 @@ class TranslationGenerationOptionsTest {
         assertFalse(TranslationGenerationOptions(geminiTopK = 10).isValidFor(TranslationProtocolId.OPENAI_COMPATIBLE_CHAT))
         assertFalse(TranslationGenerationOptions(frequencyPenalty = 0.1).isValidFor(TranslationProtocolId.GEMINI_INTERACTIONS))
         assertFalse(TranslationGenerationOptions(maxOutputTokens = 0).isValidFor(TranslationProtocolId.OPENAI_RESPONSES))
+        assertFalse(TranslationGenerationOptions(echoAlignmentEnabled = true).isValidFor(TranslationProtocolId.BING_TRANSLATOR_WEB))
         assertTrue(TranslationGenerationOptions(temperature = 0.8).isValidFor(TranslationProtocolId.ANTHROPIC_MESSAGES))
         assertFalse(TranslationGenerationOptions(temperature = 1.1).isValidFor(TranslationProtocolId.ANTHROPIC_MESSAGES))
         assertFalse(TranslationGenerationOptions(temperature = 0.2, topP = 0.8).isValidFor(TranslationProtocolId.ANTHROPIC_MESSAGES))
@@ -50,6 +52,7 @@ class TranslationGenerationOptionsTest {
 
     @Test
     fun preservesLegacyGeminiSchemaBehaviorWhenModeWasNotStored() {
+        assertFalse(TranslationGenerationOptions.decode("{}").echoAlignmentEnabled)
         assertEquals(
             TranslationStructuredOutputMode.JSON_SCHEMA,
             TranslationGenerationOptions.decode("{}", TranslationProtocolId.GEMINI_INTERACTIONS).structuredOutputMode,
@@ -57,6 +60,17 @@ class TranslationGenerationOptionsTest {
         assertEquals(
             TranslationStructuredOutputMode.DISABLED,
             TranslationGenerationOptions.decode("{}", TranslationProtocolId.OPENAI_RESPONSES).structuredOutputMode,
+        )
+    }
+
+    @Test
+    fun appendsEchoProtocolOnlyWhenTheOptInIsEnabled() {
+        val prompt = "Translate the text."
+        assertEquals(prompt, TranslationGenerationOptions().applyEchoAlignmentInstruction(prompt))
+        assertTrue(
+            TranslationGenerationOptions(echoAlignmentEnabled = true)
+                .applyEchoAlignmentInstruction(prompt)
+                .contains("`src` field"),
         )
     }
 

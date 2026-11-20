@@ -188,11 +188,6 @@
     <string name="translation_services_user_prompt">用户提示词</string>
     <string name="translation_services_user_prompt_hint">作为用户消息附加在本次结构化任务数据之前。</string>
     <string name="translation_services_prompt_restore_defaults">恢复默认</string>
-    <string name="translation_services_max_output_tokens">Token 上限</string>
-    <string name="translation_services_output_limit">输出上限</string>
-    <string name="translation_services_chat_token_limit_field">Token 上限字段</string>
-    <string name="translation_services_max_tokens_legacy">max_tokens</string>
-    <string name="translation_services_max_completion_tokens">max_completion_tokens</string>
     <string name="translation_services_thinking_level">思考等级</string>
     <string name="translation_services_thinking_level_hint">模型支持各异；不确定时用服务默认值。</string>
     <string name="translation_services_reasoning_settings">思考与推理</string>
@@ -210,6 +205,8 @@
     <string name="translation_services_structured_output_disabled">关闭</string>
     <string name="translation_services_structured_output_json_object">JSON Object（标准 JSON 对象）</string>
     <string name="translation_services_structured_output_json_schema">JSON Schema（按结构校验）</string>
+    <string name="translation_services_echo_alignment">译文回显校验</string>
+    <string name="translation_services_echo_alignment_hint">仅用于 AI 翻译：要求模型逐条回显原文并核对对应关系；不匹配条目会失败，可重试。额外输出会增加用量。</string>
     <string name="translation_services_custom_parameters">自定义参数</string>
     <string name="translation_services_custom_parameters_hint">按需设置请求头和模型参数；Temperature、Top P 等生成参数也可在请求体中配置。</string>
     <string name="translation_services_custom_parameters_open">配置参数（请求头 %1$d · 请求体 %2$d）</string>
