@@ -64,6 +64,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import java.util.concurrent.atomic.AtomicReference
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -113,6 +114,7 @@ import top.yukonga.miuix.kmp.basic.HorizontalDivider as MiuixHorizontalDivider
 import top.yukonga.miuix.kmp.basic.Icon as MiuixIcon
 import top.yukonga.miuix.kmp.basic.RadioButton as MiuixRadioButton
 import top.yukonga.miuix.kmp.basic.Text as MiuixText
+import top.yukonga.miuix.kmp.basic.TextFieldDefaults as MiuixTextFieldDefaults
 import top.yukonga.miuix.kmp.basic.VerticalDivider as MiuixVerticalDivider
 import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
 import top.yukonga.miuix.kmp.basic.TextField as MiuixTextField
@@ -1254,10 +1256,18 @@ private fun TranslationReviewEntryDetailPane(
                 MiuixTextField(
                     value = translationText,
                     onValueChange = onTranslationTextChange,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp, max = 220.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(max = 220.dp),
+                    insideMargin = DpSize(14.dp, 14.dp),
+                    colors = MiuixTextFieldDefaults.textFieldColors(
+                        backgroundColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.58f),
+                        labelColor = PageSecondaryTextColor,
+                        borderColor = MaterialTheme.colorScheme.primary,
+                    ),
+                    cornerRadius = AppComponentCornerRadius,
                     minLines = 1,
                     maxLines = 10,
                     enabled = enabled,
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(color = PageTextColor),
                 )
             }
             entry.suggestedTranslation?.let { suggestion ->
