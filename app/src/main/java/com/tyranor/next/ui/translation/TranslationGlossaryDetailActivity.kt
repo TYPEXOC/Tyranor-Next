@@ -15,15 +15,16 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -61,12 +62,13 @@ import com.tyranor.next.ui.common.AppAlertDialog
 import com.tyranor.next.ui.common.AppScreenActivity
 import com.tyranor.next.ui.common.AppSecondaryTopBar
 import com.tyranor.next.ui.common.DialogTextButton
-import com.tyranor.next.ui.common.NoRippleButton
+import com.tyranor.next.ui.common.isTabletScreen
 import com.tyranor.next.ui.common.NoRippleTextButton
 import com.tyranor.next.ui.common.notice.AppNotice
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
+import top.yukonga.miuix.kmp.basic.FabPosition
 import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
 import top.yukonga.miuix.kmp.basic.TextField as MiuixTextField
 
@@ -119,6 +121,7 @@ private fun TranslationGlossaryDetailScreen(
     var deletingTermIndex by remember { mutableStateOf<Int?>(null) }
     var error by remember { mutableStateOf<TranslationWorkbenchError?>(null) }
     val hasNameChanges = loaded && name != savedName
+    val tabletLayout = isTabletScreen()
 
     fun reportFailure(failure: Throwable) {
         if (failure is CancellationException) throw failure
@@ -176,6 +179,14 @@ private fun TranslationGlossaryDetailScreen(
             modifier = Modifier.fillMaxSize(),
             containerColor = Color.Transparent,
             contentWindowInsets = WindowInsets(0.dp),
+            floatingActionButton = {
+                if (loaded && !saving && name.isNotBlank()) {
+                    TranslationAddFloatingActionButton(R.string.translation_glossary_add_entry) {
+                        termEditor = TermEditor(index = null, source = "", target = "", note = "")
+                    }
+                }
+            },
+            floatingActionButtonPosition = FabPosition.End,
             topBar = {
                 AppSecondaryTopBar(
                     title = stringResource(R.string.translation_glossary_detail_title),
@@ -189,18 +200,21 @@ private fun TranslationGlossaryDetailScreen(
                     .widthIn(max = 760.dp)
                     .padding(top = innerPadding.calculateTopPadding())
                     .padding(horizontal = 12.dp)
+                    .padding(bottom = 96.dp)
                     .clickable(
                         interactionSource = outsideTapInteractionSource,
                         indication = null,
                         onClick = { focusManager.clearFocus() },
                     ),
             ) {
-                LazyColumn(
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(if (tabletLayout) 2 else 1),
                     modifier = Modifier.weight(1f).fillMaxWidth(),
                     contentPadding = PaddingValues(top = 12.dp, bottom = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    item(key = "glossary-name") {
+                    item(key = "glossary-name", span = { GridItemSpan(maxLineSpan) }) {
                         MiuixCard(
                             modifier = Modifier.fillMaxWidth().glassBorder(),
                             cornerRadius = AppComponentCornerRadius,
@@ -215,7 +229,7 @@ private fun TranslationGlossaryDetailScreen(
                             )
                         }
                     }
-                    item(key = "glossary-entries-heading") {
+                    item(key = "glossary-entries-heading", span = { GridItemSpan(maxLineSpan) }) {
                         Row(
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -234,7 +248,7 @@ private fun TranslationGlossaryDetailScreen(
                         }
                     }
                     if (!loaded && error == null) {
-                        item(key = "glossary-loading") {
+                        item(key = "glossary-loading", span = { GridItemSpan(maxLineSpan) }) {
                             Text(
                                 stringResource(R.string.translation_glossary_loading),
                                 modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -243,7 +257,7 @@ private fun TranslationGlossaryDetailScreen(
                             )
                         }
                     } else if (terms.isEmpty()) {
-                        item(key = "glossary-empty") {
+                        item(key = "glossary-empty", span = { GridItemSpan(maxLineSpan) }) {
                             MiuixCard(
                                 modifier = Modifier.fillMaxWidth().glassBorder(),
                                 cornerRadius = AppComponentCornerRadius,
@@ -280,17 +294,6 @@ private fun TranslationGlossaryDetailScreen(
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodyMedium,
-                    )
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(bottom = 12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    NoRippleButton(
-                        text = stringResource(R.string.translation_glossary_add_entry),
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = loaded && !saving && name.isNotBlank(),
-                        onClick = { termEditor = TermEditor(index = null, source = "", target = "", note = "") },
                     )
                 }
             }

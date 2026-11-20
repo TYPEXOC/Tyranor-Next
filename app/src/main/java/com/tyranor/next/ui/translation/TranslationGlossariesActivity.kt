@@ -15,11 +15,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -57,11 +58,13 @@ import com.tyranor.next.ui.common.AppSecondaryTopBar
 import com.tyranor.next.ui.common.ArrowPreference
 import com.tyranor.next.ui.common.DialogTextButton
 import com.tyranor.next.ui.common.NoRippleButton
+import com.tyranor.next.ui.common.isTabletScreen
 import com.tyranor.next.ui.common.motion.startActivityWithPageTransition
 import com.tyranor.next.ui.common.notice.AppNotice
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
+import top.yukonga.miuix.kmp.basic.FabPosition
 import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
 
 class TranslationGlossariesActivity : AppScreenActivity() {
@@ -87,6 +90,7 @@ private fun TranslationGlossariesScreen() {
     var creating by remember { mutableStateOf(false) }
     var deletingNow by remember { mutableStateOf(false) }
     val displayNames = translationGlossaryDisplayNames(glossaries)
+    val tabletLayout = isTabletScreen()
 
     fun reportFailure(failure: Throwable) {
         if (failure is CancellationException) throw failure
@@ -112,6 +116,13 @@ private fun TranslationGlossariesScreen() {
             modifier = Modifier.fillMaxSize(),
             containerColor = Color.Transparent,
             contentWindowInsets = WindowInsets(0.dp),
+            floatingActionButton = {
+                TranslationAddFloatingActionButton(R.string.translation_glossary_add) {
+                    error = null
+                    editor = GlossaryNameEditor(name = "")
+                }
+            },
+            floatingActionButtonPosition = FabPosition.End,
             topBar = {
                 AppSecondaryTopBar(
                     title = stringResource(R.string.translation_glossaries_title),
@@ -126,13 +137,15 @@ private fun TranslationGlossariesScreen() {
                     .padding(top = innerPadding.calculateTopPadding())
                     .padding(horizontal = 12.dp),
             ) {
-                LazyColumn(
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(if (tabletLayout) 2 else 1),
                     modifier = Modifier.weight(1f).fillMaxWidth(),
-                    contentPadding = PaddingValues(top = 12.dp, bottom = 12.dp),
+                    contentPadding = PaddingValues(top = 12.dp, bottom = 96.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     if (glossaries.isEmpty()) {
-                        item(key = "empty-glossaries") {
+                        item(key = "empty-glossaries", span = { GridItemSpan(maxLineSpan) }) {
                             MiuixCard(
                                 modifier = Modifier.fillMaxWidth().glassBorder(),
                                 cornerRadius = AppComponentCornerRadius,
@@ -158,7 +171,7 @@ private fun TranslationGlossariesScreen() {
                         )
                     }
                     error?.takeIf { deleting == null }?.let { code ->
-                        item(key = "glossary-error") {
+                        item(key = "glossary-error", span = { GridItemSpan(maxLineSpan) }) {
                             Text(
                                 stringResource(code.messageResource()),
                                 modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
@@ -167,18 +180,6 @@ private fun TranslationGlossariesScreen() {
                             )
                         }
                     }
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(bottom = 12.dp),
-                ) {
-                    NoRippleButton(
-                        text = stringResource(R.string.translation_glossary_add),
-                        modifier = Modifier.fillMaxWidth(),
-                        onClick = {
-                            error = null
-                            editor = GlossaryNameEditor(name = "")
-                        },
-                    )
                 }
             }
             deleting?.let { glossary ->

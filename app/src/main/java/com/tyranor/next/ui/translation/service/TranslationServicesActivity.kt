@@ -41,6 +41,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
@@ -103,14 +104,19 @@ import com.tyranor.next.ui.common.NoRippleButton
 import com.tyranor.next.ui.common.NoRippleTextButton
 import com.tyranor.next.ui.common.OverlayDropdownPreference
 import com.tyranor.next.ui.common.SegmentedControl
+import com.tyranor.next.ui.common.TabPagerPageHost
+import com.tyranor.next.ui.common.rememberTabPagerState
+import com.tyranor.next.ui.common.motion.MotionMode
 import com.tyranor.next.ui.common.Switch
 import com.tyranor.next.ui.common.isTabletScreen
 import com.tyranor.next.ui.common.motion.listItemMotion
+import com.tyranor.next.ui.translation.TranslationAddFloatingActionButton
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlin.math.roundToLong
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
+import top.yukonga.miuix.kmp.basic.FabPosition
 import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
 import top.yukonga.miuix.kmp.basic.TextField as MiuixTextField
 
@@ -134,6 +140,7 @@ private fun TranslationServicesScreen() {
     val profiles by repository.observeProfiles().collectAsStateWithLifecycle(initialValue = emptyList())
     val scope = rememberCoroutineScope()
     var editor by remember { mutableStateOf<ServiceEditor?>(null) }
+    var initialServiceEditor by remember { mutableStateOf<ServiceEditor?>(null) }
     var advancedSettingsEditor by remember { mutableStateOf<AdvancedSettingsEditor?>(null) }
     var customParametersEditor by remember { mutableStateOf<CustomParametersEditor?>(null) }
     var taskSettingsEditor by remember { mutableStateOf<TaskSettingsEditor?>(null) }
@@ -194,6 +201,7 @@ private fun TranslationServicesScreen() {
             template.baseUrl,
             allowProtocolSelection = template.allowProtocolSelection,
         )
+        initialServiceEditor = editor
     }
 
     fun reportFailure(failure: Throwable) {
@@ -313,33 +321,28 @@ private fun TranslationServicesScreen() {
             add(profile.toServiceListRow())
         }
     }
-    val categoryRows = if (selectedCategory == TranslationServiceCategory.MACHINE_TRANSLATION) machineRows else aiRows
     val machineTab = stringResource(R.string.translation_services_machine_category)
     val aiTab = stringResource(R.string.translation_services_ai_category)
     val tabs = listOf(
         stringResource(R.string.translation_services_tab_count, machineTab, machineRows.size),
         stringResource(R.string.translation_services_tab_count, aiTab, aiRows.size),
     )
-    val categoryTitle = stringResource(
-        if (selectedCategory == TranslationServiceCategory.MACHINE_TRANSLATION) {
-            R.string.translation_services_machine_list_title
-        } else {
-            R.string.translation_services_ai_list_title
-        },
-    )
-    val categorySummary = stringResource(
+    val machineCategoryTitle = stringResource(R.string.translation_services_machine_list_title)
+    val aiCategoryTitle = stringResource(R.string.translation_services_ai_list_title)
+    val machineCategorySummary = stringResource(
         R.string.translation_services_category_summary,
-        categoryRows.count { it.profile?.enabled == true },
-        categoryRows.count { it.profile?.configured == true },
-        categoryRows.size,
+        machineRows.count { it.profile?.enabled == true },
+        machineRows.count { it.profile?.configured == true },
+        machineRows.size,
     )
-    val categoryNote = stringResource(
-        if (selectedCategory == TranslationServiceCategory.MACHINE_TRANSLATION) {
-            R.string.translation_services_machine_category_note
-        } else {
-            R.string.translation_services_ai_category_note
-        },
+    val aiCategorySummary = stringResource(
+        R.string.translation_services_category_summary,
+        aiRows.count { it.profile?.enabled == true },
+        aiRows.count { it.profile?.configured == true },
+        aiRows.size,
     )
+    val machineCategoryNote = stringResource(R.string.translation_services_machine_category_note)
+    val aiCategoryNote = stringResource(R.string.translation_services_ai_category_note)
     val customAiTemplate = AI_SERVICE_TEMPLATES.first { it.nameResource == R.string.translation_services_template_custom_chat }
     val customAiName = stringResource(customAiTemplate.nameResource)
 
@@ -369,15 +372,33 @@ private fun TranslationServicesScreen() {
         } else {
             row.aiTemplate?.let { beginEditingAiTemplate(it, displayName) }
         }
+        initialServiceEditor = editor
     }
 
     if (editor == null) {
         val tabletLayout = isTabletScreen()
+        val pager = key(MotionMode.enhanced) {
+            rememberTabPagerState(
+                selectedIndex = {
+                    if (selectedCategory == TranslationServiceCategory.MACHINE_TRANSLATION) 0 else 1
+                },
+                count = 2,
+            )
+        }
+        val activePage = if (selectedCategory == TranslationServiceCategory.MACHINE_TRANSLATION) 0 else 1
         MiuixSettingsTheme {
             MiuixScaffold(
             modifier = Modifier.fillMaxSize(),
             containerColor = Color.Transparent,
             contentWindowInsets = WindowInsets(0.dp),
+            floatingActionButton = {
+                if (selectedCategory == TranslationServiceCategory.AI_TRANSLATION) {
+                    TranslationAddFloatingActionButton(R.string.translation_services_add_ai_service) {
+                        beginEditingAiTemplate(customAiTemplate, customAiName)
+                    }
+                }
+            },
+            floatingActionButtonPosition = FabPosition.End,
             topBar = {
                 AppSecondaryTopBar(
                     title = stringResource(R.string.translation_services_title),
@@ -386,90 +407,64 @@ private fun TranslationServicesScreen() {
                 )
             },
             ) { innerPadding ->
-                LazyVerticalGrid(
-                columns = GridCells.Fixed(if (tabletLayout) 2 else 1),
-                modifier = Modifier.fillMaxSize()
-                    .widthIn(max = 760.dp)
-                    .padding(top = innerPadding.calculateTopPadding())
-                    .padding(horizontal = 12.dp),
-                contentPadding = PaddingValues(top = 12.dp, bottom = 24.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                item(key = "service-categories", span = { GridItemSpan(maxLineSpan) }) {
+                Column(
+                    modifier = Modifier.fillMaxSize().padding(top = innerPadding.calculateTopPadding()),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
                     SegmentedControl(
                         options = tabs,
-                        selectedIndex = if (selectedCategory == TranslationServiceCategory.MACHINE_TRANSLATION) 0 else 1,
+                        selectedIndex = activePage,
                         onOptionSelected = { index ->
                             selectedCategory = if (index == 0) TranslationServiceCategory.MACHINE_TRANSLATION
                             else TranslationServiceCategory.AI_TRANSLATION
                         },
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth()
+                            .widthIn(max = 760.dp)
+                            .padding(horizontal = 12.dp)
+                            .padding(top = 12.dp),
                     )
-                }
-                item(key = "service-category-heading", span = { GridItemSpan(maxLineSpan) }) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(categoryTitle, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                        Text(categorySummary, style = MaterialTheme.typography.labelSmall, color = PageSecondaryTextColor)
+                    Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                        TabPagerPageHost(pageTab = 0, pager = pager, activePage = activePage) {
+                            TranslationServiceCategoryGrid(
+                                rows = machineRows,
+                                categoryTitle = machineCategoryTitle,
+                                categorySummary = machineCategorySummary,
+                                categoryNote = machineCategoryNote,
+                                errorMessage = errorCode?.let { stringResource(it.messageResource()) },
+                                tabletLayout = tabletLayout,
+                                aiCategory = false,
+                                onConfigure = ::openServiceEditor,
+                                onToggle = { row, enabled ->
+                                    row.profile?.let { profile ->
+                                        scope.launch {
+                                            runCatching { repository.setEnabled(profile.id, enabled) }
+                                                .onFailure(::reportFailure)
+                                        }
+                                    }
+                                },
+                            )
+                        }
+                        TabPagerPageHost(pageTab = 1, pager = pager, activePage = activePage) {
+                            TranslationServiceCategoryGrid(
+                                rows = aiRows,
+                                categoryTitle = aiCategoryTitle,
+                                categorySummary = aiCategorySummary,
+                                categoryNote = aiCategoryNote,
+                                errorMessage = errorCode?.let { stringResource(it.messageResource()) },
+                                tabletLayout = tabletLayout,
+                                aiCategory = true,
+                                onConfigure = ::openServiceEditor,
+                                onToggle = { row, enabled ->
+                                    row.profile?.let { profile ->
+                                        scope.launch {
+                                            runCatching { repository.setEnabled(profile.id, enabled) }
+                                                .onFailure(::reportFailure)
+                                        }
+                                    }
+                                },
+                            )
+                        }
                     }
-                }
-                if (selectedCategory == TranslationServiceCategory.AI_TRANSLATION) {
-                    item(key = "add-custom-ai-service", span = { GridItemSpan(maxLineSpan) }) {
-                        NoRippleButton(
-                            text = stringResource(R.string.translation_services_add_ai_service),
-                            modifier = Modifier.fillMaxWidth(),
-                            onClick = { beginEditingAiTemplate(customAiTemplate, customAiName) },
-                        )
-                    }
-                }
-                gridItems(
-                    items = categoryRows,
-                    key = ServiceListRow::key,
-                    span = { GridItemSpan(1) },
-                ) { row ->
-                    val displayName = row.displayName ?: stringResource(row.displayNameResource!!)
-                    TranslationServiceTemplateCard(
-                        row = row,
-                        modifier = Modifier.fillMaxWidth().glassBorder().then(listItemMotion()),
-                        displayName = displayName,
-                        onConfigure = { openServiceEditor(row, displayName) },
-                        onToggle = { enabled ->
-                            row.profile?.let { profile ->
-                                scope.launch {
-                                    runCatching { repository.setEnabled(profile.id, enabled) }
-                                        .onFailure(::reportFailure)
-                                }
-                            }
-                        },
-                    )
-                }
-                item(key = "service-category-note", span = { GridItemSpan(maxLineSpan) }) {
-                    MiuixCard(
-                        modifier = Modifier.fillMaxWidth().glassBorder(),
-                        cornerRadius = AppComponentCornerRadius,
-                    ) {
-                        Text(
-                            categoryNote,
-                            modifier = Modifier.fillMaxWidth().padding(14.dp),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = PageSecondaryTextColor,
-                        )
-                    }
-                }
-                if (errorCode != null) {
-                    item(key = "service-error", span = { GridItemSpan(maxLineSpan) }) {
-                        Text(
-                            stringResource(errorCode!!.messageResource()),
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                    }
-                }
                 }
             }
         }
@@ -485,13 +480,36 @@ private fun TranslationServicesScreen() {
                 advancedSettingsEditor = null
             } else {
                 cancelConnectionTest()
-                editor = null
+                val current = editor
+                if (current != null &&
+                    current.protocolId.category == TranslationServiceCategory.MACHINE_TRANSLATION &&
+                    current.isBuiltInTemplate &&
+                    current != initialServiceEditor
+                ) {
+                    scope.launch {
+                        isSaving = true
+                        try {
+                            repository.saveProfile(current.toDraft())
+                            editor = null
+                            initialServiceEditor = null
+                            errorCode = null
+                        } catch (failure: Throwable) {
+                            reportFailure(failure)
+                        } finally {
+                            isSaving = false
+                        }
+                    }
+                } else {
+                    editor = null
+                    initialServiceEditor = null
+                }
             }
         }
     }
 
     editor?.takeIf { advancedSettingsEditor == null && taskSettingsEditor == null }?.let { state ->
         val isMachineTranslation = state.protocolId.category == TranslationServiceCategory.MACHINE_TRANSLATION
+        val isFixedMachineTemplate = isMachineTranslation && state.isBuiltInTemplate
         val isTestingThisConnection = testingConnectionSessionId == editorSessionId
         val connectionStatusText = when {
             errorCode != null -> stringResource(errorCode!!.messageResource())
@@ -559,13 +577,21 @@ private fun TranslationServicesScreen() {
                             verticalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
                             ServiceSectionCard(title = stringResource(R.string.translation_services_section_identity)) {
-                                ServiceTextField(
-                                    value = state.displayName,
-                                    onValueChange = { editor = state.copy(displayName = it) },
-                                    label = stringResource(R.string.translation_services_name),
-                                    singleLine = true,
-                                    modifier = Modifier.fillMaxWidth(),
-                                )
+                                if (isFixedMachineTemplate) {
+                                    Text(
+                                        text = state.displayName,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Medium,
+                                    )
+                                } else {
+                                    ServiceTextField(
+                                        value = state.displayName,
+                                        onValueChange = { editor = state.copy(displayName = it) },
+                                        label = stringResource(R.string.translation_services_name),
+                                        singleLine = true,
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                }
                             }
                             if (!isMachineTranslation) {
                                 ServiceSectionCard(title = stringResource(R.string.translation_services_section_protocol)) {
@@ -879,40 +905,44 @@ private fun TranslationServicesScreen() {
                     }
                     Spacer(Modifier.height(2.dp))
                 }
-                        Row(
-                            modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(vertical = 12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            NoRippleTextButton(
-                                text = stringResource(R.string.common_cancel),
-                                enabled = !isSaving,
-                                onClick = {
-                                    cancelConnectionTest()
-                                    advancedSettingsEditor = null
-                                    editor = null
-                                },
-                            )
-                            NoRippleButton(
-                                text = stringResource(if (isSaving) R.string.common_loading else R.string.common_save),
-                                enabled = !isSaving,
-                                onClick = {
-                                    cancelConnectionTest()
-                                    scope.launch {
-                                        isSaving = true
-                                        try {
-                                            repository.saveProfile(state.toDraft())
-                                            advancedSettingsEditor = null
-                                            editor = null
-                                            errorCode = null
-                                        } catch (failure: Throwable) {
-                                            reportFailure(failure)
-                                        } finally {
-                                            isSaving = false
+                        if (!isFixedMachineTemplate) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(vertical = 12.dp),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                NoRippleTextButton(
+                                    text = stringResource(R.string.common_cancel),
+                                    enabled = !isSaving,
+                                    onClick = {
+                                        cancelConnectionTest()
+                                        advancedSettingsEditor = null
+                                        editor = null
+                                        initialServiceEditor = null
+                                    },
+                                )
+                                NoRippleButton(
+                                    text = stringResource(if (isSaving) R.string.common_loading else R.string.common_save),
+                                    enabled = !isSaving,
+                                    onClick = {
+                                        cancelConnectionTest()
+                                        scope.launch {
+                                            isSaving = true
+                                            try {
+                                                repository.saveProfile(state.toDraft())
+                                                advancedSettingsEditor = null
+                                                editor = null
+                                                initialServiceEditor = null
+                                                errorCode = null
+                                            } catch (failure: Throwable) {
+                                                reportFailure(failure)
+                                            } finally {
+                                                isSaving = false
+                                            }
                                         }
-                                    }
-                                },
-                            )
+                                    },
+                                )
+                            }
                         }
                     }
                 }
@@ -1655,6 +1685,71 @@ private fun TranslationServicesScreen() {
 }
 
 @Composable
+private fun TranslationServiceCategoryGrid(
+    rows: List<ServiceListRow>,
+    categoryTitle: String,
+    categorySummary: String,
+    categoryNote: String,
+    errorMessage: String?,
+    tabletLayout: Boolean,
+    aiCategory: Boolean,
+    onConfigure: (ServiceListRow, String) -> Unit,
+    onToggle: (ServiceListRow, Boolean) -> Unit,
+) {
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(if (tabletLayout) 2 else 1),
+        modifier = Modifier.fillMaxSize().widthIn(max = 760.dp).padding(horizontal = 12.dp),
+        contentPadding = PaddingValues(top = 12.dp, bottom = if (aiCategory) 96.dp else 24.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        item(key = "service-category-heading", span = { GridItemSpan(maxLineSpan) }) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(categoryTitle, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                Text(categorySummary, style = MaterialTheme.typography.labelSmall, color = PageSecondaryTextColor)
+            }
+        }
+        gridItems(items = rows, key = ServiceListRow::key, span = { GridItemSpan(1) }) { row ->
+            val displayName = row.displayName ?: stringResource(row.displayNameResource!!)
+            TranslationServiceTemplateCard(
+                row = row,
+                modifier = Modifier.fillMaxWidth().glassBorder().then(listItemMotion()),
+                displayName = displayName,
+                onConfigure = { onConfigure(row, displayName) },
+                onToggle = { enabled -> onToggle(row, enabled) },
+            )
+        }
+        item(key = "service-category-note", span = { GridItemSpan(maxLineSpan) }) {
+            MiuixCard(
+                modifier = Modifier.fillMaxWidth().glassBorder(),
+                cornerRadius = AppComponentCornerRadius,
+            ) {
+                Text(
+                    categoryNote,
+                    modifier = Modifier.fillMaxWidth().padding(14.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = PageSecondaryTextColor,
+                )
+            }
+        }
+        errorMessage?.let { message ->
+            item(key = "service-error", span = { GridItemSpan(maxLineSpan) }) {
+                Text(
+                    message,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun MachineProviderCredentialsFields(
     state: ServiceEditor,
     onChange: (ServiceEditor) -> Unit,
@@ -2193,6 +2288,7 @@ private data class ServiceEditor(
             proofreadingUserPrompt = "",
             generationOptions = TranslationGenerationOptions(),
             taskSettings = TranslationServiceTaskSettings.defaults(protocolId.category),
+            isBuiltInTemplate = true,
         )
 
         fun from(

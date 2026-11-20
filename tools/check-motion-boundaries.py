@@ -26,7 +26,7 @@ ui/onboarding/CoachStepMotion.kt
 ui/settings/GraphicsChainMotion.kt
 """.split())
 OWNERS.update("ui/common/" + f + ".kt" for f in """
-AppAlertDialog AppNavItem AppScreen AppSidePanel ArrowPreference ControlMotion
+AppAlertDialog AppNavItem AppScreen AppSidePanel ArrowPreference ControlMotion SegmentedControl
 DialogMiuixSlider MotionLinearProgressIndicator MotionSlider MotionSwitch
 NoPressFeedbackButtons OverlayDropdownPreference SlidingTabRow TabPagerState
 TopBarIcon notice/NoticeHost
