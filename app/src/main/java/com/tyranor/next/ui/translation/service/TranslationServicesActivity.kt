@@ -247,6 +247,7 @@ private fun TranslationServicesScreen() {
             displayName,
             template.baseUrl,
             allowProtocolSelection = template.allowProtocolSelection,
+            templateId = template.templateId.takeUnless { it == "custom-chat" },
         )
         initialServiceEditor = editor
         activePage = TranslationServicesPage.EDITOR
@@ -339,23 +340,25 @@ private fun TranslationServicesScreen() {
     val aiRows = buildList {
         AI_SERVICE_TEMPLATES.filterNot { it.nameResource == R.string.translation_services_template_custom_chat }
             .forEach { template ->
-                val normalizedBaseUrl = template.baseUrl.trimEnd('/')
                 val profile = profiles.firstOrNull {
+                    it.id !in matchedProfileIds && it.templateId == template.templateId
+                } ?: profiles.firstOrNull {
                     it.id !in matchedProfileIds &&
+                        it.templateId == null &&
                         it.protocolId == template.protocolId &&
-                        normalizedBaseUrl.isNotBlank() &&
-                        it.baseUrl.trimEnd('/').equals(normalizedBaseUrl, ignoreCase = true)
+                        template.baseUrl.isNotBlank() &&
+                        it.baseUrl.trimEnd('/').equals(template.baseUrl.trimEnd('/'), ignoreCase = true)
                 }
                 if (profile != null) matchedProfileIds += profile.id
                 add(
                     ServiceListRow(
-                        key = "ai:${template.protocolId.wireId}:${template.baseUrl}",
+                        key = "ai:${template.templateId}",
                         displayName = profile?.displayName,
                         displayNameResource = template.nameResource,
                         mark = template.mark,
                         iconResource = template.iconResource,
                         iconTinted = template.iconTinted,
-                        protocolId = template.protocolId,
+                        protocolId = profile?.protocolId ?: template.protocolId,
                         baseUrl = profile?.baseUrl ?: template.baseUrl,
                         profile = profile,
                         isBuiltInTemplate = true,
@@ -408,9 +411,11 @@ private fun TranslationServicesScreen() {
             advancedSettingsEditor = null
             editor = ServiceEditor.from(
                 row.profile,
-                showBaseUrl = row.aiTemplate == null,
-                allowProtocolSelection = row.aiTemplate == null,
+                showBaseUrl = row.protocolId.category == TranslationServiceCategory.AI_TRANSLATION,
+                allowProtocolSelection = row.aiTemplate?.allowProtocolSelection
+                    ?: (row.protocolId.category == TranslationServiceCategory.AI_TRANSLATION),
                 isBuiltInTemplate = row.isBuiltInTemplate,
+                templateId = row.aiTemplate?.templateId,
             ).let { state ->
                 if (row.profile.id == builtinMachineProfileId(row.protocolId)) state.copy(displayName = displayName) else state
             }
@@ -658,6 +663,7 @@ private fun TranslationServicesScreen() {
                                             TranslationProtocolId.OPENAI_COMPATIBLE_CHAT,
                                             TranslationProtocolId.OPENAI_RESPONSES,
                                             TranslationProtocolId.ANTHROPIC_MESSAGES,
+                                            TranslationProtocolId.GEMINI_INTERACTIONS,
                                         )
                                         OverlayDropdownPreference(
                                             items = protocolOptions.map { stringResource(it.protocolTitleResource()) },
@@ -2162,18 +2168,16 @@ private fun TranslationServiceTemplateCard(
                             maxLines = 1,
                         )
                     }
-                    if (row.protocolId.category != TranslationServiceCategory.AI_TRANSLATION || row.aiTemplate == null) {
-                        Text(
-                            text = row.baseUrl,
-                            color = PageSecondaryTextColor,
-                            style = MaterialTheme.typography.labelSmall,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
+                    Text(
+                        text = row.baseUrl,
+                        color = PageSecondaryTextColor,
+                        style = MaterialTheme.typography.labelSmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                     if (row.protocolId.category == TranslationServiceCategory.AI_TRANSLATION) {
                         val model = profile?.modelId?.takeIf(String::isNotBlank)
-                        val protocol = stringResource(row.protocolId.protocolTitleResource())
+                        val protocol = stringResource((profile?.protocolId ?: row.protocolId).protocolTitleResource())
                         Text(
                             text = if (model == null) protocol else stringResource(
                                 R.string.translation_services_card_ai_detail,
@@ -2212,6 +2216,7 @@ private fun TranslationServiceTemplateCard(
 }
 
 private data class AiServiceTemplate(
+    val templateId: String,
     val nameResource: Int,
     val protocolId: TranslationProtocolId,
     val baseUrl: String,
@@ -2223,14 +2228,17 @@ private data class AiServiceTemplate(
 
 private val AI_SERVICE_TEMPLATES = listOf(
     AiServiceTemplate(
+        templateId = "openai-chat",
         R.string.translation_services_template_openai_chat,
         TranslationProtocolId.OPENAI_COMPATIBLE_CHAT,
         "https://api.openai.com/v1",
         "GPT",
         iconResource = R.drawable.ic_translation_provider_openai,
         iconTinted = true,
+        allowProtocolSelection = true,
     ),
     AiServiceTemplate(
+        templateId = "custom-chat",
         R.string.translation_services_template_custom_chat,
         TranslationProtocolId.OPENAI_COMPATIBLE_CHAT,
         "",
@@ -2238,25 +2246,31 @@ private val AI_SERVICE_TEMPLATES = listOf(
         allowProtocolSelection = true,
     ),
     AiServiceTemplate(
+        templateId = "deepseek",
         R.string.translation_services_template_deepseek,
         TranslationProtocolId.OPENAI_COMPATIBLE_CHAT,
         "https://api.deepseek.com",
         "DS",
         iconResource = R.drawable.ic_translation_provider_deepseek,
+        allowProtocolSelection = true,
     ),
     AiServiceTemplate(
+        templateId = "gemini-interactions",
         R.string.translation_services_template_gemini_interactions,
         TranslationProtocolId.GEMINI_INTERACTIONS,
         GEMINI_API_BASE_URL,
         "G",
         iconResource = R.drawable.ic_translation_provider_gemini,
+        allowProtocolSelection = true,
     ),
     AiServiceTemplate(
+        templateId = "anthropic-messages",
         R.string.translation_services_template_anthropic,
         TranslationProtocolId.ANTHROPIC_MESSAGES,
         TranslationProtocolId.ANTHROPIC_MESSAGES.defaultBaseUrl(),
         "CL",
         iconResource = R.drawable.ic_translation_provider_anthropic,
+        allowProtocolSelection = true,
     ),
 )
 
@@ -2282,6 +2296,7 @@ private data class ServiceEditor(
     val isBuiltInTemplate: Boolean = false,
     val allowProtocolSelection: Boolean = false,
     val showBaseUrl: Boolean = false,
+    val templateId: String? = null,
     val customParametersRef: String? = null,
     val customParameters: TranslationCustomParameters? = null,
 ) {
@@ -2290,6 +2305,7 @@ private data class ServiceEditor(
         displayName = displayName,
         protocolId = protocolId,
         baseUrl = baseUrl,
+        templateId = templateId,
         modelId = modelId,
         enabled = enabled,
         translationPrompt = prompt.ifBlank { DEFAULT_TRANSLATION_PROMPT },
@@ -2323,6 +2339,7 @@ private data class ServiceEditor(
             displayName: String,
             baseUrl: String,
             allowProtocolSelection: Boolean = false,
+            templateId: String? = null,
         ) = ServiceEditor(
             id = null,
             protocolId = protocolId,
@@ -2349,7 +2366,8 @@ private data class ServiceEditor(
             ),
             taskSettings = TranslationServiceTaskSettings.defaults(protocolId.category),
             allowProtocolSelection = allowProtocolSelection,
-            showBaseUrl = allowProtocolSelection,
+            showBaseUrl = protocolId.category == TranslationServiceCategory.AI_TRANSLATION,
+            templateId = templateId,
         )
 
         fun newMachine(protocolId: TranslationProtocolId, displayName: String) = ServiceEditor(
@@ -2379,6 +2397,7 @@ private data class ServiceEditor(
             showBaseUrl: Boolean,
             allowProtocolSelection: Boolean,
             isBuiltInTemplate: Boolean,
+            templateId: String? = null,
         ) = ServiceEditor(
             id = profile.id,
             protocolId = profile.protocolId,
@@ -2400,9 +2419,9 @@ private data class ServiceEditor(
             taskSettings = profile.taskSettings,
             isBuiltInTemplate = isBuiltInTemplate,
             allowProtocolSelection = allowProtocolSelection &&
-                profile.protocolId.category == TranslationServiceCategory.AI_TRANSLATION &&
-                profile.protocolId != TranslationProtocolId.GEMINI_INTERACTIONS,
+                profile.protocolId.category == TranslationServiceCategory.AI_TRANSLATION,
             showBaseUrl = showBaseUrl,
+            templateId = profile.templateId ?: templateId,
             customParametersRef = profile.customParametersRef,
             customParameters = null,
         )

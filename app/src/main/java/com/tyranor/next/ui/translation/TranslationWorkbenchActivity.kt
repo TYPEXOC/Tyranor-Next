@@ -1354,12 +1354,12 @@ private fun ProjectPhaseChip(
     modifier: Modifier = Modifier,
 ) {
     val container = when (phase) {
-        ProjectPhase.COMPLETE -> MaterialTheme.colorScheme.secondaryContainer
+        ProjectPhase.COMPLETE -> MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
         ProjectPhase.CURRENT -> MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
         ProjectPhase.WAITING -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f)
     }
     val content = when (phase) {
-        ProjectPhase.COMPLETE -> MaterialTheme.colorScheme.onSecondaryContainer
+        ProjectPhase.COMPLETE -> MaterialTheme.colorScheme.primary
         ProjectPhase.CURRENT -> MaterialTheme.colorScheme.primary
         ProjectPhase.WAITING -> MaterialTheme.colorScheme.onSurfaceVariant
     }

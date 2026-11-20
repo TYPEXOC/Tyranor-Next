@@ -15,6 +15,7 @@ internal data class TranslationServiceProfileEntity(
     @ColumnInfo(name = "display_name") val displayName: String,
     @ColumnInfo(name = "protocol_id") val protocolId: String,
     @ColumnInfo(name = "base_url") val baseUrl: String,
+    @ColumnInfo(name = "template_id") val templateId: String? = null,
     @ColumnInfo(name = "model_id") val modelId: String,
     val enabled: Boolean,
     val revision: Long,

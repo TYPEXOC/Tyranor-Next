@@ -5,7 +5,7 @@
 ## 协议边界
 
 - 服务协议 ID 为 `gemini-interactions-v1`，与 `openai-compatible-chat-v1` 分开注册。它实现 Google Gemini Developer API 的 Interactions v1，不是将 Gemini 伪装成任意 OpenAI 兼容 URL，也不使用旧 `generateContent` API。
-- 交互固定发送到 `https://generativelanguage.googleapis.com/v1/interactions`。服务档案仅接受该官方 HTTPS origin；Vertex AI、自定义代理、其它 host 和普通 HTTP 均被拒绝。Vertex AI 的 endpoint、认证和 project/location 配置需要另一项明确协议工作。
+- 默认根地址为 `https://generativelanguage.googleapis.com`；用户也可填写 Gemini Interactions 兼容服务的根地址，adapter 在该根地址下访问 `/v1beta/models` 与 `/v1/interactions`。地址校验拒绝 user-info、query、fragment 和不支持的 URL 形式。Vertex AI 的 endpoint、认证和 project/location 配置仍未接入。
 - API Key 使用 `x-goog-api-key` 请求头，不放入 URL、任务快照、日志或 Room 普通字段。请求 JSON 包含输入语言、目标语言、稳定条目 ID、服务提示词和结构化 JSON schema，并显式设置 `store=false`、`stream=false`。翻译与 AI 校对分别使用翻译提示词和校对提示词。
 - 模型目录通过 Gemini API `GET /v1beta/models?pageSize=1000` 获取并按 `nextPageToken` 分页，仅显示模型目录标记支持 `generateContent` 的模型 ID。用户可手动填写模型 ID；模型目录不能证明账号/项目当前具有调用权限。
 - 交互成功响应要求 `status=completed`，从 `steps` 的 `model_output` 文本提取 JSON，再交给共享结构化结果解析器。解析器按稳定 ID 拆分有效项与缺失、重复、未知、无效或格式损坏项；占位符/控制码与换行校验失败的条目不能成功提交。后台 Worker 保持既有逐批 Room 事务和检查点语义。
@@ -13,9 +13,9 @@
 
 ## 验证与限制
 
-- `GeminiInteractionsAdapterTest` 使用合成 HTTP 响应覆盖请求路径、API Key header、无 query 鉴权、`store=false`、提示词分流、模型分页/能力过滤、结构化建议解析、鉴权错误映射和官方 host 限制；`OpenAiCompatibleChatAdapterTest` 验证共享解析器继续覆盖稳定 ID、部分失败与格式令牌校验。
+- `GeminiInteractionsAdapterTest` 使用合成 HTTP 响应覆盖请求路径、API Key header、无 query 鉴权、`store=false`、提示词分流、模型分页/能力过滤、结构化建议解析、鉴权错误映射和自定义 Gemini 服务根地址；`OpenAiCompatibleChatAdapterTest` 验证共享解析器继续覆盖稳定 ID、部分失败与格式令牌校验。
 - 合成测试与 Android 构建不会证明真实账户权限、具体模型可用性、Google 服务端结构差异、配额/限流策略或真实游戏翻译质量。仍需真实 API 账户验证模型目录、翻译、校对、鉴权失败、限流、超时和取消；未在手机/平板上验收 UI、后台任务和网络行为。
-- 该接入没有加入新的 SDK 或第三方依赖。本文记录 Gemini 接入时的单协议范围；后续七种机器翻译由独立 adapter 接入，当前仍未接入 Anthropic Messages、Vertex AI、Gemini 自定义代理和本地翻译模型。完整当前服务清单以[服务配置与协议适配实现说明](翻译服务配置与协议适配实现说明.md)为准。
+- 该接入没有加入新的 SDK 或第三方依赖。本文记录 Gemini 接入时的单协议范围；后续七种机器翻译由独立 adapter 接入，当前仍未接入 Vertex AI 和本地翻译模型；Gemini 自定义服务根地址仅适用于实现相同 Interactions 协议的服务。完整当前服务清单以[服务配置与协议适配实现说明](翻译服务配置与协议适配实现说明.md)为准。
 
 ## 官方协议资料
 

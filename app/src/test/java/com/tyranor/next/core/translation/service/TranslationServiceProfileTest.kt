@@ -35,7 +35,7 @@ class TranslationServiceProfileTest {
     }
 
     @Test
-    fun acceptsOnlyOfficialGeminiDeveloperApiOrigin() {
+    fun acceptsProtocolCompatibleGeminiServiceRoots() {
         assertEquals(
             GEMINI_API_BASE_URL,
             TranslationServiceRepository.normalizeBaseUrl(
@@ -43,12 +43,18 @@ class TranslationServiceProfileTest {
                 TranslationProtocolId.GEMINI_INTERACTIONS,
             ),
         )
+        assertEquals(
+            "https://proxy.example.test/gemini",
+            TranslationServiceRepository.normalizeBaseUrl(
+                "https://proxy.example.test/gemini/",
+                TranslationProtocolId.GEMINI_INTERACTIONS,
+            ),
+        )
         listOf(
-            "http://generativelanguage.googleapis.com",
-            "https://proxy.example.test",
-            "$GEMINI_API_BASE_URL/v1",
-            "$GEMINI_API_BASE_URL?key=secret",
-            "https://generativelanguage.googleapis.com:8443",
+            "https://user:password@proxy.example.test/gemini",
+            "https://proxy.example.test/gemini?key=secret",
+            "ftp://proxy.example.test/gemini",
+            "https://proxy.example.test/gemini/../private",
         ).forEach { value ->
             val failure = assertThrows(TranslationServiceException::class.java) {
                 TranslationServiceRepository.normalizeBaseUrl(value, TranslationProtocolId.GEMINI_INTERACTIONS)

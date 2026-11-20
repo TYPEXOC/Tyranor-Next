@@ -196,7 +196,7 @@ class GeminiInteractionsAdapterTest {
     }
 
     @Test
-    fun mapsAuthenticationErrorsAndRejectsOtherHosts() = runBlocking {
+    fun mapsAuthenticationErrorsAndUsesTheConfiguredGeminiServiceRoot() = runBlocking {
         val calls = QueuedCallFactory(listOf(HttpResult(403, """{"error":{"status":"PERMISSION_DENIED"}}""")))
         val adapter = GeminiInteractionsAdapter(TranslationHttpTransport(calls))
         val failure = assertThrows(TranslationServiceException::class.java) {
@@ -208,10 +208,22 @@ class GeminiInteractionsAdapterTest {
             }
         }
         assertEquals(TranslationServiceErrorCode.AUTHENTICATION_FAILED, failure.code)
-        assertThrows(TranslationServiceException::class.java) {
-            TranslationServiceRepository.normalizeBaseUrl("https://proxy.example.test", TranslationProtocolId.GEMINI_INTERACTIONS)
-        }
         assertTrue(calls.requests.size == 1)
+
+        val proxyCalls = QueuedCallFactory(listOf(HttpResult(200, interactionResponse(
+            JSONObject().put("results", JSONArray().put(
+                JSONObject().put("id", "entry").put("translation", "こんにちは"),
+            )).toString(),
+        ))))
+        GeminiInteractionsAdapter(TranslationHttpTransport(proxyCalls)).translateBatch(
+            profile().copy(baseUrl = "https://proxy.example.test/gemini"),
+            "test-key",
+            "en",
+            "ja",
+            listOf(TranslationInput("entry", "Hello", "en", "ja")),
+        )
+        assertEquals("proxy.example.test", proxyCalls.requests.single().url.host)
+        assertEquals("/gemini/v1/interactions", proxyCalls.requests.single().url.encodedPath)
     }
 
     @Test

@@ -1,6 +1,8 @@
 # 变更记录
 
 ## 未发布
+- AI 内置模板和自定义 AI 服务均开放四种协议选择（Chat Completions、OpenAI Responses、Anthropic Messages、Gemini Interactions）；内置档案的名称、地址和协议可编辑，服务卡片显示当前地址，并通过 Room `template_id` 保持原模板卡片关联。Gemini Interactions 仍使用专用 adapter，可配置兼容服务根地址；Room schema 升至 v12。
+- 翻译项目卡片已完成的阶段标签改用主题色，保持已完成状态的视觉强调。
 - 翻译工作台四类筛选改为分别承载项目卡片的分页，分类切换时卡片内容区随标签水平滑动；手机单列、平板双列及各分类独立滚动位置保留。翻译服务列表、配置、任务设置、高级设置和自定义参数页也统一接入共享分页动效。
 - SPEC 澄清外部设计参考提及的 `core/engine/translation` 运行时译表类当前不在仓库源码中；工作台仍只负责 MTool 文件导入/导出，不宣称应用内运行时交付。
 - 翻译工作台首期与校对实现说明同步到当前 Room schema v11，并把已检查的平板工作台列表范围与尚未完成的设备验收区分记录。
