@@ -822,6 +822,15 @@ private fun TranslationServicesScreen() {
                                             },
                                         )
                                     }
+                                    ServiceStatusContent(
+                                        statusText = connectionStatusText,
+                                        detailText = connectionStatusDetailText,
+                                        statusColor = connectionStatusColor,
+                                        lineHeight = connectionStatusLineHeight,
+                                        testing = isTestingThisConnection,
+                                        enabled = !isTestingThisConnection && !isSaving,
+                                        onTest = { startConnectionTest(state) },
+                                    )
                                 }
                             }
                             if (isMachineTranslation) {
@@ -851,44 +860,16 @@ private fun TranslationServicesScreen() {
                                             },
                                         )
                                     }
+                                    ServiceStatusContent(
+                                        statusText = connectionStatusText,
+                                        detailText = connectionStatusDetailText,
+                                        statusColor = connectionStatusColor,
+                                        lineHeight = connectionStatusLineHeight,
+                                        testing = isTestingThisConnection,
+                                        enabled = !isTestingThisConnection && !isSaving,
+                                        onTest = { startConnectionTest(state) },
+                                    )
                                 }
-                            }
-                            ServiceSectionCard(title = stringResource(R.string.translation_services_service_status)) {
-                                Column(modifier = Modifier.fillMaxWidth()) {
-                                    Box(
-                                        modifier = Modifier.fillMaxWidth().height(connectionStatusLineHeight),
-                                        contentAlignment = Alignment.CenterStart,
-                                    ) {
-                                        Text(
-                                            connectionStatusText,
-                                            color = connectionStatusColor,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                        )
-                                    }
-                                    Box(
-                                        modifier = Modifier.fillMaxWidth().height(connectionStatusLineHeight),
-                                        contentAlignment = Alignment.CenterStart,
-                                    ) {
-                                        Text(
-                                            connectionStatusDetailText,
-                                            color = connectionStatusColor,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                        )
-                                    }
-                                }
-                                NoRippleButton(
-                                    text = stringResource(
-                                        if (isTestingThisConnection) R.string.translation_services_test_connection_loading
-                                        else R.string.translation_services_test_connection,
-                                    ),
-                                    modifier = Modifier.fillMaxWidth(),
-                                    enabled = !isTestingThisConnection && !isSaving,
-                                    onClick = { startConnectionTest(state) },
-                                )
                             }
                             if (state.protocolId.category == TranslationServiceCategory.AI_TRANSLATION) {
                                 ServiceSectionCard(title = stringResource(R.string.translation_services_reasoning_settings)) {
@@ -1889,6 +1870,59 @@ private fun ServiceSectionCard(
             },
         )
     }
+}
+
+@Composable
+private fun ServiceStatusContent(
+    statusText: String,
+    detailText: String,
+    statusColor: Color,
+    lineHeight: androidx.compose.ui.unit.Dp,
+    testing: Boolean,
+    enabled: Boolean,
+    onTest: () -> Unit,
+) {
+    Spacer(Modifier.height(4.dp))
+    Text(
+        text = stringResource(R.string.translation_services_service_status),
+        style = MaterialTheme.typography.titleSmall,
+        fontWeight = FontWeight.SemiBold,
+    )
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Box(
+            modifier = Modifier.fillMaxWidth().height(lineHeight),
+            contentAlignment = Alignment.CenterStart,
+        ) {
+            Text(
+                statusText,
+                color = statusColor,
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Box(
+            modifier = Modifier.fillMaxWidth().height(lineHeight),
+            contentAlignment = Alignment.CenterStart,
+        ) {
+            Text(
+                detailText,
+                color = statusColor,
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+    NoRippleButton(
+        text = stringResource(
+            if (testing) R.string.translation_services_test_connection_loading
+            else R.string.translation_services_test_connection,
+        ),
+        modifier = Modifier.fillMaxWidth(),
+        enabled = enabled,
+        onClick = onTest,
+    )
 }
 
 @Composable
