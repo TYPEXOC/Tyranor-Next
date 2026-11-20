@@ -779,9 +779,10 @@ private fun TranslationServicesScreen() {
                             ServiceSectionCard(title = stringResource(R.string.translation_services_service_status)) {
                                 Text(
                                     connectionStatusText,
-                                    modifier = Modifier.fillMaxWidth().heightIn(min = 40.dp),
+                                    modifier = Modifier.fillMaxWidth(),
                                     color = connectionStatusColor,
                                     style = MaterialTheme.typography.bodySmall,
+                                    minLines = 2,
                                     maxLines = 2,
                                     overflow = TextOverflow.Ellipsis,
                                 )
