@@ -481,13 +481,13 @@ private fun TranslationServicesScreen() {
         val isMachineTranslation = state.protocolId.category == TranslationServiceCategory.MACHINE_TRANSLATION
         val isTestingThisConnection = testingConnectionSessionId == editorSessionId
         val connectionStatusText = when {
-            errorCode != null -> stringResource(errorCode!!.messageResource())
-            connectionTestError != null -> stringResource(connectionTestError!!.messageResource()) +
+            errorCode != null -> errorCode!!.displayMessage()
+            connectionTestError != null -> connectionTestError!!.displayMessage() +
                 connectionTestHttpStatusCode?.let {
                     stringResource(R.string.translation_services_http_status_code, it)
                 }.orEmpty()
             !isMachineTranslation && modelFetchError != null ->
-                stringResource(modelFetchError!!.messageResource())
+                modelFetchError!!.displayMessage()
             !isMachineTranslation && modelListEmpty ->
                 stringResource(R.string.translation_services_no_models)
             connectionTestResult == TranslationConnectionTestResult.TranslationVerified ->
@@ -712,14 +712,6 @@ private fun TranslationServicesScreen() {
                                             },
                                         )
                                     }
-                                    Text(
-                                        connectionStatusText,
-                                        modifier = Modifier.fillMaxWidth().heightIn(min = 20.dp, max = 40.dp),
-                                        color = connectionStatusColor,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        maxLines = 2,
-                                        overflow = TextOverflow.Ellipsis,
-                                    )
                                 }
                             }
                             if (state.protocolId.category == TranslationServiceCategory.AI_TRANSLATION) {
@@ -782,15 +774,17 @@ private fun TranslationServicesScreen() {
                                             },
                                         )
                                     }
-                                    Text(
-                                        connectionStatusText,
-                                        modifier = Modifier.fillMaxWidth().heightIn(min = 20.dp, max = 40.dp),
-                                        color = connectionStatusColor,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        maxLines = 2,
-                                        overflow = TextOverflow.Ellipsis,
-                                    )
                                 }
+                            }
+                            ServiceSectionCard(title = stringResource(R.string.translation_services_service_status)) {
+                                Text(
+                                    connectionStatusText,
+                                    modifier = Modifier.fillMaxWidth().heightIn(min = 20.dp, max = 40.dp),
+                                    color = connectionStatusColor,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
                             }
                             NoRippleButton(
                                 text = stringResource(
@@ -2423,3 +2417,10 @@ private fun TranslationServiceErrorCode.messageResource(): Int = when (this) {
     TranslationServiceErrorCode.SERVICE_DISABLED -> R.string.translation_services_error_disabled
     TranslationServiceErrorCode.STORAGE_FAILURE -> R.string.translation_services_error_storage
 }
+
+@Composable
+private fun TranslationServiceErrorCode.displayMessage(): String = stringResource(
+    R.string.translation_services_error_message_with_code,
+    stringResource(messageResource()),
+    name,
+)
