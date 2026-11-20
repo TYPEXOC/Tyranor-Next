@@ -28,6 +28,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
@@ -100,6 +104,7 @@ import com.tyranor.next.ui.common.NoRippleTextButton
 import com.tyranor.next.ui.common.OverlayDropdownPreference
 import com.tyranor.next.ui.common.SegmentedControl
 import com.tyranor.next.ui.common.Switch
+import com.tyranor.next.ui.common.isTabletScreen
 import com.tyranor.next.ui.common.motion.listItemMotion
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -367,6 +372,7 @@ private fun TranslationServicesScreen() {
     }
 
     if (editor == null) {
+        val tabletLayout = isTabletScreen()
         MiuixSettingsTheme {
             MiuixScaffold(
             modifier = Modifier.fillMaxSize(),
@@ -380,15 +386,17 @@ private fun TranslationServicesScreen() {
                 )
             },
             ) { innerPadding ->
-                LazyColumn(
+                LazyVerticalGrid(
+                columns = GridCells.Fixed(if (tabletLayout) 2 else 1),
                 modifier = Modifier.fillMaxSize()
                     .widthIn(max = 760.dp)
                     .padding(top = innerPadding.calculateTopPadding())
                     .padding(horizontal = 12.dp),
                 contentPadding = PaddingValues(top = 12.dp, bottom = 24.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                item(key = "service-categories") {
+                item(key = "service-categories", span = { GridItemSpan(maxLineSpan) }) {
                     SegmentedControl(
                         options = tabs,
                         selectedIndex = if (selectedCategory == TranslationServiceCategory.MACHINE_TRANSLATION) 0 else 1,
@@ -399,7 +407,7 @@ private fun TranslationServicesScreen() {
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
-                item(key = "service-category-heading") {
+                item(key = "service-category-heading", span = { GridItemSpan(maxLineSpan) }) {
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -410,7 +418,7 @@ private fun TranslationServicesScreen() {
                     }
                 }
                 if (selectedCategory == TranslationServiceCategory.AI_TRANSLATION) {
-                    item(key = "add-custom-ai-service") {
+                    item(key = "add-custom-ai-service", span = { GridItemSpan(maxLineSpan) }) {
                         NoRippleButton(
                             text = stringResource(R.string.translation_services_add_ai_service),
                             modifier = Modifier.fillMaxWidth(),
@@ -418,7 +426,11 @@ private fun TranslationServicesScreen() {
                         )
                     }
                 }
-                items(categoryRows, key = ServiceListRow::key) { row ->
+                gridItems(
+                    items = categoryRows,
+                    key = ServiceListRow::key,
+                    span = { GridItemSpan(1) },
+                ) { row ->
                     val displayName = row.displayName ?: stringResource(row.displayNameResource!!)
                     TranslationServiceTemplateCard(
                         row = row,
@@ -435,7 +447,7 @@ private fun TranslationServicesScreen() {
                         },
                     )
                 }
-                item(key = "service-category-note") {
+                item(key = "service-category-note", span = { GridItemSpan(maxLineSpan) }) {
                     MiuixCard(
                         modifier = Modifier.fillMaxWidth().glassBorder(),
                         cornerRadius = AppComponentCornerRadius,
@@ -449,7 +461,7 @@ private fun TranslationServicesScreen() {
                     }
                 }
                 if (errorCode != null) {
-                    item(key = "service-error") {
+                    item(key = "service-error", span = { GridItemSpan(maxLineSpan) }) {
                         Text(
                             stringResource(errorCode!!.messageResource()),
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
