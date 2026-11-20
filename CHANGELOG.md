@@ -2,6 +2,7 @@
 
 ## 未发布
 
+- 内置翻译服务模板的配置页不再显示“删除此服务”，避免把模板误当成可删除的服务档案。
 - AI 内置模板隐藏预设 API 地址，并在连接区域显示固定只读协议名称；自定义 API 保留 Chat Completions、OpenAI Responses、Anthropic Messages 三种可选协议并可配置兼容服务根地址，Gemini Interactions 继续通过官方模板配置。
 - AI 翻译高级设置提供按协议适配的结构化输出、Chat Completions Token 字段与输出上限，以及加密保存的自定义请求头/类型化请求体参数。采样参数改由自定义请求体控制；所有 AI 服务配置统一显示“跟随默认、关闭思考、极低、低、中、高、超高、最高”选项，并由 Chat Completions、Responses、Gemini Interactions、Anthropic Messages 按协议和模型能力映射，任务快照固定启动等级；旧 OpenAI / Gemini 专用字段读取时兼容迁移。
 - 翻译与 AI 校对提示词卡片增加“恢复默认”按钮，分别恢复系统提示词默认内容并清空对应的用户提示词。

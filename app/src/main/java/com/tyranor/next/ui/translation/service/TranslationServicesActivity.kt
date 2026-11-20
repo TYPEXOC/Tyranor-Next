@@ -180,6 +180,7 @@ private fun TranslationServicesScreen() {
                     protocolId = template.protocolId,
                     baseUrl = profile?.baseUrl ?: template.protocolId.defaultBaseUrl(),
                     profile = profile,
+                    isBuiltInTemplate = true,
                 ),
             )
         }
@@ -211,6 +212,7 @@ private fun TranslationServicesScreen() {
                         protocolId = template.protocolId,
                         baseUrl = profile?.baseUrl ?: template.baseUrl,
                         profile = profile,
+                        isBuiltInTemplate = true,
                         aiTemplate = template,
                     ),
                 )
@@ -264,6 +266,7 @@ private fun TranslationServicesScreen() {
                 row.profile,
                 showBaseUrl = row.aiTemplate == null,
                 allowProtocolSelection = row.aiTemplate == null,
+                isBuiltInTemplate = row.isBuiltInTemplate,
             ).let { state ->
                 if (row.profile.id == builtinMachineProfileId(row.protocolId)) state.copy(displayName = displayName) else state
             }
@@ -701,7 +704,7 @@ private fun TranslationServicesScreen() {
                             },
                         )
                     }
-                    if (state.id != null) {
+                    if (state.id != null && !state.isBuiltInTemplate) {
                         NoRippleTextButton(
                             text = stringResource(R.string.translation_services_delete_action),
                             contentColor = MaterialTheme.colorScheme.error,
@@ -1592,6 +1595,7 @@ private data class ServiceListRow(
     val protocolId: TranslationProtocolId,
     val baseUrl: String,
     val profile: TranslationServiceProfile?,
+    val isBuiltInTemplate: Boolean = false,
     val aiTemplate: AiServiceTemplate? = null,
 )
 
@@ -1867,6 +1871,7 @@ private data class ServiceEditor(
     val proofreadingUserPrompt: String,
     val generationOptions: TranslationGenerationOptions,
     val taskSettings: TranslationServiceTaskSettings,
+    val isBuiltInTemplate: Boolean = false,
     val allowProtocolSelection: Boolean = false,
     val showBaseUrl: Boolean = false,
     val customParametersRef: String? = null,
@@ -1964,6 +1969,7 @@ private data class ServiceEditor(
             profile: TranslationServiceProfile,
             showBaseUrl: Boolean,
             allowProtocolSelection: Boolean,
+            isBuiltInTemplate: Boolean,
         ) = ServiceEditor(
             id = profile.id,
             protocolId = profile.protocolId,
@@ -1983,6 +1989,7 @@ private data class ServiceEditor(
             proofreadingUserPrompt = profile.proofreadingUserPrompt,
             generationOptions = profile.generationOptions.forServiceEditor(profile.protocolId),
             taskSettings = profile.taskSettings,
+            isBuiltInTemplate = isBuiltInTemplate,
             allowProtocolSelection = allowProtocolSelection &&
                 profile.protocolId.category == TranslationServiceCategory.AI_TRANSLATION &&
                 profile.protocolId != TranslationProtocolId.GEMINI_INTERACTIONS,
