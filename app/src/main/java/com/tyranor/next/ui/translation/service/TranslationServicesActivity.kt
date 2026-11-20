@@ -749,6 +749,34 @@ private fun TranslationServicesScreen() {
                                         )
                                     }
                                     ServiceTextField(
+                                        value = state.apiKey,
+                                        onValueChange = { updateAiConnection(state.copy(apiKey = it, clearSecret = false)) },
+                                        label = stringResource(
+                                            if (state.protocolId in setOf(
+                                                    TranslationProtocolId.GEMINI_INTERACTIONS,
+                                                    TranslationProtocolId.OPENAI_RESPONSES,
+                                                    TranslationProtocolId.ANTHROPIC_MESSAGES,
+                                                )
+                                            ) R.string.translation_services_api_key_required
+                                            else R.string.translation_services_api_key,
+                                        ),
+                                        supportingText = stringResource(
+                                            when {
+                                                state.hasSavedSecret && !state.clearSecret -> R.string.translation_services_key_keep_hint
+                                                state.protocolId == TranslationProtocolId.OPENAI_RESPONSES ->
+                                                    R.string.translation_services_responses_key_hint
+                                                state.protocolId == TranslationProtocolId.GEMINI_INTERACTIONS ->
+                                                    R.string.translation_services_gemini_key_hint
+                                                state.protocolId == TranslationProtocolId.ANTHROPIC_MESSAGES ->
+                                                    R.string.translation_services_anthropic_key_hint
+                                                else -> R.string.translation_services_key_optional_hint
+                                            },
+                                        ),
+                                        visualTransformation = PasswordVisualTransformation(),
+                                        singleLine = true,
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                    ServiceTextField(
                                         value = state.modelId,
                                         onValueChange = { updateAiConnection(state.copy(modelId = it)) },
                                         label = stringResource(R.string.translation_services_model_id),
@@ -780,34 +808,6 @@ private fun TranslationServicesScreen() {
                                                 },
                                             )
                                         },
-                                        singleLine = true,
-                                        modifier = Modifier.fillMaxWidth(),
-                                    )
-                                    ServiceTextField(
-                                        value = state.apiKey,
-                                        onValueChange = { updateAiConnection(state.copy(apiKey = it, clearSecret = false)) },
-                                        label = stringResource(
-                                            if (state.protocolId in setOf(
-                                                    TranslationProtocolId.GEMINI_INTERACTIONS,
-                                                    TranslationProtocolId.OPENAI_RESPONSES,
-                                                    TranslationProtocolId.ANTHROPIC_MESSAGES,
-                                                )
-                                            ) R.string.translation_services_api_key_required
-                                            else R.string.translation_services_api_key,
-                                        ),
-                                        supportingText = stringResource(
-                                            when {
-                                                state.hasSavedSecret && !state.clearSecret -> R.string.translation_services_key_keep_hint
-                                                state.protocolId == TranslationProtocolId.OPENAI_RESPONSES ->
-                                                    R.string.translation_services_responses_key_hint
-                                                state.protocolId == TranslationProtocolId.GEMINI_INTERACTIONS ->
-                                                    R.string.translation_services_gemini_key_hint
-                                                state.protocolId == TranslationProtocolId.ANTHROPIC_MESSAGES ->
-                                                    R.string.translation_services_anthropic_key_hint
-                                                else -> R.string.translation_services_key_optional_hint
-                                            },
-                                        ),
-                                        visualTransformation = PasswordVisualTransformation(),
                                         singleLine = true,
                                         modifier = Modifier.fillMaxWidth(),
                                     )
