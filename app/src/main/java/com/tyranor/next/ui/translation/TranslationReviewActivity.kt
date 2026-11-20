@@ -71,6 +71,7 @@ import com.tyranor.next.core.translation.extraction.TranslationExtractorEngineId
 import com.tyranor.next.core.translation.service.TranslationServiceProfile
 import com.tyranor.next.theme.AppComponentCornerRadius
 import com.tyranor.next.theme.AppComponentShape
+import com.tyranor.next.theme.DialogItemSurface
 import com.tyranor.next.theme.MiuixSettingsTheme
 import com.tyranor.next.theme.PageSecondaryTextColor
 import com.tyranor.next.theme.PageTextColor
@@ -804,7 +805,7 @@ private fun ReviewEntryTable(
         Column(modifier = Modifier.fillMaxSize()) {
             Row(
                 modifier = Modifier.fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
+                    .background(DialogItemSurface)
                     .padding(horizontal = 10.dp, vertical = 5.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
