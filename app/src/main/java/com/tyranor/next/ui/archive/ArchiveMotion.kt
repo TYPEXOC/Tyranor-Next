@@ -4,34 +4,20 @@ import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.VisibilityThreshold
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.IntOffset
 import com.tyranor.next.theme.NavWhite
 import com.tyranor.next.ui.common.motion.MotionMode
 import com.tyranor.next.ui.common.motion.MotionTokens
+import com.tyranor.next.ui.common.motion.TabPageMotion
 
-/** 封包从右侧进入，解包从左侧进入；普通档保留原版的默认滑动与 220ms 淡入淡出。 */
+/** 解包/封包内容接入公共页面切换效果；封包从右侧进入，解包从左侧进入。 */
 internal fun archivePaneTransition(target: ArchiveMode): ContentTransform {
     val direction = if (target == ArchiveMode.PACK) 1 else -1
-    return if (MotionMode.enhanced) {
-        (slideInHorizontally(MotionTokens.content(IntOffset.VisibilityThreshold)) { direction * it } +
-            fadeIn(MotionTokens.fadeIn())) togetherWith
-            (slideOutHorizontally(MotionTokens.contentExit(IntOffset.VisibilityThreshold)) { -direction * it } +
-                fadeOut(MotionTokens.fadeOut()))
-    } else {
-        (slideInHorizontally { direction * it } + fadeIn(tween(220))) togetherWith
-            (slideOutHorizontally { -direction * it } + fadeOut(tween(220)))
-    }
+    return TabPageMotion.contentTransform(direction)
 }
 
 internal class ArchiveSelectionColors(val background: State<Color>, val foreground: State<Color>)

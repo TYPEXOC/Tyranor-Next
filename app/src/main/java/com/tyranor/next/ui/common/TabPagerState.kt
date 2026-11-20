@@ -66,14 +66,20 @@ private val LensSpec: GlassBottomBarSpec = GlassBottomBarSpec.Default.let { d ->
  *   所以分类栏的选中块与底栏的透镜**运动完全一致**：点选时带按压脉冲滑过去（边飞边变大、到位收回），
  *   在分类栏 / 标题区**长按**后先原地按压、同帧朝指尖移动（不放大），按住时连续跟手，松手吸附到最近的标签并请求选中，
  *   不做任何速度拉伸；
- * - **分页**（[pageOffset] / [pageAlpha]）：与主界面底栏切页**同一套效果**——每个分页各有一个「离开 / 进入」偏移（整宽水平位移，
- *   `MotionTokens.page` 弹簧）和一个透明度（`MotionTokens.fadeIn` 弹簧），宿主再叠 [tabPageTransform][com.tyranor.next.ui.common.motion.tabPageTransform] 景深缩放；
+ * - **分页**（[pageOffset] / [pageAlpha]）：每个分页各有一个「离开 / 进入」偏移（整宽水平位移）和一个透明度，宿主再叠
+ *   [tabPageTransform][com.tyranor.next.ui.common.motion.tabPageTransform] 景深缩放；
  *   选中变化时**只有旧页和新页**移动——从第 1 个跳到第 4 个，中间的分页不会闪过；透镜选择中分页完全不动，松手那一刻才一次性切换。
+ *   增强档使用 `MotionTokens` 弹簧；普通档默认瞬时切换，调用方可接入项目已有的普通档横向切页动画。
  *
  * 所有动画值都在布局 / 图层 / 绘制阶段读取（不触发重组）。
  */
 @Stable
-class TabPagerState(initialIndex: Int, val count: Int, scope: CoroutineScope) {
+class TabPagerState(
+    initialIndex: Int,
+    val count: Int,
+    scope: CoroutineScope,
+    val animateInOrdinaryMode: Boolean = false,
+) {
     /** 与底栏同款的透镜运动控制器：`index` 是透镜的连续位置（标签下标），`pressure` / `scaleX` / `scaleY` / `glow` 是按压形变。 */
     internal val lens = LensMotionController(
         scope = scope,
@@ -163,9 +169,17 @@ class TabPagerState(initialIndex: Int, val count: Int, scope: CoroutineScope) {
         if (from == to) return@coroutineScope
         shownPage = to
         val dir = if (to > from) 1f else -1f
-        // 与主界面底栏切页完全相同的弹簧：位移 MotionTokens.page（约 0.4s、几乎不过冲），透明度 MotionTokens.fadeIn
-        val pageSpec: FiniteAnimationSpec<Float> = if (enhanced) TabPageMotion.slide else snap()
-        val alphaSpec: FiniteAnimationSpec<Float> = if (enhanced) TabPageMotion.fade else snap()
+        // 普通档默认保留原有瞬切；需要页面转场的调用方接入解包/封包同款普通档横滑和淡入淡出。
+        val pageSpec: FiniteAnimationSpec<Float> = when {
+            enhanced -> TabPageMotion.slide
+            animateInOrdinaryMode -> TabPageMotion.ordinarySlide
+            else -> snap()
+        }
+        val alphaSpec: FiniteAnimationSpec<Float> = when {
+            enhanced -> TabPageMotion.fade
+            animateInOrdinaryMode -> TabPageMotion.ordinaryFade
+            else -> snap()
+        }
         val enter = pageOffsets[to]
         // 新页本来在场外：先放到切换方向那一侧；若还在淡出半途（被打断）就从当前位置接着走，不跳变
         if (abs(enter.value) >= 0.95f) enter.snapTo(dir)
@@ -188,11 +202,20 @@ class TabPagerState(initialIndex: Int, val count: Int, scope: CoroutineScope) {
  * 调用方的组合作用域不会因为选中项变化而重组（否则切页那一帧整个页面顶层都要重新执行）。
  */
 @Composable
-fun rememberTabPagerState(selectedIndex: () -> Int, count: Int): TabPagerState {
+fun rememberTabPagerState(
+    selectedIndex: () -> Int,
+    count: Int,
+    animateInOrdinaryMode: Boolean = false,
+): TabPagerState {
     val last = (count - 1).coerceAtLeast(0)
     val scope = rememberCoroutineScope()
-    val state = remember(count, scope) {
-        TabPagerState(Snapshot.withoutReadObservation(selectedIndex).coerceIn(0, last), count, scope)
+    val state = remember(count, scope, animateInOrdinaryMode) {
+        TabPagerState(
+            initialIndex = Snapshot.withoutReadObservation(selectedIndex).coerceIn(0, last),
+            count = count,
+            scope = scope,
+            animateInOrdinaryMode = animateInOrdinaryMode,
+        )
     }
     LaunchedEffect(state) {
         // collectLatest：连续切换时取消上一段，动画值与速度由各 Animatable / 控制器保留，从当前状态接着走

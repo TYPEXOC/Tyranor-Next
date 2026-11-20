@@ -108,7 +108,7 @@ import com.tyranor.next.ui.common.SegmentedControl
 import com.tyranor.next.ui.common.TabPagerPageHost
 import com.tyranor.next.ui.common.rememberTabPagerState
 import com.tyranor.next.ui.common.motion.MotionMode
-import com.tyranor.next.ui.common.motion.BlurCrossfade
+import com.tyranor.next.ui.common.motion.TabPageContent
 import com.tyranor.next.ui.common.motion.pressSquish
 import com.tyranor.next.ui.common.Switch
 import com.tyranor.next.ui.common.isTabletScreen
@@ -178,7 +178,11 @@ private fun TranslationServicesScreen() {
     var connectionTestResult by remember { mutableStateOf<TranslationConnectionTestResult?>(null) }
     var modelListEmpty by remember { mutableStateOf(false) }
     val pagePager = key(MotionMode.enhanced) {
-        rememberTabPagerState(selectedIndex = { activePage.ordinal }, count = TranslationServicesPage.entries.size)
+        rememberTabPagerState(
+            selectedIndex = { activePage.ordinal },
+            count = TranslationServicesPage.entries.size,
+            animateInOrdinaryMode = true,
+        )
     }
 
     LaunchedEffect(activePage, pagePager) {
@@ -439,6 +443,7 @@ private fun TranslationServicesScreen() {
                 if (selectedCategory == TranslationServiceCategory.MACHINE_TRANSLATION) 0 else 1
             },
             count = 2,
+            animateInOrdinaryMode = true,
         )
     }
     val activeCategoryPage = if (selectedCategory == TranslationServiceCategory.MACHINE_TRANSLATION) 0 else 1
@@ -1436,10 +1441,11 @@ private fun TranslationServicesScreen() {
                                 },
                                 modifier = Modifier.fillMaxWidth(),
                             )
-                            BlurCrossfade(
+                            TabPageContent(
                                 targetState = state.selectedTab,
                                 modifier = Modifier.fillMaxWidth(),
                                 label = "customParameterTabContent",
+                                direction = { initial, target -> if (target > initial) 1 else -1 },
                             ) { visibleTab ->
                                 val showingHeaders = visibleTab == 0
                                 val visibleEntries = if (showingHeaders) {

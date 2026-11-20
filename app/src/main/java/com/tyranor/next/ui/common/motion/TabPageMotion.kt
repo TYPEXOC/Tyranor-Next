@@ -1,14 +1,74 @@
 package com.tyranor.next.ui.common.motion
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedContentScope
+import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.VisibilityThreshold
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.unit.IntOffset
 
-/** The main tabs and engine categories share the same enhanced motion; their ordinary transitions differ. */
+/** Shared pager motion; ordinary transitions are enabled only by screens that already animate in that mode. */
 internal object TabPageMotion {
     val slide = MotionTokens.page(0.001f)
     val fade = MotionTokens.fadeIn(0.002f)
+    val ordinarySlide = spring<Float>(stiffness = Spring.StiffnessMediumLow, visibilityThreshold = 0.01f)
+    val ordinaryFade = tween<Float>(durationMillis = ORDINARY_FADE_DURATION_MILLIS)
     const val DepthScale = 0.06f
+
+    /** Keep ordinary in-page transitions aligned with the unpack/pack page's original slide and fade. */
+    fun contentTransform(direction: Int): ContentTransform = if (MotionMode.enhanced) {
+        (slideInHorizontally(MotionTokens.content(IntOffset.VisibilityThreshold)) { direction * it } +
+            fadeIn(MotionTokens.fadeIn())) togetherWith
+            (slideOutHorizontally(MotionTokens.contentExit(IntOffset.VisibilityThreshold)) { -direction * it } +
+                fadeOut(MotionTokens.fadeOut()))
+    } else {
+        (slideInHorizontally { direction * it } + fadeIn(tween(ORDINARY_FADE_DURATION_MILLIS))) togetherWith
+            (slideOutHorizontally { -direction * it } + fadeOut(tween(ORDINARY_FADE_DURATION_MILLIS)))
+    }
+}
+
+private const val ORDINARY_FADE_DURATION_MILLIS = 220
+
+/** Shared content transition for two-state panes such as the custom request header/body switch. */
+@Composable
+internal fun <S> TabPageContent(
+    targetState: S,
+    modifier: Modifier = Modifier,
+    contentAlignment: Alignment = Alignment.TopStart,
+    label: String,
+    direction: (initial: S, target: S) -> Int,
+    content: @Composable AnimatedContentScope.(S) -> Unit,
+) {
+    if (MotionMode.enhanced) {
+        BlurCrossfade(
+            targetState = targetState,
+            modifier = modifier,
+            contentAlignment = contentAlignment,
+            label = label,
+            content = content,
+        )
+    } else {
+        AnimatedContent(
+            targetState = targetState,
+            modifier = modifier,
+            contentAlignment = contentAlignment,
+            transitionSpec = { TabPageMotion.contentTransform(direction(initialState, targetState)) },
+            label = label,
+            content = content,
+        )
+    }
 }
 
 /**

@@ -33,7 +33,8 @@ internal fun TabPagerPageHost(
             pageTab < 0 || (kotlin.math.abs(pager.pageOffset(pageTab)) < 0.02f && pager.pageAlpha(pageTab) > 0.98f)
         }
     }
-    val interactive = pageTab == activePage && (!MotionMode.enhanced || settled)
+    val hasTransition = MotionMode.enhanced || pager.animateInOrdinaryMode
+    val interactive = pageTab == activePage && (!hasTransition || settled)
 
     Box(
         modifier = Modifier

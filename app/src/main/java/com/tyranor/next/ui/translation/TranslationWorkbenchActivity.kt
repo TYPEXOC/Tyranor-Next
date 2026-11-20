@@ -169,7 +169,11 @@ private fun TranslationWorkbenchScreen() {
     }.collectAsStateWithLifecycle(initialValue = emptyList())
     var projectFilter by rememberSaveable { mutableStateOf(ProjectListFilter.ALL) }
     val filterPager = key(MotionMode.enhanced) {
-        rememberTabPagerState({ projectFilter.ordinal }, ProjectListFilter.entries.size)
+        rememberTabPagerState(
+            selectedIndex = { projectFilter.ordinal },
+            count = ProjectListFilter.entries.size,
+            animateInOrdinaryMode = true,
+        )
     }
     val inProgressProjectCount = projects.count(TranslationProjectCard::isInProgress)
     val fullyTranslatedProjectCount = projects.count(TranslationProjectCard::isFullyTranslated)
