@@ -981,22 +981,34 @@ private fun ReviewEntryScrollbar(state: LazyListState, modifier: Modifier = Modi
     val density = LocalDensity.current.density
     val scrollScope = rememberCoroutineScope()
     val scrollJob = remember(state) { AtomicReference<kotlinx.coroutines.Job?>(null) }
+    var thumbPressed by remember(state) { mutableStateOf(false) }
 
     Canvas(
         modifier = modifier
             .width(16.dp)
             .fillMaxHeight()
             .pointerInput(state, density) {
-                detectTapGestures { position ->
-                    val metrics = reviewScrollbarMetrics(state, size.height.toFloat(), density)
-                        ?: return@detectTapGestures
-                    val fraction = scrollbarFractionForPosition(position.y, size.height.toFloat(), metrics.thumbHeight)
-                    scrollJob.getAndSet(scrollScope.launch { scrollReviewTableToFraction(state, fraction, density) })?.cancel()
-                }
+                detectTapGestures(
+                    onPress = {
+                        thumbPressed = true
+                        try {
+                            tryAwaitRelease()
+                        } finally {
+                            thumbPressed = false
+                        }
+                    },
+                    onTap = { position ->
+                        val metrics = reviewScrollbarMetrics(state, size.height.toFloat(), density)
+                            ?: return@detectTapGestures
+                        val fraction = scrollbarFractionForPosition(position.y, size.height.toFloat(), metrics.thumbHeight)
+                        scrollJob.getAndSet(scrollScope.launch { scrollReviewTableToFraction(state, fraction, density) })?.cancel()
+                    },
+                )
             }
             .pointerInput(state, density) {
                 detectDragGestures(
                     onDragStart = { position ->
+                        thumbPressed = true
                         val metrics = reviewScrollbarMetrics(state, size.height.toFloat(), density)
                         if (metrics != null) {
                             val fraction = scrollbarFractionForPosition(position.y, size.height.toFloat(), metrics.thumbHeight)
@@ -1011,11 +1023,13 @@ private fun ReviewEntryScrollbar(state: LazyListState, modifier: Modifier = Modi
                         }
                         change.consume()
                     },
+                    onDragEnd = { thumbPressed = false },
+                    onDragCancel = { thumbPressed = false },
                 )
             },
     ) {
         val metrics = reviewScrollbarMetrics(state, size.height, density) ?: return@Canvas
-        val thumbWidth = 3.dp.toPx()
+        val thumbWidth = (if (thumbPressed) 5.dp else 3.dp).toPx()
         val trackWidth = 3.dp.toPx()
         val trackLeft = size.width - trackWidth
         drawRoundRect(
