@@ -29,6 +29,7 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
+import org.json.JSONTokener
 
 /** OpenAI Chat Completions-compatible adapter. Provider-specific extensions are intentionally omitted. */
 internal class OpenAiCompatibleChatAdapter(
@@ -125,37 +126,31 @@ internal class OpenAiCompatibleChatAdapter(
             .build()
         val response = transport.execute(profile, request)
         requireSuccess(response.statusCode, response.body, response.retryAfterMillis, modelList = false)
-        val content = try {
-            JSONObject(response.body)
-                .optJSONArray("choices")
-                ?.optJSONObject(0)
-                ?.optJSONObject("message")
-                ?.optString("content")
-                ?.takeIf(String::isNotBlank)
-                ?: throw TranslationServiceException(TranslationServiceErrorCode.INVALID_RESPONSE)
-        } catch (failure: JSONException) {
-            throw TranslationServiceException(TranslationServiceErrorCode.INVALID_RESPONSE)
+        val content = extractAssistantContent(response.body)
+        val parsed = runCatching { parseBatchContent(content, inputs) }
+            .getOrElse { failure ->
+                if (failure !is TranslationServiceException || !allowPlainTextProbe) throw failure
+                null
+            }
+        if (parsed != null && parsed.successes.size == inputs.size && parsed.itemFailures.isEmpty() &&
+            parsed.unknownResponseIds.isEmpty()
+        ) {
+            return parsed
         }
-        return try {
-            parseBatchContent(content, inputs)
-        } catch (failure: TranslationServiceException) {
-            val plainText = content.trim()
-            if (!allowPlainTextProbe || failure.code != TranslationServiceErrorCode.INVALID_RESPONSE ||
-                plainText.isBlank() || plainText.startsWith('{') || plainText.startsWith('[') ||
-                plainText.startsWith("```")
+        if (allowPlainTextProbe) {
+            val input = inputs.singleOrNull()
+            val translation = input?.let { parseSingleProbeTranslation(content, it) }
+            if (input != null && translation != null &&
+                TranslationTextIntegrity.compare(input.sourceText, translation).isEmpty()
             ) {
-                throw failure
+                return TranslationBatchResponse(
+                    successes = listOf(TranslationOutput(input.entryId, translation)),
+                    itemFailures = emptyMap(),
+                    unknownResponseIds = emptySet(),
+                )
             }
-            val input = inputs.single()
-            if (TranslationTextIntegrity.compare(input.sourceText, plainText).isNotEmpty()) {
-                throw failure
-            }
-            TranslationBatchResponse(
-                successes = listOf(TranslationOutput(input.entryId, plainText)),
-                itemFailures = emptyMap(),
-                unknownResponseIds = emptySet(),
-            )
         }
+        return parsed ?: throw TranslationServiceException(TranslationServiceErrorCode.INVALID_RESPONSE)
     }
 
     override suspend fun proofreadBatch(
@@ -182,18 +177,7 @@ internal class OpenAiCompatibleChatAdapter(
             .build()
         val response = transport.execute(profile, request)
         requireSuccess(response.statusCode, response.body, response.retryAfterMillis, modelList = false)
-        val content = try {
-            JSONObject(response.body)
-                .optJSONArray("choices")
-                ?.optJSONObject(0)
-                ?.optJSONObject("message")
-                ?.optString("content")
-                ?.takeIf(String::isNotBlank)
-                ?: throw TranslationServiceException(TranslationServiceErrorCode.INVALID_RESPONSE)
-        } catch (failure: JSONException) {
-            throw TranslationServiceException(TranslationServiceErrorCode.INVALID_RESPONSE)
-        }
-        return parseProofreadContent(content, inputs)
+        return parseProofreadContent(extractAssistantContent(response.body), inputs)
     }
 
     private fun createProofreadRequestBody(
@@ -355,6 +339,117 @@ internal class OpenAiCompatibleChatAdapter(
         private const val MAX_MODEL_COUNT = 2_000
         private const val MAX_MODEL_ID = 256
         private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
+        private val THINK_BLOCK = Regex("(?is)<think>.*?</think>")
+        private val JSON_FENCE = Regex("(?is)^```(?:json)?\\s*(.*?)\\s*```$")
+
+        private fun extractAssistantContent(responseBody: String): String {
+            val content = try {
+                JSONObject(responseBody)
+                    .optJSONArray("choices")
+                    ?.optJSONObject(0)
+                    ?.optJSONObject("message")
+                    ?.opt("content")
+            } catch (failure: JSONException) {
+                null
+            }
+            val text = when (content) {
+                is String -> content
+                is JSONArray -> buildString {
+                    for (index in 0 until content.length()) {
+                        val part = content.optJSONObject(index) ?: continue
+                        if (part.optString("type") !in setOf("text", "output_text")) continue
+                        val partText = part.optString("text").takeIf(String::isNotBlank) ?: continue
+                        if (isNotEmpty()) append('\n')
+                        append(partText)
+                    }
+                }
+                else -> null
+            }
+            return text?.takeIf(String::isNotBlank)
+                ?: throw TranslationServiceException(TranslationServiceErrorCode.INVALID_RESPONSE)
+        }
+
+        /** Allows common single-result shapes for a connection probe without relaxing batch ID validation. */
+        private fun parseSingleProbeTranslation(content: String, input: TranslationInput): String? {
+            val normalized = content.replace(THINK_BLOCK, "").trim()
+            val fenced = JSON_FENCE.matchEntire(normalized)?.groupValues?.getOrNull(1)?.trim()
+            val candidate = fenced ?: extractFirstJsonObject(normalized)
+            if (candidate != null) {
+                val value = runCatching { JSONTokener(candidate).nextValue() }.getOrNull()
+                val translation = when (value) {
+                    is JSONObject -> translationFromProbeObject(value, input)
+                    is JSONArray -> if (value.length() == 1) {
+                        val item = value.opt(0)
+                        if (item is JSONObject) translationFromProbeObject(item, input) else item as? String
+                    } else null
+                    else -> null
+                }
+                return translation?.trim()?.takeIf(String::isNotEmpty)
+            }
+
+            if (normalized.startsWith('[') || normalized.startsWith('{') || normalized.startsWith("```")) return null
+            return normalized.takeIf(String::isNotBlank)
+        }
+
+        private fun translationFromProbeObject(value: JSONObject, input: TranslationInput): String? {
+            if (value.has("id") && value.optString("id").trim() != input.entryId) return null
+            if (value.has("src") && value.optString("src") != input.sourceText) return null
+
+            value.optJSONArray("results")?.let { results ->
+                if (results.length() != 1) return null
+                val result = results.optJSONObject(0) ?: return null
+                if (result.has("id") && result.optString("id").trim() != input.entryId) return null
+                if (result.has("src") && result.optString("src") != input.sourceText) return null
+                return translationValue(result)
+            }
+
+            value.optJSONObject("results")?.let { results ->
+                if (results.length() != 1 || !results.has(input.entryId)) return null
+                return translationValue(results.opt(input.entryId))
+            }
+
+            if (value.has(input.entryId)) {
+                if (value.length() != 1) return null
+                return translationValue(value.opt(input.entryId))
+            }
+            return translationValue(value)
+        }
+
+        private fun translationValue(value: Any?): String? = when (value) {
+            is String -> value
+            is JSONObject -> listOf("translation", "translatedText", "translated", "target", "tr", "text", "value")
+                .firstNotNullOfOrNull { key -> value.opt(key) as? String }
+            else -> null
+        }
+
+        private fun extractFirstJsonObject(text: String): String? {
+            val start = text.indexOf('{')
+            if (start < 0) return null
+            var depth = 0
+            var inString = false
+            var escaped = false
+            for (index in start until text.length) {
+                val char = text[index]
+                if (inString) {
+                    when {
+                        escaped -> escaped = false
+                        char == '\\' -> escaped = true
+                        char == '"' -> inString = false
+                    }
+                    continue
+                }
+                when (char) {
+                    '"' -> inString = true
+                    '{' -> depth++
+                    '}' -> {
+                        depth--
+                        if (depth == 0) return text.substring(start, index + 1)
+                    }
+                }
+            }
+            return null
+        }
+
         internal fun parseBatchContent(
             content: String,
             inputs: List<TranslationInput>,

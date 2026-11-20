@@ -114,6 +114,51 @@ class OpenAiCompatibleChatAdapterTest {
     }
 
     @Test
+    fun connectionProbeAcceptsSmartSubStyleIdToTranslationJson() = runBlocking {
+        val callFactory = SingleCallFactory(
+            """{"choices":[{"message":{"content":"{\"tyn-connection-test\":\"你好\"}"}}]}""",
+        )
+        val result = OpenAiCompatibleChatAdapter(TranslationHttpTransport(callFactory)).testTranslation(
+            profile(),
+            apiKey = null,
+            input = TranslationInput("tyn-connection-test", "Hello", "en", "zh-Hans"),
+        )
+
+        assertEquals("你好", result.successes.single().translatedText)
+    }
+
+    @Test
+    fun connectionProbeReadsTextPartsAndIgnoresClosedThinkingBlock() = runBlocking {
+        val callFactory = SingleCallFactory(
+            """{"choices":[{"message":{"content":[{"type":"text","text":"<think>Let me translate this.</think>```json\n{\"results\":[{\"id\":\"tyn-connection-test\",\"translation\":\"你好\"}]}\n```"}]}}]}""",
+        )
+        val result = OpenAiCompatibleChatAdapter(TranslationHttpTransport(callFactory)).testTranslation(
+            profile(),
+            apiKey = null,
+            input = TranslationInput("tyn-connection-test", "Hello", "en", "zh-Hans"),
+        )
+
+        assertEquals("你好", result.successes.single().translatedText)
+    }
+
+    @Test
+    fun normalBatchReadsOpenAiTextPartArrayButStillRequiresStableIds() = runBlocking {
+        val callFactory = SingleCallFactory(
+            """{"choices":[{"message":{"content":[{"type":"text","text":"{\"results\":[{\"id\":\"entry\",\"translation\":\"你好\"}]}"}]}}]}""",
+        )
+        val result = OpenAiCompatibleChatAdapter(TranslationHttpTransport(callFactory)).translateBatch(
+            profile(),
+            apiKey = null,
+            sourceLanguage = "en",
+            targetLanguage = "zh-Hans",
+            inputs = listOf(TranslationInput("entry", "Hello", "en", "zh-Hans")),
+        )
+
+        assertEquals(listOf("entry"), result.successes.map { it.entryId })
+        assertTrue(result.itemFailures.isEmpty())
+    }
+
+    @Test
     fun normalBatchStillRejectsPlainTextWithoutStableIds() {
         val callFactory = SingleCallFactory(
             """{"choices":[{"message":{"content":"你好"}}]}""",
