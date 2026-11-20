@@ -419,7 +419,6 @@ private fun TranslationReviewScreen(projectId: String, openProofreadSetup: Boole
                                             translationText = editorText,
                                             enabled = !active,
                                             modifier = Modifier.weight(0.92f).fillMaxHeight(),
-                                            editorHeight = 220.dp,
                                             onTranslationTextChange = { editorText = it },
                                             onSave = {
                                                 runOperation {
@@ -1192,7 +1191,6 @@ private fun TranslationReviewEntryDetailPane(
     totalCount: Int,
     translationText: String,
     enabled: Boolean,
-    editorHeight: androidx.compose.ui.unit.Dp = 180.dp,
     modifier: Modifier = Modifier,
     onTranslationTextChange: (String) -> Unit,
     onSave: () -> Unit,
@@ -1243,8 +1241,8 @@ private fun TranslationReviewEntryDetailPane(
                 MiuixTextField(
                     value = translationText,
                     onValueChange = onTranslationTextChange,
-                    modifier = Modifier.fillMaxWidth().height(editorHeight),
-                    minLines = 5,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 88.dp, max = 220.dp),
+                    minLines = 2,
                     maxLines = 10,
                     enabled = enabled,
                     label = stringResource(R.string.translation_review_translation),
