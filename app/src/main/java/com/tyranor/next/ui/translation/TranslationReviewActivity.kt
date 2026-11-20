@@ -1139,16 +1139,22 @@ private fun TranslationReviewEntryCard(
         cornerRadius = AppComponentCornerRadius,
     ) {
         Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(
-                stringResource(R.string.translation_review_entry_number, sequence),
-                style = MaterialTheme.typography.labelSmall,
-                color = PageSecondaryTextColor,
-            )
-            Text(
-                entry.sourceKey,
-                style = MaterialTheme.typography.labelSmall,
-                color = if (selected) MaterialTheme.colorScheme.primary else PageSecondaryTextColor,
-            )
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    stringResource(R.string.translation_review_entry_number, sequence),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = PageSecondaryTextColor,
+                    maxLines = 1,
+                )
+                Text(
+                    entry.sourceKey,
+                    modifier = Modifier.weight(1f).padding(start = 8.dp),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (selected) MaterialTheme.colorScheme.primary else PageSecondaryTextColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
             Text(stringResource(R.string.translation_review_source), style = MaterialTheme.typography.labelMedium)
             Text(
                 entry.sourceText,
@@ -1215,17 +1221,24 @@ private fun TranslationReviewEntryDetailPane(
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
                     stringResource(R.string.translation_review_entry_position, sequence, totalCount),
                     style = MaterialTheme.typography.labelMedium,
                     color = PageSecondaryTextColor,
+                    maxLines = 1,
+                )
+                Text(
+                    entry.sourceKey,
+                    modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = PageSecondaryTextColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
                 ReviewEntryStatusBadge(entry)
             }
-            Text(entry.sourceKey, style = MaterialTheme.typography.labelSmall, color = PageSecondaryTextColor)
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(stringResource(R.string.translation_review_source), style = MaterialTheme.typography.labelMedium)
                 Box(
