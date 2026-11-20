@@ -1002,7 +1002,7 @@ private fun ReviewEntryScrollbar(state: LazyListState, modifier: Modifier = Modi
                         val metrics = reviewScrollbarMetrics(state, size.height.toFloat(), density)
                             ?: return@detectTapGestures
                         val fraction = scrollbarFractionForPosition(position.y, size.height.toFloat(), metrics.thumbHeight)
-                        scrollJob.getAndSet(scrollScope.launch { scrollReviewTableToFraction(state, fraction, density) })?.cancel()
+                        scrollJob.getAndSet(scrollScope.launch { scrollReviewTableToFraction(state, fraction) })?.cancel()
                     },
                 )
             }
@@ -1013,14 +1013,14 @@ private fun ReviewEntryScrollbar(state: LazyListState, modifier: Modifier = Modi
                         val metrics = reviewScrollbarMetrics(state, size.height.toFloat(), density)
                         if (metrics != null) {
                             val fraction = scrollbarFractionForPosition(position.y, size.height.toFloat(), metrics.thumbHeight)
-                            scrollJob.getAndSet(scrollScope.launch { scrollReviewTableToFraction(state, fraction, density) })?.cancel()
+                            scrollJob.getAndSet(scrollScope.launch { scrollReviewTableToFraction(state, fraction) })?.cancel()
                         }
                     },
                     onDrag = { change, _ ->
                         val metrics = reviewScrollbarMetrics(state, size.height.toFloat(), density)
                         if (metrics != null) {
                             val fraction = scrollbarFractionForPosition(change.position.y, size.height.toFloat(), metrics.thumbHeight)
-                            scrollJob.getAndSet(scrollScope.launch { scrollReviewTableToFraction(state, fraction, density) })?.cancel()
+                            scrollJob.getAndSet(scrollScope.launch { scrollReviewTableToFraction(state, fraction) })?.cancel()
                         }
                         change.consume()
                     },
@@ -1084,13 +1084,11 @@ private fun scrollbarFractionForPosition(positionY: Float, viewportHeight: Float
     return ((positionY - thumbHeight / 2f) / thumbTravel).coerceIn(0f, 1f)
 }
 
-private suspend fun scrollReviewTableToFraction(state: LazyListState, fraction: Float, density: Float) {
-    val metrics = reviewScrollbarMetrics(state, state.layoutInfo.viewportSize.height.toFloat(), density) ?: return
+private suspend fun scrollReviewTableToFraction(state: LazyListState, fraction: Float) {
     val totalItems = state.layoutInfo.totalItemsCount
-    val targetOffset = metrics.maxScrollOffset * fraction
-    val index = (targetOffset / metrics.averageItemHeight).toInt().coerceIn(0, totalItems - 1)
-    val itemOffset = (targetOffset - index * metrics.averageItemHeight).toInt().coerceAtLeast(0)
-    state.scrollToItem(index, itemOffset)
+    if (totalItems <= 0) return
+    val index = (fraction * totalItems).toInt().coerceIn(0, totalItems - 1)
+    state.scrollToItem(index)
 }
 
 @Composable
