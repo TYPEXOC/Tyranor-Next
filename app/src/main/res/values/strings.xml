@@ -128,7 +128,7 @@
     <string name="translation_services_model_filter_empty">没有匹配的模型。</string>
     <string name="translation_services_search_models">筛选模型</string>
     <string name="translation_services_no_models">服务没有返回模型列表；仍可手动填写模型 ID。</string>
-    <string name="translation_services_api_key">API Key（可选）</string>
+    <string name="translation_services_api_key">API Key</string>
     <string name="translation_services_api_key_required">API Key</string>
     <string name="translation_services_niutrans_api_key">小牛 API Key</string>
     <string name="translation_services_volc_access_key">火山 Access Key ID</string>
@@ -158,7 +158,7 @@
     <string name="translation_services_machine_secret_hint">凭据会保存在翻译域加密存储中；保存后不会回显。</string>
     <string name="translation_services_machine_secret_keep_hint">凭据不会回显。全部留空会保留已保存凭据；替换时请填写完整凭据组。</string>
     <string name="translation_services_key_keep_hint">留空会保留已保存的密钥。密钥使用设备 Keystore 加密，并排除在备份之外。</string>
-    <string name="translation_services_key_optional_hint">某些兼容服务不要求密钥；如需鉴权，可在此填写。</string>
+    <string name="translation_services_key_optional_hint">按服务要求填写；无需鉴权可留空。</string>
     <string name="translation_services_gemini_key_hint">Gemini API Key 必填；保存后使用 Android Keystore 加密，并排除在备份之外。</string>
     <string name="translation_services_responses_key_hint">OpenAI API Key 必填；保存后使用 Android Keystore 加密，并排除在备份之外。</string>
     <string name="translation_services_clear_key">清除已保存凭据</string>
@@ -191,7 +191,7 @@
     <string name="translation_services_max_output_tokens">最大输出 Token 数</string>
     <string name="translation_services_output_limit">输出上限</string>
     <string name="translation_services_thinking_level">思考等级</string>
-    <string name="translation_services_thinking_level_hint">模型对关闭和各档位的支持不同；Gemini 与始终思考的 Claude 会回退到最低档，其他不支持的值可能导致请求失败。留空使用服务默认设置。</string>
+    <string name="translation_services_thinking_level_hint">模型支持各异；不确定时用服务默认值。</string>
     <string name="translation_services_reasoning_settings">思考与推理</string>
     <string name="translation_services_provider_default">跟随服务默认值</string>
     <string name="translation_services_reasoning_none">关闭思考</string>

@@ -128,7 +128,7 @@
     <string name="translation_services_model_filter_empty">No matching models.</string>
     <string name="translation_services_search_models">Filter models</string>
     <string name="translation_services_no_models">The service returned no models. You can still enter a model ID manually.</string>
-    <string name="translation_services_api_key">API key (optional)</string>
+    <string name="translation_services_api_key">API key</string>
     <string name="translation_services_api_key_required">API key</string>
     <string name="translation_services_niutrans_api_key">NiuTrans API key</string>
     <string name="translation_services_volc_access_key">Volcengine Access Key ID</string>
@@ -158,7 +158,7 @@
     <string name="translation_services_machine_secret_hint">Credentials are stored in the encrypted translation secret store and are not shown again after saving.</string>
     <string name="translation_services_machine_secret_keep_hint">Saved credentials are hidden. Leave every field blank to keep them; enter the full credential set to replace them.</string>
     <string name="translation_services_key_keep_hint">Leave blank to keep the saved key. It is encrypted with Android Keystore and excluded from backups.</string>
-    <string name="translation_services_key_optional_hint">Some compatible services do not require a key. Enter one here when authentication is needed.</string>
+    <string name="translation_services_key_optional_hint">Enter a key if required; otherwise leave blank.</string>
     <string name="translation_services_gemini_key_hint">A Gemini API key is required. It is encrypted with Android Keystore and excluded from backups.</string>
     <string name="translation_services_responses_key_hint">An OpenAI API key is required. It is encrypted with Android Keystore and excluded from backups.</string>
     <string name="translation_services_clear_key">Clear saved credentials</string>
@@ -191,7 +191,7 @@
     <string name="translation_services_max_output_tokens">Maximum output tokens</string>
     <string name="translation_services_output_limit">Output limit</string>
     <string name="translation_services_thinking_level">Thinking level</string>
-    <string name="translation_services_thinking_level_hint">Support varies by model. Gemini and always-thinking Claude models fall back to their lowest level; other unsupported values may fail. Leave unset for the provider default.</string>
+    <string name="translation_services_thinking_level_hint">Support varies by model; use the provider default if unsure.</string>
     <string name="translation_services_reasoning_settings">Thinking and reasoning</string>
     <string name="translation_services_provider_default">Provider default</string>
     <string name="translation_services_reasoning_none">Off</string>
