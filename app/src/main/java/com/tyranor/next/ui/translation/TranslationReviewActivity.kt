@@ -9,6 +9,7 @@ import android.provider.DocumentsContract
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -71,8 +72,10 @@ import com.tyranor.next.core.translation.extraction.TranslationExtractorEngineId
 import com.tyranor.next.core.translation.service.TranslationServiceProfile
 import com.tyranor.next.theme.AppComponentCornerRadius
 import com.tyranor.next.theme.AppComponentShape
+import com.tyranor.next.theme.AppThemeColors
 import com.tyranor.next.theme.DialogItemSurface
 import com.tyranor.next.theme.MiuixSettingsTheme
+import com.tyranor.next.theme.NavWhite
 import com.tyranor.next.theme.PageSecondaryTextColor
 import com.tyranor.next.theme.PageTextColor
 import com.tyranor.next.theme.TextColor
@@ -800,18 +803,19 @@ private fun ReviewEntryTable(
     onSelect: (TranslationReviewEntry) -> Unit,
 ) {
     val sequenceById = remember(allEntries) { allEntries.mapIndexed { index, entry -> entry.id to index + 1 }.toMap() }
+    val panelBorder = translationReviewPanelBorderColor()
     MiuixCard(
-        modifier = modifier.glassBorder(),
+        modifier = modifier.border(1.dp, panelBorder, AppComponentShape).glassBorder(),
         cornerRadius = AppComponentCornerRadius,
         colors = MiuixCardDefaults.defaultColors(
-            color = DialogItemSurface,
+            color = NavWhite,
             contentColor = TextColor,
         ),
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             Row(
                 modifier = Modifier.fillMaxWidth()
-                    .background(MiuixTheme.colorScheme.surfaceContainer)
+                    .background(DialogItemSurface)
                     .padding(horizontal = 10.dp, vertical = 5.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -1026,11 +1030,14 @@ private fun TranslationReviewEntryDetailPane(
     onConfirm: () -> Unit,
     onIssueState: (TranslationReviewIssue, Boolean) -> Unit,
 ) {
+    val panelBorder = translationReviewPanelBorderColor()
     MiuixCard(
-        modifier = modifier.verticalScroll(rememberScrollState()).glassBorder(),
+        modifier = modifier.border(1.dp, panelBorder, AppComponentShape)
+            .verticalScroll(rememberScrollState())
+            .glassBorder(),
         cornerRadius = AppComponentCornerRadius,
         colors = MiuixCardDefaults.defaultColors(
-            color = DialogItemSurface,
+            color = NavWhite,
             contentColor = TextColor,
         ),
     ) {
@@ -1137,6 +1144,13 @@ private fun TranslationReviewEntryDetailPane(
             }
         }
     }
+}
+
+@Composable
+private fun translationReviewPanelBorderColor(): Color = when {
+    AppThemeColors.isGlass -> Color.Transparent
+    AppThemeColors.isDark && !AppThemeColors.isMilkGlass -> Color.White.copy(alpha = 0.12f)
+    else -> Color.Black.copy(alpha = 0.10f)
 }
 
 @Composable
