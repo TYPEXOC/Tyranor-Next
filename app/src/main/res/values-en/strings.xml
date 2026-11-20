@@ -118,7 +118,7 @@
     <string name="translation_services_test_connection_loading">Testing</string>
     <string name="translation_services_service_status">Service status</string>
     <string name="translation_services_http_status_code">(HTTP %1$d)</string>
-    <string name="translation_services_error_message_with_code">%1$s (Error code: %2$s)</string>
+    <string name="translation_services_error_code_label">Error code: %1$s</string>
     <string name="translation_services_test_models_success">Connected. The model list is available (%1$d models).</string>
     <string name="translation_services_test_models_empty">Connected, but the service returned no model list. Enter the model ID manually.</string>
     <string name="translation_services_test_translation_success">Test translation succeeded. The service is available.</string>

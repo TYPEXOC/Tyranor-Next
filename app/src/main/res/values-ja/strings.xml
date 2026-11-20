@@ -118,7 +118,7 @@
     <string name="translation_services_test_connection_loading">テスト中</string>
     <string name="translation_services_service_status">サービス状態</string>
     <string name="translation_services_http_status_code">（HTTP %1$d）</string>
-    <string name="translation_services_error_message_with_code">%1$s（エラーコード：%2$s）</string>
+    <string name="translation_services_error_code_label">エラーコード：%1$s</string>
     <string name="translation_services_test_models_success">接続しました。モデル一覧を取得できます（%1$d 件）。</string>
     <string name="translation_services_test_models_empty">接続しましたが、モデル一覧は返されませんでした。モデル ID を手動で入力してください。</string>
     <string name="translation_services_test_translation_success">テスト翻訳に成功しました。サービスを利用できます。</string>

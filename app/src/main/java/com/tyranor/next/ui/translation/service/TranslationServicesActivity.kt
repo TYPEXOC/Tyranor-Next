@@ -481,13 +481,10 @@ private fun TranslationServicesScreen() {
         val isMachineTranslation = state.protocolId.category == TranslationServiceCategory.MACHINE_TRANSLATION
         val isTestingThisConnection = testingConnectionSessionId == editorSessionId
         val connectionStatusText = when {
-            errorCode != null -> errorCode!!.displayMessage()
-            connectionTestError != null -> connectionTestError!!.displayMessage() +
-                connectionTestHttpStatusCode?.let {
-                    stringResource(R.string.translation_services_http_status_code, it)
-                }.orEmpty()
+            errorCode != null -> stringResource(errorCode!!.messageResource())
+            connectionTestError != null -> stringResource(connectionTestError!!.messageResource())
             !isMachineTranslation && modelFetchError != null ->
-                modelFetchError!!.displayMessage()
+                stringResource(modelFetchError!!.messageResource())
             !isMachineTranslation && modelListEmpty ->
                 stringResource(R.string.translation_services_no_models)
             connectionTestResult == TranslationConnectionTestResult.TranslationVerified ->
@@ -495,6 +492,21 @@ private fun TranslationServicesScreen() {
             isMachineTranslation -> stringResource(R.string.translation_services_machine_test_connection_hint)
             else -> stringResource(R.string.translation_services_manual_model_hint)
         }
+        val connectionStatusErrorCode = when {
+            errorCode != null -> errorCode
+            connectionTestError != null -> connectionTestError
+            !isMachineTranslation && modelFetchError != null -> modelFetchError
+            else -> null
+        }
+        val connectionStatusHttpCode = connectionTestHttpStatusCode.takeIf {
+            errorCode == null && connectionTestError != null
+        }
+        val connectionStatusDetailText = connectionStatusErrorCode?.let { code ->
+            stringResource(R.string.translation_services_error_code_label, code.name) +
+                connectionStatusHttpCode?.let {
+                    " ${stringResource(R.string.translation_services_http_status_code, it)}"
+                }.orEmpty()
+        }.orEmpty()
         val connectionStatusIsError = errorCode != null || connectionTestError != null ||
             (!isMachineTranslation && modelFetchError != null)
         val connectionStatusColor = when {
@@ -777,15 +789,24 @@ private fun TranslationServicesScreen() {
                                 }
                             }
                             ServiceSectionCard(title = stringResource(R.string.translation_services_service_status)) {
-                                Text(
-                                    connectionStatusText,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    color = connectionStatusColor,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    minLines = 2,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
+                                Column(modifier = Modifier.fillMaxWidth()) {
+                                    Text(
+                                        connectionStatusText,
+                                        color = connectionStatusColor,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        minLines = 1,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                    Text(
+                                        connectionStatusDetailText,
+                                        color = connectionStatusColor,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        minLines = 1,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
                                 NoRippleButton(
                                     text = stringResource(
                                         if (isTestingThisConnection) R.string.translation_services_test_connection_loading
@@ -2418,10 +2439,3 @@ private fun TranslationServiceErrorCode.messageResource(): Int = when (this) {
     TranslationServiceErrorCode.SERVICE_DISABLED -> R.string.translation_services_error_disabled
     TranslationServiceErrorCode.STORAGE_FAILURE -> R.string.translation_services_error_storage
 }
-
-@Composable
-private fun TranslationServiceErrorCode.displayMessage(): String = stringResource(
-    R.string.translation_services_error_message_with_code,
-    stringResource(messageResource()),
-    name,
-)
