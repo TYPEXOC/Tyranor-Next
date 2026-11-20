@@ -2237,28 +2237,31 @@ private fun TranslationServiceTemplateCard(
             ) {
                 MiuixButton(
                     onClick = onConfigure,
-                    modifier = Modifier.pressSquish().border(
-                        width = 1.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant,
-                        shape = AppComponentShape,
-                    ),
+                    // Match the shared Miuix switch's 49 × 28 dp visual bounds and trailing edge.
+                    modifier = Modifier.pressSquish()
+                        .size(width = 49.dp, height = 28.dp)
+                        .border(
+                            width = 1.dp,
+                            color = MaterialTheme.colorScheme.outlineVariant,
+                            shape = AppComponentShape,
+                        ),
                     enabled = true,
                     cornerRadius = AppComponentCornerRadius,
-                    minWidth = 64.dp,
-                    minHeight = 40.dp,
+                    minWidth = 49.dp,
+                    minHeight = 28.dp,
                     colors = MiuixButtonDefaults.buttonColors(
                         color = Color.Transparent,
                         disabledColor = Color.Transparent,
                         contentColor = MaterialTheme.colorScheme.primary,
                         disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
                     ),
-                    insideMargin = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                    insideMargin = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
                     indication = NoIndication,
                 ) {
                     Text(
                         text = stringResource(R.string.translation_services_configure),
                         color = MaterialTheme.colorScheme.primary,
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.labelSmall,
                     )
                 }
             }
