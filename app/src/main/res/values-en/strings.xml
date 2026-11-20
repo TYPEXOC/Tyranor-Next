@@ -1734,7 +1734,6 @@
     <string name="translation_review_column_status">Status</string>
     <string name="translation_review_entry_position">#%1$03d / %2$d</string>
     <string name="translation_review_workspace_title">Proofreading and editing</string>
-    <string name="translation_review_workspace_notice">The list shows source text and its current translation together. Select an entry to review suggestions, edit, or confirm the translation.</string>
     <string name="translation_review_source">Source</string>
     <string name="translation_review_translation">Current translation</string>
     <string name="translation_review_no_translation">No translation yet</string>

@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
@@ -26,6 +27,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
@@ -81,16 +83,21 @@ import com.tyranor.next.ui.common.NoRippleTextButton
 import com.tyranor.next.ui.common.isTabletScreen
 import com.tyranor.next.ui.common.motion.BlurCrossfade
 import com.tyranor.next.ui.common.motion.listItemMotion
+import com.tyranor.next.ui.common.motion.pressSquish
 import com.tyranor.next.ui.common.motion.pressSquishGroup
 import java.util.concurrent.CancellationException
 import kotlinx.coroutines.launch
 import com.tyranor.next.theme.glassBorder
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
+import top.yukonga.miuix.kmp.basic.FabPosition
+import top.yukonga.miuix.kmp.basic.FloatingActionButton as MiuixFloatingActionButton
 import top.yukonga.miuix.kmp.basic.HorizontalDivider as MiuixHorizontalDivider
+import top.yukonga.miuix.kmp.basic.Icon as MiuixIcon
 import top.yukonga.miuix.kmp.basic.RadioButton as MiuixRadioButton
 import top.yukonga.miuix.kmp.basic.VerticalDivider as MiuixVerticalDivider
 import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
 import top.yukonga.miuix.kmp.basic.TextField as MiuixTextField
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -222,6 +229,14 @@ private fun TranslationReviewScreen(projectId: String, openProofreadSetup: Boole
             modifier = Modifier.fillMaxSize(),
             containerColor = Color.Transparent,
             contentWindowInsets = WindowInsets(0.dp),
+            floatingActionButton = {
+                if (tabletLayout && !active && entries.isNotEmpty()) {
+                    ReviewCompleteFloatingActionButton {
+                        runOperation { repository.completeReviewRound(projectId) }
+                    }
+                }
+            },
+            floatingActionButtonPosition = FabPosition.End,
             topBar = {
                 AppSecondaryTopBar(
                     title = when {
@@ -396,19 +411,6 @@ private fun TranslationReviewScreen(projectId: String, openProofreadSetup: Boole
                                             modifier = Modifier.weight(0.92f).fillMaxHeight(),
                                         )
                                     }
-                                }
-                                ReviewInfoCard(
-                                    text = stringResource(R.string.translation_review_workspace_notice),
-                                )
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.End,
-                                ) {
-                                    NoRippleButton(
-                                        text = stringResource(R.string.translation_review_complete_round),
-                                        enabled = !active && entries.isNotEmpty(),
-                                        onClick = { runOperation { repository.completeReviewRound(projectId) } },
-                                    )
                                 }
                             }
                         }
@@ -861,11 +863,12 @@ private fun ReviewEntryTable(
                             modifier = Modifier.fillMaxWidth()
                                 .pressSquishGroup()
                                 .background(
-                                    if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)
+                                    if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
                                     else Color.Transparent,
                                 )
                                 .clickable { onSelect(entry) }
-                                .padding(horizontal = 10.dp, vertical = 4.dp),
+                                .padding(horizontal = 10.dp, vertical = 4.dp)
+                                .height(IntrinsicSize.Min),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
@@ -875,7 +878,7 @@ private fun ReviewEntryTable(
                                 color = PageSecondaryTextColor,
                                 textAlign = TextAlign.Center,
                             )
-                            MiuixVerticalDivider(modifier = Modifier.height(36.dp))
+                            MiuixVerticalDivider(modifier = Modifier.fillMaxHeight())
                             Text(
                                 entry.sourceText,
                                 modifier = Modifier.weight(1f).padding(horizontal = 10.dp),
@@ -884,7 +887,7 @@ private fun ReviewEntryTable(
                                 maxLines = 2,
                                 overflow = TextOverflow.Ellipsis,
                             )
-                            MiuixVerticalDivider(modifier = Modifier.height(36.dp))
+                            MiuixVerticalDivider(modifier = Modifier.fillMaxHeight())
                             Text(
                                 entry.translatedText.orEmpty().ifBlank { stringResource(R.string.translation_review_no_translation) },
                                 modifier = Modifier.weight(1f).padding(horizontal = 10.dp),
@@ -893,7 +896,7 @@ private fun ReviewEntryTable(
                                 maxLines = 2,
                                 overflow = TextOverflow.Ellipsis,
                             )
-                            MiuixVerticalDivider(modifier = Modifier.height(36.dp))
+                            MiuixVerticalDivider(modifier = Modifier.fillMaxHeight())
                             Box(modifier = Modifier.width(94.dp), contentAlignment = Alignment.Center) {
                                 ReviewEntryStatusBadge(entry)
                             }
@@ -1151,6 +1154,20 @@ private fun ReviewFilterTrigger(
         leadingIcon = painterResource(R.drawable.ic_game_filter),
         onClick = onClick,
     )
+}
+
+@Composable
+private fun ReviewCompleteFloatingActionButton(onClick: () -> Unit) {
+    MiuixFloatingActionButton(
+        onClick = onClick,
+        modifier = Modifier.pressSquish().navigationBarsPadding(),
+    ) {
+        MiuixIcon(
+            painter = painterResource(R.drawable.ic_check),
+            contentDescription = stringResource(R.string.translation_review_complete_round),
+            tint = MiuixTheme.colorScheme.onPrimary,
+        )
+    }
 }
 
 private enum class ReviewFilter(val label: Int) {

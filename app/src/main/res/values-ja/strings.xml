@@ -1734,7 +1734,6 @@
     <string name="translation_review_column_status">状態</string>
     <string name="translation_review_entry_position">#%1$03d / %2$d</string>
     <string name="translation_review_workspace_title">校正と編集</string>
-    <string name="translation_review_workspace_notice">一覧には原文と現在の訳文が一緒に表示されます。項目を選ぶと提案の確認、編集、訳文の確定ができます。</string>
     <string name="translation_review_source">原文</string>
     <string name="translation_review_translation">現在の訳文</string>
     <string name="translation_review_no_translation">訳文はまだありません</string>

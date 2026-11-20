@@ -1734,7 +1734,6 @@
     <string name="translation_review_column_status">状态</string>
     <string name="translation_review_entry_position">#%1$03d / %2$d</string>
     <string name="translation_review_workspace_title">校对与润色</string>
-    <string name="translation_review_workspace_notice">列表会同时展示原文与当前译文；选择条目后可查看建议、编辑和确认译文。</string>
     <string name="translation_review_source">原文</string>
     <string name="translation_review_translation">当前译文</string>
     <string name="translation_review_no_translation">尚无译文</string>
