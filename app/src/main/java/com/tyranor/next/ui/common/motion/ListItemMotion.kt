@@ -25,7 +25,8 @@ private inline fun itemMotion(enabled: Boolean, animate: () -> Modifier): Modifi
 
 /**
  * 在有稳定 key 的 lazy item 根节点调用，例如 `Modifier.then(listItemMotion())`。
- * 普通档或 [enabled] 为 false 时不挂动画；首屏依次入场与滚动形变由调用方分别处理。
+ * 普通档或 [enabled] 为 false 时不挂动画；[animateInsertion] 可关闭指定条目的插入淡入，同时保留补位和移除动效。
+ * 首屏依次入场与滚动形变由调用方分别处理。
  */
 fun LazyItemScope.listItemMotion(
     placement: ListItemPlacement = ListItemPlacement.Layout,
