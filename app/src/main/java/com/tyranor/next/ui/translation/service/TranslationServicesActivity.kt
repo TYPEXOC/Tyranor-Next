@@ -770,15 +770,22 @@ private fun TranslationServicesScreen() {
                             }
                             val connectionStatusIsError = errorCode != null || connectionTestError != null ||
                                 (!isMachineTranslation && modelFetchError != null)
+                            val connectionStatusColor = when {
+                                connectionStatusIsError -> MaterialTheme.colorScheme.error
+                                connectionTestResult == TranslationConnectionTestResult.TranslationVerified ->
+                                    MaterialTheme.colorScheme.primary
+                                else -> PageSecondaryTextColor
+                            }
                             Column(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalArrangement = Arrangement.spacedBy(4.dp),
                             ) {
                                 Text(
                                     connectionStatusText,
-                                    modifier = Modifier.fillMaxWidth().heightIn(min = 20.dp, max = 40.dp),
-                                    color = if (connectionStatusIsError) MaterialTheme.colorScheme.error
-                                    else PageSecondaryTextColor,
+                                    modifier = Modifier.fillMaxWidth()
+                                        .padding(horizontal = 16.dp)
+                                        .heightIn(min = 20.dp, max = 40.dp),
+                                    color = connectionStatusColor,
                                     style = MaterialTheme.typography.bodySmall,
                                     maxLines = 2,
                                     overflow = TextOverflow.Ellipsis,
