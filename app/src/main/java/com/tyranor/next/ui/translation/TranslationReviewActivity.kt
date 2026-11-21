@@ -547,37 +547,38 @@ private fun TranslationReviewScreen(projectId: String) {
                         maxLines = 8,
                     )
                     entry.issues.filter { it.state == "OPEN" }.forEach { issue ->
-                        Column(
+                        Row(
                             modifier = Modifier.fillMaxWidth()
                                 .clip(AppComponentShape)
                                 .background(MaterialTheme.colorScheme.error.copy(alpha = 0.08f))
                                 .padding(10.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
                             Text(
                                 stringResource(issue.code.labelResource()),
+                                modifier = Modifier.weight(1f),
                                 color = MaterialTheme.colorScheme.error,
                                 style = MaterialTheme.typography.bodySmall,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                             )
-                            FlowRow(
-                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                verticalArrangement = Arrangement.spacedBy(4.dp),
-                            ) {
-                                NoRippleTextButton(
-                                    text = stringResource(R.string.translation_review_resolve_issue),
-                                    enabled = !active && !savingEntry,
-                                    onClick = {
-                                        runOperation { repository.updateReviewIssue(projectId, issue.id, false) }
-                                    },
-                                )
-                                NoRippleTextButton(
-                                    text = stringResource(R.string.translation_review_ignore_issue),
-                                    enabled = !active && !savingEntry,
-                                    onClick = {
-                                        runOperation { repository.updateReviewIssue(projectId, issue.id, true) }
-                                    },
-                                )
-                            }
+                            NoRippleTextButton(
+                                text = stringResource(R.string.translation_review_resolve_issue),
+                                enabled = !active && !savingEntry,
+                                singleLine = true,
+                                onClick = {
+                                    runOperation { repository.updateReviewIssue(projectId, issue.id, false) }
+                                },
+                            )
+                            NoRippleTextButton(
+                                text = stringResource(R.string.translation_review_ignore_issue),
+                                enabled = !active && !savingEntry,
+                                singleLine = true,
+                                onClick = {
+                                    runOperation { repository.updateReviewIssue(projectId, issue.id, true) }
+                                },
+                            )
                         }
                     }
                 }
@@ -1165,29 +1166,33 @@ private fun TranslationReviewEntryDetailPane(
                 }
             }
             entry.issues.filter { it.state == "OPEN" }.forEach { issue ->
-                Column(
+                Row(
                     modifier = Modifier.fillMaxWidth().clip(AppComponentShape)
                         .background(MaterialTheme.colorScheme.error.copy(alpha = 0.08f))
                         .padding(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     Text(
                         stringResource(issue.code.labelResource()),
+                        modifier = Modifier.weight(1f),
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodySmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        NoRippleTextButton(
-                            text = stringResource(R.string.translation_review_resolve_issue),
-                            enabled = enabled,
-                            onClick = { onIssueState(issue, false) },
-                        )
-                        NoRippleTextButton(
-                            text = stringResource(R.string.translation_review_ignore_issue),
-                            enabled = enabled,
-                            onClick = { onIssueState(issue, true) },
-                        )
-                    }
+                    NoRippleTextButton(
+                        text = stringResource(R.string.translation_review_resolve_issue),
+                        enabled = enabled,
+                        singleLine = true,
+                        onClick = { onIssueState(issue, false) },
+                    )
+                    NoRippleTextButton(
+                        text = stringResource(R.string.translation_review_ignore_issue),
+                        enabled = enabled,
+                        singleLine = true,
+                        onClick = { onIssueState(issue, true) },
+                    )
                 }
             }
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
