@@ -1726,6 +1726,8 @@
     <string name="translation_review_complete_round">Complete this review round</string>
     <string name="translation_review_complete_confirm_title">Complete this review round?</string>
     <string name="translation_review_complete_confirm_message">The project will move to Completed. You can still reopen it with View review.</string>
+    <string name="translation_review_complete_with_warnings_message">%1$d warnings remain unresolved. Ignore them and complete this review round?</string>
+    <string name="translation_review_ignore_and_complete">Ignore and complete</string>
     <string name="translation_review_completed">This review round is complete</string>
     <string name="translation_review_no_entries">This project has no extracted or imported text yet.</string>
     <string name="translation_review_no_matches">No entries match the current criteria.</string>

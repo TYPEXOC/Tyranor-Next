@@ -1726,6 +1726,8 @@
     <string name="translation_review_complete_round">完成本轮校对</string>
     <string name="translation_review_complete_confirm_title">确认完成本轮校对？</string>
     <string name="translation_review_complete_confirm_message">完成后项目将归入“已完成”，仍可通过“查看校对”再次打开。</string>
+    <string name="translation_review_complete_with_warnings_message">仍有 %1$d 条警告未处理。忽略这些警告并完成本轮校对吗？</string>
+    <string name="translation_review_ignore_and_complete">忽略并完成</string>
     <string name="translation_review_completed">本轮校对已完成</string>
     <string name="translation_review_no_entries">项目还没有提取或导入文本。</string>
     <string name="translation_review_no_matches">当前条件下没有条目。</string>

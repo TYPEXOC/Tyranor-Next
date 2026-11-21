@@ -411,6 +411,9 @@ internal abstract class TranslationWorkbenchDao {
     @Query("UPDATE translation_review_issues SET state = 'RESOLVED', updated_at = :updatedAt WHERE project_id = :projectId AND entry_id = :entryId AND state = 'OPEN'")
     abstract suspend fun resolveEntryIssues(projectId: String, entryId: String, updatedAt: Long): Int
 
+    @Query("UPDATE translation_review_issues SET state = 'IGNORED', updated_at = :updatedAt WHERE project_id = :projectId AND source = 'RULE' AND severity = 'WARNING' AND state = 'OPEN'")
+    abstract suspend fun ignoreOpenRuleWarnings(projectId: String, updatedAt: Long): Int
+
     @Query("DELETE FROM translation_review_issues WHERE project_id = :projectId AND source = 'RULE' AND state = 'OPEN'")
     abstract suspend fun deleteOpenRuleIssues(projectId: String)
 
@@ -507,6 +510,7 @@ internal abstract class TranslationWorkbenchDao {
     @Transaction
     open suspend fun completeReviewRound(projectId: String, completedAt: Long): Boolean {
         if (getProject(projectId) == null || getActiveTask(projectId) != null) return false
+        ignoreOpenRuleWarnings(projectId, completedAt)
         return setReviewCompleted(projectId, completedAt) == 1
     }
 

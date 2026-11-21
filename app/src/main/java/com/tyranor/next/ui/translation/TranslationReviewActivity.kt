@@ -228,6 +228,9 @@ private fun TranslationReviewScreen(projectId: String) {
     val filterCounts = remember(entries) {
         ReviewFilter.entries.associateWith { option -> entries.count(option::matches) }
     }
+    val openWarningCount = entries.sumOf { entry ->
+        entry.issues.count { it.state == "OPEN" && it.severity == "WARNING" }
+    }
     val filteredEntries = entries.filter(filter::matches)
     val searchResultEntries = filteredEntries.filter { entry ->
         normalizedSearchQuery.isNotBlank() &&
@@ -834,7 +837,11 @@ private fun TranslationReviewScreen(projectId: String) {
             },
             text = {
                 Text(
-                    stringResource(R.string.translation_review_complete_confirm_message),
+                    stringResource(
+                        if (openWarningCount > 0) R.string.translation_review_complete_with_warnings_message
+                        else R.string.translation_review_complete_confirm_message,
+                        openWarningCount,
+                    ),
                     style = MaterialTheme.typography.bodyMedium,
                     color = PageSecondaryTextColor,
                 )
@@ -842,7 +849,10 @@ private fun TranslationReviewScreen(projectId: String) {
             confirmButton = {
                 DialogActionButtons(
                     cancelText = stringResource(R.string.common_cancel),
-                    confirmText = stringResource(R.string.translation_review_complete_round),
+                    confirmText = stringResource(
+                        if (openWarningCount > 0) R.string.translation_review_ignore_and_complete
+                        else R.string.translation_review_complete_round,
+                    ),
                     onCancel = { showCompleteReviewDialog = false },
                     onConfirm = {
                         showCompleteReviewDialog = false
