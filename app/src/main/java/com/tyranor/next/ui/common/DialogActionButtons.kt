@@ -9,7 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
-/** 弹窗表单的取消 / 主操作按钮：等宽并排，取消使用中性色，主操作使用主题色。 */
+/** 弹窗表单的取消 / 主操作按钮：等宽并排，取消与翻译确认弹窗使用相同的中性色。 */
 @Composable
 internal fun DialogActionButtons(
     cancelText: String,
@@ -30,8 +30,8 @@ internal fun DialogActionButtons(
             modifier = Modifier.weight(1f),
             enabled = cancelEnabled,
             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
-            containerColorOverride = MaterialTheme.colorScheme.surfaceVariant,
-            contentColorOverride = MaterialTheme.colorScheme.onSurfaceVariant,
+            containerColorOverride = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+            contentColorOverride = MaterialTheme.colorScheme.onSurface,
             onClick = {
                 val dismiss = { onCancel() }
                 if (dialogExit != null) dialogExit.closeThen(dismiss) else dismiss()
