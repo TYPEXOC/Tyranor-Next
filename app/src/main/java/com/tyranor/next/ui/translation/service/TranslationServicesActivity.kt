@@ -106,7 +106,6 @@ import com.tyranor.next.ui.common.DialogTextButton
 import com.tyranor.next.ui.common.NoRippleButton
 import com.tyranor.next.ui.common.NoRippleTextButton
 import com.tyranor.next.ui.common.OverlayDropdownPreference
-import com.tyranor.next.ui.common.SegmentedControl
 import com.tyranor.next.ui.common.SettingsEntryCard
 import com.tyranor.next.ui.common.TabPagerPageHost
 import com.tyranor.next.ui.common.TopBarIcon
@@ -131,6 +130,7 @@ import top.yukonga.miuix.kmp.basic.Button as MiuixButton
 import top.yukonga.miuix.kmp.basic.ButtonDefaults as MiuixButtonDefaults
 import top.yukonga.miuix.kmp.basic.FabPosition
 import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
+import top.yukonga.miuix.kmp.basic.TabRow as MiuixTabRow
 import top.yukonga.miuix.kmp.basic.TextField as MiuixTextField
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
@@ -479,10 +479,10 @@ private fun TranslationServicesScreen() {
                     modifier = Modifier.fillMaxSize().padding(top = innerPadding.calculateTopPadding()),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    SegmentedControl(
-                        options = tabs,
-                    selectedIndex = activeCategoryPage,
-                        onOptionSelected = { index ->
+                    MiuixTabRow(
+                        tabs = tabs,
+                        selectedTabIndex = activeCategoryPage,
+                        onTabSelected = { index ->
                             selectedCategory = if (index == 0) TranslationServiceCategory.MACHINE_TRANSLATION
                             else TranslationServiceCategory.AI_TRANSLATION
                         },
@@ -1325,13 +1325,13 @@ private fun TranslationServicesScreen() {
                             modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()),
                             verticalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
-                            SegmentedControl(
-                                options = listOf(
+                            MiuixTabRow(
+                                tabs = listOf(
                                     stringResource(R.string.translation_services_custom_headers),
                                     stringResource(R.string.translation_services_custom_body),
                                 ),
-                                selectedIndex = state.selectedTab,
-                                onOptionSelected = { index ->
+                                selectedTabIndex = state.selectedTab,
+                                onTabSelected = { index ->
                                     state = state.copy(
                                         selectedTab = index,
                                         name = "",
