@@ -260,7 +260,7 @@
     <string name="translation_add_project_proofread">校对</string>
     <string name="translation_add_project_extract_hint">扫描目录提取游戏文本</string>
     <string name="translation_add_project_translate_hint">使用已配置服务批量翻译</string>
-    <string name="translation_add_project_proofread_hint">导入已有译文并进行人工校对</string>
+    <string name="translation_add_project_proofread_hint">导入已有译文并进行校对</string>
     <string name="translation_add_project_engine_hint">选择对应游戏引擎</string>
     <string name="translation_add_project_engine_disabled_hint">仅提取时可选</string>
     <string name="translation_add_project_engine">游戏引擎</string>
@@ -1691,7 +1691,7 @@
     <string name="translation_review_open">查看校对</string>
     <string name="translation_start_manual_review">开始校对</string>
     <string name="translation_review_error_title">校对操作失败</string>
-    <string name="translation_review_title">人工校对</string>
+    <string name="translation_review_title">校对</string>
     <string name="translation_review_entry_number">条目 %1$d</string>
     <string name="translation_review_run_rules">运行本地规则检查</string>
     <string name="translation_review_rules_result">本次检查发现 %1$d 个问题</string>
