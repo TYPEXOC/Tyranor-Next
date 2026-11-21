@@ -606,8 +606,8 @@ private fun TranslationReviewScreen(projectId: String) {
             title = { Text(stringResource(R.string.translation_review_filter_dialog_title), style = MaterialTheme.typography.titleMedium) },
             text = {
                 Column(
-                    modifier = Modifier.fillMaxWidth().heightIn(max = 440.dp).verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(max = 460.dp).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     ReviewFilter.options.forEach { option ->
                         ReviewFilterOptionRow(
@@ -1167,36 +1167,55 @@ private fun ReviewFilterOptionRow(
     selected: Boolean,
     onClick: () -> Unit,
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth()
-            .clickable(onClick = onClick)
-            .heightIn(min = 56.dp)
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    val accentColor = MiuixTheme.colorScheme.primary
+    MiuixCard(
+        modifier = Modifier.fillMaxWidth().pressSquishGroup(),
+        cornerRadius = AppComponentCornerRadius,
+        colors = MiuixCardDefaults.defaultColors(
+            color = if (selected) accentColor.copy(alpha = 0.12f) else DialogItemSurface,
+        ),
     ) {
-        Box(
-            modifier = Modifier.width(52.dp),
-            contentAlignment = Alignment.CenterStart,
+        Row(
+            modifier = Modifier.fillMaxWidth()
+                .clickable(onClick = onClick)
+                .heightIn(min = 44.dp)
+                .padding(horizontal = 14.dp, vertical = 3.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (selected) {
-                MiuixIcon(
-                    painter = painterResource(R.drawable.ic_check),
-                    contentDescription = null,
-                    tint = MiuixTheme.colorScheme.primary,
-                    modifier = Modifier.size(28.dp),
-                )
+            Box(
+                modifier = Modifier.width(34.dp),
+                contentAlignment = Alignment.CenterStart,
+            ) {
+                if (selected) {
+                    MiuixIcon(
+                        painter = painterResource(R.drawable.ic_check),
+                        contentDescription = null,
+                        tint = accentColor,
+                        modifier = Modifier.size(24.dp),
+                    )
+                }
             }
+            Text(
+                stringResource(option.label),
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                ),
+                color = if (selected) accentColor else TextColor,
+            )
+            Text(
+                count.toString(),
+                modifier = Modifier
+                    .clip(AppComponentShape)
+                    .background(
+                        if (selected) accentColor.copy(alpha = 0.12f)
+                        else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f),
+                    )
+                    .padding(horizontal = 10.dp, vertical = 4.dp),
+                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                color = if (selected) accentColor else PageSecondaryTextColor,
+            )
         }
-        Text(
-            stringResource(option.label),
-            modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.bodyMedium,
-        )
-        Text(
-            count.toString(),
-            style = MaterialTheme.typography.labelMedium,
-            color = PageSecondaryTextColor,
-        )
     }
 }
 
