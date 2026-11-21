@@ -23,7 +23,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -36,6 +35,7 @@ import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -103,7 +103,6 @@ import com.tyranor.next.ui.common.AppSecondaryTopBar
 import com.tyranor.next.ui.common.ArrowPreference
 import com.tyranor.next.ui.common.DialogActionButtons
 import com.tyranor.next.ui.common.DialogTextButton
-import com.tyranor.next.ui.common.NoIndication
 import com.tyranor.next.ui.common.NoRippleButton
 import com.tyranor.next.ui.common.NoRippleTextButton
 import com.tyranor.next.ui.common.OverlayDropdownPreference
@@ -2207,30 +2206,12 @@ private fun TranslationServiceTemplateCard(
             ) {
                 MiuixButton(
                     onClick = onConfigure,
-                    // Match the shared Miuix switch's 49 × 28 dp visual bounds and trailing edge.
-                    modifier = Modifier.pressSquish()
-                        .size(width = 49.dp, height = 28.dp)
-                        .border(
-                            width = 1.dp,
-                            color = MaterialTheme.colorScheme.outlineVariant,
-                            shape = RoundedCornerShape(10.dp),
-                        ),
-                    enabled = true,
-                    cornerRadius = 10.dp,
-                    minWidth = 49.dp,
-                    minHeight = 28.dp,
-                    colors = MiuixButtonDefaults.buttonColors(
-                        color = Color.Transparent,
-                        disabledColor = Color.Transparent,
-                        contentColor = MaterialTheme.colorScheme.primary,
-                        disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
-                    ),
-                    insideMargin = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
-                    indication = NoIndication,
+                    modifier = Modifier.pressSquish(),
+                    colors = MiuixButtonDefaults.buttonColors(),
+                    indication = if (MotionMode.enhanced) null else ripple(),
                 ) {
                     Text(
                         text = stringResource(R.string.translation_services_configure),
-                        color = MaterialTheme.colorScheme.primary,
                         style = MaterialTheme.typography.labelSmall,
                     )
                 }
