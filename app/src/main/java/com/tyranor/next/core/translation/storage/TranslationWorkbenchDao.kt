@@ -15,7 +15,8 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 internal abstract class TranslationWorkbenchDao {
     @Query(
-        """SELECT p.id, p.title, p.project_state, p.engine_id, p.source_type, p.source_tree_uri, p.source_language, p.target_language,
+        """SELECT p.id, p.title, p.project_state, p.engine_id, p.source_type, p.source_tree_uri, p.source_display_path,
+            p.source_language, p.target_language,
             (SELECT t.type FROM translation_tasks t WHERE t.project_id = p.id ORDER BY t.created_at DESC, t.id DESC LIMIT 1) AS latest_task_type,
             (SELECT COUNT(*) FROM translation_entries e WHERE e.project_id = p.id) AS entry_count,
             (SELECT COUNT(*) FROM translation_entries e WHERE e.project_id = p.id AND e.translated_text IS NOT NULL AND e.translated_text != '') AS translated_count,

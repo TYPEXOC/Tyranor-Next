@@ -322,8 +322,13 @@ class TranslationWorkbenchRepository(context: Context) {
         return ProjectCreation(actual.id, created = inserted != -1L)
     }
 
-    /** Imports a supported exchange file into private Room storage. */
-    suspend fun importDocument(uri: Uri, displayName: String, format: TranslationProjectFormat): String =
+    /** Imports a supported exchange file and retains only its display path, never the source SAF URI. */
+    suspend fun importDocument(
+        uri: Uri,
+        displayName: String,
+        format: TranslationProjectFormat,
+        sourceDisplayPath: String? = null,
+    ): String =
         withContext(Dispatchers.IO) {
             val input = appContext.contentResolver.openInputStream(uri)
                 ?: throw TranslationWorkbenchException(TranslationWorkbenchError.INVALID_PROJECT_FILE)
@@ -353,6 +358,7 @@ class TranslationWorkbenchRepository(context: Context) {
                 engineId = engine,
                 sourceType = sourceType.name,
                 sourceTreeUri = null,
+                sourceDisplayPath = sourceDisplayPath?.takeIf(String::isNotBlank),
                 sourceLanguage = archive.sourceLanguage,
                 targetLanguage = archive.targetLanguage,
                 revision = 1,

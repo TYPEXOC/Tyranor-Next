@@ -9,7 +9,7 @@ enum class TranslationProjectFormat {
     MTOOL_JSON,
 }
 
-/** 项目来源。目录项目保留 SAF tree URI；文件导入项目只保存导入后的工作台数据。 */
+/** 项目来源。目录项目保留 SAF tree URI；文件导入项目保存导入数据和仅用于展示的原文件路径。 */
 enum class TranslationProjectSource {
     GAME_DIRECTORY,
     IMPORTED_CSV,
@@ -33,6 +33,7 @@ data class TranslationProjectCard(
     @ColumnInfo(name = "engine_id") val engineId: String?,
     @ColumnInfo(name = "source_type") val sourceType: String,
     @ColumnInfo(name = "source_tree_uri") val sourceTreeUri: String?,
+    @ColumnInfo(name = "source_display_path") val sourceDisplayPath: String?,
     @ColumnInfo(name = "source_language") val sourceLanguage: String?,
     @ColumnInfo(name = "target_language") val targetLanguage: String?,
     @ColumnInfo(name = "latest_task_type") val latestTaskType: String?,

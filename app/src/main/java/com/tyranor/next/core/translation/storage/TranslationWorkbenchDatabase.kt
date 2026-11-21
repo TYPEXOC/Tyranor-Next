@@ -22,7 +22,7 @@ import com.tyranor.next.core.translation.service.defaultBaseUrl
         TranslationGlossaryEntryEntity::class,
         TranslationReviewIssueEntity::class,
     ],
-    version = 14,
+    version = 15,
     exportSchema = true,
 )
 internal abstract class TranslationWorkbenchDatabase : RoomDatabase() {
@@ -398,6 +398,12 @@ internal abstract class TranslationWorkbenchDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_14_15 = object : Migration(14, 15) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE translation_projects ADD COLUMN source_display_path TEXT")
+            }
+        }
+
         private val SEED_DEFAULT_MACHINE_PROFILES = object : RoomDatabase.Callback() {
             override fun onCreate(db: SupportSQLiteDatabase) {
                 seedDefaultWebTranslationProfiles(db)
@@ -457,6 +463,7 @@ internal abstract class TranslationWorkbenchDatabase : RoomDatabase() {
                     MIGRATION_11_12,
                     MIGRATION_12_13,
                     MIGRATION_13_14,
+                    MIGRATION_14_15,
                 )
                 .fallbackToDestructiveMigrationOnDowngrade(dropAllTables = true)
                 .build()

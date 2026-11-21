@@ -436,7 +436,13 @@ private fun TranslationWorkbenchScreen() {
                         val displayName = addProjectSourceName.ifBlank { queryDisplayName(appContext, sourceUri) }
                         val format = addProjectSourceFormat
                             ?: throw TranslationWorkbenchException(TranslationWorkbenchError.INVALID_PROJECT_FILE)
-                        repository.importDocument(sourceUri, displayName, format)
+                        val sourceDisplayPath = querySelectedSourcePath(
+                            appContext,
+                            sourceUri,
+                            isTree = false,
+                            fallbackName = displayName,
+                        )
+                        repository.importDocument(sourceUri, displayName, format, sourceDisplayPath)
                     }
                 }
                 showAddDialog = false
@@ -1183,6 +1189,7 @@ private fun TranslationProjectCardView(
     val context = LocalContext.current
     val tabletLayout = isTabletScreen()
     val isGameDirectory = project.sourceType == TranslationProjectSource.GAME_DIRECTORY.name
+    val isImportedProject = !isGameDirectory
     val isActive = project.isInProgress()
     val canContinue = project.latestTaskState == "CANCELLED" || project.latestTaskState == "FAILED"
     val canContinueTranslation = project.latestTaskState in setOf("CANCELLED", "FAILED", "COMPLETED_WITH_ERRORS")
@@ -1218,15 +1225,21 @@ private fun TranslationProjectCardView(
         project.entryCount > 0 -> R.string.translation_project_ready
         else -> R.string.translation_project_waiting
     }
-    val engineLabel = when (project.engineId) {
-        TranslationExtractorEngineIds.RPG_MAKER_2000_2003 -> stringResource(R.string.translation_engine_rpg2k)
-        TranslationExtractorEngineIds.RPG_MAKER_RGSS -> stringResource(R.string.translation_engine_rgss)
-        else -> project.engineId?.let(::engineDisplayName)?.takeIf(String::isNotBlank)
-            ?: stringResource(R.string.translation_engine_unknown)
+    val engineLabel = if (isImportedProject) {
+        stringResource(R.string.translation_card_imported_source)
+    } else {
+        when (project.engineId) {
+            TranslationExtractorEngineIds.RPG_MAKER_2000_2003 -> stringResource(R.string.translation_engine_rpg2k)
+            TranslationExtractorEngineIds.RPG_MAKER_RGSS -> stringResource(R.string.translation_engine_rgss)
+            else -> project.engineId?.let(::engineDisplayName)?.takeIf(String::isNotBlank)
+                ?: stringResource(R.string.translation_engine_unknown)
+        }
     }
     val taskId = project.latestTaskId
-    var sourcePath by remember(project.id, project.sourceTreeUri) { mutableStateOf("") }
-    LaunchedEffect(project.id, project.sourceTreeUri) {
+    var sourcePath by remember(project.id, project.sourceTreeUri, project.sourceDisplayPath) {
+        mutableStateOf(project.sourceDisplayPath.orEmpty())
+    }
+    LaunchedEffect(project.id, project.sourceTreeUri, project.sourceDisplayPath) {
         val sourceUri = project.sourceTreeUri?.let(Uri::parse)
         sourcePath = if (sourceUri != null) {
             querySelectedSourcePath(
@@ -1236,7 +1249,7 @@ private fun TranslationProjectCardView(
                 fallbackName = project.title,
             )
         } else {
-            context.getString(R.string.translation_card_imported_source)
+            project.sourceDisplayPath.orEmpty()
         }
     }
 
@@ -1368,13 +1381,15 @@ private fun TranslationProjectCardView(
                     )
                 }
             }
-            Text(
-                sourcePath.ifBlank { stringResource(R.string.translation_card_imported_source) },
-                style = if (tabletLayout) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodySmall,
-                color = PageSecondaryTextColor,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            if (sourcePath.isNotBlank()) {
+                Text(
+                    sourcePath,
+                    style = if (tabletLayout) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodySmall,
+                    color = PageSecondaryTextColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
