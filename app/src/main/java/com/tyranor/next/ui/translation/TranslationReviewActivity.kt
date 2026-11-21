@@ -912,26 +912,19 @@ private fun ReviewProjectContextCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
+                val reviewComplete = project.reviewCompletedAt != null
                 Text(
-                    stringResource(R.string.translation_entry_summary, project.entryCount, project.translatedCount),
+                    stringResource(
+                        if (reviewComplete) R.string.translation_review_context_completed_count
+                        else R.string.translation_review_context_in_progress_count,
+                        project.entryCount,
+                    ),
                     style = MaterialTheme.typography.bodySmall,
-                    color = PageSecondaryTextColor,
+                    color = if (reviewComplete) MaterialTheme.colorScheme.primary else PageSecondaryTextColor,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            val status = when {
-                project.reviewCompletedAt != null -> stringResource(R.string.translation_card_review_completed)
-                else -> stringResource(R.string.translation_card_review_pending)
-            }
-            Text(
-                status,
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.primary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
         }
     }
 }

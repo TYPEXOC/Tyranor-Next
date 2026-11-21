@@ -313,6 +313,8 @@
     <string name="translation_card_review_pending">Needs review</string>
     <string name="translation_card_review_pending_count">Review · %1$d items</string>
     <string name="translation_card_review_completed">Review completed</string>
+    <string name="translation_review_context_in_progress_count">Review in progress · %1$d entries</string>
+    <string name="translation_review_context_completed_count">This review round is complete · %1$d entries</string>
     <string name="translation_card_progress_files">Extract · %1$d / %2$d files</string>
     <string name="translation_card_progress_extracting">Extracting text</string>
     <string name="translation_card_progress_translated">Translated · %1$d / %2$d</string>

@@ -313,6 +313,8 @@
     <string name="translation_card_review_pending">待校对</string>
     <string name="translation_card_review_pending_count">待校对 · %1$d 项</string>
     <string name="translation_card_review_completed">校对完成</string>
+    <string name="translation_review_context_in_progress_count">校对进行中 · %1$d 条</string>
+    <string name="translation_review_context_completed_count">本轮校对已完成 · %1$d 条</string>
     <string name="translation_card_progress_files">提取 · %1$d / %2$d 个文件</string>
     <string name="translation_card_progress_extracting">正在提取文本</string>
     <string name="translation_card_progress_translated">翻译 · %1$d / %2$d 条</string>
