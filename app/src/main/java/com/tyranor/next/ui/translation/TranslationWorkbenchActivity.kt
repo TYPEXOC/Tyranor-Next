@@ -986,9 +986,9 @@ private fun TranslationStartDialog(
     val serviceItems = services.map { service ->
         val category = stringResource(
             if (service.protocolId.category == TranslationServiceCategory.MACHINE_TRANSLATION) {
-                R.string.translation_services_machine_category
+                R.string.translation_service_type_mt
             } else {
-                R.string.translation_services_ai_category
+                R.string.translation_service_type_ai
             },
         )
         buildString {

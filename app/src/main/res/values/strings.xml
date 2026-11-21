@@ -339,6 +339,8 @@
     <string name="translation_start_translation_title">批量翻译</string>
     <string name="translation_start_translation_description">选择翻译服务、术语表和翻译语言。</string>
     <string name="translation_service_label">翻译服务</string>
+    <string name="translation_service_type_mt">MT</string>
+    <string name="translation_service_type_ai">AI</string>
     <string name="translation_no_enabled_service">没有可用的已启用翻译服务，请先在应用设置中配置并启用服务。</string>
     <string name="translation_source_language">原文语言</string>
     <string name="translation_target_language">目标语言</string>
