@@ -110,12 +110,12 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.flowOf
 import java.util.Date
+import java.util.Locale
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
 import top.yukonga.miuix.kmp.basic.CardDefaults as MiuixCardDefaults
 import top.yukonga.miuix.kmp.basic.CircularProgressIndicator as MiuixCircularProgressIndicator
 import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
 import top.yukonga.miuix.kmp.basic.TabRow as MiuixTabRow
-import top.yukonga.miuix.kmp.basic.TextField as MiuixTextField
 import androidx.compose.foundation.Image
 
 class TranslationWorkbenchActivity : AppScreenActivity() {
@@ -599,8 +599,8 @@ private fun TranslationWorkbenchScreen() {
                                                     translationProjectId = project.id
                                                     selectedTranslationServiceId = enabledTranslationServices.firstOrNull()?.id
                                                     selectedTranslationGlossaryId = null
-                                                    translationSourceLanguage = ""
-                                                    translationTargetLanguage = ""
+                                                    translationSourceLanguage = project.sourceLanguage?.takeIf(String::isNotBlank) ?: "ja"
+                                                    translationTargetLanguage = project.targetLanguage?.takeIf(String::isNotBlank) ?: "zh-CN"
                                                 },
                                                 onContinueTranslation = { taskId ->
                                                     runOperation { repository.continueTranslation(project.id, taskId) }
@@ -963,6 +963,7 @@ private fun TranslationWorkbenchScreen() {
 }
 
 @Composable
+@OptIn(ExperimentalMaterial3Api::class)
 private fun TranslationStartDialog(
     services: List<TranslationServiceProfile>,
     selectedServiceId: String?,
@@ -977,54 +978,95 @@ private fun TranslationStartDialog(
     onDismiss: () -> Unit,
     onStart: () -> Unit,
 ) {
-    MiuixSettingsTheme {
-        AppAlertDialog(
-            onDismissRequest = onDismiss,
-            title = { Text(stringResource(R.string.translation_start_translation_title), style = MaterialTheme.typography.titleMedium) },
-            text = {
+    val cardColor = if (AppThemeColors.isGlass || AppThemeColors.isMilkGlass) {
+        DialogItemSurface
+    } else {
+        NavWhite
+    }
+    val serviceItems = services.map { service ->
+        val category = stringResource(
+            if (service.protocolId.category == TranslationServiceCategory.MACHINE_TRANSLATION) {
+                R.string.translation_services_machine_category
+            } else {
+                R.string.translation_services_ai_category
+            },
+        )
+        buildString {
+            append(category).append(" · ").append(service.displayName)
+            if (service.modelId.isNotBlank()) append(" · ").append(service.modelId)
+        }
+    }
+    val selectedServiceIndex = services.indexOfFirst { it.id == selectedServiceId }.coerceAtLeast(0)
+    val sourceLanguages = translationLanguageOptions(sourceLanguage, includeAuto = true)
+    val targetLanguages = translationLanguageOptions(targetLanguage, includeAuto = false)
+    val selectedSourceIndex = sourceLanguages.indexOfFirst { option ->
+        option.code.equals(sourceLanguage, ignoreCase = true) ||
+            option.code == "auto" && sourceLanguage.equals("auto-detect", ignoreCase = true)
+    }.coerceAtLeast(0)
+    val selectedTargetIndex = targetLanguages.indexOfFirst { it.code.equals(targetLanguage, ignoreCase = true) }.coerceAtLeast(0)
+
+    AppBottomSheet(onDismissRequest = onDismiss) {
+        MiuixSettingsTheme {
+            Column(
+                modifier = Modifier.fillMaxWidth().widthIn(max = 760.dp).padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
                 Column(
-                    modifier = Modifier.fillMaxWidth().heightIn(max = 420.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    if (services.isEmpty()) {
-                        Text(
-                            stringResource(R.string.translation_no_enabled_service),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = PageSecondaryTextColor,
-                        )
-                    } else {
-                        Text(stringResource(R.string.translation_service_label), style = MaterialTheme.typography.labelMedium)
-                        LazyColumn(
-                            modifier = Modifier.fillMaxWidth().heightIn(max = 150.dp),
-                            verticalArrangement = Arrangement.spacedBy(2.dp),
-                        ) {
-                            items(services, key = TranslationServiceProfile::id) { service ->
-                                val categoryName = stringResource(
-                                    if (service.protocolId.category == TranslationServiceCategory.MACHINE_TRANSLATION) {
-                                        R.string.translation_services_machine_category
-                                    } else {
-                                        R.string.translation_services_ai_category
-                                    },
-                                )
-                                NoRippleTextButton(
-                                    text = buildString {
-                                        if (service.id == selectedServiceId) append("✓  ")
-                                        append(categoryName).append(" · ")
-                                        append(service.displayName)
-                                        if (service.modelId.isNotBlank()) append(" · ${service.modelId}")
-                                    },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    contentColor = if (service.id == selectedServiceId) MaterialTheme.colorScheme.primary
-                                    else PageTextColor,
-                                    onClick = { onSelectService(service.id) },
-                                )
-                            }
+                    Text(
+                        stringResource(R.string.translation_start_translation_title),
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                        color = PageTextColor,
+                    )
+                    Text(
+                        stringResource(R.string.translation_start_translation_description),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = PageSecondaryTextColor,
+                    )
+                }
+
+                Column(
+                    modifier = Modifier.fillMaxWidth().weight(1f, fill = false).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    MiuixCard(
+                        modifier = Modifier.fillMaxWidth().glassBorder(),
+                        cornerRadius = AppComponentCornerRadius,
+                        colors = MiuixCardDefaults.defaultColors(color = cardColor, contentColor = PageTextColor),
+                    ) {
+                        if (services.isEmpty()) {
+                            Text(
+                                stringResource(R.string.translation_no_enabled_service),
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = PageSecondaryTextColor,
+                            )
+                        } else {
+                            OverlayDropdownPreference(
+                                items = serviceItems,
+                                selectedIndex = selectedServiceIndex,
+                                title = stringResource(R.string.translation_service_label),
+                                modifier = Modifier.fillMaxWidth(),
+                                renderInRootScaffold = false,
+                                onSelectedIndexChange = { index ->
+                                    services.getOrNull(index)?.let { onSelectService(it.id) }
+                                },
+                            )
                         }
-                        val glossaryItems = listOf(stringResource(R.string.translation_glossary_none)) +
-                            translationGlossaryDisplayNames(glossaries)
-                        val selectedGlossaryIndex = selectedGlossaryId?.let { selected ->
-                            glossaries.indexOfFirst { it.id == selected }.takeIf { it >= 0 }?.plus(1)
-                        } ?: 0
+                    }
+
+                    val glossaryItems = listOf(stringResource(R.string.translation_glossary_none)) +
+                        translationGlossaryDisplayNames(glossaries)
+                    val selectedGlossaryIndex = selectedGlossaryId?.let { selected ->
+                        glossaries.indexOfFirst { it.id == selected }.takeIf { it >= 0 }?.plus(1)
+                    } ?: 0
+                    MiuixCard(
+                        modifier = Modifier.fillMaxWidth().glassBorder(),
+                        cornerRadius = AppComponentCornerRadius,
+                        colors = MiuixCardDefaults.defaultColors(color = cardColor, contentColor = PageTextColor),
+                    ) {
                         OverlayDropdownPreference(
                             items = glossaryItems,
                             selectedIndex = selectedGlossaryIndex,
@@ -1035,34 +1077,78 @@ private fun TranslationStartDialog(
                                 onSelectGlossary(glossaries.getOrNull(index - 1)?.id)
                             },
                         )
-                        MiuixTextField(
-                            value = sourceLanguage,
-                            onValueChange = onSourceLanguageChange,
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            label = stringResource(R.string.translation_source_language),
-                        )
-                        MiuixTextField(
-                            value = targetLanguage,
-                            onValueChange = onTargetLanguageChange,
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            label = stringResource(R.string.translation_target_language),
-                        )
+                    }
+
+                    MiuixCard(
+                        modifier = Modifier.fillMaxWidth().glassBorder(),
+                        cornerRadius = AppComponentCornerRadius,
+                        colors = MiuixCardDefaults.defaultColors(color = cardColor, contentColor = PageTextColor),
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            OverlayDropdownPreference(
+                                items = sourceLanguages.map(TranslationLanguageOption::label),
+                                selectedIndex = selectedSourceIndex,
+                                title = stringResource(R.string.translation_source_language),
+                                modifier = Modifier.fillMaxWidth(),
+                                renderInRootScaffold = false,
+                                onSelectedIndexChange = { index ->
+                                    onSourceLanguageChange(sourceLanguages.getOrNull(index)?.code.orEmpty())
+                                },
+                            )
+                            OverlayDropdownPreference(
+                                items = targetLanguages.map(TranslationLanguageOption::label),
+                                selectedIndex = selectedTargetIndex,
+                                title = stringResource(R.string.translation_target_language),
+                                modifier = Modifier.fillMaxWidth(),
+                                renderInRootScaffold = false,
+                                onSelectedIndexChange = { index ->
+                                    onTargetLanguageChange(targetLanguages.getOrNull(index)?.code.orEmpty())
+                                },
+                            )
+                        }
                     }
                 }
-            },
-            confirmButton = {
+
                 DialogActionButtons(
                     cancelText = stringResource(R.string.common_cancel),
                     confirmText = stringResource(R.string.translation_start_translation),
-                    confirmEnabled = services.isNotEmpty() && selectedServiceId != null &&
+                    modifier = Modifier.padding(top = 4.dp, bottom = 16.dp),
+                    confirmEnabled = selectedServiceId != null && services.any { it.id == selectedServiceId } &&
                         sourceLanguage.isNotBlank() && targetLanguage.isNotBlank(),
                     onCancel = onDismiss,
                     onConfirm = onStart,
                 )
-            },
-        )
+            }
+        }
+    }
+}
+
+private data class TranslationLanguageOption(val code: String, val label: String)
+
+private val translationLanguageCodes = listOf(
+    "ar", "bg", "ca", "cs", "da", "de", "el", "en", "es", "et", "fa", "fi", "fr", "he", "hi", "hr", "hu",
+    "id", "it", "ja", "ko", "lt", "lv", "ms", "nb", "nl", "pl", "pt", "ro", "ru", "sk", "sl", "sr", "sv",
+    "th", "tr", "uk", "vi", "zh-CN", "zh-TW",
+)
+
+@Composable
+private fun translationLanguageOptions(currentCode: String, includeAuto: Boolean): List<TranslationLanguageOption> {
+    val context = LocalContext.current
+    val displayLocale = context.resources.configuration.locales[0] ?: Locale.getDefault()
+    val autoLabel = stringResource(R.string.translation_language_auto)
+    val codes = buildList {
+        if (includeAuto) add("auto")
+        addAll(translationLanguageCodes)
+        currentCode.trim().takeIf(String::isNotBlank)?.let(::add)
+    }.distinctBy { it.lowercase(Locale.ROOT) }
+    return codes.map { code ->
+        val label = if (code.equals("auto", ignoreCase = true)) {
+            autoLabel
+        } else {
+            val displayName = Locale.forLanguageTag(code).getDisplayName(displayLocale).ifBlank { code }
+            "$displayName · $code"
+        }
+        TranslationLanguageOption(code, label)
     }
 }
 

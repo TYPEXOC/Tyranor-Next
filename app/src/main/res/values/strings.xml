@@ -337,10 +337,12 @@
     <string name="translation_start_translation">开始翻译</string>
     <string name="translation_retry_translation">重试未完成项</string>
     <string name="translation_start_translation_title">批量翻译</string>
+    <string name="translation_start_translation_description">选择翻译服务、术语表和翻译语言。</string>
     <string name="translation_service_label">翻译服务</string>
     <string name="translation_no_enabled_service">没有可用的已启用翻译服务，请先在应用设置中配置并启用服务。</string>
-    <string name="translation_source_language">原文语言（例如 ja）</string>
-    <string name="translation_target_language">目标语言（例如 zh-CN）</string>
+    <string name="translation_source_language">原文语言</string>
+    <string name="translation_target_language">目标语言</string>
+    <string name="translation_language_auto">自动检测</string>
     <string name="translation_glossaries_title">术语表管理</string>
     <string name="translation_glossaries_empty">还没有术语表。添加术语表后，可在批量翻译时选择。</string>
     <string name="translation_glossary_add">添加术语表</string>

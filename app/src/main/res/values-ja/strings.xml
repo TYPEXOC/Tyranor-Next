@@ -337,10 +337,12 @@
     <string name="translation_start_translation">翻訳を開始</string>
     <string name="translation_retry_translation">未完了項目を再試行</string>
     <string name="translation_start_translation_title">一括翻訳</string>
+    <string name="translation_start_translation_description">翻訳サービス、用語集、言語を選択します。</string>
     <string name="translation_service_label">翻訳サービス</string>
     <string name="translation_no_enabled_service">利用可能な翻訳サービスがありません。アプリ設定でサービスを設定して有効にしてください。</string>
-    <string name="translation_source_language">原文の言語（例：ja）</string>
-    <string name="translation_target_language">翻訳先の言語（例：zh-CN）</string>
+    <string name="translation_source_language">原文の言語</string>
+    <string name="translation_target_language">翻訳先の言語</string>
+    <string name="translation_language_auto">自動検出</string>
     <string name="translation_glossaries_title">用語集の管理</string>
     <string name="translation_glossaries_empty">用語集はまだありません。追加すると翻訳開始時に選択できます。</string>
     <string name="translation_glossary_add">用語集を追加</string>

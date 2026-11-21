@@ -337,10 +337,12 @@
     <string name="translation_start_translation">Start translation</string>
     <string name="translation_retry_translation">Retry unfinished entries</string>
     <string name="translation_start_translation_title">Batch translation</string>
+    <string name="translation_start_translation_description">Choose a service, glossary, and languages.</string>
     <string name="translation_service_label">Translation service</string>
     <string name="translation_no_enabled_service">No enabled translation service is available. Configure and enable one in app settings first.</string>
-    <string name="translation_source_language">Source language (for example, ja)</string>
-    <string name="translation_target_language">Target language (for example, zh-CN)</string>
+    <string name="translation_source_language">Source language</string>
+    <string name="translation_target_language">Target language</string>
+    <string name="translation_language_auto">Detect automatically</string>
     <string name="translation_glossaries_title">Glossary manager</string>
     <string name="translation_glossaries_empty">No glossaries yet. Add one to select it when starting a translation.</string>
     <string name="translation_glossary_add">Add glossary</string>
