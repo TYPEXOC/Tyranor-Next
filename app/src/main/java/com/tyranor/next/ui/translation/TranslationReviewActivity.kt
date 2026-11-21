@@ -96,6 +96,7 @@ import com.tyranor.next.ui.common.DialogTextButton
 import com.tyranor.next.ui.common.DialogActionButtons
 import com.tyranor.next.ui.common.TopBarIcon
 import com.tyranor.next.ui.common.NoRippleButton
+import com.tyranor.next.ui.common.SlidingTabRow
 import com.tyranor.next.ui.common.isTabletScreen
 import com.tyranor.next.ui.common.motion.BlurVisibility
 import com.tyranor.next.ui.common.motion.PageTransitions
@@ -661,26 +662,17 @@ private fun TranslationReviewScreen(projectId: String) {
                     backgroundColor = NavWhite,
                     singleLine = true,
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    NoRippleButton(
-                        text = stringResource(R.string.translation_review_translation),
-                        modifier = Modifier.weight(1f),
-                        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
-                        tonal = searchTarget == ReviewSearchTarget.TRANSLATION,
-                        containerColorOverride = if (searchTarget == ReviewSearchTarget.TRANSLATION) null else DialogItemSurface,
-                        contentColorOverride = if (searchTarget == ReviewSearchTarget.TRANSLATION) null else PageSecondaryTextColor,
-                        onClick = { searchTarget = ReviewSearchTarget.TRANSLATION },
-                    )
-                    NoRippleButton(
-                        text = stringResource(R.string.translation_review_source),
-                        modifier = Modifier.weight(1f),
-                        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
-                        tonal = searchTarget == ReviewSearchTarget.SOURCE,
-                        containerColorOverride = if (searchTarget == ReviewSearchTarget.SOURCE) null else DialogItemSurface,
-                        contentColorOverride = if (searchTarget == ReviewSearchTarget.SOURCE) null else PageSecondaryTextColor,
-                        onClick = { searchTarget = ReviewSearchTarget.SOURCE },
-                    )
-                }
+                SlidingTabRow(
+                    tabs = listOf(
+                        stringResource(R.string.translation_review_translation),
+                        stringResource(R.string.translation_review_source),
+                    ),
+                    selectedIndex = if (searchTarget == ReviewSearchTarget.TRANSLATION) 0 else 1,
+                    onTabSelected = { index ->
+                        searchTarget = if (index == 0) ReviewSearchTarget.TRANSLATION else ReviewSearchTarget.SOURCE
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                )
                 when {
                     normalizedSearchQuery.isBlank() -> Text(
                         stringResource(R.string.translation_review_search_enter_query),

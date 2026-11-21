@@ -1706,7 +1706,7 @@
     <string name="translation_review_replace_with">置換後</string>
     <string name="translation_review_search_enter_query">検索する語句を入力</string>
     <string name="translation_review_search_no_matches">一致する項目はありません</string>
-    <string name="translation_review_search_matches">%1$d 件・%2$d 行。一覧をタップして移動</string>
+    <string name="translation_review_search_matches">%1$d 件・%2$d 行。タップして移動</string>
     <string name="translation_review_replace_all">すべて置換（%1$d 件）</string>
     <string name="translation_review_replacing">置換中（%1$d 件）</string>
     <string name="translation_review_filter_dialog_title">項目を絞り込む</string>

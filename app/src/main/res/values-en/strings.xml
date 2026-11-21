@@ -1706,7 +1706,7 @@
     <string name="translation_review_replace_with">Replace with</string>
     <string name="translation_review_search_enter_query">Enter text to find</string>
     <string name="translation_review_search_no_matches">No matches found</string>
-    <string name="translation_review_search_matches">%1$d matches · %2$d rows. Tap a row to jump.</string>
+    <string name="translation_review_search_matches">%1$d matches · %2$d rows. Tap to jump.</string>
     <string name="translation_review_replace_all">Replace all (%1$d)</string>
     <string name="translation_review_replacing">Replacing (%1$d)…</string>
     <string name="translation_review_filter_dialog_title">Filter entries</string>
