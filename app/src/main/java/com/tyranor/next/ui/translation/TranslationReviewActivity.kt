@@ -238,7 +238,8 @@ private fun TranslationReviewScreen(projectId: String) {
     val searchResultRowMaxHeight = with(LocalDensity.current) {
         searchResultTextStyle.lineHeight.toDp() * SEARCH_RESULT_PREVIEW_MAX_LINES.toFloat()
     } + searchResultRowVerticalPadding * 2f + 1.dp
-    val searchResultListMaxHeight = searchResultRowMaxHeight * SEARCH_RESULT_MAX_VISIBLE_ROWS.toFloat() + 8.dp
+    val searchResultListHeight = searchResultRowMaxHeight *
+        minOf(filteredEntries.size, SEARCH_RESULT_MAX_VISIBLE_ROWS).toFloat() + 8.dp
     val tabletLayout = isTabletScreen()
     val filteredSelection = filteredEntries.firstOrNull { it.id == selectedEntryId }
     val selectedEntry = filteredSelection ?: if (tabletLayout) filteredEntries.firstOrNull() else null
@@ -632,12 +633,13 @@ private fun TranslationReviewScreen(projectId: String) {
     if (showSearchDialog) {
         AppBottomSheet(
             onDismissRequest = { showSearchDialog = false },
+            expandToAvailableHeight = true,
         ) {
             Column(
                 modifier = Modifier.fillMaxWidth()
                     .padding(horizontal = 24.dp)
                     .padding(top = 16.dp, bottom = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 MiuixText(
                     text = stringResource(R.string.translation_review_search),
@@ -701,14 +703,12 @@ private fun TranslationReviewScreen(projectId: String) {
                             color = PageSecondaryTextColor,
                         )
                         MiuixCard(
-                            modifier = Modifier.fillMaxWidth()
-                                .weight(1f, fill = false)
-                                .heightIn(max = searchResultListMaxHeight),
+                            modifier = Modifier.fillMaxWidth().height(searchResultListHeight),
                             cornerRadius = AppComponentCornerRadius,
                             colors = MiuixCardDefaults.defaultColors(color = DialogItemSurface),
                         ) {
                             LazyColumn(
-                                modifier = Modifier.fillMaxWidth().heightIn(max = searchResultListMaxHeight),
+                                modifier = Modifier.fillMaxSize(),
                                 contentPadding = PaddingValues(vertical = 4.dp),
                             ) {
                                 itemsIndexed(filteredEntries, key = { _, entry -> entry.id }) { index, entry ->

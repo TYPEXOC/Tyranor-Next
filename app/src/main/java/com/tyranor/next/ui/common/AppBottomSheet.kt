@@ -71,6 +71,7 @@ internal fun AppBottomSheet(
     onDismissRequest: () -> Unit,
     confirmValueChange: (SheetValue) -> Boolean = { true },
     controller: MotionSheetController = rememberMotionSheetController(),
+    expandToAvailableHeight: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val sheetState = rememberMotionSheetState(controller, confirmValueChange)
@@ -103,10 +104,14 @@ internal fun AppBottomSheet(
         controller.BindWindowScrim(SheetScrimColor)
         // 常规窗口保留页面露出；短窗优先给内容留空间，但上限始终不超过可用视口。
         val configuration = LocalConfiguration.current
-        val sheetMaxHeight = appBottomSheetMaxHeight(
-            screenHeightDp = configuration.screenHeightDp,
-            isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE,
-        )
+        val sheetMaxHeight = if (expandToAvailableHeight) {
+            (configuration.screenHeightDp.dp - 16.dp).coerceAtLeast(0.dp)
+        } else {
+            appBottomSheetMaxHeight(
+                screenHeightDp = configuration.screenHeightDp,
+                isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE,
+            )
+        }
         MotionSheetEffects(controller, onDismissRequest)
         ProvideEntrance {
             Box(Modifier.fillMaxWidth().skipEntranceOnDrag().motionSheetDrag(controller).clip(AppSheetTopShape)) {
