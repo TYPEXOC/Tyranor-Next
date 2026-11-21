@@ -823,48 +823,91 @@ private fun TranslationWorkbenchScreen() {
         }
         AppAlertDialog(
             onDismissRequest = { if (!exporting) exportProjectId = null },
-            title = { Text(stringResource(R.string.translation_export_title), style = MaterialTheme.typography.titleMedium) },
-            text = {
-                Column(
-                    modifier = Modifier.fillMaxWidth().heightIn(max = 460.dp).verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    project?.let {
-                        Text(
-                            stringResource(R.string.translation_export_subtitle, it.title),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = PageSecondaryTextColor,
-                        )
-                    }
-                    OverlayDropdownPreference(
-                        items = exportFormatLabels,
-                        selectedIndex = exportFormatOptions.indexOf(exportFormat).coerceAtLeast(0),
-                        title = stringResource(R.string.translation_export_format),
+            title = {
+                MiuixSettingsTheme {
+                    Column(
                         modifier = Modifier.fillMaxWidth(),
-                        enabled = !exporting,
-                        renderInRootScaffold = false,
-                        onSelectedIndexChange = { index ->
-                            exportFormatName = exportFormatOptions.getOrNull(index)?.name
-                                ?: TranslationProjectFormat.MTOOL_JSON.name
-                        },
-                    )
-                    AppNavItem(
-                        title = stringResource(R.string.translation_export_destination),
-                        summary = exportDestinationPath.ifBlank {
-                            stringResource(R.string.translation_export_location_not_selected)
-                        },
-                        leadingIcon = R.drawable.ic_sheet_folder,
-                        containerColor = exportCardColor,
-                        verticalPadding = 14.dp,
-                        summaryMaxLines = 1,
-                        indication = null,
-                        onClick = if (exporting) null else ({ chooseExportDestination.launch(null) }),
-                    )
-                    Text(
-                        stringResource(R.string.translation_export_location_hint),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = PageSecondaryTextColor,
-                    )
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Text(
+                            stringResource(R.string.translation_export_title),
+                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                            color = PageTextColor,
+                        )
+                        project?.let {
+                            Text(
+                                stringResource(R.string.translation_export_subtitle, it.title),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = PageSecondaryTextColor,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
+                }
+            },
+            text = {
+                MiuixSettingsTheme {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().heightIn(max = 460.dp).verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        MiuixCard(
+                            modifier = Modifier.fillMaxWidth().glassBorder(),
+                            cornerRadius = AppComponentCornerRadius,
+                            colors = MiuixCardDefaults.defaultColors(
+                                color = exportCardColor,
+                                contentColor = PageTextColor,
+                            ),
+                        ) {
+                            OverlayDropdownPreference(
+                                items = exportFormatLabels,
+                                selectedIndex = exportFormatOptions.indexOf(exportFormat).coerceAtLeast(0),
+                                title = stringResource(R.string.translation_export_format),
+                                modifier = Modifier.fillMaxWidth(),
+                                enabled = !exporting,
+                                renderInRootScaffold = false,
+                                onSelectedIndexChange = { index ->
+                                    exportFormatName = exportFormatOptions.getOrNull(index)?.name
+                                        ?: TranslationProjectFormat.MTOOL_JSON.name
+                                },
+                            )
+                        }
+                        MiuixCard(
+                            modifier = Modifier.fillMaxWidth().glassBorder(),
+                            cornerRadius = AppComponentCornerRadius,
+                            colors = MiuixCardDefaults.defaultColors(
+                                color = exportCardColor,
+                                contentColor = PageTextColor,
+                            ),
+                        ) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 8.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                Text(
+                                    stringResource(R.string.translation_export_destination),
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = PageTextColor,
+                                )
+                                AppNavItem(
+                                    title = exportDestinationPath.ifBlank {
+                                        stringResource(R.string.translation_export_location_not_selected)
+                                    },
+                                    summary = stringResource(R.string.translation_export_location_hint),
+                                    leadingIcon = R.drawable.ic_sheet_folder,
+                                    containerColor = exportCardColor,
+                                    verticalPadding = 10.dp,
+                                    titleMaxLines = 1,
+                                    summaryMaxLines = 2,
+                                    indication = null,
+                                    drawSurface = false,
+                                    onClick = if (exporting) null else ({ chooseExportDestination.launch(null) }),
+                                )
+                            }
+                        }
+                    }
                 }
             },
             confirmButton = {
