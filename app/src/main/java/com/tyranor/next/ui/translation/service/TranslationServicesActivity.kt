@@ -1687,44 +1687,70 @@ private fun TranslationServiceCategoryGrid(
     onConfigure: (ServiceListRow, String) -> Unit,
     onToggle: (ServiceListRow, Boolean) -> Unit,
 ) {
-    LazyVerticalGrid(
-        columns = GridCells.Fixed(if (tabletLayout) 2 else 1),
-        modifier = Modifier.fillMaxSize().widthIn(max = 760.dp).padding(horizontal = 12.dp),
-        contentPadding = PaddingValues(top = 12.dp, bottom = if (aiCategory) 96.dp else 24.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        item(key = "service-category-heading", span = { GridItemSpan(maxLineSpan) }) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
+    Box(modifier = Modifier.fillMaxSize()) {
+        MiuixCard(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxSize()
+                .widthIn(max = 760.dp)
+                .padding(horizontal = 12.dp, vertical = 12.dp)
+                .clip(AppComponentShape)
+                .glassBorder(),
+            cornerRadius = AppComponentCornerRadius,
+        ) {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(if (tabletLayout) 2 else 1),
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(
+                    start = 12.dp,
+                    top = 12.dp,
+                    end = 12.dp,
+                    bottom = if (aiCategory) 96.dp else 24.dp,
+                ),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Text(categoryTitle, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                Text(categorySummary, style = MaterialTheme.typography.labelSmall, color = PageSecondaryTextColor)
-            }
-        }
-        gridItems(items = rows, key = ServiceListRow::key, span = { GridItemSpan(1) }) { row ->
-            val displayName = row.displayName ?: stringResource(row.displayNameResource!!)
-            TranslationServiceTemplateCard(
-                row = row,
-                modifier = Modifier.fillMaxWidth().glassBorder().then(listItemMotion()),
-                displayName = displayName,
-                onConfigure = { onConfigure(row, displayName) },
-                onToggle = { enabled -> onToggle(row, enabled) },
-            )
-        }
-        item(key = "service-category-note", span = { GridItemSpan(maxLineSpan) }) {
-            MiuixCard(
-                modifier = Modifier.fillMaxWidth().glassBorder(),
-                cornerRadius = AppComponentCornerRadius,
-            ) {
-                Text(
-                    categoryNote,
-                    modifier = Modifier.fillMaxWidth().padding(14.dp),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = PageSecondaryTextColor,
-                )
+                item(key = "service-category-heading", span = { GridItemSpan(maxLineSpan) }) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            categoryTitle,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Text(
+                            categorySummary,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = PageSecondaryTextColor,
+                        )
+                    }
+                }
+                gridItems(items = rows, key = ServiceListRow::key, span = { GridItemSpan(1) }) { row ->
+                    val displayName = row.displayName ?: stringResource(row.displayNameResource!!)
+                    TranslationServiceTemplateCard(
+                        row = row,
+                        modifier = Modifier.fillMaxWidth().glassBorder().then(listItemMotion()),
+                        displayName = displayName,
+                        onConfigure = { onConfigure(row, displayName) },
+                        onToggle = { enabled -> onToggle(row, enabled) },
+                    )
+                }
+                item(key = "service-category-note", span = { GridItemSpan(maxLineSpan) }) {
+                    MiuixCard(
+                        modifier = Modifier.fillMaxWidth().glassBorder(),
+                        cornerRadius = AppComponentCornerRadius,
+                    ) {
+                        Text(
+                            categoryNote,
+                            modifier = Modifier.fillMaxWidth().padding(14.dp),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = PageSecondaryTextColor,
+                        )
+                    }
+                }
             }
         }
     }
