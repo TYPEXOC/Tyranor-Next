@@ -3,6 +3,7 @@ package com.tyranor.next.ui.translation.service
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.Image
@@ -117,6 +118,7 @@ import com.tyranor.next.ui.common.Switch
 import com.tyranor.next.ui.common.isTabletScreen
 import com.tyranor.next.ui.common.motion.listItemMotion
 import com.tyranor.next.ui.translation.TranslationAddFloatingActionButton
+import com.tyranor.next.ui.common.notice.AppNotice
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -166,7 +168,6 @@ private fun TranslationServicesScreen() {
     var activePage by remember { mutableStateOf(TranslationServicesPage.LIST) }
     var selectedCategory by remember { mutableStateOf(TranslationServiceCategory.MACHINE_TRANSLATION) }
     var deleteProfile by remember { mutableStateOf<TranslationServiceProfile?>(null) }
-    var errorCode by remember { mutableStateOf<TranslationServiceErrorCode?>(null) }
     var isSaving by remember { mutableStateOf(false) }
     var isFetchingModels by remember { mutableStateOf(false) }
     var editorSessionId by remember { mutableStateOf(0L) }
@@ -252,7 +253,6 @@ private fun TranslationServicesScreen() {
         advancedSettingsEditor = null
         taskSettingsEditor = null
         customParametersEditor = null
-        errorCode = null
         editor = ServiceEditor.newAiProfile(
             template.protocolId,
             displayName,
@@ -266,14 +266,14 @@ private fun TranslationServicesScreen() {
 
     fun reportFailure(failure: Throwable) {
         if (failure is CancellationException) throw failure
-        errorCode = (failure as? TranslationServiceException)?.code
+        val code = (failure as? TranslationServiceException)?.code
             ?: TranslationServiceErrorCode.STORAGE_FAILURE
+        AppNotice.makeText(context, code.messageResource(), Toast.LENGTH_SHORT, AppNotice.Kind.Failure).show()
     }
 
     fun updateAiConnection(updated: ServiceEditor) {
         cancelConnectionTest()
         editor = updated
-        errorCode = null
         modelFetchError = null
         connectionTestError = null
         connectionTestHttpStatusCode = null
@@ -284,7 +284,6 @@ private fun TranslationServicesScreen() {
     fun updateMachineConnection(updated: ServiceEditor) {
         cancelConnectionTest()
         editor = updated
-        errorCode = null
         connectionTestError = null
         connectionTestHttpStatusCode = null
         connectionTestResult = null
@@ -409,7 +408,6 @@ private fun TranslationServicesScreen() {
     val customAiName = stringResource(customAiTemplate.nameResource)
 
     fun openServiceEditor(row: ServiceListRow, displayName: String) {
-        errorCode = null
         if (row.profile != null) {
             startEditorSession()
             fetchedModels = emptyList()
@@ -501,7 +499,6 @@ private fun TranslationServicesScreen() {
                                 categoryTitle = machineCategoryTitle,
                                 categorySummary = machineCategorySummary,
                                 categoryNote = machineCategoryNote,
-                                errorMessage = errorCode?.let { stringResource(it.messageResource()) },
                                 tabletLayout = tabletLayout,
                                 aiCategory = false,
                                 onConfigure = ::openServiceEditor,
@@ -521,7 +518,6 @@ private fun TranslationServicesScreen() {
                                 categoryTitle = aiCategoryTitle,
                                 categorySummary = aiCategorySummary,
                                 categoryNote = aiCategoryNote,
-                                errorMessage = errorCode?.let { stringResource(it.messageResource()) },
                                 tabletLayout = tabletLayout,
                                 aiCategory = true,
                                 onConfigure = ::openServiceEditor,
@@ -561,7 +557,6 @@ private fun TranslationServicesScreen() {
                             try {
                                 repository.saveProfile(current.toDraft())
                                 activePage = TranslationServicesPage.LIST
-                                errorCode = null
                             } catch (failure: Throwable) {
                                 reportFailure(failure)
                             } finally {
@@ -587,7 +582,6 @@ private fun TranslationServicesScreen() {
         val isFixedMachineTemplate = isMachineTranslation && state.isBuiltInTemplate
         val isTestingThisConnection = testingConnectionSessionId == editorSessionId
         val connectionStatusText = when {
-            errorCode != null -> stringResource(errorCode!!.messageResource())
             connectionTestError != null -> stringResource(connectionTestError!!.messageResource())
             !isMachineTranslation && modelFetchError != null ->
                 stringResource(modelFetchError!!.messageResource())
@@ -599,13 +593,12 @@ private fun TranslationServicesScreen() {
             else -> stringResource(R.string.translation_services_manual_model_hint)
         }
         val connectionStatusErrorCode = when {
-            errorCode != null -> errorCode
             connectionTestError != null -> connectionTestError
             !isMachineTranslation && modelFetchError != null -> modelFetchError
             else -> null
         }
         val connectionStatusHttpCode = connectionTestHttpStatusCode.takeIf {
-            errorCode == null && connectionTestError != null
+            connectionTestError != null
         }
         val connectionStatusDetailText = connectionStatusErrorCode?.let { code ->
             stringResource(R.string.translation_services_error_code_label, code.name) +
@@ -613,7 +606,7 @@ private fun TranslationServicesScreen() {
                     " ${stringResource(R.string.translation_services_http_status_code, it)}"
                 }.orEmpty()
         }.orEmpty()
-        val connectionStatusIsError = errorCode != null || connectionTestError != null ||
+        val connectionStatusIsError = connectionTestError != null ||
             (!isMachineTranslation && modelFetchError != null)
         val connectionStatusColor = when {
             connectionStatusIsError -> MaterialTheme.colorScheme.error
@@ -650,7 +643,6 @@ private fun TranslationServicesScreen() {
                                                 isSaving = true
                                                 try {
                                                     repository.saveProfile(state.toDraft())
-                                                    errorCode = null
                                                     showModelPicker = false
                                                     activePage = TranslationServicesPage.LIST
                                                 } catch (failure: Throwable) {
@@ -1690,7 +1682,6 @@ private fun TranslationServiceCategoryGrid(
     categoryTitle: String,
     categorySummary: String,
     categoryNote: String,
-    errorMessage: String?,
     tabletLayout: Boolean,
     aiCategory: Boolean,
     onConfigure: (ServiceListRow, String) -> Unit,
@@ -1733,16 +1724,6 @@ private fun TranslationServiceCategoryGrid(
                     modifier = Modifier.fillMaxWidth().padding(14.dp),
                     style = MaterialTheme.typography.bodySmall,
                     color = PageSecondaryTextColor,
-                )
-            }
-        }
-        errorMessage?.let { message ->
-            item(key = "service-error", span = { GridItemSpan(maxLineSpan) }) {
-                Text(
-                    message,
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodyMedium,
                 )
             }
         }
