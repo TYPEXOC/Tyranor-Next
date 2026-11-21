@@ -391,10 +391,14 @@ private fun TranslationReviewScreen(projectId: String) {
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
                                     Text(
-                                        project.title,
+                                        stringResource(
+                                            R.string.translation_entry_summary,
+                                            entries.size,
+                                            entries.count { !it.translatedText.isNullOrBlank() },
+                                        ),
                                         modifier = Modifier.weight(1f),
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = PageSecondaryTextColor,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
                                     )
@@ -416,15 +420,6 @@ private fun TranslationReviewScreen(projectId: String) {
                                         showFilterDialog = true
                                     }
                                 }
-                                Text(
-                                    stringResource(
-                                        R.string.translation_entry_summary,
-                                        entries.size,
-                                        entries.count { !it.translatedText.isNullOrBlank() },
-                                    ),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = PageSecondaryTextColor,
-                                )
                                 if (project.reviewCompletedAt != null) {
                                     Text(stringResource(R.string.translation_review_completed), color = MaterialTheme.colorScheme.primary)
                                 }
