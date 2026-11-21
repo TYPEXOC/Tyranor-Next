@@ -1699,8 +1699,6 @@
     <string name="translation_review_filter_pending">確認待ち</string>
     <string name="translation_review_filter_issues">問題あり</string>
     <string name="translation_review_filter_button">絞り込み · %1$s · %2$d</string>
-    <string name="translation_review_filter_group_translated">翻訳済み</string>
-    <string name="translation_review_filter_group_incomplete">未完了</string>
     <string name="translation_review_filter_no_warnings">警告なし</string>
     <string name="translation_review_filter_waiting_translation">翻訳待ち</string>
     <string name="translation_review_search">原文または訳文を検索</string>

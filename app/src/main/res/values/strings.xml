@@ -1699,8 +1699,6 @@
     <string name="translation_review_filter_pending">待确认</string>
     <string name="translation_review_filter_issues">有问题</string>
     <string name="translation_review_filter_button">筛选 · %1$s · %2$d</string>
-    <string name="translation_review_filter_group_translated">翻译成功</string>
-    <string name="translation_review_filter_group_incomplete">尚未完成</string>
     <string name="translation_review_filter_no_warnings">无警告</string>
     <string name="translation_review_filter_waiting_translation">等待翻译</string>
     <string name="translation_review_search">搜索原文或译文</string>

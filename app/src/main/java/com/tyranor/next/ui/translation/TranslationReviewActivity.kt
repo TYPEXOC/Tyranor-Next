@@ -106,7 +106,6 @@ import top.yukonga.miuix.kmp.basic.FabPosition
 import top.yukonga.miuix.kmp.basic.FloatingActionButton as MiuixFloatingActionButton
 import top.yukonga.miuix.kmp.basic.HorizontalDivider as MiuixHorizontalDivider
 import top.yukonga.miuix.kmp.basic.Icon as MiuixIcon
-import top.yukonga.miuix.kmp.basic.RadioButton as MiuixRadioButton
 import top.yukonga.miuix.kmp.basic.Text as MiuixText
 import top.yukonga.miuix.kmp.basic.TextFieldDefaults as MiuixTextFieldDefaults
 import top.yukonga.miuix.kmp.basic.VerticalDivider as MiuixVerticalDivider
@@ -610,33 +609,7 @@ private fun TranslationReviewScreen(projectId: String) {
                     modifier = Modifier.fillMaxWidth().heightIn(max = 440.dp).verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
-                    ReviewFilterOptionRow(
-                        option = ReviewFilter.ALL,
-                        count = filterCounts[ReviewFilter.ALL] ?: 0,
-                        selected = draftFilter == ReviewFilter.ALL,
-                        onClick = { draftFilter = ReviewFilter.ALL },
-                    )
-                    Text(
-                        stringResource(R.string.translation_review_filter_group_translated),
-                        modifier = Modifier.padding(start = 8.dp, top = 8.dp, bottom = 2.dp),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = PageSecondaryTextColor,
-                    )
-                    ReviewFilter.translatedFilters.forEach { option ->
-                        ReviewFilterOptionRow(
-                            option = option,
-                            count = filterCounts[option] ?: 0,
-                            selected = draftFilter == option,
-                            onClick = { draftFilter = option },
-                        )
-                    }
-                    Text(
-                        stringResource(R.string.translation_review_filter_group_incomplete),
-                        modifier = Modifier.padding(start = 8.dp, top = 8.dp, bottom = 2.dp),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = PageSecondaryTextColor,
-                    )
-                    ReviewFilter.incompleteFilters.forEach { option ->
+                    ReviewFilter.options.forEach { option ->
                         ReviewFilterOptionRow(
                             option = option,
                             count = filterCounts[option] ?: 0,
@@ -1197,11 +1170,23 @@ private fun ReviewFilterOptionRow(
     Row(
         modifier = Modifier.fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 6.dp, vertical = 8.dp),
+            .heightIn(min = 56.dp)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        MiuixRadioButton(selected = selected, onClick = onClick)
+        Box(
+            modifier = Modifier.width(52.dp),
+            contentAlignment = Alignment.CenterStart,
+        ) {
+            if (selected) {
+                MiuixIcon(
+                    painter = painterResource(R.drawable.ic_check),
+                    contentDescription = null,
+                    tint = MiuixTheme.colorScheme.primary,
+                    modifier = Modifier.size(28.dp),
+                )
+            }
+        }
         Text(
             stringResource(option.label),
             modifier = Modifier.weight(1f),
@@ -1237,15 +1222,13 @@ private enum class ReviewFilter(val label: Int) {
     LINE_COUNT_MISMATCH(TranslationReviewIssueCode.LINE_COUNT_MISMATCH),
     GLOSSARY_TERM_MISSING(TranslationReviewIssueCode.GLOSSARY_TERM_MISSING),
     TEXT_PRESERVATION_MISMATCH(TranslationReviewIssueCode.TEXT_PRESERVATION_MISMATCH),
-    PUNCTUATION_MISMATCH(TranslationReviewIssueCode.PUNCTUATION_MISMATCH),
-    WAITING_TRANSLATION(R.string.translation_review_filter_waiting_translation);
+    PUNCTUATION_MISMATCH(TranslationReviewIssueCode.PUNCTUATION_MISMATCH);
 
     constructor(issueCode: TranslationReviewIssueCode) : this(issueCode.labelResource())
 
     fun matches(entry: TranslationReviewEntry): Boolean = when (this) {
         ALL -> true
         NO_WARNINGS -> !entry.translatedText.isNullOrBlank() && !entry.hasOpenRuleWarning()
-        WAITING_TRANSLATION -> entry.translatedText.isNullOrBlank()
         else -> entry.issues.any { issue ->
             issue.state == "OPEN" && issue.code.filterCategory() == issueFilterCategory()
         }
@@ -1258,7 +1241,7 @@ private enum class ReviewFilter(val label: Int) {
         GLOSSARY_TERM_MISSING -> TranslationReviewIssueCode.GLOSSARY_TERM_MISSING
         TEXT_PRESERVATION_MISMATCH -> TranslationReviewIssueCode.TEXT_PRESERVATION_MISMATCH
         PUNCTUATION_MISMATCH -> TranslationReviewIssueCode.PUNCTUATION_MISMATCH
-        else -> TranslationReviewIssueCode.MISSING_TRANSLATION
+        ALL, NO_WARNINGS -> TranslationReviewIssueCode.MISSING_TRANSLATION
     }
 
     private fun TranslationReviewEntry.hasOpenRuleWarning(): Boolean = issues.any {
@@ -1266,7 +1249,8 @@ private enum class ReviewFilter(val label: Int) {
     }
 
     companion object {
-        val translatedFilters = listOf(
+        val options = listOf(
+            ALL,
             NO_WARNINGS,
             FOREIGN_TEXT_REMAINS,
             SIMILARITY_TOO_HIGH,
@@ -1275,7 +1259,6 @@ private enum class ReviewFilter(val label: Int) {
             TEXT_PRESERVATION_MISMATCH,
             PUNCTUATION_MISMATCH,
         )
-        val incompleteFilters = listOf(WAITING_TRANSLATION)
     }
 }
 

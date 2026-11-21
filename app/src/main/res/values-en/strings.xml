@@ -1699,8 +1699,6 @@
     <string name="translation_review_filter_pending">Needs review</string>
     <string name="translation_review_filter_issues">Issues</string>
     <string name="translation_review_filter_button">Filter · %1$s · %2$d</string>
-    <string name="translation_review_filter_group_translated">Translation complete</string>
-    <string name="translation_review_filter_group_incomplete">Incomplete</string>
     <string name="translation_review_filter_no_warnings">No warnings</string>
     <string name="translation_review_filter_waiting_translation">Waiting for translation</string>
     <string name="translation_review_search">Search source or translation</string>
