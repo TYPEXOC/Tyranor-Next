@@ -248,7 +248,7 @@ private fun TranslationReviewScreen(projectId: String) {
                 AppSecondaryTopBar(
                     title = when {
                         mobileDetailEntryId != null -> stringResource(R.string.translation_review_edit)
-                        project != null -> "${project.title} · ${stringResource(R.string.translation_review_title)}"
+                        project != null -> project.title
                         else -> stringResource(R.string.translation_review_title)
                     },
                     background = Color.Transparent,
