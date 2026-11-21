@@ -254,6 +254,7 @@ private fun TranslationReviewScreen(projectId: String) {
             searchJumpEntryId = entry.id
             editorText = entry.translatedText.orEmpty()
         } else {
+            selectedEntryId = entry.id
             val index = filteredEntries.indexOfFirst { it.id == entry.id }
             if (index >= 0) scope.launch { mobileReviewListState.animateScrollToItem(index) }
         }
@@ -538,8 +539,10 @@ private fun TranslationReviewScreen(projectId: String) {
                                     TranslationReviewEntryRow(
                                         entry = entry,
                                         sequence = sequenceById[entry.id] ?: index + 1,
+                                        selected = entry.id == selectedEntryId,
                                         modifier = listItemMotion(),
                                         onClick = {
+                                            selectedEntryId = entry.id
                                             editingEntryId = entry.id
                                             editorText = entry.translatedText.orEmpty()
                                         },
@@ -1139,6 +1142,7 @@ private suspend fun scrollReviewTableToFraction(state: LazyListState, fraction: 
 private fun TranslationReviewEntryRow(
     entry: TranslationReviewEntry,
     sequence: Int,
+    selected: Boolean,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
@@ -1146,6 +1150,10 @@ private fun TranslationReviewEntryRow(
         modifier = Modifier.fillMaxWidth()
             .pressSquishGroup()
             .then(modifier)
+            .background(
+                if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
+                else Color.Transparent,
+            )
             .clickable(onClick = onClick)
             .padding(horizontal = 8.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
