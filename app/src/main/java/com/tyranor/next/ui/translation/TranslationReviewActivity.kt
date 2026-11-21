@@ -69,7 +69,6 @@ import com.tyranor.next.R
 import com.tyranor.next.core.engine.EngineType
 import com.tyranor.next.core.translation.TranslationProjectCard
 import com.tyranor.next.core.translation.TranslationReviewEntry
-import com.tyranor.next.core.translation.TranslationReviewIssue
 import com.tyranor.next.core.translation.TranslationReviewIssueCode
 import com.tyranor.next.core.translation.TranslationReviewState
 import com.tyranor.next.core.translation.TranslationWorkbenchError
@@ -543,9 +542,6 @@ private fun TranslationReviewScreen(projectId: String) {
                         minLines = 2,
                         maxLines = 8,
                     )
-                    entry.issues.filter { it.state == "OPEN" }.forEach { issue ->
-                        ReviewIssueMessage(issue = issue)
-                    }
                 }
             },
             confirmButton = {
@@ -972,24 +968,6 @@ private suspend fun scrollReviewTableToFraction(state: LazyListState, fraction: 
 }
 
 @Composable
-private fun ReviewIssueMessage(issue: TranslationReviewIssue) {
-    val issueColor = MaterialTheme.colorScheme.error
-    Box(
-        modifier = Modifier.fillMaxWidth()
-            .clip(AppComponentShape)
-            .background(issueColor.copy(alpha = 0.08f))
-            .border(1.dp, issueColor.copy(alpha = 0.18f), AppComponentShape)
-            .padding(horizontal = 10.dp, vertical = 8.dp),
-    ) {
-        Text(
-            stringResource(issue.code.labelResource()),
-            color = issueColor,
-            style = MaterialTheme.typography.bodySmall,
-        )
-    }
-}
-
-@Composable
 private fun TranslationReviewEntryRow(
     entry: TranslationReviewEntry,
     sequence: Int,
@@ -1143,9 +1121,6 @@ private fun TranslationReviewEntryDetailPane(
                         textStyle = MaterialTheme.typography.bodyMedium.copy(color = PageTextColor),
                     )
                 }
-            }
-            entry.issues.filter { it.state == "OPEN" }.forEach { issue ->
-                ReviewIssueMessage(issue)
             }
             NoRippleButton(
                 text = stringResource(R.string.translation_review_save_translation),
