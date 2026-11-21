@@ -101,27 +101,6 @@ internal data class TranslationTaskEntity(
 )
 
 @Entity(
-    tableName = "translation_exports",
-    foreignKeys = [
-        ForeignKey(
-            entity = TranslationProjectEntity::class,
-            parentColumns = ["id"],
-            childColumns = ["project_id"],
-            onDelete = ForeignKey.CASCADE,
-        ),
-    ],
-    indices = [Index(value = ["project_id", "created_at"])],
-)
-internal data class TranslationExportEntity(
-    @PrimaryKey val id: String,
-    @ColumnInfo(name = "project_id") val projectId: String,
-    val format: String,
-    @ColumnInfo(name = "destination_name") val destinationName: String?,
-    @ColumnInfo(name = "entry_count") val entryCount: Int,
-    @ColumnInfo(name = "created_at") val createdAt: Long,
-)
-
-@Entity(
     tableName = "translation_glossary_terms",
     foreignKeys = [
         ForeignKey(
@@ -233,14 +212,6 @@ internal data class TranslationGlossaryRow(
     @ColumnInfo(name = "source_project_id") val sourceProjectId: String?,
     @ColumnInfo(name = "updated_at") val updatedAt: Long,
     @ColumnInfo(name = "term_count") val termCount: Int,
-)
-
-internal data class TranslationExportRow(
-    val id: String,
-    val format: String,
-    @ColumnInfo(name = "destination_name") val destinationName: String?,
-    @ColumnInfo(name = "entry_count") val entryCount: Int,
-    @ColumnInfo(name = "created_at") val createdAt: Long,
 )
 
 internal data class TranslationProjectCardRow(

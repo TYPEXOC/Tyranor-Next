@@ -60,12 +60,6 @@ internal abstract class TranslationWorkbenchDao {
     @Query("SELECT * FROM translation_entries WHERE id = :id LIMIT 1")
     abstract suspend fun getEntry(id: String): TranslationEntryEntity?
 
-    @Query(
-        "SELECT id, format, destination_name, entry_count, created_at FROM translation_exports " +
-            "WHERE project_id = :projectId ORDER BY created_at DESC, id DESC",
-    )
-    abstract fun observeExportHistory(projectId: String): Flow<List<TranslationExportRow>>
-
     @Query("SELECT * FROM translation_entries WHERE project_id = :projectId ORDER BY source_key")
     abstract suspend fun getEntries(projectId: String): List<TranslationEntryEntity>
 
@@ -94,18 +88,6 @@ internal abstract class TranslationWorkbenchDao {
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
     abstract suspend fun insertEntries(entries: List<TranslationEntryEntity>)
-
-    @Insert(onConflict = OnConflictStrategy.ABORT)
-    abstract suspend fun insertExportRecord(record: TranslationExportEntity)
-
-    @Query("UPDATE translation_projects SET updated_at = :updatedAt WHERE id = :projectId")
-    abstract suspend fun touchProject(projectId: String, updatedAt: Long): Int
-
-    @Transaction
-    open suspend fun recordExport(record: TranslationExportEntity) {
-        insertExportRecord(record)
-        touchProject(record.projectId, record.createdAt)
-    }
 
     @Query("SELECT * FROM translation_service_profiles ORDER BY updated_at DESC, id")
     abstract fun observeServiceProfiles(): Flow<List<TranslationServiceProfileEntity>>

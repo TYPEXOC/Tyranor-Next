@@ -108,14 +108,6 @@ data class TranslationReviewEntry(
     val issues: List<TranslationReviewIssue>,
 )
 
-data class TranslationExportRecord(
-    val id: String,
-    val format: TranslationProjectFormat,
-    val destinationName: String?,
-    val entryCount: Int,
-    val createdAt: Long,
-)
-
 /** 项目导入/导出的中间数据形状；MTool JSON 仅携带原文与译文。 */
 data class TranslationProjectArchive(
     val projectKey: String?,
@@ -164,7 +156,6 @@ enum class TranslationWorkbenchError {
     MTOOL_SOURCE_CONFLICT,
     INVALID_REVIEW_ENTRY,
     EXPORT_FAILED,
-    EXPORT_HISTORY_FAILED,
     STORAGE_FAILURE,
 }
 

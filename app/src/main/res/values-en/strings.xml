@@ -376,16 +376,10 @@
     <string name="translation_export_csv">Export CSV</string>
     <string name="translation_export_json">Export JSON</string>
     <string name="translation_export_mtool_json">Export MTool JSON</string>
-    <string name="translation_export_history_open">Export history</string>
-    <string name="translation_export_history_title">Export history</string>
-    <string name="translation_export_history_empty">This project has no export history yet.</string>
-    <string name="translation_export_history_row">%1$s · %2$s · %3$s · %4$d entries</string>
-    <string name="translation_export_filename_unknown">Unknown file name</string>
     <string name="translation_export_title">Export project</string>
     <string name="translation_export_subtitle">%1$s · Translation results</string>
     <string name="translation_export_format">Format</string>
     <string name="translation_export_destination">Save location</string>
-    <string name="translation_export_choose_location">Choose folder</string>
     <string name="translation_export_location_not_selected">No folder selected</string>
     <string name="translation_export_location_hint">Choose a folder on your device for the exported file.</string>
     <string name="translation_export_confirm">Export</string>
@@ -425,7 +419,6 @@
     <string name="translation_error_translation_failed">The translation task did not finish. Previously saved translations were kept.</string>
     <string name="translation_error_mtool_source_conflict">The same source text has conflicting translations, so MTool JSON cannot represent it safely.</string>
     <string name="translation_error_export_failed">The selected export location could not be written.</string>
-    <string name="translation_error_export_history_failed">The file may have been exported, but its history could not be saved.</string>
     <string name="translation_error_storage_failure">The workbench could not read or write local data.</string>
     <string name="nav_settings">Settings</string>
     <string name="nav_floating_expand">Expand navigation</string>

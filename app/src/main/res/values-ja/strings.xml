@@ -376,16 +376,10 @@
     <string name="translation_export_csv">CSV を書き出す</string>
     <string name="translation_export_json">JSON を書き出す</string>
     <string name="translation_export_mtool_json">MTool JSON を書き出す</string>
-    <string name="translation_export_history_open">書き出し履歴</string>
-    <string name="translation_export_history_title">書き出し履歴</string>
-    <string name="translation_export_history_empty">このプロジェクトの書き出し履歴はありません。</string>
-    <string name="translation_export_history_row">%1$s · %2$s · %3$s · %4$d 件</string>
-    <string name="translation_export_filename_unknown">ファイル名不明</string>
     <string name="translation_export_title">プロジェクトを書き出す</string>
     <string name="translation_export_subtitle">%1$s · 翻訳結果</string>
     <string name="translation_export_format">形式</string>
     <string name="translation_export_destination">保存先</string>
-    <string name="translation_export_choose_location">フォルダーを選択</string>
     <string name="translation_export_location_not_selected">フォルダー未選択</string>
     <string name="translation_export_location_hint">書き出したファイルを保存する端末内のフォルダーを選択します。</string>
     <string name="translation_export_confirm">書き出す</string>
@@ -425,7 +419,6 @@
     <string name="translation_error_translation_failed">翻訳タスクを完了できませんでした。保存済みの訳文は保持されています。</string>
     <string name="translation_error_mtool_source_conflict">同じ原文に異なる訳文があるため、安全な MTool JSON を作成できません。</string>
     <string name="translation_error_export_failed">選択した保存先に書き込めません。</string>
-    <string name="translation_error_export_history_failed">ファイルは出力済みの可能性がありますが、履歴を保存できませんでした。</string>
     <string name="translation_error_storage_failure">ワークベンチのデータを読み書きできません。</string>
     <string name="nav_settings">設定</string>
     <string name="nav_floating_expand">ナビゲーションを展開</string>

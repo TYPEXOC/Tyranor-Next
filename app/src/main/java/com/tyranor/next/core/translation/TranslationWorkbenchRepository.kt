@@ -3,7 +3,6 @@ package com.tyranor.next.core.translation
 import android.content.Context
 import android.net.Uri
 import android.provider.DocumentsContract
-import android.provider.OpenableColumns
 import androidx.documentfile.provider.DocumentFile
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
@@ -14,8 +13,6 @@ import com.tyranor.next.core.translation.storage.TranslationProjectEntity
 import com.tyranor.next.core.translation.storage.TranslationProjectCardRow
 import com.tyranor.next.core.translation.storage.TranslationWorkbenchDatabase
 import com.tyranor.next.core.translation.storage.TranslationTaskEntity
-import com.tyranor.next.core.translation.storage.TranslationExportEntity
-import com.tyranor.next.core.translation.storage.TranslationExportRow
 import com.tyranor.next.core.translation.storage.TranslationGlossaryTermEntity
 import com.tyranor.next.core.translation.storage.TranslationGlossaryEntity
 import com.tyranor.next.core.translation.storage.TranslationGlossaryEntryEntity
@@ -40,7 +37,6 @@ import java.util.UUID
 import java.util.Locale
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.emitAll
@@ -87,20 +83,6 @@ class TranslationWorkbenchRepository(context: Context) {
                     sourceFile = row.sourceFile,
                     sourcePointer = row.sourcePointer,
                     textType = row.textType,
-                )
-            }
-        }
-
-    fun observeExportHistory(projectId: String): Flow<List<TranslationExportRecord>> =
-        dao.observeExportHistory(projectId).map { rows ->
-            rows.map { row ->
-                TranslationExportRecord(
-                    id = row.id,
-                    format = runCatching { TranslationProjectFormat.valueOf(row.format) }
-                        .getOrDefault(TranslationProjectFormat.JSON),
-                    destinationName = row.destinationName,
-                    entryCount = row.entryCount,
-                    createdAt = row.createdAt,
                 )
             }
         }
@@ -447,25 +429,6 @@ class TranslationWorkbenchRepository(context: Context) {
             } catch (failure: Exception) {
                 throw TranslationWorkbenchException(TranslationWorkbenchError.EXPORT_FAILED, failure)
             }
-            val exportedAt = System.currentTimeMillis()
-            try {
-                withContext(NonCancellable) {
-                    dao.recordExport(
-                        TranslationExportEntity(
-                            id = UUID.randomUUID().toString(),
-                            projectId = projectId,
-                            format = format.name,
-                            destinationName = queryDocumentName(uri),
-                            entryCount = mtoolExport?.entryCount ?: entries.size,
-                            createdAt = exportedAt,
-                        ),
-                    )
-                }
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (failure: Exception) {
-                throw TranslationWorkbenchException(TranslationWorkbenchError.EXPORT_HISTORY_FAILED, failure)
-            }
         }
 
     suspend fun deleteProject(projectId: String) {
@@ -778,13 +741,6 @@ class TranslationWorkbenchRepository(context: Context) {
         }
         return output.toString(StandardCharsets.UTF_8.name())
     }
-
-    private fun queryDocumentName(uri: Uri): String? = runCatching {
-        appContext.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
-            val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-            if (index >= 0 && cursor.moveToFirst()) cursor.getString(index) else null
-        }
-    }.getOrNull()
 
     private fun enqueueQueueWorker() {
         val request = OneTimeWorkRequestBuilder<TranslationExtractionWorker>().build()

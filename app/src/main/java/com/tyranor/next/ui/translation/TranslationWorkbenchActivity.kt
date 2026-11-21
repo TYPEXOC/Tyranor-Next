@@ -5,7 +5,6 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Environment
 import android.os.Bundle
-import android.text.format.DateFormat as AndroidDateFormat
 import android.provider.DocumentsContract
 import android.provider.OpenableColumns
 import androidx.documentfile.provider.DocumentFile
@@ -64,7 +63,6 @@ import com.tyranor.next.R
 import com.tyranor.next.core.engine.EngineType
 import com.tyranor.next.core.translation.TranslationProjectFormat
 import com.tyranor.next.core.translation.TranslationProjectState
-import com.tyranor.next.core.translation.TranslationExportRecord
 import com.tyranor.next.core.translation.TranslationProjectSource
 import com.tyranor.next.core.translation.TranslationWorkbenchError
 import com.tyranor.next.core.translation.TranslationWorkbenchException
@@ -93,7 +91,6 @@ import com.tyranor.next.ui.common.DialogActionButtons
 import com.tyranor.next.ui.common.motion.startActivityWithPageTransition
 import com.tyranor.next.ui.common.DialogTextButton
 import com.tyranor.next.ui.common.NoRippleButton
-import com.tyranor.next.ui.common.NoRippleTextButton
 import com.tyranor.next.ui.common.OverlayDropdownPreference
 import com.tyranor.next.ui.common.SlidingTabRow
 import com.tyranor.next.ui.common.TabPagerPageHost
@@ -108,8 +105,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.flowOf
-import java.util.Date
 import java.util.Locale
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
 import top.yukonga.miuix.kmp.basic.CardDefaults as MiuixCardDefaults
@@ -150,6 +145,8 @@ private val visibleProjectFilters = listOf(
     ProjectListFilter.IN_PROGRESS,
     ProjectListFilter.COMPLETED,
 )
+
+private val supportedTranslationExportFormats = listOf(TranslationProjectFormat.MTOOL_JSON)
 
 private fun ProjectListFilter.visibleFilter(): ProjectListFilter = when (this) {
     ProjectListFilter.CONTINUABLE -> ProjectListFilter.IN_PROGRESS
@@ -217,18 +214,16 @@ private fun TranslationWorkbenchScreen() {
     var exportProjectId by remember { mutableStateOf<String?>(null) }
     var exportDestinationUri by remember { mutableStateOf<Uri?>(null) }
     var exportDestinationPath by remember { mutableStateOf("") }
+    var exportFormatName by rememberSaveable { mutableStateOf(TranslationProjectFormat.MTOOL_JSON.name) }
     var exporting by remember { mutableStateOf(false) }
-    var exportHistoryProjectId by remember { mutableStateOf<String?>(null) }
+    val exportFormat = TranslationProjectFormat.entries.firstOrNull { it.name == exportFormatName }
+        ?: TranslationProjectFormat.MTOOL_JSON
     var translationProjectId by remember { mutableStateOf<String?>(null) }
     var selectedTranslationServiceId by remember { mutableStateOf<String?>(null) }
     var translationSourceLanguage by remember { mutableStateOf("") }
     var translationTargetLanguage by remember { mutableStateOf("") }
     var selectedTranslationGlossaryId by remember { mutableStateOf<String?>(null) }
     val reusableGlossaries by repository.observeReusableGlossaries().collectAsStateWithLifecycle(initialValue = emptyList())
-    val exportHistory by remember(repository, exportHistoryProjectId) {
-        exportHistoryProjectId?.let(repository::observeExportHistory)
-            ?: flowOf<List<TranslationExportRecord>>(emptyList())
-    }.collectAsStateWithLifecycle(initialValue = emptyList())
     LaunchedEffect(translationProjectId, reusableGlossaries) {
         val projectId = translationProjectId ?: return@LaunchedEffect
         selectedTranslationGlossaryId = repository.getPreferredGlossaryId(projectId)
@@ -286,18 +281,16 @@ private fun TranslationWorkbenchScreen() {
             try {
                 val createdDocument = withContext(Dispatchers.IO) {
                     val title = projects.firstOrNull { it.id == projectId }?.title ?: "translation-project"
-                    createExportDocument(appContext, destinationUri, title, TranslationProjectFormat.MTOOL_JSON)
+                    createExportDocument(appContext, destinationUri, title, exportFormat)
                 }
                 outputDocument = createdDocument
-                repository.exportProject(projectId, createdDocument.uri, TranslationProjectFormat.MTOOL_JSON)
+                repository.exportProject(projectId, createdDocument.uri, exportFormat)
                 exportProjectId = null
                 exportDestinationUri = null
                 exportDestinationPath = ""
             } catch (failure: Throwable) {
                 if (failure is CancellationException) throw failure
-                val exportHistoryFailed = (failure as? TranslationWorkbenchException)?.code ==
-                    TranslationWorkbenchError.EXPORT_HISTORY_FAILED
-                if (!exportHistoryFailed) outputDocument?.delete()
+                outputDocument?.delete()
                 showFailure(failure)
             } finally {
                 exporting = false
@@ -813,6 +806,21 @@ private fun TranslationWorkbenchScreen() {
 
     exportProjectId?.let { projectId ->
         val project = projects.firstOrNull { it.id == projectId }
+        val exportFormatOptions = supportedTranslationExportFormats
+        val exportFormatLabels = exportFormatOptions.map { format ->
+            stringResource(
+                when (format) {
+                    TranslationProjectFormat.CSV -> R.string.translation_format_csv
+                    TranslationProjectFormat.JSON -> R.string.translation_format_json
+                    TranslationProjectFormat.MTOOL_JSON -> R.string.translation_format_mtool_json
+                },
+            )
+        }
+        val exportCardColor = if (AppThemeColors.isGlass || AppThemeColors.isMilkGlass) {
+            DialogItemSurface
+        } else {
+            NavWhite
+        }
         AppAlertDialog(
             onDismissRequest = { if (!exporting) exportProjectId = null },
             title = { Text(stringResource(R.string.translation_export_title), style = MaterialTheme.typography.titleMedium) },
@@ -828,62 +836,34 @@ private fun TranslationWorkbenchScreen() {
                             color = PageSecondaryTextColor,
                         )
                     }
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(
-                            stringResource(R.string.translation_export_format),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = PageSecondaryTextColor,
-                        )
-                        Text(
-                            stringResource(R.string.translation_format_mtool_json),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = PageTextColor,
-                        )
-                    }
-                    Text(
-                        stringResource(R.string.translation_export_destination),
-                        style = MaterialTheme.typography.labelMedium,
-                    )
-                    Row(
+                    OverlayDropdownPreference(
+                        items = exportFormatLabels,
+                        selectedIndex = exportFormatOptions.indexOf(exportFormat).coerceAtLeast(0),
+                        title = stringResource(R.string.translation_export_format),
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        MiuixCard(
-                            modifier = Modifier.weight(1f).heightIn(min = 48.dp).glassBorder(),
-                            cornerRadius = AppComponentCornerRadius,
-                        ) {
-                            Text(
-                                exportDestinationPath.ifBlank {
-                                    stringResource(R.string.translation_export_location_not_selected)
-                                },
-                                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = if (exportDestinationPath.isBlank()) PageSecondaryTextColor else PageTextColor,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                        NoRippleButton(
-                            text = stringResource(R.string.translation_export_choose_location),
-                            tonal = true,
-                            enabled = !exporting,
-                            onClick = { chooseExportDestination.launch(null) },
-                        )
-                    }
+                        enabled = !exporting,
+                        renderInRootScaffold = false,
+                        onSelectedIndexChange = { index ->
+                            exportFormatName = exportFormatOptions.getOrNull(index)?.name
+                                ?: TranslationProjectFormat.MTOOL_JSON.name
+                        },
+                    )
+                    AppNavItem(
+                        title = stringResource(R.string.translation_export_destination),
+                        summary = exportDestinationPath.ifBlank {
+                            stringResource(R.string.translation_export_location_not_selected)
+                        },
+                        leadingIcon = R.drawable.ic_sheet_folder,
+                        containerColor = exportCardColor,
+                        verticalPadding = 14.dp,
+                        summaryMaxLines = 1,
+                        indication = null,
+                        onClick = if (exporting) null else ({ chooseExportDestination.launch(null) }),
+                    )
                     Text(
                         stringResource(R.string.translation_export_location_hint),
                         style = MaterialTheme.typography.bodySmall,
                         color = PageSecondaryTextColor,
-                    )
-                    NoRippleTextButton(
-                        text = stringResource(R.string.translation_export_history_open),
-                        enabled = !exporting,
-                        modifier = Modifier.align(Alignment.End),
-                        onClick = {
-                            exportProjectId = null
-                            exportHistoryProjectId = projectId
-                        },
                     )
                 }
             },
@@ -897,51 +877,6 @@ private fun TranslationWorkbenchScreen() {
                     confirmEnabled = !exporting && exportDestinationUri != null && project != null,
                     onCancel = { exportProjectId = null },
                     onConfirm = ::beginExport,
-                )
-            },
-        )
-    }
-
-    if (exportHistoryProjectId != null) {
-        AppAlertDialog(
-            onDismissRequest = { exportHistoryProjectId = null },
-            title = { Text(stringResource(R.string.translation_export_history_title), style = MaterialTheme.typography.titleMedium) },
-            text = {
-                if (exportHistory.isEmpty()) {
-                    Text(stringResource(R.string.translation_export_history_empty), style = MaterialTheme.typography.bodyMedium)
-                } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxWidth().heightIn(max = 360.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        items(exportHistory, key = TranslationExportRecord::id) { record ->
-                            val date = Date(record.createdAt)
-                            val dateText = "${AndroidDateFormat.getDateFormat(context).format(date)} " +
-                                AndroidDateFormat.getTimeFormat(context).format(date)
-                            val formatText = when (record.format) {
-                                TranslationProjectFormat.CSV -> stringResource(R.string.translation_format_csv)
-                                TranslationProjectFormat.JSON -> stringResource(R.string.translation_format_json)
-                                TranslationProjectFormat.MTOOL_JSON -> stringResource(R.string.translation_format_json)
-                            }
-                            Text(
-                                stringResource(
-                                    R.string.translation_export_history_row,
-                                    dateText,
-                                    formatText,
-                                    record.destinationName ?: stringResource(R.string.translation_export_filename_unknown),
-                                    record.entryCount,
-                                ),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = PageSecondaryTextColor,
-                            )
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                DialogTextButton(
-                    text = stringResource(R.string.common_confirm),
-                    onClick = { exportHistoryProjectId = null },
                 )
             },
         )
