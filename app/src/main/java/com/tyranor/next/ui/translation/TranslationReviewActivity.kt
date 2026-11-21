@@ -695,7 +695,9 @@ private fun TranslationReviewScreen(projectId: String) {
                             color = PageSecondaryTextColor,
                         )
                         MiuixCard(
-                            modifier = Modifier.fillMaxWidth().heightIn(max = 220.dp),
+                            modifier = Modifier.fillMaxWidth()
+                                .weight(1f, fill = false)
+                                .heightIn(max = 220.dp),
                             cornerRadius = AppComponentCornerRadius,
                             colors = MiuixCardDefaults.defaultColors(color = DialogItemSurface),
                         ) {
