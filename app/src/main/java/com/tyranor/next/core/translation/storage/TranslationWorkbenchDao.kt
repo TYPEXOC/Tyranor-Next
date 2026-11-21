@@ -423,14 +423,11 @@ internal abstract class TranslationWorkbenchDao {
     @Upsert
     abstract suspend fun upsertReviewIssues(issues: List<TranslationReviewIssueEntity>)
 
-    @Query("UPDATE translation_projects SET review_completed_at = NULL, revision = revision + 1, updated_at = :updatedAt WHERE id = :projectId")
-    abstract suspend fun markReviewChanged(projectId: String, updatedAt: Long): Int
+    @Query("UPDATE translation_projects SET revision = revision + 1, updated_at = :updatedAt WHERE id = :projectId")
+    abstract suspend fun bumpProjectRevision(projectId: String, updatedAt: Long): Int
 
     @Query("UPDATE translation_projects SET review_completed_at = :completedAt, revision = revision + 1, updated_at = :completedAt WHERE id = :projectId")
     abstract suspend fun setReviewCompleted(projectId: String, completedAt: Long): Int
-
-    @Query("UPDATE translation_projects SET review_completed_at = NULL, revision = revision + 1, updated_at = :updatedAt WHERE id = :projectId")
-    abstract suspend fun bumpProjectReviewRevision(projectId: String, updatedAt: Long): Int
 
     @Transaction
     open suspend fun replaceOpenRuleIssues(projectId: String, issues: List<TranslationReviewIssueEntity>, updatedAt: Long) {
@@ -438,7 +435,7 @@ internal abstract class TranslationWorkbenchDao {
         if (getActiveTask(projectId) != null) throw TranslationWorkbenchException(TranslationWorkbenchError.TASK_ALREADY_ACTIVE)
         deleteOpenRuleIssues(projectId)
         if (issues.isNotEmpty()) insertReviewIssues(issues)
-        bumpProjectReviewRevision(projectId, updatedAt)
+        bumpProjectRevision(projectId, updatedAt)
     }
 
     @Transaction
@@ -451,7 +448,7 @@ internal abstract class TranslationWorkbenchDao {
             deleteSettledRuleIssuesForEntry(projectId, entryId)
         }
         if (updateManualTranslation(projectId, entryId, translation?.takeIf(String::isNotBlank), status) != 1) return false
-        markReviewChanged(projectId, System.currentTimeMillis())
+        bumpProjectRevision(projectId, System.currentTimeMillis())
         return true
     }
 
@@ -469,7 +466,7 @@ internal abstract class TranslationWorkbenchDao {
             deleteSettledRuleIssuesForEntry(projectId, entryId)
             if (updateReviewSource(projectId, entryId, sourceText) == 1) changed++
         }
-        if (changed > 0) markReviewChanged(projectId, updatedAt)
+        if (changed > 0) bumpProjectRevision(projectId, updatedAt)
         return changed
     }
 
@@ -494,7 +491,7 @@ internal abstract class TranslationWorkbenchDao {
             }
             changed++
         }
-        if (changed > 0) markReviewChanged(projectId, updatedAt)
+        if (changed > 0) bumpProjectRevision(projectId, updatedAt)
         return changed
     }
 
@@ -503,7 +500,7 @@ internal abstract class TranslationWorkbenchDao {
         if (getProject(projectId) == null || getActiveTask(projectId) != null) return false
         if (setEntryConfirmed(projectId, entryId) != 1) return false
         resolveEntryIssues(projectId, entryId, updatedAt)
-        bumpProjectReviewRevision(projectId, updatedAt)
+        bumpProjectRevision(projectId, updatedAt)
         return true
     }
 
