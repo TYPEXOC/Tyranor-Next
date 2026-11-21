@@ -1698,7 +1698,11 @@
     <string name="translation_review_filter_all">全部</string>
     <string name="translation_review_filter_pending">待确认</string>
     <string name="translation_review_filter_issues">有问题</string>
-    <string name="translation_review_filter_button">筛选 · %1$s</string>
+    <string name="translation_review_filter_button">筛选 · %1$s · %2$d</string>
+    <string name="translation_review_filter_group_translated">翻译成功</string>
+    <string name="translation_review_filter_group_incomplete">尚未完成</string>
+    <string name="translation_review_filter_no_warnings">无警告</string>
+    <string name="translation_review_filter_waiting_translation">等待翻译</string>
     <string name="translation_review_search">搜索原文或译文</string>
     <string name="translation_review_filter_dialog_title">筛选条目</string>
     <string name="translation_review_column_sequence">序号</string>
@@ -1721,6 +1725,12 @@
     <string name="translation_review_issue_missing_translation">缺少译文</string>
     <string name="translation_review_issue_placeholder_mismatch">控制码或占位符与原文不一致</string>
     <string name="translation_review_issue_line_break_mismatch">换行与原文不一致</string>
+    <string name="translation_review_issue_foreign_text">外文残留</string>
+    <string name="translation_review_issue_similarity">相似度过高</string>
+    <string name="translation_review_issue_line_count_mismatch">行数不一致</string>
+    <string name="translation_review_issue_glossary">术语未落实</string>
+    <string name="translation_review_issue_text_preservation">文本保护未落实</string>
+    <string name="translation_review_issue_punctuation">标点结构不一致</string>
     <string name="translation_error_invalid_review_entry">校对条目已变化，刷新后再试。</string>
     <string name="translation_services_task_settings">任务设置</string>
     <string name="translation_services_machine_task_limits">机器翻译请求设置</string>

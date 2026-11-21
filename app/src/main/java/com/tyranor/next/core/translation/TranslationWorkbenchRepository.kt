@@ -114,8 +114,24 @@ class TranslationWorkbenchRepository(context: Context) {
         }
 
     suspend fun runLocalRules(projectId: String): Int {
-        if (dao.getProject(projectId) == null) throw TranslationWorkbenchException(TranslationWorkbenchError.PROJECT_NOT_FOUND)
-        val findings = TranslationLocalRuleChecker().inspect(dao.getEntries(projectId))
+        val project = dao.getProject(projectId)
+            ?: throw TranslationWorkbenchException(TranslationWorkbenchError.PROJECT_NOT_FOUND)
+        val glossary = buildList {
+            addAll(dao.getGlossary(projectId).map { TranslationGlossaryTerm(it.sourceTerm, it.targetTerm, it.note) })
+            project.selectedGlossaryId?.let { glossaryId ->
+                addAll(
+                    dao.getReusableGlossaryEntries(glossaryId).map {
+                        TranslationGlossaryTerm(it.sourceTerm, it.targetTerm, it.note)
+                    },
+                )
+            }
+        }
+        val findings = TranslationLocalRuleChecker().inspect(
+            entries = dao.getEntries(projectId),
+            sourceLanguage = project.sourceLanguage,
+            targetLanguage = project.targetLanguage,
+            glossary = glossary,
+        )
         val settledIssues = dao.getSettledRuleIssues(projectId)
             .mapTo(mutableSetOf()) { it.entryId to it.code }
         val now = System.currentTimeMillis()

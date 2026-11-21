@@ -1698,7 +1698,11 @@
     <string name="translation_review_filter_all">All</string>
     <string name="translation_review_filter_pending">Needs review</string>
     <string name="translation_review_filter_issues">Issues</string>
-    <string name="translation_review_filter_button">Filter · %1$s</string>
+    <string name="translation_review_filter_button">Filter · %1$s · %2$d</string>
+    <string name="translation_review_filter_group_translated">Translation complete</string>
+    <string name="translation_review_filter_group_incomplete">Incomplete</string>
+    <string name="translation_review_filter_no_warnings">No warnings</string>
+    <string name="translation_review_filter_waiting_translation">Waiting for translation</string>
     <string name="translation_review_search">Search source or translation</string>
     <string name="translation_review_filter_dialog_title">Filter entries</string>
     <string name="translation_review_column_sequence">No.</string>
@@ -1721,6 +1725,12 @@
     <string name="translation_review_issue_missing_translation">Missing translation</string>
     <string name="translation_review_issue_placeholder_mismatch">Control code or placeholder mismatch</string>
     <string name="translation_review_issue_line_break_mismatch">Line breaks differ from source</string>
+    <string name="translation_review_issue_foreign_text">Foreign text remains</string>
+    <string name="translation_review_issue_similarity">Similarity too high</string>
+    <string name="translation_review_issue_line_count_mismatch">Line count mismatch</string>
+    <string name="translation_review_issue_glossary">Glossary term not applied</string>
+    <string name="translation_review_issue_text_preservation">Protected text not preserved</string>
+    <string name="translation_review_issue_punctuation">Punctuation structure mismatch</string>
     <string name="translation_error_invalid_review_entry">The review entry changed. Refresh and try again.</string>
     <string name="translation_services_task_settings">Task settings</string>
     <string name="translation_services_machine_task_limits">Machine translation request settings</string>
