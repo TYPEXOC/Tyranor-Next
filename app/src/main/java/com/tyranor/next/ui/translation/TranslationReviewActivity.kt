@@ -39,6 +39,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -48,6 +49,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -89,12 +91,14 @@ import com.tyranor.next.ui.common.AppScreenActivity
 import com.tyranor.next.ui.common.AppSecondaryTopBar
 import com.tyranor.next.ui.common.DialogTextButton
 import com.tyranor.next.ui.common.DialogActionButtons
+import com.tyranor.next.ui.common.TabPagerPageHost
 import com.tyranor.next.ui.common.TopBarIcon
 import com.tyranor.next.ui.common.SlidingTabRow
 import com.tyranor.next.ui.common.isTabletScreen
+import com.tyranor.next.ui.common.rememberTabPagerState
 import com.tyranor.next.ui.common.motion.BlurVisibility
+import com.tyranor.next.ui.common.motion.MotionMode
 import com.tyranor.next.ui.common.motion.PageTransitions
-import com.tyranor.next.ui.common.motion.TabPageContent
 import com.tyranor.next.ui.common.motion.listItemMotion
 import com.tyranor.next.ui.common.motion.pressSquish
 import com.tyranor.next.ui.common.motion.pressSquishGroup
@@ -111,6 +115,7 @@ import top.yukonga.miuix.kmp.basic.FloatingActionButton as MiuixFloatingActionBu
 import top.yukonga.miuix.kmp.basic.HorizontalDivider as MiuixHorizontalDivider
 import top.yukonga.miuix.kmp.basic.Icon as MiuixIcon
 import top.yukonga.miuix.kmp.basic.RadioButtonDefaults
+import top.yukonga.miuix.kmp.basic.TabRow as MiuixTabRow
 import top.yukonga.miuix.kmp.basic.Text as MiuixText
 import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -158,6 +163,13 @@ private fun TranslationReviewScreen(projectId: String) {
     var showSearchDialog by remember { mutableStateOf(false) }
     var showFilterDialog by remember { mutableStateOf(false) }
     var showCompleteReviewDialog by remember { mutableStateOf(false) }
+    val searchTargetPager = key(showSearchDialog, MotionMode.enhanced) {
+        rememberTabPagerState(
+            selectedIndex = { if (searchTarget == ReviewSearchTarget.TRANSLATION) 0 else 1 },
+            count = ReviewSearchTarget.entries.size,
+            animateInOrdinaryMode = true,
+        )
+    }
     var draftFilter by remember { mutableStateOf(ReviewFilter.ALL) }
     val mobileReviewListState = rememberLazyListState()
     var errorCode by remember { mutableStateOf<TranslationWorkbenchError?>(null) }
@@ -212,18 +224,33 @@ private fun TranslationReviewScreen(projectId: String) {
         entry.issues.count { it.state == "OPEN" && it.severity == "WARNING" }
     }
     val filteredEntries = entries.filter(filter::matches)
-    val searchResultEntries = filteredEntries.filter { entry ->
-        normalizedSearchQuery.isNotBlank() &&
-            searchTarget.text(entry).contains(normalizedSearchQuery, ignoreCase = true)
+    val searchEntriesByTarget = ReviewSearchTarget.entries.associateWith { target ->
+        filteredEntries.filter { entry ->
+            normalizedSearchQuery.isNotBlank() &&
+                target.text(entry).contains(normalizedSearchQuery, ignoreCase = true)
+        }
     }
-    val matchOccurrences = if (normalizedSearchQuery.isBlank()) 0 else {
-        searchResultEntries.sumOf { searchTarget.text(it).countOccurrences(normalizedSearchQuery) }
+    val matchOccurrencesByTarget = searchEntriesByTarget.mapValues { (target, resultEntries) ->
+        if (normalizedSearchQuery.isBlank()) 0 else {
+            resultEntries.sumOf { target.text(it).countOccurrences(normalizedSearchQuery) }
+        }
     }
+    val searchResultEntries = searchEntriesByTarget.getValue(searchTarget)
+    val matchOccurrences = matchOccurrencesByTarget.getValue(searchTarget)
     val searchResultTextStyle = MaterialTheme.typography.bodyMedium
     val searchResultRowVerticalPadding = 10.dp
     val searchResultRowMaxHeight = with(LocalDensity.current) {
         searchResultTextStyle.lineHeight.toDp() * SEARCH_RESULT_PREVIEW_MAX_LINES.toFloat()
     } + searchResultRowVerticalPadding * 2f + 1.dp
+    val maxSearchResultsAcrossTargets = searchEntriesByTarget.values.maxOfOrNull { it.size } ?: 0
+    val maxSearchResultListHeight = searchResultRowMaxHeight *
+        minOf(maxSearchResultsAcrossTargets, SEARCH_RESULT_MAX_VISIBLE_ROWS).toFloat() + 8.dp
+    val searchResultInfoHeight = with(LocalDensity.current) { searchResultTextStyle.lineHeight.toDp() }
+    val searchResultsPageMaxHeight = if (normalizedSearchQuery.isNotBlank() && maxSearchResultsAcrossTargets > 0) {
+        searchResultInfoHeight + 8.dp + maxSearchResultListHeight
+    } else {
+        searchResultInfoHeight
+    }
     val tabletLayout = isTabletScreen()
     val filteredSelection = filteredEntries.firstOrNull { it.id == selectedEntryId }
     val selectedEntry = filteredSelection ?: if (tabletLayout) filteredEntries.firstOrNull() else null
@@ -546,104 +573,121 @@ private fun TranslationReviewScreen(projectId: String) {
                     backgroundColor = NavWhite,
                     singleLine = true,
                 )
-                SlidingTabRow(
-                    tabs = listOf(
-                        stringResource(R.string.translation_review_translation),
-                        stringResource(R.string.translation_review_source),
-                    ),
-                    selectedIndex = if (searchTarget == ReviewSearchTarget.TRANSLATION) 0 else 1,
-                    onTabSelected = { index ->
-                        searchTarget = if (index == 0) ReviewSearchTarget.TRANSLATION else ReviewSearchTarget.SOURCE
-                    },
-                    modifier = Modifier.fillMaxWidth(),
+                val searchTargetTabs = listOf(
+                    stringResource(R.string.translation_review_translation),
+                    stringResource(R.string.translation_review_source),
                 )
-                TabPageContent(
-                    targetState = searchTarget,
-                    modifier = Modifier.fillMaxWidth().weight(1f, fill = false),
-                    label = "translationReviewSearchResults",
-                    direction = { _, target -> if (target == ReviewSearchTarget.SOURCE) 1 else -1 },
-                ) { target ->
-                    val targetEntries = filteredEntries.filter { entry ->
-                        normalizedSearchQuery.isNotBlank() &&
-                            target.text(entry).contains(normalizedSearchQuery, ignoreCase = true)
-                    }
-                    val targetMatchOccurrences = if (normalizedSearchQuery.isBlank()) 0 else {
-                        targetEntries.sumOf { target.text(it).countOccurrences(normalizedSearchQuery) }
-                    }
-                    val targetListHeight = searchResultRowMaxHeight *
-                        minOf(targetEntries.size, SEARCH_RESULT_MAX_VISIBLE_ROWS).toFloat() + 8.dp
-                    Column(
+                val selectedSearchTargetIndex = if (searchTarget == ReviewSearchTarget.TRANSLATION) 0 else 1
+                if (MotionMode.enhanced) {
+                    SlidingTabRow(
+                        tabs = searchTargetTabs,
+                        selectedIndex = selectedSearchTargetIndex,
+                        onTabSelected = { index ->
+                            searchTarget = if (index == 0) ReviewSearchTarget.TRANSLATION else ReviewSearchTarget.SOURCE
+                        },
                         modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        when {
-                            normalizedSearchQuery.isBlank() -> Text(
-                                stringResource(R.string.translation_review_search_enter_query),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = PageSecondaryTextColor,
-                            )
-                            targetEntries.isEmpty() -> Text(
-                                stringResource(R.string.translation_review_search_no_matches),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = PageSecondaryTextColor,
-                            )
-                            else -> {
-                                Text(
-                                    stringResource(
-                                        R.string.translation_review_search_matches,
-                                        targetMatchOccurrences,
-                                        targetEntries.size,
-                                    ),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = PageSecondaryTextColor,
-                                )
-                                MiuixCard(
-                                    modifier = Modifier.fillMaxWidth()
-                                        .weight(1f, fill = false)
-                                        .heightIn(max = targetListHeight)
-                                        .border(1.dp, translationReviewPanelBorderColor(), AppComponentShape)
-                                        .glassBorder(),
-                                    cornerRadius = AppComponentCornerRadius,
-                                    colors = MiuixCardDefaults.defaultColors(
-                                        color = NavWhite,
-                                        contentColor = TextColor,
-                                    ),
-                                ) {
-                                    LazyColumn(
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentPadding = PaddingValues(vertical = 4.dp),
-                                    ) {
-                                        itemsIndexed(targetEntries, key = { _, entry -> entry.id }) { index, entry ->
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth()
-                                                    .clickable { jumpToSearchResult(entry) }
-                                                    .padding(horizontal = 14.dp, vertical = searchResultRowVerticalPadding),
-                                                verticalAlignment = Alignment.Top,
+                        pager = searchTargetPager,
+                    )
+                } else {
+                    MiuixTabRow(
+                        tabs = searchTargetTabs,
+                        selectedTabIndex = selectedSearchTargetIndex,
+                        onTabSelected = { index ->
+                            searchTarget = if (index == 0) ReviewSearchTarget.TRANSLATION else ReviewSearchTarget.SOURCE
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                Box(
+                    modifier = Modifier.fillMaxWidth()
+                        .weight(1f, fill = false)
+                        .heightIn(max = searchResultsPageMaxHeight)
+                        .clipToBounds(),
+                ) {
+                    ReviewSearchTarget.entries.forEachIndexed { pageIndex, target ->
+                        val targetEntries = searchEntriesByTarget.getValue(target)
+                        val targetMatchOccurrences = matchOccurrencesByTarget.getValue(target)
+                        val targetListHeight = searchResultRowMaxHeight *
+                            minOf(targetEntries.size, SEARCH_RESULT_MAX_VISIBLE_ROWS).toFloat() + 8.dp
+                        TabPagerPageHost(
+                            pageTab = pageIndex,
+                            pager = searchTargetPager,
+                            activePage = selectedSearchTargetIndex,
+                        ) {
+                            Column(
+                                modifier = Modifier.fillMaxSize(),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                when {
+                                    normalizedSearchQuery.isBlank() -> Text(
+                                        stringResource(R.string.translation_review_search_enter_query),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = PageSecondaryTextColor,
+                                    )
+                                    targetEntries.isEmpty() -> Text(
+                                        stringResource(R.string.translation_review_search_no_matches),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = PageSecondaryTextColor,
+                                    )
+                                    else -> {
+                                        Text(
+                                            stringResource(
+                                                R.string.translation_review_search_matches,
+                                                targetMatchOccurrences,
+                                                targetEntries.size,
+                                            ),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = PageSecondaryTextColor,
+                                        )
+                                        MiuixCard(
+                                            modifier = Modifier.fillMaxWidth()
+                                                .weight(1f, fill = false)
+                                                .heightIn(max = targetListHeight)
+                                                .border(1.dp, translationReviewPanelBorderColor(), AppComponentShape)
+                                                .glassBorder(),
+                                            cornerRadius = AppComponentCornerRadius,
+                                            colors = MiuixCardDefaults.defaultColors(
+                                                color = NavWhite,
+                                                contentColor = TextColor,
+                                            ),
+                                        ) {
+                                            LazyColumn(
+                                                modifier = Modifier.fillMaxSize(),
+                                                contentPadding = PaddingValues(vertical = 4.dp),
                                             ) {
-                                                Text(
-                                                    (sequenceById[entry.id] ?: index + 1).toString(),
-                                                    modifier = Modifier.width(36.dp),
-                                                    style = MaterialTheme.typography.labelMedium,
-                                                    color = PageSecondaryTextColor,
-                                                )
-                                                Text(
-                                                    text = highlightedSearchText(
-                                                        text = target.text(entry),
-                                                        query = normalizedSearchQuery,
-                                                        highlightColor = MiuixTheme.colorScheme.primary.copy(alpha = 0.20f),
-                                                    ),
-                                                    modifier = Modifier.weight(1f),
-                                                    style = searchResultTextStyle,
-                                                    color = TextColor,
-                                                    maxLines = SEARCH_RESULT_PREVIEW_MAX_LINES,
-                                                    overflow = TextOverflow.Ellipsis,
-                                                )
-                                            }
-                                            if (index != targetEntries.lastIndex) {
-                                                MiuixHorizontalDivider(
-                                                    modifier = Modifier.padding(horizontal = 14.dp),
-                                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
-                                                )
+                                                itemsIndexed(targetEntries, key = { _, entry -> entry.id }) { index, entry ->
+                                                    Row(
+                                                        modifier = Modifier.fillMaxWidth()
+                                                            .clickable { jumpToSearchResult(entry) }
+                                                            .padding(horizontal = 14.dp, vertical = searchResultRowVerticalPadding),
+                                                        verticalAlignment = Alignment.Top,
+                                                    ) {
+                                                        Text(
+                                                            (sequenceById[entry.id] ?: index + 1).toString(),
+                                                            modifier = Modifier.width(36.dp),
+                                                            style = MaterialTheme.typography.labelMedium,
+                                                            color = PageSecondaryTextColor,
+                                                        )
+                                                        Text(
+                                                            text = highlightedSearchText(
+                                                                text = target.text(entry),
+                                                                query = normalizedSearchQuery,
+                                                                highlightColor = MiuixTheme.colorScheme.primary.copy(alpha = 0.20f),
+                                                            ),
+                                                            modifier = Modifier.weight(1f),
+                                                            style = searchResultTextStyle,
+                                                            color = TextColor,
+                                                            maxLines = SEARCH_RESULT_PREVIEW_MAX_LINES,
+                                                            overflow = TextOverflow.Ellipsis,
+                                                        )
+                                                    }
+                                                    if (index != targetEntries.lastIndex) {
+                                                        MiuixHorizontalDivider(
+                                                            modifier = Modifier.padding(horizontal = 14.dp),
+                                                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
+                                                        )
+                                                    }
+                                                }
                                             }
                                         }
                                     }
