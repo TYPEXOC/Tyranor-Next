@@ -33,6 +33,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.ui.draw.clipToBounds
@@ -237,6 +238,23 @@ private fun TranslationWorkbenchScreen() {
     var projectFilter by rememberSaveable { mutableStateOf(ProjectListFilter.ALL) }
     val selectedProjectFilter = projectFilter.visibleFilter()
     val selectedProjectFilterIndex = visibleProjectFilters.indexOf(selectedProjectFilter).coerceAtLeast(0)
+    val allProjectsGridState = rememberLazyGridState()
+    val inProgressGridState = rememberLazyGridState()
+    val completedGridState = rememberLazyGridState()
+    val selectedProjectGridState = when (selectedProjectFilter) {
+        ProjectListFilter.ALL -> allProjectsGridState
+        ProjectListFilter.IN_PROGRESS -> inProgressGridState
+        else -> completedGridState
+    }
+    var projectToRevealId by remember { mutableStateOf<String?>(null) }
+    val projectToRevealIsVisible = projectToRevealId?.let { id -> projects.any { it.id == id } } == true
+    LaunchedEffect(projectToRevealId, projectToRevealIsVisible, selectedProjectFilter) {
+        if (projectToRevealId == null || !projectToRevealIsVisible) return@LaunchedEffect
+        if (selectedProjectFilter == ProjectListFilter.ALL || selectedProjectFilter == ProjectListFilter.IN_PROGRESS) {
+            selectedProjectGridState.animateScrollToItem(0)
+        }
+        projectToRevealId = null
+    }
     val filterPager = key(MotionMode.enhanced) {
         rememberTabPagerState(
             selectedIndex = {
@@ -416,7 +434,7 @@ private fun TranslationWorkbenchScreen() {
         addProjectErrorCode = null
         scope.launch {
             try {
-                when (addProjectOperation) {
+                val createdProjectId = when (addProjectOperation) {
                     ProjectAddOperation.EXTRACT -> {
                         try {
                             appContext.contentResolver.takePersistableUriPermission(
@@ -430,6 +448,7 @@ private fun TranslationWorkbenchScreen() {
                         if (!creation.created) {
                             throw TranslationWorkbenchException(TranslationWorkbenchError.PROJECT_ALREADY_EXISTS)
                         }
+                        creation.projectId
                     }
                     ProjectAddOperation.TRANSLATE,
                     ProjectAddOperation.PROOFREAD -> {
@@ -445,6 +464,7 @@ private fun TranslationWorkbenchScreen() {
                         repository.importDocument(sourceUri, displayName, format, sourceDisplayPath)
                     }
                 }
+                projectToRevealId = createdProjectId
                 showAddDialog = false
                 addProjectSourceUri = null
                 addProjectSourceName = ""
@@ -569,8 +589,14 @@ private fun TranslationWorkbenchScreen() {
                                 pager = filterPager,
                                 activePage = selectedProjectFilterIndex,
                             ) {
+                                val gridState = when (filter) {
+                                    ProjectListFilter.ALL -> allProjectsGridState
+                                    ProjectListFilter.IN_PROGRESS -> inProgressGridState
+                                    else -> completedGridState
+                                }
                                 LazyVerticalGrid(
                                     columns = GridCells.Fixed(if (tabletLayout) 2 else 1),
+                                    state = gridState,
                                     modifier = Modifier.fillMaxSize(),
                                     contentPadding = PaddingValues(bottom = 24.dp + glassNavBottomInset()),
                                     horizontalArrangement = Arrangement.spacedBy(12.dp),
