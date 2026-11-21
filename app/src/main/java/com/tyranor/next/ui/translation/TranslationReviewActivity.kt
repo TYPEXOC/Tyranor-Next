@@ -438,26 +438,36 @@ private fun TranslationReviewScreen(projectId: String) {
                                     color = PageSecondaryTextColor,
                                 )
                             }
-                            else -> LazyColumn(
-                                state = mobileReviewListState,
-                                modifier = Modifier.fillMaxSize(),
-                                contentPadding = PaddingValues(top = 4.dp, bottom = 72.dp),
-                            ) {
-                                itemsIndexed(filteredEntries, key = { _, entry -> entry.id }) { index, entry ->
-                                    TranslationReviewEntryRow(
-                                        entry = entry,
-                                        sequence = sequenceById[entry.id] ?: index + 1,
-                                        selected = entry.id == selectedEntryId,
-                                        modifier = listItemMotion(),
-                                        onClick = {
-                                            selectedEntryId = entry.id
-                                            editingEntryId = entry.id
-                                            editorText = entry.translatedText.orEmpty()
-                                        },
-                                    )
-                                    MiuixHorizontalDivider(
-                                        modifier = Modifier.padding(horizontal = 16.dp),
-                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
+                            else -> Box(Modifier.fillMaxSize()) {
+                                val showScrollbar = mobileReviewListState.layoutInfo.totalItemsCount >
+                                    mobileReviewListState.layoutInfo.visibleItemsInfo.size
+                                LazyColumn(
+                                    state = mobileReviewListState,
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentPadding = PaddingValues(top = 4.dp, bottom = 72.dp),
+                                ) {
+                                    itemsIndexed(filteredEntries, key = { _, entry -> entry.id }) { index, entry ->
+                                        TranslationReviewEntryRow(
+                                            entry = entry,
+                                            sequence = sequenceById[entry.id] ?: index + 1,
+                                            selected = entry.id == selectedEntryId,
+                                            modifier = listItemMotion(),
+                                            onClick = {
+                                                selectedEntryId = entry.id
+                                                editingEntryId = entry.id
+                                                editorText = entry.translatedText.orEmpty()
+                                            },
+                                        )
+                                        MiuixHorizontalDivider(
+                                            modifier = Modifier.padding(horizontal = 16.dp),
+                                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
+                                        )
+                                    }
+                                }
+                                if (showScrollbar) {
+                                    ReviewEntryScrollbar(
+                                        state = mobileReviewListState,
+                                        modifier = Modifier.align(Alignment.CenterEnd),
                                     )
                                 }
                             }
