@@ -703,9 +703,15 @@ private fun TranslationReviewScreen(projectId: String) {
                             color = PageSecondaryTextColor,
                         )
                         MiuixCard(
-                            modifier = Modifier.fillMaxWidth().height(searchResultListHeight),
+                            modifier = Modifier.fillMaxWidth()
+                                .height(searchResultListHeight)
+                                .border(1.dp, translationReviewPanelBorderColor(), AppComponentShape)
+                                .glassBorder(),
                             cornerRadius = AppComponentCornerRadius,
-                            colors = MiuixCardDefaults.defaultColors(color = DialogItemSurface),
+                            colors = MiuixCardDefaults.defaultColors(
+                                color = NavWhite,
+                                contentColor = TextColor,
+                            ),
                         ) {
                             LazyColumn(
                                 modifier = Modifier.fillMaxSize(),
