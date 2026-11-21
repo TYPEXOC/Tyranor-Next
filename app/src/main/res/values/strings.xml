@@ -286,8 +286,7 @@
     <string name="translation_no_projects_hint">添加游戏目录以提取文本，或导入包含原文与译文的 MTool JSON。</string>
     <string name="translation_project_filter_all">全部项目 %1$d</string>
     <string name="translation_project_filter_in_progress">进行中 %1$d</string>
-    <string name="translation_project_filter_continuable">可继续 %1$d</string>
-    <string name="translation_project_filter_translated">已翻译 %1$d</string>
+    <string name="translation_project_filter_completed">已完成 %1$d</string>
     <string name="translation_project_filter_empty">此分类下没有项目</string>
     <string name="translation_project_metadata">引擎：%1$s</string>
     <string name="translation_engine_unknown">未指定引擎</string>

@@ -286,8 +286,7 @@
     <string name="translation_no_projects_hint">ゲームフォルダーからテキストを抽出するか、原文と訳文を含む MTool JSON を読み込みます。</string>
     <string name="translation_project_filter_all">すべて %1$d</string>
     <string name="translation_project_filter_in_progress">進行中 %1$d</string>
-    <string name="translation_project_filter_continuable">続行可能 %1$d</string>
-    <string name="translation_project_filter_translated">翻訳済み %1$d</string>
+    <string name="translation_project_filter_completed">完了 %1$d</string>
     <string name="translation_project_filter_empty">この分類のプロジェクトはありません</string>
     <string name="translation_project_metadata">エンジン：%1$s</string>
     <string name="translation_engine_unknown">エンジン未指定</string>

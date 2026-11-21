@@ -137,8 +137,23 @@ private enum class ProjectAddOperation {
 private enum class ProjectListFilter {
     ALL,
     IN_PROGRESS,
+    // Retained for saved-state compatibility with the previous filter set.
     CONTINUABLE,
+    // Retained for saved-state compatibility; old "translated" selection maps to completed.
     TRANSLATED,
+    COMPLETED,
+}
+
+private val visibleProjectFilters = listOf(
+    ProjectListFilter.ALL,
+    ProjectListFilter.IN_PROGRESS,
+    ProjectListFilter.COMPLETED,
+)
+
+private fun ProjectListFilter.visibleFilter(): ProjectListFilter = when (this) {
+    ProjectListFilter.CONTINUABLE -> ProjectListFilter.IN_PROGRESS
+    ProjectListFilter.TRANSLATED -> ProjectListFilter.COMPLETED
+    else -> this
 }
 
 private enum class ReviewStartMode {
@@ -151,6 +166,9 @@ private fun TranslationProjectCard.isInProgress(): Boolean =
 
 private fun TranslationProjectCard.isFullyTranslated(): Boolean =
     entryCount > 0 && translatedCount == entryCount
+
+private fun TranslationProjectCard.isCompleted(): Boolean =
+    !isInProgress() && isFullyTranslated() && reviewCompletedAt != null
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
@@ -175,15 +193,19 @@ private fun TranslationWorkbenchScreen() {
         repository.observeEnabledTranslationServices()
     }.collectAsStateWithLifecycle(initialValue = emptyList())
     var projectFilter by rememberSaveable { mutableStateOf(ProjectListFilter.ALL) }
+    val selectedProjectFilter = projectFilter.visibleFilter()
+    val selectedProjectFilterIndex = visibleProjectFilters.indexOf(selectedProjectFilter).coerceAtLeast(0)
     val filterPager = key(MotionMode.enhanced) {
         rememberTabPagerState(
-            selectedIndex = { projectFilter.ordinal },
-            count = ProjectListFilter.entries.size,
+            selectedIndex = {
+                visibleProjectFilters.indexOf(projectFilter.visibleFilter()).coerceAtLeast(0)
+            },
+            count = visibleProjectFilters.size,
             animateInOrdinaryMode = true,
         )
     }
-    val inProgressProjectCount = projects.count(TranslationProjectCard::isInProgress)
-    val fullyTranslatedProjectCount = projects.count(TranslationProjectCard::isFullyTranslated)
+    val inProgressProjectCount = projects.count { !it.isCompleted() }
+    val completedProjectCount = projects.count(TranslationProjectCard::isCompleted)
     var showAddDialog by remember { mutableStateOf(false) }
     var addProjectOperation by remember { mutableStateOf(ProjectAddOperation.EXTRACT) }
     var addProjectEngineId by remember { mutableStateOf(EngineType.RPG_MV.name) }
@@ -435,8 +457,7 @@ private fun TranslationWorkbenchScreen() {
                 val filterLabels = listOf(
                     stringResource(R.string.translation_project_filter_all, projects.size),
                     stringResource(R.string.translation_project_filter_in_progress, inProgressProjectCount),
-                    stringResource(R.string.translation_project_filter_continuable, projects.size - inProgressProjectCount),
-                    stringResource(R.string.translation_project_filter_translated, fullyTranslatedProjectCount),
+                    stringResource(R.string.translation_project_filter_completed, completedProjectCount),
                 )
                 Column(
                     modifier = Modifier.fillMaxSize()
@@ -474,9 +495,9 @@ private fun TranslationWorkbenchScreen() {
                     }
                     SlidingTabRow(
                         tabs = filterLabels,
-                        selectedIndex = projectFilter.ordinal,
+                        selectedIndex = selectedProjectFilterIndex,
                         onTabSelected = { index ->
-                            projectFilter = ProjectListFilter.entries.getOrNull(index) ?: ProjectListFilter.ALL
+                            projectFilter = visibleProjectFilters.getOrNull(index) ?: ProjectListFilter.ALL
                         },
                         pager = filterPager,
                         scrollable = true,
@@ -485,17 +506,18 @@ private fun TranslationWorkbenchScreen() {
                     Box(
                         modifier = Modifier.weight(1f).fillMaxWidth().clipToBounds(),
                     ) {
-                        ProjectListFilter.entries.forEach { filter ->
+                        visibleProjectFilters.forEachIndexed { pageIndex, filter ->
                             val pageProjects = when (filter) {
                                 ProjectListFilter.ALL -> projects
-                                ProjectListFilter.IN_PROGRESS -> projects.filter(TranslationProjectCard::isInProgress)
-                                ProjectListFilter.CONTINUABLE -> projects.filterNot(TranslationProjectCard::isInProgress)
-                                ProjectListFilter.TRANSLATED -> projects.filter(TranslationProjectCard::isFullyTranslated)
+                                ProjectListFilter.IN_PROGRESS -> projects.filterNot(TranslationProjectCard::isCompleted)
+                                ProjectListFilter.CONTINUABLE -> projects.filterNot(TranslationProjectCard::isCompleted)
+                                ProjectListFilter.TRANSLATED, ProjectListFilter.COMPLETED ->
+                                    projects.filter(TranslationProjectCard::isCompleted)
                             }
                             TabPagerPageHost(
-                                pageTab = filter.ordinal,
+                                pageTab = pageIndex,
                                 pager = filterPager,
-                                activePage = projectFilter.ordinal,
+                                activePage = selectedProjectFilterIndex,
                             ) {
                                 LazyVerticalGrid(
                                     columns = GridCells.Fixed(if (tabletLayout) 2 else 1),

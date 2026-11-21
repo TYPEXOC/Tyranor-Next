@@ -207,7 +207,12 @@ internal class YoudaoWebTranslationAdapter(
         beforeRequest(profile)
         val probe = requestTranslation(profile, session, PROBE_TEXT, "en", "zh-CHS")
         val paragraphs = parseParagraphs(probe)
-        if (paragraphs.size != 2 || !paragraphs[0].second.contains("你好") || !paragraphs[1].second.contains("谢谢")) {
+        val expectedParagraphs = PROBE_TEXT.lines()
+        if (paragraphs.size != expectedParagraphs.size || paragraphs.indices.any { index ->
+                normalizeEcho(paragraphs[index].first) != normalizeEcho(expectedParagraphs[index]) ||
+                    paragraphs[index].second.isBlank()
+            }
+        ) {
             throw TranslationServiceException(TranslationServiceErrorCode.INVALID_RESPONSE)
         }
         return session
