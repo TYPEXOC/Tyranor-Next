@@ -386,7 +386,36 @@ private fun TranslationReviewScreen(projectId: String) {
                                 Modifier.fillMaxWidth().padding(16.dp),
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
-                                Text(project.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Text(
+                                        project.title,
+                                        modifier = Modifier.weight(1f),
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                    TopBarIcon(
+                                        painter = painterResource(R.drawable.ic_game_search),
+                                        contentDescription = stringResource(R.string.translation_review_search),
+                                        tint = MiuixTheme.colorScheme.primary,
+                                    ) {
+                                        draftSearchQuery = searchQuery
+                                        showSearchDialog = true
+                                    }
+                                    TopBarIcon(
+                                        painter = painterResource(R.drawable.ic_game_filter),
+                                        contentDescription = stringResource(R.string.translation_review_filter_dialog_title),
+                                        tint = MiuixTheme.colorScheme.primary,
+                                        stateDescription = if (filter != ReviewFilter.ALL) stringResource(filter.label) else null,
+                                    ) {
+                                        draftFilter = filter
+                                        showFilterDialog = true
+                                    }
+                                }
                                 Text(
                                     stringResource(
                                         R.string.translation_entry_summary,
@@ -420,29 +449,6 @@ private fun TranslationReviewScreen(projectId: String) {
                                     Text(stringResource(R.string.translation_task_failed), color = MaterialTheme.colorScheme.error)
                                 }
                             }
-                        }
-                    }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        TopBarIcon(
-                            painter = painterResource(R.drawable.ic_game_search),
-                            contentDescription = stringResource(R.string.translation_review_search),
-                            tint = MiuixTheme.colorScheme.primary,
-                        ) {
-                            draftSearchQuery = searchQuery
-                            showSearchDialog = true
-                        }
-                        TopBarIcon(
-                            painter = painterResource(R.drawable.ic_game_filter),
-                            contentDescription = stringResource(R.string.translation_review_filter_dialog_title),
-                            tint = MiuixTheme.colorScheme.primary,
-                            stateDescription = if (filter != ReviewFilter.ALL) stringResource(filter.label) else null,
-                        ) {
-                            draftFilter = filter
-                            showFilterDialog = true
                         }
                     }
                     MiuixCard(
