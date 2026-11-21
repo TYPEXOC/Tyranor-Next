@@ -1709,6 +1709,9 @@
     <string name="translation_review_translation">当前译文</string>
     <string name="translation_review_no_translation">尚无译文</string>
     <string name="translation_review_confirmed">已确认</string>
+    <string name="translation_review_status_translated">已翻译</string>
+    <string name="translation_review_status_untranslated">待翻译</string>
+    <string name="translation_review_status_issue">存在问题</string>
     <string name="translation_review_edit">编辑译文</string>
     <string name="translation_review_save_translation">保存译文</string>
     <string name="translation_review_confirm">确认当前译文</string>
