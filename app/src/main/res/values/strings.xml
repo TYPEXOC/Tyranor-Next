@@ -361,7 +361,7 @@
     <string name="translation_glossary_delete_term_title">删除此术语？</string>
     <string name="translation_glossary_delete_term_message">确认后立即从术语表中删除“%1$s → %2$s”。</string>
     <string name="translation_glossary_select">术语表</string>
-    <string name="translation_glossary_none">不使用术语表</string>
+    <string name="translation_glossary_none">不应用</string>
     <string name="translation_cancel_task">中止任务</string>
     <string name="translation_reauthorize_directory">重新授权目录</string>
     <string name="translation_export_csv">导出 CSV</string>

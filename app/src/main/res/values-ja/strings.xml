@@ -361,7 +361,7 @@
     <string name="translation_glossary_delete_term_title">この用語を削除しますか？</string>
     <string name="translation_glossary_delete_term_message">確認すると「%1$s → %2$s」を用語集からすぐに削除します。</string>
     <string name="translation_glossary_select">用語集</string>
-    <string name="translation_glossary_none">用語集を使用しない</string>
+    <string name="translation_glossary_none">適用しない</string>
     <string name="translation_cancel_task">タスクを中止</string>
     <string name="translation_reauthorize_directory">フォルダーを再許可</string>
     <string name="translation_export_csv">CSV を書き出す</string>

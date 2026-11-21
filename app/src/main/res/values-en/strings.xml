@@ -361,7 +361,7 @@
     <string name="translation_glossary_delete_term_title">Delete this term?</string>
     <string name="translation_glossary_delete_term_message">“%1$s → %2$s” will be removed from the glossary immediately.</string>
     <string name="translation_glossary_select">Glossary</string>
-    <string name="translation_glossary_none">Do not use a glossary</string>
+    <string name="translation_glossary_none">Do not apply</string>
     <string name="translation_cancel_task">Stop task</string>
     <string name="translation_reauthorize_directory">Reauthorize folder</string>
     <string name="translation_export_csv">Export CSV</string>
