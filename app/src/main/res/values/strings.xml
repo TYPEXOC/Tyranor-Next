@@ -43,8 +43,6 @@
     <string name="translation_services_machine_category">机器翻译</string>
     <string name="translation_services_ai_category">AI 翻译</string>
     <string name="translation_services_screen_description">机器翻译与 AI 翻译分开管理。配置后可在任务中启用和选择。</string>
-    <string name="translation_services_machine_list_title">传统机器翻译服务</string>
-    <string name="translation_services_ai_list_title">AI 翻译服务</string>
     <string name="translation_services_category_summary">%1$d 已启用 · %2$d/%3$d 已配置</string>
     <string name="translation_services_tab_count">%1$s · %2$d</string>
     <string name="translation_services_card_ai_detail">%1$s · 模型：%2$s</string>

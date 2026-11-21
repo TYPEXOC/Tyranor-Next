@@ -389,8 +389,6 @@ private fun TranslationServicesScreen() {
         stringResource(R.string.translation_services_tab_count, machineTab, machineRows.size),
         stringResource(R.string.translation_services_tab_count, aiTab, aiRows.size),
     )
-    val machineCategoryTitle = stringResource(R.string.translation_services_machine_list_title)
-    val aiCategoryTitle = stringResource(R.string.translation_services_ai_list_title)
     val machineCategorySummary = stringResource(
         R.string.translation_services_category_summary,
         machineRows.count { it.profile?.enabled == true },
@@ -497,7 +495,6 @@ private fun TranslationServicesScreen() {
                         TabPagerPageHost(pageTab = 0, pager = categoryPager, activePage = activeCategoryPage) {
                             TranslationServiceCategoryGrid(
                                 rows = machineRows,
-                                categoryTitle = machineCategoryTitle,
                                 categorySummary = machineCategorySummary,
                                 categoryNote = machineCategoryNote,
                                 tabletLayout = tabletLayout,
@@ -516,7 +513,6 @@ private fun TranslationServicesScreen() {
                         TabPagerPageHost(pageTab = 1, pager = categoryPager, activePage = activeCategoryPage) {
                             TranslationServiceCategoryGrid(
                                 rows = aiRows,
-                                categoryTitle = aiCategoryTitle,
                                 categorySummary = aiCategorySummary,
                                 categoryNote = aiCategoryNote,
                                 tabletLayout = tabletLayout,
@@ -1646,7 +1642,6 @@ private fun TranslationServicesScreen() {
 @Composable
 private fun TranslationServiceCategoryGrid(
     rows: List<ServiceListRow>,
-    categoryTitle: String,
     categorySummary: String,
     categoryNote: String,
     tabletLayout: Boolean,
@@ -1659,10 +1654,9 @@ private fun TranslationServiceCategoryGrid(
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 12.dp, start = 6.dp, end = 6.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.End,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(categoryTitle, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
             Text(categorySummary, style = MaterialTheme.typography.labelSmall, color = PageSecondaryTextColor)
         }
         LazyVerticalGrid(

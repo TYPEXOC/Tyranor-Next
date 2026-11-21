@@ -43,8 +43,6 @@
     <string name="translation_services_machine_category">機械翻訳</string>
     <string name="translation_services_ai_category">AI 翻訳</string>
     <string name="translation_services_screen_description">機械翻訳と AI 翻訳を分けて管理します。設定後、タスクで有効化して選択できます。</string>
-    <string name="translation_services_machine_list_title">機械翻訳サービス</string>
-    <string name="translation_services_ai_list_title">AI 翻訳サービス</string>
     <string name="translation_services_category_summary">%1$d件有効 · %2$d/%3$d件設定済み</string>
     <string name="translation_services_tab_count">%1$s · %2$d</string>
     <string name="translation_services_card_ai_detail">%1$s · モデル：%2$s</string>
