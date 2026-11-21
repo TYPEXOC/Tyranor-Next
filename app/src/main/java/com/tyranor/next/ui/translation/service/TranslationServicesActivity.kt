@@ -2206,8 +2206,11 @@ private fun TranslationServiceTemplateCard(
             ) {
                 MiuixButton(
                     onClick = onConfigure,
-                    modifier = Modifier.pressSquish(),
+                    modifier = Modifier.pressSquish().size(width = 49.dp, height = 28.dp),
+                    minWidth = 49.dp,
+                    minHeight = 28.dp,
                     colors = MiuixButtonDefaults.buttonColors(),
+                    insideMargin = PaddingValues(0.dp),
                     indication = if (MotionMode.enhanced) null else ripple(),
                 ) {
                     Text(
