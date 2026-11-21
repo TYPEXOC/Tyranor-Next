@@ -183,7 +183,7 @@ private fun TranslationReviewScreen(projectId: String) {
     }
 
     LaunchedEffect(project?.id, entries.size) {
-        if (project != null && entries.isNotEmpty() && !localRulesInitialized) {
+        if (project != null && project.reviewCompletedAt == null && entries.isNotEmpty() && !localRulesInitialized) {
             localRulesInitialized = true
             try {
                 repository.runLocalRules(projectId)
