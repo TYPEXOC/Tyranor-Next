@@ -780,19 +780,30 @@ private fun TranslationReviewScreen(projectId: String) {
     if (showFilterDialog) {
         AppAlertDialog(
             onDismissRequest = { showFilterDialog = false },
-            title = { Text(stringResource(R.string.translation_review_filter_dialog_title), style = MaterialTheme.typography.titleMedium) },
+            title = {
+                Text(
+                    stringResource(R.string.translation_review_filter_dialog_title),
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                )
+            },
             text = {
-                Column(
-                    modifier = Modifier.fillMaxWidth().heightIn(max = 460.dp).verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                MiuixTheme(
+                    textStyles = MiuixTheme.textStyles.copy(
+                        headline1 = MaterialTheme.typography.bodyMedium,
+                    ),
                 ) {
-                    ReviewFilter.options.forEach { option ->
-                        ReviewFilterOptionRow(
-                            option = option,
-                            count = filterCounts[option] ?: 0,
-                            selected = draftFilter == option,
-                            onClick = { draftFilter = option },
-                        )
+                    Column(
+                        modifier = Modifier.fillMaxWidth().heightIn(max = 460.dp).verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        ReviewFilter.options.forEach { option ->
+                            ReviewFilterOptionRow(
+                                option = option,
+                                count = filterCounts[option] ?: 0,
+                                selected = draftFilter == option,
+                                onClick = { draftFilter = option },
+                            )
+                        }
                     }
                 }
             },
