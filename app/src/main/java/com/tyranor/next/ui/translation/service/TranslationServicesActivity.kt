@@ -105,6 +105,7 @@ import com.tyranor.next.ui.common.NoRippleButton
 import com.tyranor.next.ui.common.NoRippleTextButton
 import com.tyranor.next.ui.common.OverlayDropdownPreference
 import com.tyranor.next.ui.common.SegmentedControl
+import com.tyranor.next.ui.common.SettingsEntryCard
 import com.tyranor.next.ui.common.TabPagerPageHost
 import com.tyranor.next.ui.common.rememberTabPagerState
 import com.tyranor.next.ui.common.motion.MotionMode
@@ -904,18 +905,16 @@ private fun TranslationServicesScreen() {
                                     )
                                 }
                             }
-                    NoRippleButton(
-                        text = stringResource(R.string.translation_services_task_settings),
-                        modifier = Modifier.fillMaxWidth(),
+                    SettingsEntryCard(
+                        title = stringResource(R.string.translation_services_task_settings),
                         onClick = {
                             taskSettingsEditor = TaskSettingsEditor.from(state)
                             activePage = TranslationServicesPage.TASK_SETTINGS
                         },
                     )
                     if (!isMachineTranslation) {
-                        NoRippleButton(
-                            text = stringResource(R.string.translation_services_advanced_settings),
-                            modifier = Modifier.fillMaxWidth(),
+                        SettingsEntryCard(
+                            title = stringResource(R.string.translation_services_advanced_settings),
                             onClick = {
                                 scope.launch {
                                     try {
