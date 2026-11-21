@@ -479,6 +479,7 @@ private fun TranslationWorkbenchScreen() {
                             projectFilter = ProjectListFilter.entries.getOrNull(index) ?: ProjectListFilter.ALL
                         },
                         pager = filterPager,
+                        scrollable = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
                     Box(
