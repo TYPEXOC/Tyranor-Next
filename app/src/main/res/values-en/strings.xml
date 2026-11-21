@@ -372,9 +372,7 @@
     <string name="translation_export_title">Export project</string>
     <string name="translation_export_subtitle">%1$s · Translation results</string>
     <string name="translation_export_format">Format</string>
-    <string name="translation_export_destination">Save location</string>
-    <string name="translation_export_location_not_selected">No folder selected</string>
-    <string name="translation_export_location_hint">Choose a folder on your device for the exported file.</string>
+    <string name="translation_export_destination">Save folder</string>
     <string name="translation_export_confirm">Export</string>
     <string name="translation_exporting">Exporting…</string>
     <string name="translation_format_csv">CSV</string>

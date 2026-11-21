@@ -372,9 +372,7 @@
     <string name="translation_export_title">プロジェクトを書き出す</string>
     <string name="translation_export_subtitle">%1$s · 翻訳結果</string>
     <string name="translation_export_format">形式</string>
-    <string name="translation_export_destination">保存先</string>
-    <string name="translation_export_location_not_selected">フォルダー未選択</string>
-    <string name="translation_export_location_hint">書き出したファイルを保存する端末内のフォルダーを選択します。</string>
+    <string name="translation_export_destination">保存先フォルダー</string>
     <string name="translation_export_confirm">書き出す</string>
     <string name="translation_exporting">書き出し中…</string>
     <string name="translation_format_csv">CSV</string>

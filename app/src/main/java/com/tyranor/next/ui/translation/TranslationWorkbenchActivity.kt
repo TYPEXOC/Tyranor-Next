@@ -12,6 +12,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -25,6 +26,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -37,8 +39,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -53,9 +57,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.verticalScroll
@@ -101,6 +108,7 @@ import com.tyranor.next.ui.common.glassNavBottomInset
 import com.tyranor.next.ui.common.motion.DelayedProgress
 import com.tyranor.next.ui.common.motion.listItemMotion
 import com.tyranor.next.ui.common.motion.MotionMode
+import com.tyranor.next.ui.common.motion.pressSquish
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -109,11 +117,15 @@ import java.util.Locale
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
 import top.yukonga.miuix.kmp.basic.CardDefaults as MiuixCardDefaults
 import top.yukonga.miuix.kmp.basic.CircularProgressIndicator as MiuixCircularProgressIndicator
+import top.yukonga.miuix.kmp.basic.Button as MiuixButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults as MiuixButtonDefaults
+import top.yukonga.miuix.kmp.basic.DropdownDefaults
 import top.yukonga.miuix.kmp.basic.DropdownEntry
 import top.yukonga.miuix.kmp.basic.DropdownItem
 import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
 import top.yukonga.miuix.kmp.basic.TabRow as MiuixTabRow
-import top.yukonga.miuix.kmp.menu.OverlayIconDropdownMenu
+import top.yukonga.miuix.kmp.popup.OverlayDropdownPopup
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.foundation.Image
 
 class TranslationWorkbenchActivity : AppScreenActivity() {
@@ -165,6 +177,42 @@ private fun TranslationProjectCard.isFullyTranslated(): Boolean =
 
 private fun TranslationProjectCard.isCompleted(): Boolean =
     !isInProgress() && isFullyTranslated() && reviewCompletedAt != null
+
+@Composable
+private fun ContentSizedMiuixTabRow(
+    tabs: List<String>,
+    selectedTabIndex: Int,
+    onTabSelected: (Int) -> Unit,
+) {
+    if (tabs.isEmpty()) return
+
+    val textMeasurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val tabTextStyle = MiuixTheme.textStyles.body1.copy(fontWeight = FontWeight.Bold)
+    val tabWidth = remember(tabs, textMeasurer, density, tabTextStyle) {
+        val widestLabelPx = tabs.maxOf { label ->
+            textMeasurer.measure(AnnotatedString(label), style = tabTextStyle).size.width
+        }
+        with(density) { widestLabelPx.toDp() + 24.dp }
+    }
+    val itemSpacing = 9.dp
+    val contentWidth = tabWidth * tabs.size + itemSpacing * (tabs.size - 1)
+
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val rowWidth = minOf(maxWidth, contentWidth)
+        Box(Modifier.width(rowWidth)) {
+            MiuixTabRow(
+                tabs = tabs,
+                selectedTabIndex = selectedTabIndex,
+                onTabSelected = onTabSelected,
+                modifier = Modifier.fillMaxWidth(),
+                minWidth = tabWidth,
+                maxWidth = tabWidth,
+                itemSpacing = itemSpacing,
+            )
+        }
+    }
+}
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
@@ -491,15 +539,14 @@ private fun TranslationWorkbenchScreen() {
                             selectedIndex = selectedProjectFilterIndex,
                             onTabSelected = onProjectFilterSelected,
                             pager = filterPager,
-                            scrollable = !tabletLayout,
+                            scrollable = true,
                             modifier = Modifier.fillMaxWidth(),
                         )
                     } else {
-                        MiuixTabRow(
+                        ContentSizedMiuixTabRow(
                             tabs = filterLabels,
                             selectedTabIndex = selectedProjectFilterIndex,
                             onTabSelected = onProjectFilterSelected,
-                            modifier = Modifier.fillMaxWidth(),
                         )
                     }
                     Box(
@@ -824,12 +871,17 @@ private fun TranslationWorkbenchScreen() {
         } else {
             NavWhite
         }
-        AppAlertDialog(
+        AppBottomSheet(
             onDismissRequest = { if (!exporting) exportProjectId = null },
-            title = {
-                MiuixSettingsTheme {
+            confirmValueChange = { target -> target != SheetValue.Hidden || !exporting },
+        ) {
+            MiuixSettingsTheme {
+                Column(
+                    modifier = Modifier.fillMaxWidth().widthIn(max = 760.dp).padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
                     Column(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                         verticalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
                         Text(
@@ -847,12 +899,8 @@ private fun TranslationWorkbenchScreen() {
                             )
                         }
                     }
-                }
-            },
-            text = {
-                MiuixSettingsTheme {
                     Column(
-                        modifier = Modifier.fillMaxWidth().heightIn(max = 460.dp).verticalScroll(rememberScrollState()),
+                        modifier = Modifier.fillMaxWidth().weight(1f, fill = false).verticalScroll(rememberScrollState()),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         MiuixCard(
@@ -884,48 +932,35 @@ private fun TranslationWorkbenchScreen() {
                                 contentColor = PageTextColor,
                             ),
                         ) {
-                            Column(
-                                modifier = Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 8.dp),
-                                verticalArrangement = Arrangement.spacedBy(4.dp),
-                            ) {
-                                Text(
-                                    stringResource(R.string.translation_export_destination),
-                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = PageTextColor,
-                                )
-                                AppNavItem(
-                                    title = exportDestinationPath.ifBlank {
-                                        stringResource(R.string.translation_export_location_not_selected)
-                                    },
-                                    summary = stringResource(R.string.translation_export_location_hint),
-                                    leadingIcon = R.drawable.ic_sheet_folder,
-                                    containerColor = exportCardColor,
-                                    verticalPadding = 10.dp,
-                                    titleMaxLines = 1,
-                                    summaryMaxLines = 2,
-                                    indication = null,
-                                    drawSurface = false,
-                                    onClick = if (exporting) null else ({ chooseExportDestination.launch(null) }),
-                                )
-                            }
+                            AppNavItem(
+                                title = stringResource(R.string.translation_export_destination),
+                                summary = exportDestinationPath.ifBlank {
+                                    stringResource(R.string.translation_add_project_source_not_selected)
+                                },
+                                leadingIcon = R.drawable.ic_sheet_folder,
+                                containerColor = exportCardColor,
+                                verticalPadding = 14.dp,
+                                summaryMaxLines = 1,
+                                indication = null,
+                                drawSurface = false,
+                                onClick = if (exporting) null else ({ chooseExportDestination.launch(null) }),
+                            )
                         }
                     }
+                    DialogActionButtons(
+                        cancelText = stringResource(R.string.common_cancel),
+                        confirmText = stringResource(
+                            if (exporting) R.string.translation_exporting else R.string.translation_export_confirm,
+                        ),
+                        modifier = Modifier.padding(top = 4.dp, bottom = 16.dp),
+                        cancelEnabled = !exporting,
+                        confirmEnabled = !exporting && exportDestinationUri != null && project != null,
+                        onCancel = { exportProjectId = null },
+                        onConfirm = ::beginExport,
+                    )
                 }
-            },
-            confirmButton = {
-                DialogActionButtons(
-                    cancelText = stringResource(R.string.common_cancel),
-                    confirmText = stringResource(
-                        if (exporting) R.string.translation_exporting else R.string.translation_export_confirm,
-                    ),
-                    cancelEnabled = !exporting,
-                    confirmEnabled = !exporting && exportDestinationUri != null && project != null,
-                    onCancel = { exportProjectId = null },
-                    onConfirm = ::beginExport,
-                )
-            },
-        )
+            }
+        }
     }
 
     errorCode?.let { code ->
@@ -1371,39 +1406,75 @@ private fun TranslationProjectCardView(
                     )
                 } ?: Spacer(Modifier.weight(1f))
                 val canExport = project.entryCount > 0 && !isActive
-                OverlayIconDropdownMenu(
-                    entry = DropdownEntry(
-                        items = listOf(
-                            DropdownItem(
-                                text = stringResource(R.string.translation_card_export),
-                                enabled = canExport,
-                                onClick = onExport,
-                            ),
-                            DropdownItem(
-                                text = stringResource(R.string.translation_card_delete),
-                                onClick = onDelete,
-                            ),
-                        ),
-                    ),
-                    modifier = Modifier.border(
-                        width = 1.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant,
-                        shape = AppComponentShape,
-                    ),
-                    backgroundColor = Color.Transparent,
-                    cornerRadius = AppComponentCornerRadius,
-                    minHeight = 44.dp,
-                    minWidth = 76.dp,
-                ) {
-                    Text(
-                        text = stringResource(R.string.translation_card_more),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        maxLines = 1,
-                    )
-                }
+                TranslationProjectMoreMenu(
+                    canExport = canExport,
+                    onExport = onExport,
+                    onDelete = onDelete,
+                )
             }
         }
+    }
+}
+
+@Composable
+private fun TranslationProjectMoreMenu(
+    canExport: Boolean,
+    onExport: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val entry = DropdownEntry(
+        items = listOf(
+            DropdownItem(
+                text = stringResource(R.string.translation_card_export),
+                enabled = canExport,
+                onClick = onExport,
+            ),
+            DropdownItem(
+                text = stringResource(R.string.translation_card_delete),
+                onClick = onDelete,
+            ),
+        ),
+    )
+
+    Box {
+        MiuixButton(
+            onClick = { expanded = true },
+            modifier = Modifier
+                .pressSquish()
+                .border(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant,
+                    shape = AppComponentShape,
+                ),
+            minWidth = 76.dp,
+            minHeight = 44.dp,
+            cornerRadius = AppComponentCornerRadius,
+            insideMargin = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+            colors = MiuixButtonDefaults.buttonColors(
+                color = Color.Transparent,
+                disabledColor = Color.Transparent,
+                contentColor = MaterialTheme.colorScheme.primary,
+                disabledContentColor = MaterialTheme.colorScheme.primary,
+            ),
+            indication = if (MotionMode.enhanced) null else ripple(),
+        ) {
+            Text(
+                text = stringResource(R.string.translation_card_more),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary,
+                maxLines = 1,
+            )
+        }
+        OverlayDropdownPopup(
+            entry = entry,
+            show = expanded,
+            onDismiss = { expanded = false },
+            onDismissFinished = {},
+            maxHeight = null,
+            dropdownColors = DropdownDefaults.dropdownColors(),
+            renderInRootScaffold = true,
+        )
     }
 }
 
