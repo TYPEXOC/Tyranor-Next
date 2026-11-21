@@ -36,7 +36,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -522,7 +521,7 @@ private fun TranslationReviewScreen(projectId: String) {
                         style = MaterialTheme.typography.titleMedium,
                         textAlign = TextAlign.Start,
                     )
-                    ReviewEntryStatusBadge(entry)
+                    ReviewEntryStatusIcon(entry)
                 }
             },
             textScrollEnabled = true,
@@ -547,39 +546,16 @@ private fun TranslationReviewScreen(projectId: String) {
                         maxLines = 8,
                     )
                     entry.issues.filter { it.state == "OPEN" }.forEach { issue ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth()
-                                .clip(AppComponentShape)
-                                .background(MaterialTheme.colorScheme.error.copy(alpha = 0.08f))
-                                .padding(10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        ) {
-                            Text(
-                                stringResource(issue.code.labelResource()),
-                                modifier = Modifier.weight(1f),
-                                color = MaterialTheme.colorScheme.error,
-                                style = MaterialTheme.typography.bodySmall,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                            NoRippleTextButton(
-                                text = stringResource(R.string.translation_review_resolve_issue),
-                                enabled = !active && !savingEntry,
-                                singleLine = true,
-                                onClick = {
-                                    runOperation { repository.updateReviewIssue(projectId, issue.id, false) }
-                                },
-                            )
-                            NoRippleTextButton(
-                                text = stringResource(R.string.translation_review_ignore_issue),
-                                enabled = !active && !savingEntry,
-                                singleLine = true,
-                                onClick = {
-                                    runOperation { repository.updateReviewIssue(projectId, issue.id, true) }
-                                },
-                            )
-                        }
+                        ReviewIssueActionsRow(
+                            issue = issue,
+                            enabled = !active && !savingEntry,
+                            onResolve = {
+                                runOperation { repository.updateReviewIssue(projectId, issue.id, false) }
+                            },
+                            onIgnore = {
+                                runOperation { repository.updateReviewIssue(projectId, issue.id, true) }
+                            },
+                        )
                     }
                 }
             },
@@ -1011,30 +987,46 @@ private suspend fun scrollReviewTableToFraction(state: LazyListState, fraction: 
 }
 
 @Composable
-private fun ReviewEntryStatusBadge(entry: TranslationReviewEntry) {
-    val openIssue = entry.issues.firstOrNull { it.state == "OPEN" }
-    val label = when {
-        openIssue != null -> stringResource(openIssue.code.labelResource())
-        entry.reviewState == TranslationReviewState.CONFIRMED -> stringResource(R.string.translation_review_confirmed)
-        entry.translatedText.isNullOrBlank() -> stringResource(R.string.translation_review_status_untranslated)
-        else -> stringResource(R.string.translation_review_status_translated)
-    }
-    val tint = when {
-        openIssue != null -> MaterialTheme.colorScheme.error
-        !entry.translatedText.isNullOrBlank() -> MaterialTheme.colorScheme.primary
-        else -> MaterialTheme.colorScheme.secondary
-    }
-    Box(
-        modifier = Modifier.clip(RoundedCornerShape(8.dp))
-            .background(tint.copy(alpha = 0.12f))
-            .padding(horizontal = 7.dp, vertical = 5.dp),
+private fun ReviewIssueActionsRow(
+    issue: TranslationReviewIssue,
+    enabled: Boolean,
+    onResolve: () -> Unit,
+    onIgnore: () -> Unit,
+) {
+    val issueColor = MaterialTheme.colorScheme.error
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Text(
-            label,
-            color = tint,
-            style = MaterialTheme.typography.labelSmall,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+        Box(
+            modifier = Modifier.weight(1f)
+                .clip(AppComponentShape)
+                .background(issueColor.copy(alpha = 0.08f))
+                .border(1.dp, issueColor.copy(alpha = 0.18f), AppComponentShape)
+                .padding(horizontal = 10.dp, vertical = 8.dp),
+        ) {
+            Text(
+                stringResource(issue.code.labelResource()),
+                color = issueColor,
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        NoRippleButton(
+            text = stringResource(R.string.translation_review_resolve_issue),
+            enabled = enabled,
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+            tonal = true,
+            onClick = onResolve,
+        )
+        NoRippleButton(
+            text = stringResource(R.string.translation_review_ignore_issue),
+            enabled = enabled,
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+            tonal = true,
+            onClick = onIgnore,
         )
     }
 }
@@ -1129,7 +1121,7 @@ private fun TranslationReviewEntryDetailPane(
                     color = PageSecondaryTextColor,
                     maxLines = 1,
                 )
-                ReviewEntryStatusBadge(entry)
+                ReviewEntryStatusIcon(entry)
             }
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(stringResource(R.string.translation_review_source), style = MaterialTheme.typography.labelMedium)
@@ -1166,34 +1158,12 @@ private fun TranslationReviewEntryDetailPane(
                 }
             }
             entry.issues.filter { it.state == "OPEN" }.forEach { issue ->
-                Row(
-                    modifier = Modifier.fillMaxWidth().clip(AppComponentShape)
-                        .background(MaterialTheme.colorScheme.error.copy(alpha = 0.08f))
-                        .padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    Text(
-                        stringResource(issue.code.labelResource()),
-                        modifier = Modifier.weight(1f),
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    NoRippleTextButton(
-                        text = stringResource(R.string.translation_review_resolve_issue),
-                        enabled = enabled,
-                        singleLine = true,
-                        onClick = { onIssueState(issue, false) },
-                    )
-                    NoRippleTextButton(
-                        text = stringResource(R.string.translation_review_ignore_issue),
-                        enabled = enabled,
-                        singleLine = true,
-                        onClick = { onIssueState(issue, true) },
-                    )
-                }
+                ReviewIssueActionsRow(
+                    issue = issue,
+                    enabled = enabled,
+                    onResolve = { onIssueState(issue, false) },
+                    onIgnore = { onIssueState(issue, true) },
+                )
             }
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 NoRippleButton(

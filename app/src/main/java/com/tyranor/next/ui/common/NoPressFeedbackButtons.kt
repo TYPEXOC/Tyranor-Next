@@ -47,7 +47,6 @@ fun NoRippleTextButton(
     enabled: Boolean = true,
     /** 可用态文字色；破坏性动作（删除/清除）传 `MaterialTheme.colorScheme.error`。 */
     contentColor: Color = MaterialTheme.colorScheme.primary,
-    singleLine: Boolean = false,
     onClick: () -> Unit,
 ) {
     val targetColor = if (enabled) {
@@ -59,7 +58,6 @@ fun NoRippleTextButton(
         text, modifier, enabled, targetColor,
         verticalPadding = 8.dp,
         colorLabel = "noRippleTextButtonColor",
-        singleLine = singleLine,
         onClick = onClick,
     )
 }
@@ -73,15 +71,12 @@ internal fun NoRippleActionText(
     targetColor: Color,
     verticalPadding: Dp,
     colorLabel: String,
-    singleLine: Boolean = false,
     onClick: () -> Unit,
 ) {
     Text(
         text = text,
         style = MaterialTheme.typography.bodyMedium,
         textAlign = TextAlign.Center,
-        maxLines = if (singleLine) 1 else Int.MAX_VALUE,
-        overflow = if (singleLine) TextOverflow.Ellipsis else TextOverflow.Clip,
         // 可用 ↔ 不可用：「增强」档文字颜色弹簧淡变，「普通」档直接切换
         color = if (MotionMode.enhanced) {
             animateColorAsState(targetColor, MotionTokens.fadeIn(), label = colorLabel).value
