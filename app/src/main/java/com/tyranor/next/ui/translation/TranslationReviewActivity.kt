@@ -460,13 +460,20 @@ private fun TranslationReviewScreen(projectId: String) {
                                 ) {
                                     Text(
                                         stringResource(
-                                            R.string.translation_entry_summary,
+                                            if (project.reviewCompletedAt != null) {
+                                                R.string.translation_review_context_completed_count
+                                            } else {
+                                                R.string.translation_review_context_in_progress_count
+                                            },
                                             entries.size,
-                                            entries.count { !it.translatedText.isNullOrBlank() },
                                         ),
                                         modifier = Modifier.weight(1f),
                                         style = MaterialTheme.typography.bodyMedium,
-                                        color = PageSecondaryTextColor,
+                                        color = if (project.reviewCompletedAt != null) {
+                                            MaterialTheme.colorScheme.primary
+                                        } else {
+                                            PageSecondaryTextColor
+                                        },
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
                                     )
@@ -486,9 +493,6 @@ private fun TranslationReviewScreen(projectId: String) {
                                         draftFilter = filter
                                         showFilterDialog = true
                                     }
-                                }
-                                if (project.reviewCompletedAt != null) {
-                                    Text(stringResource(R.string.translation_review_completed), color = MaterialTheme.colorScheme.primary)
                                 }
                                 if (active && project.itemTotal > 0) {
                                     LinearProgressIndicator(
