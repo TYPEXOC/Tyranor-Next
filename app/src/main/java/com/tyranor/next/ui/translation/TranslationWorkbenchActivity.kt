@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -81,7 +80,6 @@ import com.tyranor.next.core.translation.extraction.TranslationExtractorEngineId
 import com.tyranor.next.core.translation.service.TranslationServiceProfile
 import com.tyranor.next.core.translation.service.TranslationServiceCategory
 import com.tyranor.next.theme.AppComponentCornerRadius
-import com.tyranor.next.theme.AppComponentShape
 import com.tyranor.next.theme.DialogItemSurface
 import com.tyranor.next.theme.AppThemeColors
 import com.tyranor.next.theme.MiuixSettingsTheme
@@ -1440,29 +1438,17 @@ private fun TranslationProjectMoreMenu(
     Box {
         MiuixButton(
             onClick = { expanded = true },
-            modifier = Modifier
-                .pressSquish()
-                .border(
-                    width = 1.dp,
-                    color = MaterialTheme.colorScheme.outlineVariant,
-                    shape = AppComponentShape,
-                ),
+            modifier = Modifier.pressSquish(),
             minWidth = 76.dp,
             minHeight = 44.dp,
             cornerRadius = AppComponentCornerRadius,
             insideMargin = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-            colors = MiuixButtonDefaults.buttonColors(
-                color = Color.Transparent,
-                disabledColor = Color.Transparent,
-                contentColor = MaterialTheme.colorScheme.primary,
-                disabledContentColor = MaterialTheme.colorScheme.primary,
-            ),
+            colors = MiuixButtonDefaults.buttonColors(),
             indication = if (MotionMode.enhanced) null else ripple(),
         ) {
             Text(
                 text = stringResource(R.string.translation_card_more),
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.primary,
                 maxLines = 1,
             )
         }
