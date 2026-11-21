@@ -60,9 +60,9 @@
     <string name="translation_services_provider_azure">Azure Translator</string>
     <string name="translation_services_provider_deepl">DeepL</string>
     <string name="translation_services_provider_baidu">百度翻译</string>
-    <string name="translation_services_provider_tencent">腾讯云机器翻译</string>
+    <string name="translation_services_provider_tencent">腾讯云翻译</string>
     <string name="translation_services_provider_youdao">有道翻译</string>
-    <string name="translation_services_provider_alibaba_mt">阿里云机器翻译</string>
+    <string name="translation_services_provider_alibaba_mt">阿里云翻译</string>
     <string name="translation_services_provider_caiyun">彩云翻译</string>
     <string name="translation_services_provider_google">Google Cloud Translation</string>
     <string name="translation_services_provider_yandex">Yandex Translate</string>
@@ -77,9 +77,9 @@
     <string name="translation_services_add_azure">添加 Azure 翻译</string>
     <string name="translation_services_add_deepl">添加 DeepL</string>
     <string name="translation_services_add_baidu">添加百度翻译</string>
-    <string name="translation_services_add_tencent">添加腾讯云机器翻译</string>
+    <string name="translation_services_add_tencent">添加腾讯云翻译</string>
     <string name="translation_services_add_youdao">添加有道翻译</string>
-    <string name="translation_services_add_alibaba_mt">添加阿里云机器翻译</string>
+    <string name="translation_services_add_alibaba_mt">添加阿里云翻译</string>
     <string name="translation_services_add_caiyun">添加彩云翻译 API</string>
     <string name="translation_services_add_google_translate">添加 Google Cloud Translation</string>
     <string name="translation_services_add_yandex">添加 Yandex Translate</string>

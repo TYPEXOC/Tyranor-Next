@@ -80,6 +80,7 @@ import com.tyranor.next.core.translation.TranslationGlossary
 import com.tyranor.next.core.translation.extraction.TranslationExtractorEngineIds
 import com.tyranor.next.core.translation.service.TranslationServiceProfile
 import com.tyranor.next.core.translation.service.TranslationServiceCategory
+import com.tyranor.next.core.translation.service.TranslationProtocolId
 import com.tyranor.next.theme.AppComponentCornerRadius
 import com.tyranor.next.theme.DialogItemSurface
 import com.tyranor.next.theme.AppThemeColors
@@ -1037,8 +1038,14 @@ private fun TranslationStartDialog(
                 R.string.translation_service_type_ai
             },
         )
+        val serviceName = when (service.protocolId) {
+            TranslationProtocolId.BING_TRANSLATOR_WEB -> stringResource(R.string.translation_services_provider_bing)
+            TranslationProtocolId.YOUDAO_TRANSLATE_WEB_V1 -> stringResource(R.string.translation_services_provider_youdao)
+            TranslationProtocolId.GOOGLE_TRANSLATE_WEB_V1 -> stringResource(R.string.translation_services_provider_google_web)
+            else -> service.displayName
+        }
         buildString {
-            append(category).append(" · ").append(service.displayName)
+            append(category).append(" · ").append(serviceName)
             if (service.modelId.isNotBlank()) append(" · ").append(service.modelId)
         }
     }

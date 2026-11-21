@@ -60,9 +60,9 @@
     <string name="translation_services_provider_azure">Azure Translator</string>
     <string name="translation_services_provider_deepl">DeepL</string>
     <string name="translation_services_provider_baidu">Baidu Translate</string>
-    <string name="translation_services_provider_tencent">Tencent Cloud Machine Translation</string>
+    <string name="translation_services_provider_tencent">Tencent Cloud Translate</string>
     <string name="translation_services_provider_youdao">Youdao Translate</string>
-    <string name="translation_services_provider_alibaba_mt">Alibaba Cloud Machine Translation</string>
+    <string name="translation_services_provider_alibaba_mt">Alibaba Cloud Translate</string>
     <string name="translation_services_provider_caiyun">Caiyun Translation</string>
     <string name="translation_services_provider_google">Google Cloud Translation</string>
     <string name="translation_services_provider_yandex">Yandex Translate</string>
@@ -77,9 +77,9 @@
     <string name="translation_services_add_azure">Add Azure Translator</string>
     <string name="translation_services_add_deepl">Add DeepL</string>
     <string name="translation_services_add_baidu">Add Baidu Translate</string>
-    <string name="translation_services_add_tencent">Add Tencent Cloud Machine Translation</string>
+    <string name="translation_services_add_tencent">Add Tencent Cloud Translate</string>
     <string name="translation_services_add_youdao">Add Youdao Translate</string>
-    <string name="translation_services_add_alibaba_mt">Add Alibaba Cloud Machine Translation</string>
+    <string name="translation_services_add_alibaba_mt">Add Alibaba Cloud Translate</string>
     <string name="translation_services_add_caiyun">Add Caiyun Translation API</string>
     <string name="translation_services_add_google_translate">Add Google Cloud Translation</string>
     <string name="translation_services_add_yandex">Add Yandex Translate</string>
