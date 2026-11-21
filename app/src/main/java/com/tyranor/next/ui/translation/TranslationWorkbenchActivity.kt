@@ -114,8 +114,8 @@ import top.yukonga.miuix.kmp.basic.Card as MiuixCard
 import top.yukonga.miuix.kmp.basic.CardDefaults as MiuixCardDefaults
 import top.yukonga.miuix.kmp.basic.CircularProgressIndicator as MiuixCircularProgressIndicator
 import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
+import top.yukonga.miuix.kmp.basic.TabRow as MiuixTabRow
 import top.yukonga.miuix.kmp.basic.TextField as MiuixTextField
-import top.yukonga.miuix.kmp.basic.RadioButton as MiuixRadioButton
 import androidx.compose.foundation.Image
 
 class TranslationWorkbenchActivity : AppScreenActivity() {
@@ -132,7 +132,6 @@ class TranslationWorkbenchActivity : AppScreenActivity() {
 private enum class ProjectAddOperation {
     EXTRACT,
     TRANSLATE,
-    PROOFREAD,
 }
 
 private enum class ProjectListFilter {
@@ -155,11 +154,6 @@ private fun ProjectListFilter.visibleFilter(): ProjectListFilter = when (this) {
     ProjectListFilter.CONTINUABLE -> ProjectListFilter.IN_PROGRESS
     ProjectListFilter.TRANSLATED -> ProjectListFilter.COMPLETED
     else -> this
-}
-
-private enum class ReviewStartMode {
-    MANUAL,
-    AI,
 }
 
 private fun TranslationProjectCard.isInProgress(): Boolean =
@@ -217,8 +211,6 @@ private fun TranslationWorkbenchScreen() {
     var addProjectErrorCode by remember { mutableStateOf<TranslationWorkbenchError?>(null) }
     var addingProject by remember { mutableStateOf(false) }
     var deleteProjectId by remember { mutableStateOf<String?>(null) }
-    var reviewSetupProjectId by remember { mutableStateOf<String?>(null) }
-    var selectedReviewStartMode by remember { mutableStateOf(ReviewStartMode.MANUAL) }
     var errorCode by remember { mutableStateOf<TranslationWorkbenchError?>(null) }
     var pendingRelinkProjectId by remember { mutableStateOf<String?>(null) }
     var exportProjectId by remember { mutableStateOf<String?>(null) }
@@ -396,9 +388,7 @@ private fun TranslationWorkbenchScreen() {
                             throw TranslationWorkbenchException(TranslationWorkbenchError.PROJECT_ALREADY_EXISTS)
                         }
                     }
-                    ProjectAddOperation.TRANSLATE,
-                    ProjectAddOperation.PROOFREAD,
-                    -> {
+                    ProjectAddOperation.TRANSLATE -> {
                         val displayName = addProjectSourceName.ifBlank { queryDisplayName(appContext, sourceUri) }
                         val format = addProjectSourceFormat
                             ?: throw TranslationWorkbenchException(TranslationWorkbenchError.INVALID_PROJECT_FILE)
@@ -436,8 +426,7 @@ private fun TranslationWorkbenchScreen() {
         addProjectErrorCode = null
         when (addProjectOperation) {
             ProjectAddOperation.EXTRACT -> chooseGameDirectory.launch(null)
-            ProjectAddOperation.TRANSLATE,
-            ProjectAddOperation.PROOFREAD -> chooseProjectFile()
+            ProjectAddOperation.TRANSLATE -> chooseProjectFile()
         }
     }
 
@@ -494,16 +483,26 @@ private fun TranslationWorkbenchScreen() {
                             },
                         )
                     }
-                    SlidingTabRow(
-                        tabs = filterLabels,
-                        selectedIndex = selectedProjectFilterIndex,
-                        onTabSelected = { index ->
-                            projectFilter = visibleProjectFilters.getOrNull(index) ?: ProjectListFilter.ALL
-                        },
-                        pager = filterPager,
-                        scrollable = !tabletLayout,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
+                    val onProjectFilterSelected: (Int) -> Unit = { index ->
+                        projectFilter = visibleProjectFilters.getOrNull(index) ?: ProjectListFilter.ALL
+                    }
+                    if (MotionMode.enhanced) {
+                        SlidingTabRow(
+                            tabs = filterLabels,
+                            selectedIndex = selectedProjectFilterIndex,
+                            onTabSelected = onProjectFilterSelected,
+                            pager = filterPager,
+                            scrollable = !tabletLayout,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    } else {
+                        MiuixTabRow(
+                            tabs = filterLabels,
+                            selectedTabIndex = selectedProjectFilterIndex,
+                            onTabSelected = onProjectFilterSelected,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
                     Box(
                         modifier = Modifier.weight(1f).fillMaxWidth().clipToBounds(),
                     ) {
@@ -583,15 +582,10 @@ private fun TranslationWorkbenchScreen() {
                                             TranslationProjectCardView(
                                                 project = project,
                                                 onReview = {
-                                                    if (project.reviewCompletedAt != null) {
-                                                        startActivityWithPageTransition(
-                                                            context,
-                                                            TranslationReviewActivity.createIntent(context, project.id),
-                                                        )
-                                                    } else {
-                                                        selectedReviewStartMode = ReviewStartMode.MANUAL
-                                                        reviewSetupProjectId = project.id
-                                                    }
+                                                    startActivityWithPageTransition(
+                                                        context,
+                                                        TranslationReviewActivity.createIntent(context, project.id),
+                                                    )
                                                 },
                                                 onStart = { runOperation { repository.startExtraction(project.id) } },
                                                 onContinue = { taskId ->
@@ -678,25 +672,6 @@ private fun TranslationWorkbenchScreen() {
         )
     }
 
-    reviewSetupProjectId?.let { projectId ->
-        TranslationReviewModeDialog(
-            mode = selectedReviewStartMode,
-            onModeChange = { selectedReviewStartMode = it },
-            onDismiss = { reviewSetupProjectId = null },
-            onConfirm = {
-                reviewSetupProjectId = null
-                startActivityWithPageTransition(
-                    context,
-                    TranslationReviewActivity.createIntent(
-                        context,
-                        projectId,
-                        openProofreadSetup = selectedReviewStartMode == ReviewStartMode.AI,
-                    ),
-                )
-            },
-        )
-    }
-
     if (showAddDialog) {
         val choosingDirectory = addProjectOperation == ProjectAddOperation.EXTRACT
         val sourceFormatReady = choosingDirectory || addProjectSourceFormat == TranslationProjectFormat.MTOOL_JSON
@@ -732,12 +707,10 @@ private fun TranslationWorkbenchScreen() {
                     val operationItems = listOf(
                         stringResource(R.string.translation_add_project_extract),
                         stringResource(R.string.translation_add_project_translate),
-                        stringResource(R.string.translation_add_project_proofread),
                     )
                     val operationSummary = when (addProjectOperation) {
                         ProjectAddOperation.EXTRACT -> stringResource(R.string.translation_add_project_extract_hint)
                         ProjectAddOperation.TRANSLATE -> stringResource(R.string.translation_add_project_translate_hint)
-                        ProjectAddOperation.PROOFREAD -> stringResource(R.string.translation_add_project_proofread_hint)
                     }
                     val engineIds = listOf(
                         EngineType.RPG_MV.name,
@@ -985,70 +958,6 @@ private fun TranslationWorkbenchScreen() {
 }
 
 @Composable
-private fun TranslationReviewModeDialog(
-    mode: ReviewStartMode,
-    onModeChange: (ReviewStartMode) -> Unit,
-    onDismiss: () -> Unit,
-    onConfirm: () -> Unit,
-) {
-    MiuixSettingsTheme {
-        AppAlertDialog(
-            onDismissRequest = onDismiss,
-            title = { Text(stringResource(R.string.translation_review_mode_title), style = MaterialTheme.typography.titleMedium) },
-            text = {
-                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ReviewModeChoiceCard(
-                        title = stringResource(R.string.translation_review_mode_manual),
-                        summary = stringResource(R.string.translation_review_mode_manual_hint),
-                        selected = mode == ReviewStartMode.MANUAL,
-                        onClick = { onModeChange(ReviewStartMode.MANUAL) },
-                    )
-                    ReviewModeChoiceCard(
-                        title = stringResource(R.string.translation_review_mode_ai),
-                        summary = stringResource(R.string.translation_review_mode_ai_hint),
-                        selected = mode == ReviewStartMode.AI,
-                        onClick = { onModeChange(ReviewStartMode.AI) },
-                    )
-                }
-            },
-            confirmButton = {
-                DialogActionButtons(
-                    cancelText = stringResource(R.string.common_cancel),
-                    confirmText = stringResource(R.string.translation_review_mode_enter),
-                    onCancel = onDismiss,
-                    onConfirm = onConfirm,
-                )
-            },
-        )
-    }
-}
-
-@Composable
-private fun ReviewModeChoiceCard(
-    title: String,
-    summary: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-) {
-    MiuixCard(
-        modifier = Modifier.fillMaxWidth().glassBorder().clickable(onClick = onClick),
-        cornerRadius = AppComponentCornerRadius,
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            MiuixRadioButton(selected = selected, onClick = onClick)
-            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                Text(summary, style = MaterialTheme.typography.bodySmall, color = PageSecondaryTextColor)
-            }
-        }
-    }
-}
-
-@Composable
 private fun TranslationStartDialog(
     services: List<TranslationServiceProfile>,
     selectedServiceId: String?,
@@ -1175,26 +1084,20 @@ private fun TranslationProjectCardView(
     val fullyTranslated = project.isFullyTranslated()
     val extractionActive = isActive && project.latestTaskType == "EXTRACT"
     val translationActive = isActive && project.latestTaskType == "TRANSLATE"
-    val proofreadingActive = isActive && project.latestTaskType == "AI_PROOFREAD"
     val extractionComplete = project.entryCount > 0
     val reviewComplete = project.reviewCompletedAt != null
     val statusRes = when {
         isActive && project.latestTaskState == "QUEUED" -> R.string.translation_task_queued
         isActive && project.latestTaskType == "TRANSLATE" -> R.string.translation_task_translating
-        isActive && project.latestTaskType == "AI_PROOFREAD" -> R.string.translation_task_proofreading
         isActive -> R.string.translation_task_running
         project.projectState == TranslationProjectState.FAILED.name -> when (project.latestTaskType) {
             "TRANSLATE" -> R.string.translation_task_translation_failed
-            "AI_PROOFREAD" -> R.string.translation_task_proofread_failed
             else -> R.string.translation_task_failed
         }
         project.projectState == TranslationProjectState.PAUSED.name -> R.string.translation_task_cancelled
-        project.pendingSuggestionCount > 0 -> R.string.translation_card_review_pending_count
         fullyTranslated && !reviewComplete -> R.string.translation_card_review_pending
         reviewComplete -> R.string.translation_card_review_completed
         project.latestTaskState == "COMPLETED_WITH_ERRORS" -> R.string.translation_task_completed_with_errors
-        project.latestTaskState == "COMPLETED" && project.latestTaskType == "AI_PROOFREAD" ->
-            R.string.translation_task_proofread_completed
         project.latestTaskState == "COMPLETED" && project.latestTaskType == "TRANSLATE" ->
             R.string.translation_task_translation_completed
         project.latestTaskState == "COMPLETED" -> R.string.translation_extraction_completed
@@ -1235,14 +1138,14 @@ private fun TranslationProjectCardView(
     }
     val reviewPhase = when {
         reviewComplete -> ProjectPhase.COMPLETE
-        fullyTranslated || project.pendingSuggestionCount > 0 || proofreadingActive -> ProjectPhase.CURRENT
+        fullyTranslated -> ProjectPhase.CURRENT
         else -> ProjectPhase.WAITING
     }
     val progress = when {
         extractionActive && project.totalFiles > 0 ->
             (project.completedFiles.toFloat() / project.totalFiles).coerceIn(0f, 1f)
         extractionActive -> null
-        isActive && project.latestTaskType in setOf("TRANSLATE", "AI_PROOFREAD") && project.itemTotal > 0 ->
+        isActive && project.latestTaskType == "TRANSLATE" && project.itemTotal > 0 ->
             (project.completedItems.toFloat() / project.itemTotal).coerceIn(0f, 1f)
         isActive -> null
         project.latestTaskType == "EXTRACT" && project.latestTaskState in setOf("FAILED", "CANCELLED") && project.totalFiles > 0 ->
@@ -1259,10 +1162,9 @@ private fun TranslationProjectCardView(
             project.totalFiles,
         )
         extractionActive -> stringResource(R.string.translation_card_progress_extracting)
-        isActive && project.latestTaskType in setOf("TRANSLATE", "AI_PROOFREAD") && project.itemTotal > 0 ->
+        isActive && project.latestTaskType == "TRANSLATE" && project.itemTotal > 0 ->
             stringResource(R.string.translation_item_progress, project.completedItems, project.itemTotal)
         isActive && project.latestTaskType == "TRANSLATE" -> stringResource(R.string.translation_task_translating)
-        isActive && project.latestTaskType == "AI_PROOFREAD" -> stringResource(R.string.translation_task_proofreading)
         isActive -> stringResource(R.string.translation_task_queued)
         project.latestTaskFailureCode != null -> stringResource(project.failureResource())
         project.latestTaskState == "COMPLETED_WITH_ERRORS" && project.failedItems > 0 -> stringResource(
@@ -1355,11 +1257,7 @@ private fun TranslationProjectCardView(
                     },
                 ) {
                     Text(
-                        if (statusRes == R.string.translation_card_review_pending_count) {
-                            stringResource(statusRes, project.pendingSuggestionCount)
-                        } else {
-                            stringResource(statusRes)
-                        },
+                        stringResource(statusRes),
                         modifier = Modifier.padding(horizontal = 9.dp, vertical = if (tabletLayout) 6.dp else 5.dp),
                         style = if (tabletLayout) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelSmall,
                         color = if (project.projectState == TranslationProjectState.FAILED.name) {
@@ -1414,7 +1312,6 @@ private fun TranslationProjectCardView(
                     text = stringResource(
                         when {
                             reviewComplete -> R.string.translation_card_stage_reviewed
-                            proofreadingActive -> R.string.translation_card_stage_proofreading
                             else -> R.string.translation_card_stage_waiting_review
                         },
                     ),
@@ -1537,7 +1434,6 @@ private fun TranslationProjectCard.failureResource(): Int = when (latestTaskFail
     TranslationWorkbenchError.UNSUPPORTED_ENGINE.name -> R.string.translation_error_unsupported_engine
     else -> when (latestTaskType) {
         "TRANSLATE" -> R.string.translation_error_translation_failed
-        "AI_PROOFREAD" -> R.string.translation_task_proofread_failed
         else -> R.string.translation_error_storage_failure
     }
 }

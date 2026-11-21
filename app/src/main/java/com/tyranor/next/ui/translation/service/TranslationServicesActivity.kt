@@ -88,13 +88,14 @@ import com.tyranor.next.core.translation.service.TranslationParameterType
 import com.tyranor.next.core.translation.service.TranslationStructuredOutputMode
 import com.tyranor.next.core.translation.service.supportedStructuredOutputModes
 import com.tyranor.next.core.translation.service.DEFAULT_TRANSLATION_PROMPT
-import com.tyranor.next.core.translation.service.DEFAULT_PROOFREADING_PROMPT
 import com.tyranor.next.theme.AppComponentCornerRadius
 import com.tyranor.next.theme.AppComponentShape
 import com.tyranor.next.theme.DangerFill
 import com.tyranor.next.theme.MiuixSettingsTheme
+import com.tyranor.next.theme.NavWhite
 import com.tyranor.next.theme.PageSecondaryTextColor
 import com.tyranor.next.theme.PageTextColor
+import com.tyranor.next.theme.TextColor
 import com.tyranor.next.theme.glassBorder
 import com.tyranor.next.ui.common.AppAlertDialog
 import com.tyranor.next.ui.common.AppScreenActivity
@@ -126,6 +127,7 @@ import kotlinx.coroutines.flow.first
 import kotlin.math.abs
 import kotlin.math.roundToLong
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
+import top.yukonga.miuix.kmp.basic.CardDefaults as MiuixCardDefaults
 import top.yukonga.miuix.kmp.basic.Button as MiuixButton
 import top.yukonga.miuix.kmp.basic.ButtonDefaults as MiuixButtonDefaults
 import top.yukonga.miuix.kmp.basic.FabPosition
@@ -363,7 +365,7 @@ private fun TranslationServicesScreen() {
                 add(
                     ServiceListRow(
                         key = "ai:${template.templateId}",
-                        displayName = profile?.displayName,
+                    displayName = profile?.displayName?.withoutAiTemplateProtocolSuffix(template.templateId),
                         displayNameResource = template.nameResource,
                         mark = template.mark,
                         iconResource = template.iconResource,
@@ -426,7 +428,7 @@ private fun TranslationServicesScreen() {
                 isBuiltInTemplate = row.isBuiltInTemplate,
                 templateId = row.aiTemplate?.templateId,
             ).let { state ->
-                if (row.profile.id == builtinMachineProfileId(row.protocolId)) state.copy(displayName = displayName) else state
+                state.copy(displayName = displayName)
             }
         } else if (row.protocolId.category == TranslationServiceCategory.MACHINE_TRANSLATION) {
             startEditorSession()
@@ -580,6 +582,7 @@ private fun TranslationServicesScreen() {
     editor?.let { state ->
         val isMachineTranslation = state.protocolId.category == TranslationServiceCategory.MACHINE_TRANSLATION
         val isFixedMachineTemplate = isMachineTranslation && state.isBuiltInTemplate
+        val isFixedAiTemplate = !isMachineTranslation && state.isBuiltInTemplate && state.templateId != null
         val isTestingThisConnection = testingConnectionSessionId == editorSessionId
         val connectionStatusText = when {
             connectionTestError != null -> stringResource(connectionTestError!!.messageResource())
@@ -617,6 +620,13 @@ private fun TranslationServicesScreen() {
         val connectionStatusLineHeight = with(LocalDensity.current) {
             MaterialTheme.typography.bodySmall.lineHeight.toDp()
         }
+        val editorTitle = when {
+            state.id == null && !state.isBuiltInTemplate ->
+                stringResource(R.string.translation_services_add_title)
+            state.displayName.isNotBlank() -> state.displayName.withoutAiTemplateProtocolSuffix(state.templateId)
+            state.id == null -> stringResource(R.string.translation_services_add_title)
+            else -> stringResource(R.string.translation_services_edit_title)
+        }
         MiuixSettingsTheme {
             MiuixScaffold(
                 modifier = Modifier.fillMaxSize(),
@@ -624,10 +634,7 @@ private fun TranslationServicesScreen() {
                 contentWindowInsets = WindowInsets(0.dp),
                 topBar = {
                     AppSecondaryTopBar(
-                        title = stringResource(
-                            if (state.id == null) R.string.translation_services_add_title
-                            else R.string.translation_services_edit_title,
-                        ),
+                        title = editorTitle,
                         background = Color.Transparent,
                         contentColor = PageTextColor,
                         trailing = if (!isFixedMachineTemplate) {
@@ -672,14 +679,8 @@ private fun TranslationServicesScreen() {
                             modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()),
                             verticalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
-                            ServiceSectionCard(title = stringResource(R.string.translation_services_section_identity)) {
-                                if (isFixedMachineTemplate) {
-                                    Text(
-                                        text = state.displayName,
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Medium,
-                                    )
-                                } else {
+                            if (!isFixedMachineTemplate && !isFixedAiTemplate) {
+                                ServiceSectionCard(title = stringResource(R.string.translation_services_section_identity)) {
                                     ServiceTextField(
                                         value = state.displayName,
                                         onValueChange = { editor = state.copy(displayName = it) },
@@ -1150,8 +1151,6 @@ private fun TranslationServicesScreen() {
                                             editor = editor?.copy(
                                                 prompt = state.translationSystemPrompt,
                                                 translationUserPrompt = state.translationUserPrompt,
-                                                proofreadingPrompt = state.proofreadingSystemPrompt,
-                                                proofreadingUserPrompt = state.proofreadingUserPrompt,
                                                 generationOptions = options,
                                                 customParameters = state.customParameters,
                                             )
@@ -1200,37 +1199,6 @@ private fun TranslationServicesScreen() {
                             ServiceTextField(
                                 value = state.translationUserPrompt,
                                 onValueChange = { advancedSettingsEditor = state.copy(translationUserPrompt = it) },
-                                label = stringResource(R.string.translation_services_user_prompt),
-                                supportingText = stringResource(R.string.translation_services_user_prompt_hint),
-                                minLines = 2,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                        }
-                        ServiceSectionCard(
-                            title = stringResource(R.string.translation_services_proofreading_prompts),
-                            trailingAction = {
-                                NoRippleButton(
-                                    text = stringResource(R.string.translation_services_prompt_restore_defaults),
-                                    tonal = true,
-                                    onClick = {
-                                        advancedSettingsEditor = state.copy(
-                                            proofreadingSystemPrompt = DEFAULT_PROOFREADING_PROMPT,
-                                            proofreadingUserPrompt = "",
-                                        )
-                                    },
-                                )
-                            },
-                        ) {
-                            ServiceTextField(
-                                value = state.proofreadingSystemPrompt,
-                                onValueChange = { advancedSettingsEditor = state.copy(proofreadingSystemPrompt = it) },
-                                label = stringResource(R.string.translation_services_system_prompt),
-                                minLines = 3,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                            ServiceTextField(
-                                value = state.proofreadingUserPrompt,
-                                onValueChange = { advancedSettingsEditor = state.copy(proofreadingUserPrompt = it) },
                                 label = stringResource(R.string.translation_services_user_prompt),
                                 supportingText = stringResource(R.string.translation_services_user_prompt_hint),
                                 minLines = 2,
@@ -1687,69 +1655,49 @@ private fun TranslationServiceCategoryGrid(
     onConfigure: (ServiceListRow, String) -> Unit,
     onToggle: (ServiceListRow, Boolean) -> Unit,
 ) {
-    Box(modifier = Modifier.fillMaxSize()) {
-        MiuixCard(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .fillMaxSize()
-                .widthIn(max = 760.dp)
-                .padding(horizontal = 12.dp, vertical = 12.dp)
-                .clip(AppComponentShape)
-                .glassBorder(),
-            cornerRadius = AppComponentCornerRadius,
+    Column(
+        modifier = Modifier.fillMaxSize().widthIn(max = 760.dp).padding(horizontal = 12.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 12.dp, start = 6.dp, end = 6.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(if (tabletLayout) 2 else 1),
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(
-                    start = 12.dp,
-                    top = 12.dp,
-                    end = 12.dp,
-                    bottom = if (aiCategory) 96.dp else 24.dp,
-                ),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                item(key = "service-category-heading", span = { GridItemSpan(maxLineSpan) }) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            categoryTitle,
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Text(
-                            categorySummary,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = PageSecondaryTextColor,
-                        )
-                    }
-                }
-                gridItems(items = rows, key = ServiceListRow::key, span = { GridItemSpan(1) }) { row ->
-                    val displayName = row.displayName ?: stringResource(row.displayNameResource!!)
-                    TranslationServiceTemplateCard(
-                        row = row,
-                        modifier = Modifier.fillMaxWidth().glassBorder().then(listItemMotion()),
-                        displayName = displayName,
-                        onConfigure = { onConfigure(row, displayName) },
-                        onToggle = { enabled -> onToggle(row, enabled) },
+            Text(categoryTitle, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            Text(categorySummary, style = MaterialTheme.typography.labelSmall, color = PageSecondaryTextColor)
+        }
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(if (tabletLayout) 2 else 1),
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+            contentPadding = PaddingValues(bottom = if (aiCategory) 96.dp else 24.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            gridItems(items = rows, key = ServiceListRow::key, span = { GridItemSpan(1) }) { row ->
+                val displayName = row.displayName ?: stringResource(row.displayNameResource!!)
+                TranslationServiceTemplateCard(
+                    row = row,
+                    modifier = Modifier.fillMaxWidth().glassBorder().then(listItemMotion()),
+                    displayName = displayName,
+                    onConfigure = { onConfigure(row, displayName) },
+                    onToggle = { enabled -> onToggle(row, enabled) },
+                )
+            }
+            item(key = "service-category-note", span = { GridItemSpan(maxLineSpan) }) {
+                MiuixCard(
+                    modifier = Modifier.fillMaxWidth().glassBorder(),
+                    cornerRadius = AppComponentCornerRadius,
+                    colors = MiuixCardDefaults.defaultColors(
+                        color = NavWhite,
+                        contentColor = TextColor,
+                    ),
+                ) {
+                    Text(
+                        categoryNote,
+                        modifier = Modifier.fillMaxWidth().padding(14.dp),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = PageSecondaryTextColor,
                     )
-                }
-                item(key = "service-category-note", span = { GridItemSpan(maxLineSpan) }) {
-                    MiuixCard(
-                        modifier = Modifier.fillMaxWidth().glassBorder(),
-                        cornerRadius = AppComponentCornerRadius,
-                    ) {
-                        Text(
-                            categoryNote,
-                            modifier = Modifier.fillMaxWidth().padding(14.dp),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = PageSecondaryTextColor,
-                        )
-                    }
                 }
             }
         }
@@ -1992,6 +1940,7 @@ private fun ServiceTextField(
     trailingAction: (@Composable () -> Unit)? = null,
     singleLine: Boolean = false,
     minLines: Int = 1,
+    enabled: Boolean = true,
     readOnly: Boolean = false,
     visualTransformation: VisualTransformation = VisualTransformation.None,
 ) {
@@ -1999,6 +1948,7 @@ private fun ServiceTextField(
         MiuixTextField(
             value = value,
             onValueChange = onValueChange,
+            enabled = enabled,
             label = label,
             singleLine = singleLine,
             minLines = minLines,
@@ -2123,6 +2073,13 @@ private fun TranslationProtocolId.protocolTitleResource(): Int = when (this) {
     else -> R.string.translation_services_machine_protocol_note
 }
 
+private fun String.withoutAiTemplateProtocolSuffix(templateId: String?): String = when (templateId) {
+    "openai-chat" -> removeSuffix("（Chat Completions）").removeSuffix(" (Chat Completions)")
+    "gemini-interactions" -> removeSuffix("（Interactions API）").removeSuffix(" (Interactions API)")
+    "anthropic-messages" -> removeSuffix("（Messages API）").removeSuffix(" (Messages API)")
+    else -> this
+}.trimEnd()
+
 @Composable
 private fun TranslationServiceTemplateCard(
     row: ServiceListRow,
@@ -2147,6 +2104,10 @@ private fun TranslationServiceTemplateCard(
     MiuixCard(
         modifier = modifier,
         cornerRadius = AppComponentCornerRadius,
+        colors = MiuixCardDefaults.defaultColors(
+            color = NavWhite,
+            contentColor = TextColor,
+        ),
     ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(12.dp),
@@ -2352,8 +2313,6 @@ private data class ServiceEditor(
     val enabled: Boolean,
     val prompt: String,
     val translationUserPrompt: String,
-    val proofreadingPrompt: String,
-    val proofreadingUserPrompt: String,
     val generationOptions: TranslationGenerationOptions,
     val taskSettings: TranslationServiceTaskSettings,
     val isBuiltInTemplate: Boolean = false,
@@ -2372,9 +2331,7 @@ private data class ServiceEditor(
         modelId = modelId,
         enabled = enabled,
         translationPrompt = prompt.ifBlank { DEFAULT_TRANSLATION_PROMPT },
-        proofreadingPrompt = proofreadingPrompt.ifBlank { DEFAULT_PROOFREADING_PROMPT },
         translationUserPrompt = translationUserPrompt,
-        proofreadingUserPrompt = proofreadingUserPrompt,
         generationOptions = generationOptions,
         taskSettings = taskSettings,
         customParametersChange = customParameters?.let { TranslationCustomParametersChange.Replace(it) }
@@ -2418,8 +2375,6 @@ private data class ServiceEditor(
             enabled = false,
             prompt = DEFAULT_TRANSLATION_PROMPT,
             translationUserPrompt = "",
-            proofreadingPrompt = DEFAULT_PROOFREADING_PROMPT,
-            proofreadingUserPrompt = "",
             generationOptions = TranslationGenerationOptions(
                 structuredOutputMode = if (protocolId == TranslationProtocolId.GEMINI_INTERACTIONS) {
                     TranslationStructuredOutputMode.JSON_SCHEMA
@@ -2428,6 +2383,7 @@ private data class ServiceEditor(
                 },
             ),
             taskSettings = TranslationServiceTaskSettings.defaults(protocolId.category),
+            isBuiltInTemplate = templateId != null,
             allowProtocolSelection = allowProtocolSelection,
             showBaseUrl = protocolId.category == TranslationServiceCategory.AI_TRANSLATION,
             templateId = templateId,
@@ -2448,8 +2404,6 @@ private data class ServiceEditor(
             enabled = false,
             prompt = DEFAULT_TRANSLATION_PROMPT,
             translationUserPrompt = "",
-            proofreadingPrompt = DEFAULT_PROOFREADING_PROMPT,
-            proofreadingUserPrompt = "",
             generationOptions = TranslationGenerationOptions(),
             taskSettings = TranslationServiceTaskSettings.defaults(protocolId.category),
             isBuiltInTemplate = true,
@@ -2476,8 +2430,6 @@ private data class ServiceEditor(
             enabled = profile.enabled,
             prompt = profile.translationPrompt,
             translationUserPrompt = profile.translationUserPrompt,
-            proofreadingPrompt = profile.proofreadingPrompt,
-            proofreadingUserPrompt = profile.proofreadingUserPrompt,
             generationOptions = profile.generationOptions.forServiceEditor(profile.protocolId),
             taskSettings = profile.taskSettings,
             isBuiltInTemplate = isBuiltInTemplate,
@@ -2565,8 +2517,6 @@ private data class AdvancedSettingsEditor(
     val protocolId: TranslationProtocolId,
     val translationSystemPrompt: String,
     val translationUserPrompt: String,
-    val proofreadingSystemPrompt: String,
-    val proofreadingUserPrompt: String,
     val structuredOutputMode: TranslationStructuredOutputMode,
     val echoAlignmentEnabled: Boolean,
     val customParameters: TranslationCustomParameters,
@@ -2593,8 +2543,6 @@ private data class AdvancedSettingsEditor(
                 protocolId = editor.protocolId,
                 translationSystemPrompt = editor.prompt,
                 translationUserPrompt = editor.translationUserPrompt,
-                proofreadingSystemPrompt = editor.proofreadingPrompt,
-                proofreadingUserPrompt = editor.proofreadingUserPrompt,
                 structuredOutputMode = options.structuredOutputMode,
                 echoAlignmentEnabled = options.echoAlignmentEnabled,
                 customParameters = editor.customParameters ?: TranslationCustomParameters(),

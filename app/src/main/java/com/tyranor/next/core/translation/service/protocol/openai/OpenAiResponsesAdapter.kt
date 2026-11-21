@@ -1,7 +1,5 @@
 package com.tyranor.next.core.translation.service.protocol.openai
 
-import com.tyranor.next.core.translation.service.ProofreadBatchResponse
-import com.tyranor.next.core.translation.service.ProofreadInput
 import com.tyranor.next.core.translation.service.TranslationBatchResponse
 import com.tyranor.next.core.translation.service.TranslationGlossaryEntry
 import com.tyranor.next.core.translation.service.TranslationInput
@@ -34,7 +32,7 @@ internal class OpenAiResponsesAdapter(
     private val transport: TranslationHttpTransport = TranslationHttpTransport(),
 ) : TranslationProtocolAdapter {
     override val protocolId = TranslationProtocolId.OPENAI_RESPONSES
-    override val capabilities = setOf(TranslationServiceCapability.TRANSLATE, TranslationServiceCapability.AI_PROOFREAD)
+    override val capabilities = setOf(TranslationServiceCapability.TRANSLATE)
 
     override suspend fun listModels(profile: TranslationServiceProfile, apiKey: String?): List<TranslationModelInfo> {
         requireProfile(profile, apiKey)
@@ -84,7 +82,6 @@ internal class OpenAiResponsesAdapter(
             profile.generationOptions.applyEchoAlignmentInstruction(profile.translationPrompt),
             profile.translationUserPrompt,
             payload.toString(),
-            proofreading = false,
         )
         return TranslationProtocolStructuredResultParser.parseTranslations(
             response,
@@ -93,43 +90,12 @@ internal class OpenAiResponsesAdapter(
         )
     }
 
-    override suspend fun proofreadBatch(
-        profile: TranslationServiceProfile,
-        apiKey: String?,
-        sourceLanguage: String,
-        targetLanguage: String,
-        inputs: List<ProofreadInput>,
-    ): ProofreadBatchResponse {
-        requireBatch(profile, apiKey, sourceLanguage, targetLanguage, inputs.map(ProofreadInput::entryId))
-        if (inputs.any { it.sourceText.isBlank() || it.translatedText.isBlank() }) {
-            throw TranslationServiceException(TranslationServiceErrorCode.INVALID_CONFIGURATION)
-        }
-        val payload = JSONObject()
-            .put("sourceLanguage", sourceLanguage)
-            .put("targetLanguage", targetLanguage)
-            .put("results", JSONArray().apply {
-                inputs.forEach { input ->
-                    put(JSONObject().put("id", input.entryId).put("source", input.sourceText).put("translation", input.translatedText))
-                }
-            })
-        val response = executeResponse(
-            profile,
-            apiKey,
-            profile.proofreadingPrompt,
-            profile.proofreadingUserPrompt,
-            payload.toString(),
-            proofreading = true,
-        )
-        return TranslationProtocolStructuredResultParser.parseProofreadSuggestions(response, inputs)
-    }
-
     private suspend fun executeResponse(
         profile: TranslationServiceProfile,
         apiKey: String?,
         instructions: String,
         userPrompt: String,
         input: String,
-        proofreading: Boolean,
     ): String {
         val body = profile.generationOptions.addOpenAiResponsesParameters(
             JSONObject()
@@ -142,10 +108,9 @@ internal class OpenAiResponsesAdapter(
         profile.generationOptions.structuredOutputMode.addOpenAiResponsesFormat(
             body,
             translationResultSchema(
-                proofreading = proofreading,
-                requireSourceEcho = !proofreading && profile.generationOptions.echoAlignmentEnabled,
+                requireSourceEcho = profile.generationOptions.echoAlignmentEnabled,
             ),
-            if (proofreading) "translation_proofread_results" else "translation_results",
+            "translation_results",
         )
         val requestBody = profile.requestParameters.applyBody(body).toString()
         if (requestBody.toByteArray(Charsets.UTF_8).size > MAX_REQUEST_BYTES) {

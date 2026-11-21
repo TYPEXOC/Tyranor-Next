@@ -44,7 +44,7 @@ class TranslationProtocolStructuredResultParserTest {
 
     @Test
     fun sourceEchoIsRequiredByTheOptInStructuredSchema() {
-        val schema = translationResultSchema(proofreading = false, requireSourceEcho = true)
+        val schema = translationResultSchema(requireSourceEcho = true)
             .getJSONObject("properties")
             .getJSONObject("results")
             .getJSONObject("items")

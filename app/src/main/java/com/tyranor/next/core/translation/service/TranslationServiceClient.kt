@@ -85,9 +85,7 @@ class TranslationServiceClient(
             hasSecret = apiKey != null,
             revision = existing?.revision ?: 0L,
             translationPrompt = draft.translationPrompt,
-            proofreadingPrompt = draft.proofreadingPrompt,
             translationUserPrompt = draft.translationUserPrompt,
-            proofreadingUserPrompt = draft.proofreadingUserPrompt,
             generationOptions = draft.generationOptions,
             taskSettings = draft.taskSettings,
             secretRef = existing?.secretRef,
@@ -128,23 +126,6 @@ class TranslationServiceClient(
 
     internal fun handlesRequestPacing(protocolId: TranslationProtocolId): Boolean =
         TranslationProtocolRegistry.adapter(protocolId).handlesRequestPacing
-
-    internal suspend fun proofreadBatch(
-        profile: TranslationServiceProfile,
-        secretRef: String?,
-        sourceLanguage: String,
-        targetLanguage: String,
-        inputs: List<ProofreadInput>,
-    ): ProofreadBatchResponse {
-        val requestProfile = profile.withRequestParameters(repository.readCustomParameters(profile.customParametersRef))
-        return adapter(requestProfile).proofreadBatch(
-        profile = requestProfile,
-        apiKey = resolveSecret(secretRef),
-        sourceLanguage = sourceLanguage,
-        targetLanguage = targetLanguage,
-        inputs = inputs,
-        )
-    }
 
     private fun TranslationServiceProfile.withRequestParameters(parameters: TranslationCustomParameters): TranslationServiceProfile {
         if (!parameters.isValidForAiRequest()) {

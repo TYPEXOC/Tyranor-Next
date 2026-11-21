@@ -1,7 +1,5 @@
 package com.tyranor.next.core.translation.service.protocol.gemini
 
-import com.tyranor.next.core.translation.service.ProofreadBatchResponse
-import com.tyranor.next.core.translation.service.ProofreadInput
 import com.tyranor.next.core.translation.service.TranslationBatchResponse
 import com.tyranor.next.core.translation.service.TranslationInput
 import com.tyranor.next.core.translation.service.TranslationGlossaryEntry
@@ -33,7 +31,7 @@ internal class GeminiInteractionsAdapter(
     private val transport: TranslationHttpTransport = TranslationHttpTransport(),
 ) : TranslationProtocolAdapter {
     override val protocolId = TranslationProtocolId.GEMINI_INTERACTIONS
-    override val capabilities = setOf(TranslationServiceCapability.TRANSLATE, TranslationServiceCapability.AI_PROOFREAD)
+    override val capabilities = setOf(TranslationServiceCapability.TRANSLATE)
 
     override suspend fun listModels(
         profile: TranslationServiceProfile,
@@ -119,38 +117,6 @@ internal class GeminiInteractionsAdapter(
         )
     }
 
-    override suspend fun proofreadBatch(
-        profile: TranslationServiceProfile,
-        apiKey: String?,
-        sourceLanguage: String,
-        targetLanguage: String,
-        inputs: List<ProofreadInput>,
-    ): ProofreadBatchResponse {
-        val key = requireTaskConfiguration(profile, apiKey, sourceLanguage, targetLanguage)
-        if (inputs.isEmpty() || inputs.size > MAX_BATCH_SIZE ||
-            inputs.any { it.entryId.isBlank() || it.sourceText.isBlank() || it.translatedText.isBlank() } ||
-            inputs.map(ProofreadInput::entryId).distinct().size != inputs.size
-        ) throw TranslationServiceException(TranslationServiceErrorCode.INVALID_CONFIGURATION)
-
-        val input = JSONObject()
-            .put("sourceLanguage", sourceLanguage)
-            .put("targetLanguage", targetLanguage)
-            .put("results", JSONArray().apply {
-                inputs.forEach {
-                    put(JSONObject().put("id", it.entryId).put("source", it.sourceText).put("translation", it.translatedText))
-                }
-            })
-        val body = createInteractionBody(
-            profile,
-            profile.proofreadingPrompt,
-            profile.proofreadingUserPrompt,
-            input.toString(),
-            proofreadingResponseSchema(),
-        )
-        val response = postInteraction(profile, key, body)
-        return TranslationProtocolStructuredResultParser.parseProofreadSuggestions(response, inputs)
-    }
-
     private suspend fun postInteraction(profile: TranslationServiceProfile, apiKey: String, body: String): String {
         if (body.toByteArray(Charsets.UTF_8).size > MAX_REQUEST_BYTES) {
             throw TranslationServiceException(TranslationServiceErrorCode.REQUEST_REJECTED)
@@ -212,14 +178,6 @@ internal class GeminiInteractionsAdapter(
             if (requireSourceEcho) put("src", stringSchema())
         },
         JSONArray().put("id").put("translation").apply { if (requireSourceEcho) put("src") },
-    )
-
-    private fun proofreadingResponseSchema() = resultSchema(
-        JSONObject()
-            .put("id", stringSchema())
-            .put("suggestedTranslation", stringSchema())
-            .put("issues", JSONObject().put("type", "array").put("items", stringSchema())),
-        JSONArray().put("id").put("suggestedTranslation").put("issues"),
     )
 
     private fun resultSchema(properties: JSONObject, required: JSONArray) = JSONObject()

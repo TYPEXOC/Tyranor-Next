@@ -1,8 +1,6 @@
 package com.tyranor.next.core.translation.service.protocol.openai
 
 import com.tyranor.next.core.translation.service.TranslationBatchResponse
-import com.tyranor.next.core.translation.service.ProofreadBatchResponse
-import com.tyranor.next.core.translation.service.ProofreadInput
 import com.tyranor.next.core.translation.service.TranslationInput
 import com.tyranor.next.core.translation.service.TranslationGlossaryEntry
 import com.tyranor.next.core.translation.service.TranslationModelInfo
@@ -37,7 +35,7 @@ internal class OpenAiCompatibleChatAdapter(
     private val transport: TranslationHttpTransport = TranslationHttpTransport(),
 ) : TranslationProtocolAdapter {
     override val protocolId = TranslationProtocolId.OPENAI_COMPATIBLE_CHAT
-    override val capabilities = setOf(TranslationServiceCapability.TRANSLATE, TranslationServiceCapability.AI_PROOFREAD)
+    override val capabilities = setOf(TranslationServiceCapability.TRANSLATE)
 
     override suspend fun listModels(
         profile: TranslationServiceProfile,
@@ -155,72 +153,6 @@ internal class OpenAiCompatibleChatAdapter(
         return parsed ?: throw TranslationServiceException(TranslationServiceErrorCode.INVALID_RESPONSE)
     }
 
-    override suspend fun proofreadBatch(
-        profile: TranslationServiceProfile,
-        apiKey: String?,
-        sourceLanguage: String,
-        targetLanguage: String,
-        inputs: List<ProofreadInput>,
-    ): ProofreadBatchResponse {
-        requireProtocol(profile)
-        if (!profile.configured || profile.modelId.isBlank() || sourceLanguage.isBlank() || targetLanguage.isBlank() ||
-            inputs.isEmpty() || inputs.size > MAX_BATCH_SIZE ||
-            inputs.any { it.entryId.isBlank() || it.sourceText.isBlank() || it.translatedText.isBlank() } ||
-            inputs.map(ProofreadInput::entryId).distinct().size != inputs.size
-        ) {
-            throw TranslationServiceException(TranslationServiceErrorCode.INVALID_CONFIGURATION)
-        }
-        val requestBody = createProofreadRequestBody(profile, sourceLanguage, targetLanguage, inputs)
-        if (requestBody.toByteArray(Charsets.UTF_8).size > MAX_REQUEST_BYTES) {
-            throw TranslationServiceException(TranslationServiceErrorCode.REQUEST_REJECTED)
-        }
-        val request = requestBuilder(profile, apiKey, endpoint(profile, listOf("chat", "completions")))
-            .post(requestBody.toRequestBody(JSON_MEDIA_TYPE))
-            .build()
-        val response = transport.execute(profile, request)
-        requireSuccess(response.statusCode, response.body, response.retryAfterMillis, modelList = false)
-        return parseProofreadContent(extractAssistantContent(response.body), inputs)
-    }
-
-    private fun createProofreadRequestBody(
-        profile: TranslationServiceProfile,
-        sourceLanguage: String,
-        targetLanguage: String,
-        inputs: List<ProofreadInput>,
-    ): String {
-        val taskData = JSONObject()
-            .put("sourceLanguage", sourceLanguage)
-            .put("targetLanguage", targetLanguage)
-            .put("results", JSONArray().apply {
-                inputs.forEach { input ->
-                    put(
-                        JSONObject()
-                            .put("id", input.entryId)
-                            .put("source", input.sourceText)
-                            .put("translation", input.translatedText),
-                    )
-                }
-            })
-        val messages = JSONArray()
-            .put(JSONObject().put("role", "system").put("content", profile.proofreadingPrompt))
-            .put(
-                JSONObject().put("role", "user").put(
-                    "content",
-                    formatAiUserMessage(profile.proofreadingUserPrompt, taskData.toString()),
-                ),
-            )
-        val body = profile.generationOptions.addOpenAiChatParameters(
-            JSONObject().put("model", profile.modelId).put("messages", messages).put("stream", false),
-            profile.modelId,
-        )
-        profile.generationOptions.structuredOutputMode.addOpenAiChatFormat(
-            body,
-            translationResultSchema(proofreading = true),
-            "translation_proofread_results",
-        )
-        return profile.requestParameters.applyBody(body).toString()
-    }
-
     private fun createRequestBody(
         profile: TranslationServiceProfile,
         sourceLanguage: String,
@@ -274,7 +206,6 @@ internal class OpenAiCompatibleChatAdapter(
         profile.generationOptions.structuredOutputMode.addOpenAiChatFormat(
             body,
             translationResultSchema(
-                proofreading = false,
                 requireSourceEcho = profile.generationOptions.echoAlignmentEnabled,
             ),
             "translation_results",
@@ -464,9 +395,6 @@ internal class OpenAiCompatibleChatAdapter(
             inputs,
             requireSourceEcho,
         )
-
-        internal fun parseProofreadContent(content: String, inputs: List<ProofreadInput>): ProofreadBatchResponse =
-            TranslationProtocolStructuredResultParser.parseProofreadSuggestions(content, inputs)
 
     }
 }

@@ -6,7 +6,6 @@ import com.tyranor.next.core.translation.service.TranslationProtocolId
 import com.tyranor.next.core.translation.service.TranslationProviderCredentialBundle
 import com.tyranor.next.core.translation.service.TranslationProviderCredentials
 import com.tyranor.next.core.translation.service.TranslationServiceCategory
-import com.tyranor.next.core.translation.service.TranslationServiceCapability
 import com.tyranor.next.core.translation.service.TranslationServiceProfile
 import com.tyranor.next.core.translation.service.TranslationServiceErrorCode
 import com.tyranor.next.core.translation.service.TranslationServiceException
@@ -723,32 +722,6 @@ class MachineTranslationAdapterTest {
         assertFalse(request.header("Authorization").orEmpty().contains("api-secret"))
         assertTrue(request.bodyText().contains("app-id"))
         assertEquals(listOf("xf-1"), response.successes.map { it.entryId })
-    }
-
-    @Test
-    fun machineProvidersCannotBeSelectedForAiProofreading() {
-        listOf(
-            TranslationProtocolId.BING_TRANSLATOR_WEB,
-            TranslationProtocolId.NIUTRANS_TRANSLATION_V1,
-            TranslationProtocolId.VOLCENGINE_TRANSLATE_TEXT_V1,
-            TranslationProtocolId.AZURE_TRANSLATOR_V3,
-            TranslationProtocolId.DEEPL_TRANSLATE_V2,
-            TranslationProtocolId.BAIDU_TRANSLATE_VIP_V1,
-            TranslationProtocolId.TENCENT_TMT_TEXT_TRANSLATE_V1,
-            TranslationProtocolId.YOUDAO_TRANSLATE_V2,
-            TranslationProtocolId.ALIBABA_MT_ROA_V1,
-            TranslationProtocolId.CAIYUN_LINGOCLOUD_V1,
-            TranslationProtocolId.GOOGLE_CLOUD_TRANSLATE_V2,
-            TranslationProtocolId.YANDEX_TRANSLATE_V2,
-            TranslationProtocolId.HUAWEI_NLP_TRANSLATE_V1,
-            TranslationProtocolId.YOUDAO_TRANSLATE_WEB_V1,
-            TranslationProtocolId.GOOGLE_TRANSLATE_WEB_V1,
-            TranslationProtocolId.DOUBAO_TRANSLATE_RESPONSES_V1,
-            TranslationProtocolId.IFLYTEK_TRANSLATE_V2,
-        ).forEach { protocol ->
-            assertEquals(TranslationServiceCategory.MACHINE_TRANSLATION, protocol.category)
-            assertFalse(TranslationProtocolRegistry.supports(protocol, TranslationServiceCapability.AI_PROOFREAD))
-        }
     }
 
     private fun input(id: String, text: String) = TranslationInput(id, text, "ja", "zh-Hans")

@@ -2,7 +2,6 @@ package com.tyranor.next.core.translation.service.protocol.openai
 
 import com.tyranor.next.core.translation.service.TranslationInput
 import com.tyranor.next.core.translation.service.TranslationGlossaryEntry
-import com.tyranor.next.core.translation.service.ProofreadInput
 import com.tyranor.next.core.translation.service.TranslationProtocolId
 import com.tyranor.next.core.translation.service.TranslationItemFailureCode
 import com.tyranor.next.core.translation.service.TranslationServiceErrorCode
@@ -322,74 +321,6 @@ class OpenAiCompatibleChatAdapterTest {
         assertEquals("json_schema", body.getJSONObject("response_format").getString("type"))
         assertEquals("translation_results", body.getJSONObject("response_format").getJSONObject("json_schema").getString("name"))
         assertEquals("tyn", body.getJSONObject("metadata").getString("source"))
-    }
-
-    @Test
-    fun sendsProofreadingUserPromptAsTheUserRole() = runBlocking {
-        val response = """{"choices":[{"message":{"content":"{\"results\":[{\"id\":\"entry\",\"suggestedTranslation\":\"勇者\",\"issues\":[] }]}"}}]}"""
-        val callFactory = SingleCallFactory(response)
-        OpenAiCompatibleChatAdapter(TranslationHttpTransport(callFactory)).proofreadBatch(
-            profile().copy(proofreadingUserPrompt = "Keep the established character names."),
-            apiKey = null,
-            sourceLanguage = "en",
-            targetLanguage = "ja",
-            inputs = listOf(ProofreadInput("entry", "Hero", "勇者")),
-        )
-
-        val body = JSONObject(readBody(callFactory.requests.single()))
-        val messages = body.getJSONArray("messages")
-        assertEquals("system", messages.getJSONObject(0).getString("role"))
-        assertTrue(messages.getJSONObject(1).getString("content").startsWith("Keep the established character names."))
-    }
-
-    @Test
-    fun parsesProofreadSuggestionsByStableIdWithoutOverwritingValidItems() {
-        val inputs = listOf(
-            ProofreadInput("entry-1", "\\V[1] Hello", "\\V[1] 你好"),
-            ProofreadInput("entry-2", "Hello {player}", "你好"),
-        )
-        val parsed = OpenAiCompatibleChatAdapter.parseProofreadContent(
-            JSONObject().put(
-                "results",
-                JSONArray()
-                    .put(
-                        JSONObject()
-                            .put("id", "entry-1")
-                            .put("suggestedTranslation", "\\V[1] 您好")
-                            .put("issues", JSONArray().put("TONE")),
-                    )
-                    .put(
-                        JSONObject()
-                            .put("id", "entry-2")
-                            .put("suggestedTranslation", "玩家您好 {player}")
-                            .put("issues", JSONArray()),
-                    ),
-            ).toString(),
-            inputs,
-        )
-
-        assertEquals(listOf("entry-1", "entry-2"), parsed.successes.map { it.entryId })
-        assertEquals(setOf("TONE"), parsed.successes.first().issueCodes)
-        assertEquals(emptyMap<String, com.tyranor.next.core.translation.service.TranslationItemFailureCode>(), parsed.itemFailures)
-    }
-
-    @Test
-    fun rejectsProofreadSuggestionThatDamagesFormatTokens() {
-        val parsed = OpenAiCompatibleChatAdapter.parseProofreadContent(
-            JSONObject().put(
-                "results",
-                JSONArray().put(
-                    JSONObject()
-                        .put("id", "entry")
-                        .put("suggestedTranslation", "こんにちは")
-                        .put("issues", JSONArray()),
-                ),
-            ).toString(),
-            listOf(ProofreadInput("entry", "\\C[3] Red", "\\C[3] 赤")),
-        )
-
-        assertEquals(TranslationItemFailureCode.PLACEHOLDER_MISMATCH, parsed.itemFailures["entry"])
-        assertTrue(parsed.successes.isEmpty())
     }
 
     private fun input(id: String, text: String) = TranslationInput(id, text, "ja", "zh-Hans")

@@ -74,7 +74,6 @@ internal fun TranslationProtocolId.defaultBaseUrl(): String = when (this) {
 
 enum class TranslationServiceCapability {
     TRANSLATE,
-    AI_PROOFREAD,
 }
 
 data class TranslationServiceProfile(
@@ -91,9 +90,7 @@ data class TranslationServiceProfile(
     val translationPrompt: String,
     val secretRef: String?,
     val updatedAt: Long,
-    val proofreadingPrompt: String = DEFAULT_PROOFREADING_PROMPT,
     val translationUserPrompt: String = "",
-    val proofreadingUserPrompt: String = "",
     val generationOptions: TranslationGenerationOptions = TranslationGenerationOptions(
         structuredOutputMode = if (protocolId == TranslationProtocolId.GEMINI_INTERACTIONS) {
             TranslationStructuredOutputMode.JSON_SCHEMA
@@ -122,9 +119,7 @@ data class TranslationServiceDraft(
     val modelId: String,
     val enabled: Boolean = false,
     val translationPrompt: String = DEFAULT_TRANSLATION_PROMPT,
-    val proofreadingPrompt: String = DEFAULT_PROOFREADING_PROMPT,
     val translationUserPrompt: String = "",
-    val proofreadingUserPrompt: String = "",
     val generationOptions: TranslationGenerationOptions = TranslationGenerationOptions(
         structuredOutputMode = if (protocolId == TranslationProtocolId.GEMINI_INTERACTIONS) {
             TranslationStructuredOutputMode.JSON_SCHEMA
@@ -199,7 +194,4 @@ sealed interface TranslationSecretResult {
 
 const val DEFAULT_TRANSLATION_PROMPT =
     "Translate the provided game text into the target language. Use the provided glossary consistently when choosing translations. Preserve every control code, placeholder, and line break. Return only a JSON object with a results array; each result must contain the given id and its translation."
-
-const val DEFAULT_PROOFREADING_PROMPT =
-    "Review each provided game translation against its source and glossary. Return only a JSON object with a results array; each result must contain the given id, a suggestedTranslation, and issue codes chosen from GRAMMAR, MEANING, TERMINOLOGY, CONSISTENCY, TONE, OTHER. Never omit ids. Preserve every control code, placeholder, and line break in suggestions. Do not claim an issue when the current translation is acceptable."
 

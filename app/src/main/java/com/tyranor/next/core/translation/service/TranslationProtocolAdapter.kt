@@ -38,24 +38,6 @@ data class TranslationBatchResponse(
     val unknownResponseIds: Set<String>,
 )
 
-data class ProofreadInput(
-    val entryId: String,
-    val sourceText: String,
-    val translatedText: String,
-)
-
-data class ProofreadOutput(
-    val entryId: String,
-    val suggestedTranslation: String,
-    val issueCodes: Set<String>,
-)
-
-data class ProofreadBatchResponse(
-    val successes: List<ProofreadOutput>,
-    val itemFailures: Map<String, TranslationItemFailureCode>,
-    val unknownResponseIds: Set<String>,
-)
-
 interface TranslationProtocolAdapter {
     val protocolId: TranslationProtocolId
     val capabilities: Set<TranslationServiceCapability>
@@ -90,12 +72,5 @@ interface TranslationProtocolAdapter {
         inputs = listOf(input),
     )
 
-    suspend fun proofreadBatch(
-        profile: TranslationServiceProfile,
-        apiKey: String?,
-        sourceLanguage: String,
-        targetLanguage: String,
-        inputs: List<ProofreadInput>,
-    ): ProofreadBatchResponse
 }
 

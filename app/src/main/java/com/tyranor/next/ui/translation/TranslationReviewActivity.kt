@@ -70,7 +70,6 @@ import java.util.concurrent.atomic.AtomicReference
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tyranor.next.R
 import com.tyranor.next.core.engine.EngineType
-import com.tyranor.next.core.translation.TranslationProofreadScope
 import com.tyranor.next.core.translation.TranslationProjectCard
 import com.tyranor.next.core.translation.TranslationReviewEntry
 import com.tyranor.next.core.translation.TranslationReviewIssue
@@ -80,7 +79,6 @@ import com.tyranor.next.core.translation.TranslationWorkbenchError
 import com.tyranor.next.core.translation.TranslationWorkbenchException
 import com.tyranor.next.core.translation.TranslationWorkbenchRepository
 import com.tyranor.next.core.translation.extraction.TranslationExtractorEngineIds
-import com.tyranor.next.core.translation.service.TranslationServiceProfile
 import com.tyranor.next.theme.AppComponentCornerRadius
 import com.tyranor.next.theme.AppComponentShape
 import com.tyranor.next.theme.AppThemeColors
@@ -130,26 +128,19 @@ class TranslationReviewActivity : AppScreenActivity() {
             finish()
             return
         }
-        val openProofreadSetup = intent.getBooleanExtra(EXTRA_OPEN_PROOFREAD_SETUP, false)
-        setAppScreenContent { TranslationReviewScreen(projectId, openProofreadSetup) }
+        setAppScreenContent { TranslationReviewScreen(projectId) }
     }
 
     companion object {
         private const val EXTRA_PROJECT_ID = "translation_project_id"
-        private const val EXTRA_OPEN_PROOFREAD_SETUP = "translation_open_proofread_setup"
-
-        fun createIntent(
-            context: Context,
-            projectId: String,
-            openProofreadSetup: Boolean = false,
-        ): Intent = Intent(context, TranslationReviewActivity::class.java)
-            .putExtra(EXTRA_PROJECT_ID, projectId)
-            .putExtra(EXTRA_OPEN_PROOFREAD_SETUP, openProofreadSetup)
+        fun createIntent(context: Context, projectId: String): Intent =
+            Intent(context, TranslationReviewActivity::class.java)
+                .putExtra(EXTRA_PROJECT_ID, projectId)
     }
 }
 
 @Composable
-private fun TranslationReviewScreen(projectId: String, openProofreadSetup: Boolean) {
+private fun TranslationReviewScreen(projectId: String) {
     val context = LocalContext.current
     val repository = remember(context) { TranslationWorkbenchRepository(context.applicationContext) }
     val scope = rememberCoroutineScope()
@@ -157,21 +148,13 @@ private fun TranslationReviewScreen(projectId: String, openProofreadSetup: Boole
     val project = projects.firstOrNull { it.id == projectId }
     val entries by remember(repository, projectId) { repository.observeReviewEntries(projectId) }
         .collectAsStateWithLifecycle(initialValue = emptyList())
-    val services by remember(repository) { repository.observeEnabledProofreadingServices() }
-        .collectAsStateWithLifecycle(initialValue = emptyList())
-
     var sourceLocation by remember(projectId) { mutableStateOf("") }
     var filter by remember { mutableStateOf(ReviewFilter.ALL) }
     var searchQuery by remember(projectId) { mutableStateOf("") }
     var selectedEntryId by remember { mutableStateOf<String?>(null) }
     var editorText by remember { mutableStateOf("") }
-    var showProofreadDialog by remember(projectId) { mutableStateOf(openProofreadSetup) }
     var showFilterDialog by remember { mutableStateOf(false) }
     var draftFilter by remember { mutableStateOf(ReviewFilter.ALL) }
-    var selectedServiceId by remember { mutableStateOf<String?>(null) }
-    var selectedScope by remember { mutableStateOf<TranslationProofreadScope?>(null) }
-    var sourceLanguage by remember { mutableStateOf("") }
-    var targetLanguage by remember { mutableStateOf("") }
     var errorCode by remember { mutableStateOf<TranslationWorkbenchError?>(null) }
     var localRulesInitialized by remember(projectId) { mutableStateOf(false) }
 
@@ -181,15 +164,6 @@ private fun TranslationReviewScreen(projectId: String, openProofreadSetup: Boole
                 queryReviewSourcePath(context, Uri.parse(uri), current.title)
             } ?: context.getString(R.string.translation_card_imported_source)
         }.orEmpty()
-    }
-
-    LaunchedEffect(project?.sourceLanguage, project?.targetLanguage) {
-        if (sourceLanguage.isBlank()) sourceLanguage = project?.sourceLanguage.orEmpty()
-        if (targetLanguage.isBlank()) targetLanguage = project?.targetLanguage.orEmpty()
-    }
-
-    LaunchedEffect(services) {
-        if (selectedServiceId == null) selectedServiceId = services.firstOrNull()?.id
     }
 
     LaunchedEffect(project?.id, entries.size) {
@@ -228,7 +202,6 @@ private fun TranslationReviewScreen(projectId: String, openProofreadSetup: Boole
     }
 
     val active = project?.latestTaskState in setOf("QUEUED", "RUNNING")
-    val proofreadTask = project?.latestTaskType == "AI_PROOFREAD"
     val normalizedSearchQuery = searchQuery.trim()
     val filteredEntries = entries.filter { entry ->
         val matchesFilter = when (filter) {
@@ -317,12 +290,6 @@ private fun TranslationReviewScreen(projectId: String, openProofreadSetup: Boole
                                     selectedEntryId = null
                                 }
                             },
-                            onApplySuggestion = { suggestionId ->
-                                runOperation {
-                                    repository.applyProofreadSuggestion(projectId, paneEntry.id, suggestionId)
-                                    repository.runLocalRules(projectId)
-                                }
-                            },
                             onConfirm = { runOperation { repository.confirmCurrentTranslation(projectId, paneEntry.id) } },
                             onIssueState = { issue, ignore ->
                                 runOperation { repository.updateReviewIssue(projectId, issue.id, ignore) }
@@ -387,9 +354,6 @@ private fun TranslationReviewScreen(projectId: String, openProofreadSetup: Boole
                                         color = PageSecondaryTextColor,
                                     )
                                 }
-                                if (project?.latestTaskState == "COMPLETED" && proofreadTask) {
-                                    Text(stringResource(R.string.translation_task_proofread_completed), color = MaterialTheme.colorScheme.primary)
-                                }
                                 if (project?.latestTaskState == "COMPLETED_WITH_ERRORS" && project.failedItems > 0) {
                                     Text(
                                         stringResource(R.string.translation_failed_items, project.failedItems),
@@ -397,7 +361,7 @@ private fun TranslationReviewScreen(projectId: String, openProofreadSetup: Boole
                                     )
                                 }
                                 if (project?.latestTaskFailureCode != null && project.latestTaskState == "FAILED") {
-                                    Text(stringResource(R.string.translation_task_proofread_failed), color = MaterialTheme.colorScheme.error)
+                                    Text(stringResource(R.string.translation_task_failed), color = MaterialTheme.colorScheme.error)
                                 }
                                 Row(
                                     modifier = Modifier.weight(1f).fillMaxWidth(),
@@ -425,12 +389,6 @@ private fun TranslationReviewScreen(projectId: String, openProofreadSetup: Boole
                                             onSave = {
                                                 runOperation {
                                                     repository.saveManualTranslation(projectId, selectedEntry.id, editorText)
-                                                    repository.runLocalRules(projectId)
-                                                }
-                                            },
-                                            onApplySuggestion = { suggestionId ->
-                                                runOperation {
-                                                    repository.applyProofreadSuggestion(projectId, selectedEntry.id, suggestionId)
                                                     repository.runLocalRules(projectId)
                                                 }
                                             },
@@ -496,9 +454,6 @@ private fun TranslationReviewScreen(projectId: String, openProofreadSetup: Boole
                                                 color = PageSecondaryTextColor,
                                             )
                                         }
-                                        if (project?.latestTaskState == "COMPLETED" && proofreadTask) {
-                                            Text(stringResource(R.string.translation_task_proofread_completed), color = MaterialTheme.colorScheme.primary)
-                                        }
                                         if (project?.latestTaskState == "COMPLETED_WITH_ERRORS" && project.failedItems > 0) {
                                             Text(
                                                 stringResource(R.string.translation_failed_items, project.failedItems),
@@ -506,7 +461,7 @@ private fun TranslationReviewScreen(projectId: String, openProofreadSetup: Boole
                                             )
                                         }
                                         if (project?.latestTaskFailureCode != null && project.latestTaskState == "FAILED") {
-                                            Text(stringResource(R.string.translation_task_proofread_failed), color = MaterialTheme.colorScheme.error)
+                                            Text(stringResource(R.string.translation_task_failed), color = MaterialTheme.colorScheme.error)
                                         }
                                     }
                                 }
@@ -581,12 +536,6 @@ private fun TranslationReviewScreen(projectId: String, openProofreadSetup: Boole
                                             repository.runLocalRules(projectId)
                                         }
                                     },
-                                    onApplySuggestion = { suggestionId ->
-                                        runOperation {
-                                            repository.applyProofreadSuggestion(projectId, selectedEntry.id, suggestionId)
-                                            repository.runLocalRules(projectId)
-                                        }
-                                    },
                                     onConfirm = { runOperation { repository.confirmCurrentTranslation(projectId, selectedEntry.id) } },
                                     onIssueState = { issue, ignore ->
                                         runOperation { repository.updateReviewIssue(projectId, issue.id, ignore) }
@@ -650,34 +599,6 @@ private fun TranslationReviewScreen(projectId: String, openProofreadSetup: Boole
         )
     }
 
-    if (showProofreadDialog) {
-        ProofreadStartDialog(
-            services = services,
-            selectedServiceId = selectedServiceId,
-            selectedScope = selectedScope,
-            sourceLanguage = sourceLanguage,
-            targetLanguage = targetLanguage,
-            ruleHitCount = entries.count { entry ->
-                !entry.translatedText.isNullOrBlank() && entry.issues.any { it.source == "RULE" && it.state == "OPEN" }
-            },
-            onSelectService = { selectedServiceId = it },
-            onSelectScope = { selectedScope = it },
-            onSourceLanguageChange = { sourceLanguage = it },
-            onTargetLanguageChange = { targetLanguage = it },
-            onDismiss = { showProofreadDialog = false },
-            onStart = {
-                val serviceId = selectedServiceId
-                val scopeValue = selectedScope
-                if (serviceId != null && scopeValue != null) {
-                    runOperation {
-                        repository.startProofreading(projectId, serviceId, sourceLanguage, targetLanguage, scopeValue)
-                        showProofreadDialog = false
-                    }
-                }
-            },
-        )
-    }
-
     errorCode?.let { code ->
         AppAlertDialog(
             onDismissRequest = { errorCode = null },
@@ -686,87 +607,6 @@ private fun TranslationReviewScreen(projectId: String, openProofreadSetup: Boole
             confirmButton = { DialogTextButton(stringResource(R.string.common_confirm)) { errorCode = null } },
         )
     }
-}
-
-@Composable
-private fun ProofreadStartDialog(
-    services: List<TranslationServiceProfile>,
-    selectedServiceId: String?,
-    selectedScope: TranslationProofreadScope?,
-    sourceLanguage: String,
-    targetLanguage: String,
-    ruleHitCount: Int,
-    onSelectService: (String) -> Unit,
-    onSelectScope: (TranslationProofreadScope) -> Unit,
-    onSourceLanguageChange: (String) -> Unit,
-    onTargetLanguageChange: (String) -> Unit,
-    onDismiss: () -> Unit,
-    onStart: () -> Unit,
-) {
-    AppAlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.translation_review_ai_start_title), style = MaterialTheme.typography.titleMedium) },
-        text = {
-            Column(Modifier.fillMaxWidth().heightIn(max = 500.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (services.isEmpty()) {
-                    Text(stringResource(R.string.translation_review_no_enabled_proofread_service), color = PageSecondaryTextColor)
-                } else {
-                    Text(stringResource(R.string.translation_review_service_label), style = MaterialTheme.typography.labelMedium)
-                    services.forEach { service ->
-                        NoRippleTextButton(
-                                text = (if (service.id == selectedServiceId) "✓  " else "") +
-                                    stringResource(R.string.translation_services_ai_category) + " · " +
-                                    service.displayName + " · " + service.modelId,
-                            modifier = Modifier.fillMaxWidth(),
-                            onClick = { onSelectService(service.id) },
-                        )
-                    }
-                }
-                NoRippleTextButton(
-                    text = (if (selectedScope == TranslationProofreadScope.RULE_HITS) "✓  " else "") +
-                        stringResource(R.string.translation_review_ai_scope_rule_hits) + " · " + ruleHitCount,
-                    modifier = Modifier.fillMaxWidth(),
-                    onClick = { onSelectScope(TranslationProofreadScope.RULE_HITS) },
-                )
-                NoRippleTextButton(
-                    text = (if (selectedScope == TranslationProofreadScope.ALL_TRANSLATED) "✓  " else "") +
-                        stringResource(R.string.translation_review_ai_scope_all),
-                    modifier = Modifier.fillMaxWidth(),
-                    onClick = { onSelectScope(TranslationProofreadScope.ALL_TRANSLATED) },
-                )
-                if (selectedScope == null) {
-                    Text(stringResource(R.string.translation_review_ai_scope_required), color = PageSecondaryTextColor)
-                }
-                if (selectedScope == TranslationProofreadScope.RULE_HITS && ruleHitCount == 0) {
-                    Text(stringResource(R.string.translation_review_rule_hits_empty), color = PageSecondaryTextColor)
-                }
-                MiuixTextField(
-                    value = sourceLanguage,
-                    onValueChange = onSourceLanguageChange,
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    label = stringResource(R.string.translation_source_language),
-                )
-                MiuixTextField(
-                    value = targetLanguage,
-                    onValueChange = onTargetLanguageChange,
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    label = stringResource(R.string.translation_target_language),
-                )
-            }
-        },
-        confirmButton = {
-            DialogTextButton(
-                text = stringResource(R.string.translation_review_ai_start),
-                enabled = services.isNotEmpty() && selectedServiceId != null && selectedScope != null &&
-                    (selectedScope != TranslationProofreadScope.RULE_HITS || ruleHitCount > 0) &&
-                    sourceLanguage.isNotBlank() && targetLanguage.isNotBlank(),
-                onClick = onStart,
-            )
-        },
-        dismissButton = { DialogTextButton(stringResource(R.string.common_cancel), onClick = onDismiss) },
-    )
 }
 
 @Composable
@@ -817,13 +657,7 @@ private fun ReviewProjectContextCard(
                 )
             }
             val status = when {
-                project.latestTaskState in setOf("QUEUED", "RUNNING") && project.latestTaskType == "AI_PROOFREAD" ->
-                    stringResource(R.string.translation_task_proofreading)
                 project.reviewCompletedAt != null -> stringResource(R.string.translation_card_review_completed)
-                project.pendingSuggestionCount > 0 -> stringResource(
-                    R.string.translation_card_review_pending_count,
-                    project.pendingSuggestionCount,
-                )
                 else -> stringResource(R.string.translation_card_review_pending)
             }
             Text(
@@ -1099,13 +933,11 @@ private fun ReviewEntryStatusBadge(entry: TranslationReviewEntry) {
     val label = when {
         openIssue != null -> stringResource(openIssue.code.labelResource())
         entry.reviewState == TranslationReviewState.CONFIRMED -> stringResource(R.string.translation_review_confirmed)
-        entry.suggestionId != null -> stringResource(R.string.translation_review_suggestion)
         else -> stringResource(R.string.translation_review_filter_pending)
     }
     val tint = when {
         openIssue != null -> MaterialTheme.colorScheme.error
         entry.reviewState == TranslationReviewState.CONFIRMED -> MaterialTheme.colorScheme.primary
-        entry.suggestionId != null -> MaterialTheme.colorScheme.tertiary
         else -> MaterialTheme.colorScheme.secondary
     }
     Box(
@@ -1202,7 +1034,6 @@ private fun TranslationReviewEntryDetailPane(
     modifier: Modifier = Modifier,
     onTranslationTextChange: (String) -> Unit,
     onSave: () -> Unit,
-    onApplySuggestion: (String) -> Unit,
     onConfirm: () -> Unit,
     onIssueState: (TranslationReviewIssue, Boolean) -> Unit,
 ) {
@@ -1272,27 +1103,6 @@ private fun TranslationReviewEntryDetailPane(
                         maxLines = 10,
                         enabled = enabled,
                         textStyle = MaterialTheme.typography.bodyMedium.copy(color = PageTextColor),
-                    )
-                }
-            }
-            entry.suggestedTranslation?.let { suggestion ->
-                Column(
-                    modifier = Modifier.fillMaxWidth().clip(AppComponentShape)
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
-                        .padding(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Text(
-                        stringResource(R.string.translation_review_suggestion),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                    Text(suggestion, style = MaterialTheme.typography.bodyMedium)
-                    NoRippleButton(
-                        text = stringResource(R.string.translation_review_apply_suggestion),
-                        enabled = enabled && entry.suggestionId != null,
-                        tonal = true,
-                        onClick = { entry.suggestionId?.let(onApplySuggestion) },
                     )
                 }
             }
@@ -1430,10 +1240,4 @@ private fun TranslationReviewIssueCode.labelResource(): Int = when (this) {
     TranslationReviewIssueCode.MISSING_TRANSLATION -> R.string.translation_review_issue_missing_translation
     TranslationReviewIssueCode.PLACEHOLDER_MISMATCH -> R.string.translation_review_issue_placeholder_mismatch
     TranslationReviewIssueCode.LINE_BREAK_MISMATCH -> R.string.translation_review_issue_line_break_mismatch
-    TranslationReviewIssueCode.GRAMMAR -> R.string.translation_review_issue_grammar
-    TranslationReviewIssueCode.MEANING -> R.string.translation_review_issue_meaning
-    TranslationReviewIssueCode.TERMINOLOGY -> R.string.translation_review_issue_terminology
-    TranslationReviewIssueCode.CONSISTENCY -> R.string.translation_review_issue_consistency
-    TranslationReviewIssueCode.TONE -> R.string.translation_review_issue_tone
-    TranslationReviewIssueCode.OTHER -> R.string.translation_review_issue_other
 }

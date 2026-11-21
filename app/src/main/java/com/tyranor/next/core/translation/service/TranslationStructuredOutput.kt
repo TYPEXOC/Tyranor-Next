@@ -21,23 +21,15 @@ internal fun TranslationProtocolId.supportedStructuredOutputModes(): List<Transl
 }
 
 internal fun translationResultSchema(
-    proofreading: Boolean,
     requireSourceEcho: Boolean = false,
 ): JSONObject {
     val resultProperties = JSONObject()
         .put("id", JSONObject().put("type", "string"))
-        .put(
-            if (proofreading) "suggestedTranslation" else "translation",
-            JSONObject().put("type", "string"),
-        )
-    val required = JSONArray().put("id").put(if (proofreading) "suggestedTranslation" else "translation")
-    if (!proofreading && requireSourceEcho) {
+        .put("translation", JSONObject().put("type", "string"))
+    val required = JSONArray().put("id").put("translation")
+    if (requireSourceEcho) {
         resultProperties.put("src", JSONObject().put("type", "string"))
         required.put("src")
-    }
-    if (proofreading) {
-        resultProperties.put("issues", JSONObject().put("type", "array").put("items", JSONObject().put("type", "string")))
-        required.put("issues")
     }
     val result = JSONObject()
         .put("type", "object")

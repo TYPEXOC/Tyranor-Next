@@ -66,7 +66,6 @@ internal data class TranslationEntryEntity(
     val status: String,
     @ColumnInfo(name = "failure_code") val failureCode: String? = null,
     @ColumnInfo(name = "review_state", defaultValue = "'UNREVIEWED'") val reviewState: String = "UNREVIEWED",
-    @ColumnInfo(name = "last_proofread_task_id") val lastProofreadTaskId: String? = null,
 )
 
 @Entity(
@@ -187,25 +186,6 @@ internal data class TranslationGlossaryEntryEntity(
 )
 
 @Entity(
-    tableName = "translation_proofread_suggestions",
-    foreignKeys = [
-        ForeignKey(entity = TranslationProjectEntity::class, parentColumns = ["id"], childColumns = ["project_id"], onDelete = ForeignKey.CASCADE),
-        ForeignKey(entity = TranslationEntryEntity::class, parentColumns = ["id"], childColumns = ["entry_id"], onDelete = ForeignKey.CASCADE),
-        ForeignKey(entity = TranslationTaskEntity::class, parentColumns = ["id"], childColumns = ["task_id"], onDelete = ForeignKey.CASCADE),
-    ],
-    indices = [Index("project_id"), Index("entry_id"), Index("task_id"), Index(value = ["entry_id", "created_at"])],
-)
-internal data class TranslationProofreadSuggestionEntity(
-    @PrimaryKey val id: String,
-    @ColumnInfo(name = "project_id") val projectId: String,
-    @ColumnInfo(name = "entry_id") val entryId: String,
-    @ColumnInfo(name = "task_id") val taskId: String,
-    @ColumnInfo(name = "suggested_translation") val suggestedTranslation: String,
-    val state: String,
-    @ColumnInfo(name = "created_at") val createdAt: Long,
-)
-
-@Entity(
     tableName = "translation_review_issues",
     foreignKeys = [
         ForeignKey(entity = TranslationProjectEntity::class, parentColumns = ["id"], childColumns = ["project_id"], onDelete = ForeignKey.CASCADE),
@@ -235,8 +215,6 @@ internal data class TranslationEntryRow(
     @ColumnInfo(name = "source_pointer") val sourcePointer: String?,
     @ColumnInfo(name = "text_type") val textType: String?,
     @ColumnInfo(name = "review_state") val reviewState: String,
-    @ColumnInfo(name = "suggestion_id") val suggestionId: String?,
-    @ColumnInfo(name = "suggested_translation") val suggestedTranslation: String?,
 )
 
 internal data class TranslationReviewIssueRow(
@@ -286,7 +264,6 @@ internal data class TranslationProjectCardRow(
     @ColumnInfo(name = "completed_items") val completedItems: Int,
     @ColumnInfo(name = "failed_items") val failedItems: Int,
     @ColumnInfo(name = "review_completed_at") val reviewCompletedAt: Long?,
-    @ColumnInfo(name = "pending_suggestion_count") val pendingSuggestionCount: Int,
     @ColumnInfo(name = "updated_at") val updatedAt: Long,
 ) {
     fun toModel() = TranslationProjectCard(
@@ -311,6 +288,5 @@ internal data class TranslationProjectCardRow(
         failedItems = failedItems,
         reviewCompletedAt = reviewCompletedAt,
         updatedAt = updatedAt,
-        pendingSuggestionCount = pendingSuggestionCount,
     )
 }

@@ -30,7 +30,6 @@ internal fun TranslationWorkbenchError.messageResource(): Int = when (this) {
     TranslationWorkbenchError.DUPLICATE_GLOSSARY_TERM -> R.string.translation_error_duplicate_glossary_term
     TranslationWorkbenchError.PROJECT_CONFIGURATION_CHANGED -> R.string.translation_error_project_configuration_changed
     TranslationWorkbenchError.MTOOL_SOURCE_CONFLICT -> R.string.translation_error_mtool_source_conflict
-    TranslationWorkbenchError.NO_PROOFREAD_CANDIDATES -> R.string.translation_error_no_proofread_candidates
     TranslationWorkbenchError.INVALID_REVIEW_ENTRY -> R.string.translation_error_invalid_review_entry
     TranslationWorkbenchError.EXPORT_FAILED -> R.string.translation_error_export_failed
     TranslationWorkbenchError.EXPORT_HISTORY_FAILED -> R.string.translation_error_export_history_failed

@@ -127,12 +127,5 @@ class TranslationConnectionTestPolicyTest {
             )
         }
 
-        override suspend fun proofreadBatch(
-            profile: TranslationServiceProfile,
-            apiKey: String?,
-            sourceLanguage: String,
-            targetLanguage: String,
-            inputs: List<ProofreadInput>,
-        ): ProofreadBatchResponse = error("Proofreading is not used by connection checks")
     }
 }

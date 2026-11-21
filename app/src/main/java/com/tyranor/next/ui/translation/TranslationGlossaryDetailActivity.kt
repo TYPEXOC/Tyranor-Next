@@ -201,7 +201,6 @@ private fun TranslationGlossaryDetailScreen(
                     .widthIn(max = 760.dp)
                     .padding(top = innerPadding.calculateTopPadding())
                     .padding(horizontal = 12.dp)
-                    .padding(bottom = 96.dp)
                     .clickable(
                         interactionSource = outsideTapInteractionSource,
                         indication = null,
@@ -211,7 +210,7 @@ private fun TranslationGlossaryDetailScreen(
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(if (tabletLayout) 2 else 1),
                     modifier = Modifier.weight(1f).fillMaxWidth(),
-                    contentPadding = PaddingValues(top = 12.dp, bottom = 12.dp),
+                    contentPadding = PaddingValues(top = 12.dp, bottom = 96.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {

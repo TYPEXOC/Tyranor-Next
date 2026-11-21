@@ -1,7 +1,5 @@
 package com.tyranor.next.core.translation.service.protocol.machine
 
-import com.tyranor.next.core.translation.service.ProofreadBatchResponse
-import com.tyranor.next.core.translation.service.ProofreadInput
 import com.tyranor.next.core.translation.service.TranslationBatchResponse
 import com.tyranor.next.core.translation.service.TranslationInput
 import com.tyranor.next.core.translation.service.TranslationItemFailureCode
@@ -43,14 +41,6 @@ internal abstract class MachineTranslationAdapter(
         requireProvider(profile)
         return emptyList()
     }
-
-    final override suspend fun proofreadBatch(
-        profile: TranslationServiceProfile,
-        apiKey: String?,
-        sourceLanguage: String,
-        targetLanguage: String,
-        inputs: List<ProofreadInput>,
-    ): ProofreadBatchResponse = throw TranslationServiceException(TranslationServiceErrorCode.UNSUPPORTED_PROTOCOL)
 
     protected fun requireProvider(profile: TranslationServiceProfile) {
         if (profile.protocolId != protocolId || profile.baseUrl != protocolId.defaultBaseUrl()) {

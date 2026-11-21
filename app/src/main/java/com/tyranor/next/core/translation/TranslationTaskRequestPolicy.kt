@@ -44,15 +44,6 @@ internal object TranslationTaskRequestPolicy {
         maxBatchSize = batchSize(protocolId, settings, protocolMaxBatchSize),
     )
 
-    fun proofreadingBatches(
-        entries: List<TranslationEntryEntity>,
-        settings: TranslationServiceTaskSettings,
-        protocolMaxBatchSize: Int,
-    ): TranslationEntryBatchPlan<TranslationEntryEntity> = plan(
-        entries = entries,
-        maxBatchSize = settings.batchSize(TranslationServiceCategory.AI_TRANSLATION).coerceAtMost(protocolMaxBatchSize),
-    )
-
     fun batchSize(
         protocolId: TranslationProtocolId,
         settings: TranslationServiceTaskSettings,

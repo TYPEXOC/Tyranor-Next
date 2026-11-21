@@ -1,7 +1,5 @@
 package com.tyranor.next.core.translation.service.protocol.anthropic
 
-import com.tyranor.next.core.translation.service.ProofreadBatchResponse
-import com.tyranor.next.core.translation.service.ProofreadInput
 import com.tyranor.next.core.translation.service.TranslationBatchResponse
 import com.tyranor.next.core.translation.service.TranslationGenerationOptions
 import com.tyranor.next.core.translation.service.TranslationGlossaryEntry
@@ -35,7 +33,7 @@ internal class AnthropicMessagesAdapter(
     private val transport: TranslationHttpTransport = TranslationHttpTransport(),
 ) : TranslationProtocolAdapter {
     override val protocolId = TranslationProtocolId.ANTHROPIC_MESSAGES
-    override val capabilities = setOf(TranslationServiceCapability.TRANSLATE, TranslationServiceCapability.AI_PROOFREAD)
+    override val capabilities = setOf(TranslationServiceCapability.TRANSLATE)
     override val maxBatchSize = 30
 
     override suspend fun listModels(
@@ -100,46 +98,12 @@ internal class AnthropicMessagesAdapter(
             profile.generationOptions.applyEchoAlignmentInstruction(profile.translationPrompt),
             profile.translationUserPrompt,
             taskData,
-            proofreading = false,
         )
         return TranslationProtocolStructuredResultParser.parseTranslations(
             executeMessage(profile, apiKey, body),
             inputs,
             profile.generationOptions.echoAlignmentEnabled,
         )
-    }
-
-    override suspend fun proofreadBatch(
-        profile: TranslationServiceProfile,
-        apiKey: String?,
-        sourceLanguage: String,
-        targetLanguage: String,
-        inputs: List<ProofreadInput>,
-    ): ProofreadBatchResponse {
-        validateBatch(
-            profile,
-            apiKey,
-            sourceLanguage,
-            targetLanguage,
-            inputs.map { it.entryId to it.sourceText },
-        )
-        if (inputs.any { it.translatedText.isBlank() }) invalidConfiguration()
-        val taskData = JSONObject()
-            .put("sourceLanguage", sourceLanguage)
-            .put("targetLanguage", targetLanguage)
-            .put("results", JSONArray().apply {
-                inputs.forEach {
-                    put(JSONObject().put("id", it.entryId).put("source", it.sourceText).put("translation", it.translatedText))
-                }
-            })
-        val body = createRequestBody(
-            profile,
-            profile.proofreadingPrompt,
-            profile.proofreadingUserPrompt,
-            taskData,
-            proofreading = true,
-        )
-        return TranslationProtocolStructuredResultParser.parseProofreadSuggestions(executeMessage(profile, apiKey, body), inputs)
     }
 
     private suspend fun executeMessage(profile: TranslationServiceProfile, apiKey: String?, body: String): String {
@@ -171,7 +135,6 @@ internal class AnthropicMessagesAdapter(
         systemPrompt: String,
         userPrompt: String,
         taskData: JSONObject,
-        proofreading: Boolean,
     ): String {
         val body = profile.generationOptions.addAnthropicParameters(
             JSONObject()
@@ -187,8 +150,7 @@ internal class AnthropicMessagesAdapter(
         profile.generationOptions.structuredOutputMode.addAnthropicFormat(
             body,
             translationResultSchema(
-                proofreading = proofreading,
-                requireSourceEcho = !proofreading && profile.generationOptions.echoAlignmentEnabled,
+                requireSourceEcho = profile.generationOptions.echoAlignmentEnabled,
             ),
         )
         return profile.requestParameters.applyBody(body).toString()

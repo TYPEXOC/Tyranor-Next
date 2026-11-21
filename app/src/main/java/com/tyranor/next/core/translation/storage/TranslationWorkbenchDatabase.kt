@@ -7,7 +7,6 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.tyranor.next.core.settings.AppStorageNames
-import com.tyranor.next.core.translation.service.DEFAULT_PROOFREADING_PROMPT
 import com.tyranor.next.core.translation.service.DEFAULT_TRANSLATION_PROMPT
 import com.tyranor.next.core.translation.service.TranslationProtocolId
 import com.tyranor.next.core.translation.service.defaultBaseUrl
@@ -22,10 +21,9 @@ import com.tyranor.next.core.translation.service.defaultBaseUrl
         TranslationGlossaryTermEntity::class,
         TranslationGlossaryEntity::class,
         TranslationGlossaryEntryEntity::class,
-        TranslationProofreadSuggestionEntity::class,
         TranslationReviewIssueEntity::class,
     ],
-    version = 12,
+    version = 13,
     exportSchema = true,
 )
 internal abstract class TranslationWorkbenchDatabase : RoomDatabase() {
@@ -139,28 +137,6 @@ internal abstract class TranslationWorkbenchDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE translation_projects ADD COLUMN review_completed_at INTEGER")
                 db.execSQL("ALTER TABLE translation_entries ADD COLUMN review_state TEXT NOT NULL DEFAULT 'UNREVIEWED'")
-                db.execSQL("ALTER TABLE translation_entries ADD COLUMN last_proofread_task_id TEXT")
-                db.execSQL("CREATE INDEX IF NOT EXISTS `index_translation_entries_project_id_last_proofread_task_id` ON `translation_entries` (`project_id`, `last_proofread_task_id`)")
-                db.execSQL("ALTER TABLE translation_service_profiles ADD COLUMN proofreading_prompt TEXT NOT NULL DEFAULT ''")
-                db.execSQL(
-                    """CREATE TABLE IF NOT EXISTS `translation_proofread_suggestions` (
-                        `id` TEXT NOT NULL,
-                        `project_id` TEXT NOT NULL,
-                        `entry_id` TEXT NOT NULL,
-                        `task_id` TEXT NOT NULL,
-                        `suggested_translation` TEXT NOT NULL,
-                        `state` TEXT NOT NULL,
-                        `created_at` INTEGER NOT NULL,
-                        PRIMARY KEY(`id`),
-                        FOREIGN KEY(`project_id`) REFERENCES `translation_projects`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE,
-                        FOREIGN KEY(`entry_id`) REFERENCES `translation_entries`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE,
-                        FOREIGN KEY(`task_id`) REFERENCES `translation_tasks`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
-                    )""".trimIndent(),
-                )
-                db.execSQL("CREATE INDEX IF NOT EXISTS `index_translation_proofread_suggestions_project_id` ON `translation_proofread_suggestions` (`project_id`)")
-                db.execSQL("CREATE INDEX IF NOT EXISTS `index_translation_proofread_suggestions_entry_id` ON `translation_proofread_suggestions` (`entry_id`)")
-                db.execSQL("CREATE INDEX IF NOT EXISTS `index_translation_proofread_suggestions_task_id` ON `translation_proofread_suggestions` (`task_id`)")
-                db.execSQL("CREATE INDEX IF NOT EXISTS `index_translation_proofread_suggestions_entry_id_created_at` ON `translation_proofread_suggestions` (`entry_id`, `created_at`)")
                 db.execSQL(
                     """CREATE TABLE IF NOT EXISTS `translation_review_issues` (
                         `id` TEXT NOT NULL,
@@ -255,7 +231,6 @@ internal abstract class TranslationWorkbenchDatabase : RoomDatabase() {
         private val MIGRATION_7_8 = object : Migration(7, 8) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE translation_service_profiles ADD COLUMN translation_user_prompt TEXT NOT NULL DEFAULT ''")
-                db.execSQL("ALTER TABLE translation_service_profiles ADD COLUMN proofreading_user_prompt TEXT NOT NULL DEFAULT ''")
                 db.execSQL("ALTER TABLE translation_service_profiles ADD COLUMN generation_options_json TEXT NOT NULL DEFAULT '{}'")
             }
         }
@@ -284,6 +259,140 @@ internal abstract class TranslationWorkbenchDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_12_13 = object : Migration(12, 13) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """CREATE TEMP TABLE translation_review_issues_backup (
+                        id TEXT NOT NULL,
+                        project_id TEXT NOT NULL,
+                        entry_id TEXT NOT NULL,
+                        task_id TEXT,
+                        source TEXT NOT NULL,
+                        code TEXT NOT NULL,
+                        severity TEXT NOT NULL,
+                        state TEXT NOT NULL,
+                        updated_at INTEGER NOT NULL
+                    )""".trimIndent(),
+                )
+                db.execSQL(
+                    """INSERT INTO translation_review_issues_backup
+                        SELECT id, project_id, entry_id, task_id, source, code, severity, state, updated_at
+                        FROM translation_review_issues WHERE source != 'AI'""".trimIndent(),
+                )
+                db.execSQL("DROP TABLE translation_review_issues")
+                db.execSQL("DROP TABLE IF EXISTS translation_proofread_suggestions")
+                db.execSQL("DELETE FROM translation_tasks WHERE type = 'AI_PROOFREAD'")
+                db.execSQL(
+                    "UPDATE translation_entries SET review_state = 'UNREVIEWED' " +
+                        "WHERE review_state IN ('AI_REVIEWED', 'PROOFREAD_FAILED')",
+                )
+                db.execSQL(
+                    """CREATE TABLE translation_entries_new (
+                        id TEXT NOT NULL,
+                        project_id TEXT NOT NULL,
+                        source_key TEXT NOT NULL,
+                        source_text TEXT NOT NULL,
+                        translated_text TEXT,
+                        source_file TEXT,
+                        source_pointer TEXT,
+                        text_type TEXT,
+                        status TEXT NOT NULL,
+                        failure_code TEXT,
+                        review_state TEXT NOT NULL DEFAULT 'UNREVIEWED',
+                        PRIMARY KEY(id),
+                        FOREIGN KEY(project_id) REFERENCES translation_projects(id)
+                            ON UPDATE NO ACTION ON DELETE CASCADE
+                    )""".trimIndent(),
+                )
+                db.execSQL(
+                    """INSERT INTO translation_entries_new (
+                        id, project_id, source_key, source_text, translated_text, source_file,
+                        source_pointer, text_type, status, failure_code, review_state
+                    ) SELECT id, project_id, source_key, source_text, translated_text, source_file,
+                        source_pointer, text_type, status, failure_code, review_state
+                        FROM translation_entries""".trimIndent(),
+                )
+                db.execSQL("DROP TABLE translation_entries")
+                db.execSQL("ALTER TABLE translation_entries_new RENAME TO translation_entries")
+                db.execSQL("CREATE INDEX index_translation_entries_project_id ON translation_entries(project_id)")
+                db.execSQL(
+                    "CREATE UNIQUE INDEX index_translation_entries_project_id_source_key " +
+                        "ON translation_entries(project_id, source_key)",
+                )
+                db.execSQL(
+                    """CREATE TABLE translation_review_issues (
+                        id TEXT NOT NULL,
+                        project_id TEXT NOT NULL,
+                        entry_id TEXT NOT NULL,
+                        task_id TEXT,
+                        source TEXT NOT NULL,
+                        code TEXT NOT NULL,
+                        severity TEXT NOT NULL,
+                        state TEXT NOT NULL,
+                        updated_at INTEGER NOT NULL,
+                        PRIMARY KEY(id),
+                        FOREIGN KEY(project_id) REFERENCES translation_projects(id)
+                            ON UPDATE NO ACTION ON DELETE CASCADE,
+                        FOREIGN KEY(entry_id) REFERENCES translation_entries(id)
+                            ON UPDATE NO ACTION ON DELETE CASCADE,
+                        FOREIGN KEY(task_id) REFERENCES translation_tasks(id)
+                            ON UPDATE NO ACTION ON DELETE SET NULL
+                    )""".trimIndent(),
+                )
+                db.execSQL(
+                    """INSERT INTO translation_review_issues
+                        SELECT id, project_id, entry_id, task_id, source, code, severity, state, updated_at
+                        FROM translation_review_issues_backup""".trimIndent(),
+                )
+                db.execSQL("DROP TABLE translation_review_issues_backup")
+                db.execSQL("CREATE INDEX index_translation_review_issues_project_id ON translation_review_issues(project_id)")
+                db.execSQL("CREATE INDEX index_translation_review_issues_entry_id ON translation_review_issues(entry_id)")
+                db.execSQL("CREATE INDEX index_translation_review_issues_task_id ON translation_review_issues(task_id)")
+                db.execSQL(
+                    "CREATE INDEX index_translation_review_issues_project_id_state " +
+                        "ON translation_review_issues(project_id, state)",
+                )
+
+                db.execSQL(
+                    """CREATE TABLE translation_service_profiles_new (
+                        id TEXT NOT NULL,
+                        display_name TEXT NOT NULL,
+                        protocol_id TEXT NOT NULL,
+                        base_url TEXT NOT NULL,
+                        template_id TEXT,
+                        model_id TEXT NOT NULL,
+                        enabled INTEGER NOT NULL,
+                        revision INTEGER NOT NULL,
+                        translation_prompt TEXT NOT NULL,
+                        translation_user_prompt TEXT NOT NULL DEFAULT '',
+                        generation_options_json TEXT NOT NULL DEFAULT '{}',
+                        task_settings_json TEXT NOT NULL DEFAULT '{}',
+                        secret_ref TEXT,
+                        custom_parameters_ref TEXT,
+                        created_at INTEGER NOT NULL,
+                        updated_at INTEGER NOT NULL,
+                        PRIMARY KEY(id)
+                    )""".trimIndent(),
+                )
+                db.execSQL(
+                    """INSERT INTO translation_service_profiles_new (
+                        id, display_name, protocol_id, base_url, template_id, model_id, enabled, revision,
+                        translation_prompt, translation_user_prompt, generation_options_json,
+                        task_settings_json, secret_ref, custom_parameters_ref, created_at, updated_at
+                    ) SELECT id, display_name, protocol_id, base_url, template_id, model_id, enabled, revision,
+                        translation_prompt, translation_user_prompt, generation_options_json,
+                        task_settings_json, secret_ref, custom_parameters_ref, created_at, updated_at
+                        FROM translation_service_profiles""".trimIndent(),
+                )
+                db.execSQL("DROP TABLE translation_service_profiles")
+                db.execSQL("ALTER TABLE translation_service_profiles_new RENAME TO translation_service_profiles")
+                db.execSQL(
+                    "CREATE INDEX index_translation_service_profiles_updated_at " +
+                        "ON translation_service_profiles(updated_at)",
+                )
+            }
+        }
+
         private val SEED_DEFAULT_MACHINE_PROFILES = object : RoomDatabase.Callback() {
             override fun onCreate(db: SupportSQLiteDatabase) {
                 seedDefaultWebTranslationProfiles(db)
@@ -305,16 +414,15 @@ internal abstract class TranslationWorkbenchDatabase : RoomDatabase() {
                     db.execSQL(
                         """INSERT INTO translation_service_profiles (
                             id, display_name, protocol_id, base_url, model_id, enabled, revision,
-                            translation_prompt, proofreading_prompt, translation_user_prompt,
-                            proofreading_user_prompt, generation_options_json, secret_ref, created_at, updated_at
-                        ) VALUES (?, ?, ?, ?, '', 1, 1, ?, ?, '', '', '{}', NULL, ?, ?)""".trimIndent(),
+                            translation_prompt, translation_user_prompt, generation_options_json,
+                            secret_ref, created_at, updated_at
+                        ) VALUES (?, ?, ?, ?, '', 1, 1, ?, '', '{}', NULL, ?, ?)""".trimIndent(),
                         arrayOf<Any?>(
                             "builtin-machine-${protocol.wireId}",
                             displayName,
                             protocol.wireId,
                             protocol.defaultBaseUrl(),
                             DEFAULT_TRANSLATION_PROMPT,
-                            DEFAULT_PROOFREADING_PROMPT,
                             now,
                             now,
                         ),
@@ -342,6 +450,7 @@ internal abstract class TranslationWorkbenchDatabase : RoomDatabase() {
                     MIGRATION_9_10,
                     MIGRATION_10_11,
                     MIGRATION_11_12,
+                    MIGRATION_12_13,
                 )
                 .fallbackToDestructiveMigrationOnDowngrade(dropAllTables = true)
                 .build()

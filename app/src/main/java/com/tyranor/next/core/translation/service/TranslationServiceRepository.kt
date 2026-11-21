@@ -52,9 +52,7 @@ class TranslationServiceRepository(context: Context) {
         val displayName = draft.displayName.trim()
         val modelId = draft.modelId.trim()
         val translationPrompt = draft.translationPrompt.trim()
-        val proofreadingPrompt = draft.proofreadingPrompt.trim().ifBlank { DEFAULT_PROOFREADING_PROMPT }
         val translationUserPrompt = draft.translationUserPrompt.trim()
-        val proofreadingUserPrompt = draft.proofreadingUserPrompt.trim()
         val generationOptions = draft.generationOptions
         val taskSettings = draft.taskSettings
         val customParameters = when (val change = draft.customParametersChange) {
@@ -64,9 +62,7 @@ class TranslationServiceRepository(context: Context) {
         val baseUrl = normalizeBaseUrl(draft.baseUrl, draft.protocolId)
         if (displayName.isBlank() || displayName.length > MAX_DISPLAY_NAME || modelId.length > MAX_MODEL_ID ||
             translationPrompt.isBlank() || translationPrompt.length > MAX_PROMPT_LENGTH ||
-            proofreadingPrompt.length > MAX_PROMPT_LENGTH ||
             translationUserPrompt.length > MAX_PROMPT_LENGTH ||
-            proofreadingUserPrompt.length > MAX_PROMPT_LENGTH ||
             !generationOptions.isValidFor(draft.protocolId) ||
             !taskSettings.isValidFor(draft.protocolId.category) ||
             customParameters?.let {
@@ -135,9 +131,7 @@ class TranslationServiceRepository(context: Context) {
             enabled = draft.enabled,
             revision = revision,
             translationPrompt = translationPrompt,
-            proofreadingPrompt = proofreadingPrompt,
             translationUserPrompt = translationUserPrompt,
-            proofreadingUserPrompt = proofreadingUserPrompt,
             generationOptionsJson = generationOptions.encode(),
             taskSettingsJson = taskSettings.encode(),
             secretRef = nextSecretRef,
@@ -186,9 +180,7 @@ class TranslationServiceRepository(context: Context) {
                 modelId = current.modelId,
                 enabled = enabled,
                 translationPrompt = current.translationPrompt,
-                proofreadingPrompt = current.proofreadingPrompt,
                 translationUserPrompt = current.translationUserPrompt,
-                proofreadingUserPrompt = current.proofreadingUserPrompt,
                 generationOptions = current.generationOptions,
                 taskSettings = current.taskSettings,
                 secretChange = TranslationSecretChange.Keep,
@@ -270,9 +262,7 @@ class TranslationServiceRepository(context: Context) {
             hasSecret = secretRef != null,
             revision = revision,
             translationPrompt = translationPrompt,
-            proofreadingPrompt = proofreadingPrompt.ifBlank { DEFAULT_PROOFREADING_PROMPT },
             translationUserPrompt = translationUserPrompt,
-            proofreadingUserPrompt = proofreadingUserPrompt,
             generationOptions = generationOptions ?: TranslationGenerationOptions(),
             taskSettings = taskSettings,
             secretRef = secretRef,

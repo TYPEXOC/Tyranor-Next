@@ -67,15 +67,6 @@ internal class DeepLTranslateAdapter(
         return parseTranslations(response.body, inputs)
     }
 
-    override suspend fun proofreadBatch(
-        profile: TranslationServiceProfile,
-        apiKey: String?,
-        sourceLanguage: String,
-        targetLanguage: String,
-        inputs: List<com.tyranor.next.core.translation.service.ProofreadInput>,
-    ): com.tyranor.next.core.translation.service.ProofreadBatchResponse =
-        throw TranslationServiceException(TranslationServiceErrorCode.UNSUPPORTED_PROTOCOL)
-
     private fun createRequestBody(
         sourceLanguage: String,
         targetLanguage: String,

@@ -5,7 +5,7 @@ enum class TranslationTextProblem {
     LINE_BREAK_MISMATCH,
 }
 
-/** Shared deterministic checks used for remote translation responses and local proofreading. */
+/** Shared deterministic checks used for remote translation responses and local review rules. */
 object TranslationTextIntegrity {
     fun compare(source: String, translated: String): Set<TranslationTextProblem> = buildSet {
         if (formatTokens(source) != formatTokens(translated)) add(TranslationTextProblem.PLACEHOLDER_MISMATCH)

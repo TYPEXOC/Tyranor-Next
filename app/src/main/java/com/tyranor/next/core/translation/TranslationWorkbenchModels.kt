@@ -48,7 +48,6 @@ data class TranslationProjectCard(
     @ColumnInfo(name = "failed_items") val failedItems: Int,
     @ColumnInfo(name = "review_completed_at") val reviewCompletedAt: Long?,
     @ColumnInfo(name = "updated_at") val updatedAt: Long,
-    @ColumnInfo(name = "pending_suggestion_count") val pendingSuggestionCount: Int = 0,
 )
 
 data class TranslationGlossaryTerm(
@@ -80,26 +79,13 @@ data class TranslationTextEntry(
 
 enum class TranslationReviewState {
     UNREVIEWED,
-    AI_REVIEWED,
-    PROOFREAD_FAILED,
     CONFIRMED,
-}
-
-enum class TranslationProofreadScope {
-    RULE_HITS,
-    ALL_TRANSLATED,
 }
 
 enum class TranslationReviewIssueCode {
     MISSING_TRANSLATION,
     PLACEHOLDER_MISMATCH,
     LINE_BREAK_MISMATCH,
-    GRAMMAR,
-    MEANING,
-    TERMINOLOGY,
-    CONSISTENCY,
-    TONE,
-    OTHER,
 }
 
 data class TranslationReviewIssue(
@@ -119,8 +105,6 @@ data class TranslationReviewEntry(
     val sourcePointer: String?,
     val textType: String?,
     val reviewState: TranslationReviewState,
-    val suggestionId: String?,
-    val suggestedTranslation: String?,
     val issues: List<TranslationReviewIssue>,
 )
 
@@ -178,7 +162,6 @@ enum class TranslationWorkbenchError {
     DUPLICATE_GLOSSARY_TERM,
     PROJECT_CONFIGURATION_CHANGED,
     MTOOL_SOURCE_CONFLICT,
-    NO_PROOFREAD_CANDIDATES,
     INVALID_REVIEW_ENTRY,
     EXPORT_FAILED,
     EXPORT_HISTORY_FAILED,

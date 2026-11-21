@@ -1,7 +1,6 @@
 package com.tyranor.next.core.translation.service.protocol.gemini
 
 import com.tyranor.next.core.translation.service.GEMINI_API_BASE_URL
-import com.tyranor.next.core.translation.service.ProofreadInput
 import com.tyranor.next.core.translation.service.TranslationGlossaryEntry
 import com.tyranor.next.core.translation.service.TranslationInput
 import com.tyranor.next.core.translation.service.TranslationProtocolId
@@ -148,30 +147,6 @@ class GeminiInteractionsAdapterTest {
     }
 
     @Test
-    fun usesProofreadingPromptAndReturnsStructuredSuggestions() = runBlocking {
-        val result = JSONObject().put("results", JSONArray().put(
-            JSONObject()
-                .put("id", "entry")
-                .put("suggestedTranslation", "您好 {player}")
-                .put("issues", JSONArray().put("TONE")),
-        )).toString()
-        val calls = QueuedCallFactory(listOf(HttpResult(200, interactionResponse(result))))
-        val adapter = GeminiInteractionsAdapter(TranslationHttpTransport(calls))
-        val response = adapter.proofreadBatch(
-            profile().copy(translationPrompt = "Translate prompt.", proofreadingPrompt = "Proofread prompt."),
-            apiKey = "test-key",
-            sourceLanguage = "en",
-            targetLanguage = "zh-CN",
-            inputs = listOf(ProofreadInput("entry", "Hello {player}", "你好 {player}")),
-        )
-
-        val body = readBody(calls.requests.single())
-        assertEquals("Proofread prompt.", body.getString("system_instruction"))
-        assertEquals("您好 {player}", response.successes.single().suggestedTranslation)
-        assertEquals(setOf("TONE"), response.successes.single().issueCodes)
-    }
-
-    @Test
     fun listsOnlyGenerativeModelsAndFollowsPageToken() = runBlocking {
         val first = JSONObject()
             .put("models", JSONArray()
@@ -265,7 +240,6 @@ class GeminiInteractionsAdapterTest {
         translationPrompt = "Translate.",
         secretRef = "gemini-profile:1",
         updatedAt = 0,
-        proofreadingPrompt = "Proofread.",
     )
 
     private fun readBody(request: Request): JSONObject = Buffer().also { buffer ->

@@ -2,7 +2,6 @@ package com.tyranor.next.core.translation.service.protocol.anthropic
 
 import com.tyranor.next.core.translation.service.ANTHROPIC_API_BASE_URL
 import com.tyranor.next.core.translation.service.ANTHROPIC_DEFAULT_MAX_OUTPUT_TOKENS
-import com.tyranor.next.core.translation.service.ProofreadInput
 import com.tyranor.next.core.translation.service.TranslationInput
 import com.tyranor.next.core.translation.service.TranslationProtocolId
 import com.tyranor.next.core.translation.service.TranslationServiceErrorCode
@@ -88,29 +87,6 @@ class AnthropicMessagesAdapterTest {
         assertEquals("1000", calls.requests.first().url.queryParameter("limit"))
         assertEquals("claude-sonnet-x", calls.requests.last().url.queryParameter("after_id"))
         assertTrue(calls.requests.all { it.header("x-api-key") == "test-api-key" })
-    }
-
-    @Test
-    fun sendsProofreadPromptAndMapsSuggestionsWithoutChangingCurrentText() = runBlocking {
-        val output = JSONObject().put("results", JSONArray().put(
-            JSONObject()
-                .put("id", "entry")
-                .put("suggestedTranslation", "こんにちは {player}")
-                .put("issues", JSONArray().put("TONE")),
-        )).toString()
-        val calls = QueuedCallFactory(listOf(HttpResult(200, textResponse(output))))
-
-        val result = AnthropicMessagesAdapter(TranslationHttpTransport(calls)).proofreadBatch(
-            profile().copy(proofreadingPrompt = "Review the translation."),
-            apiKey = "test-api-key",
-            sourceLanguage = "en",
-            targetLanguage = "ja",
-            inputs = listOf(ProofreadInput("entry", "Hello {player}", "やあ {player}")),
-        )
-
-        assertEquals("Review the translation.", readBody(calls.requests.single()).getString("system"))
-        assertEquals("こんにちは {player}", result.successes.single().suggestedTranslation)
-        assertEquals(setOf("TONE"), result.successes.single().issueCodes)
     }
 
     @Test
@@ -216,7 +192,6 @@ class AnthropicMessagesAdapterTest {
         translationPrompt = "Translate.",
         secretRef = "anthropic-test:1",
         updatedAt = 0,
-        proofreadingPrompt = "Proofread.",
     )
 
     private fun model(id: String, displayName: String) =
