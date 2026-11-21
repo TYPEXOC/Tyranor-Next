@@ -3,9 +3,6 @@ package com.tyranor.next.ui.translation
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
-import android.os.Environment
-import android.net.Uri
-import android.provider.DocumentsContract
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -66,12 +63,10 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import java.util.concurrent.atomic.AtomicReference
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tyranor.next.R
-import com.tyranor.next.core.engine.EngineType
 import com.tyranor.next.core.translation.TranslationProjectCard
 import com.tyranor.next.core.translation.TranslationReviewEntry
 import com.tyranor.next.core.translation.TranslationReviewIssueCode
@@ -79,7 +74,6 @@ import com.tyranor.next.core.translation.TranslationReviewState
 import com.tyranor.next.core.translation.TranslationWorkbenchError
 import com.tyranor.next.core.translation.TranslationWorkbenchException
 import com.tyranor.next.core.translation.TranslationWorkbenchRepository
-import com.tyranor.next.core.translation.extraction.TranslationExtractorEngineIds
 import com.tyranor.next.theme.AppComponentCornerRadius
 import com.tyranor.next.theme.AppComponentShape
 import com.tyranor.next.theme.AppThemeColors
@@ -96,7 +90,6 @@ import com.tyranor.next.ui.common.AppSecondaryTopBar
 import com.tyranor.next.ui.common.DialogTextButton
 import com.tyranor.next.ui.common.DialogActionButtons
 import com.tyranor.next.ui.common.TopBarIcon
-import com.tyranor.next.ui.common.NoRippleButton
 import com.tyranor.next.ui.common.SlidingTabRow
 import com.tyranor.next.ui.common.isTabletScreen
 import com.tyranor.next.ui.common.motion.BlurVisibility
@@ -118,14 +111,9 @@ import top.yukonga.miuix.kmp.basic.HorizontalDivider as MiuixHorizontalDivider
 import top.yukonga.miuix.kmp.basic.Icon as MiuixIcon
 import top.yukonga.miuix.kmp.basic.RadioButtonDefaults
 import top.yukonga.miuix.kmp.basic.Text as MiuixText
-import top.yukonga.miuix.kmp.basic.TextFieldDefaults as MiuixTextFieldDefaults
-import top.yukonga.miuix.kmp.basic.VerticalDivider as MiuixVerticalDivider
 import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
-import top.yukonga.miuix.kmp.basic.TextField as MiuixTextField
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.preference.RadioButtonPreference
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 
 class TranslationReviewActivity : AppScreenActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -156,7 +144,6 @@ private fun TranslationReviewScreen(projectId: String) {
     val project = projects.firstOrNull { it.id == projectId }
     val entries by remember(repository, projectId) { repository.observeReviewEntries(projectId) }
         .collectAsStateWithLifecycle(initialValue = emptyList())
-    var sourceLocation by remember(projectId) { mutableStateOf("") }
     var filter by remember { mutableStateOf(ReviewFilter.ALL) }
     var searchQuery by remember(projectId) { mutableStateOf("") }
     var replaceText by remember(projectId) { mutableStateOf("") }
@@ -174,14 +161,6 @@ private fun TranslationReviewScreen(projectId: String) {
     val mobileReviewListState = rememberLazyListState()
     var errorCode by remember { mutableStateOf<TranslationWorkbenchError?>(null) }
     var localRulesInitialized by remember(projectId) { mutableStateOf(false) }
-
-    LaunchedEffect(project?.id, project?.sourceTreeUri) {
-        sourceLocation = project?.let { current ->
-            current.sourceTreeUri?.let { uri ->
-                queryReviewSourcePath(context, Uri.parse(uri), current.title)
-            } ?: context.getString(R.string.translation_card_imported_source)
-        }.orEmpty()
-    }
 
     LaunchedEffect(project?.id, entries.size) {
         if (project != null && project.reviewCompletedAt == null && entries.isNotEmpty() && !localRulesInitialized) {
@@ -335,8 +314,13 @@ private fun TranslationReviewScreen(projectId: String) {
                         if (project != null) {
                             ReviewProjectContextCard(
                                 project = project,
-                                sourceLocation = sourceLocation,
-                                engineName = project.reviewEngineName(),
+                                entryCount = entries.size,
+                                filter = filter,
+                                onSearch = { showSearchDialog = true },
+                                onFilter = {
+                                    draftFilter = filter
+                                    showFilterDialog = true
+                                },
                             )
                         }
                         MiuixCard(
@@ -348,56 +332,10 @@ private fun TranslationReviewScreen(projectId: String) {
                                 verticalArrangement = Arrangement.spacedBy(12.dp),
                             ) {
                                 Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                ) {
-                                    MiuixText(
-                                        text = stringResource(R.string.translation_review_workspace_title),
-                                        style = MiuixTheme.textStyles.headline1.copy(fontWeight = FontWeight.Bold),
-                                        modifier = Modifier.weight(1f),
-                                    )
-                                    TopBarIcon(
-                                        painter = painterResource(R.drawable.ic_game_search),
-                                        contentDescription = stringResource(R.string.translation_review_search),
-                                        tint = MiuixTheme.colorScheme.primary,
-                                    ) {
-                                        showSearchDialog = true
-                                    }
-                                    ReviewFilterTrigger(
-                                        filter = filter,
-                                        count = filterCounts[filter] ?: 0,
-                                        onClick = {
-                                            draftFilter = filter
-                                            showFilterDialog = true
-                                        },
-                                    )
-                                }
-                                if (active && project != null && project.itemTotal > 0) {
-                                    LinearProgressIndicator(
-                                        progress = { (project.completedItems.toFloat() / project.itemTotal).coerceIn(0f, 1f) },
-                                        modifier = Modifier.fillMaxWidth(),
-                                    )
-                                    Text(
-                                        stringResource(R.string.translation_item_progress, project.completedItems, project.itemTotal),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = PageSecondaryTextColor,
-                                    )
-                                }
-                                if (project?.latestTaskState == "COMPLETED_WITH_ERRORS" && project.failedItems > 0) {
-                                    Text(
-                                        stringResource(R.string.translation_failed_items, project.failedItems),
-                                        color = MaterialTheme.colorScheme.error,
-                                    )
-                                }
-                                if (project?.latestTaskFailureCode != null && project.latestTaskState == "FAILED") {
-                                    Text(stringResource(R.string.translation_task_failed), color = MaterialTheme.colorScheme.error)
-                                }
-                                Row(
                                     modifier = Modifier.weight(1f).fillMaxWidth(),
                                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                                 ) {
-                                    ReviewEntryTable(
+                                    ReviewEntryList(
                                         entries = filteredEntries,
                                         allEntries = entries,
                                         selectedEntryId = selectedEntry?.id,
@@ -414,9 +352,10 @@ private fun TranslationReviewScreen(projectId: String) {
                                             sequence = entries.indexOfFirst { it.id == selectedEntry.id } + 1,
                                             totalCount = entries.size,
                                             translationText = editorText,
-                                            enabled = !active,
+                                            enabled = !active && !savingEntry,
                                             modifier = Modifier.weight(0.92f).fillMaxHeight(),
                                             onTranslationTextChange = { editorText = it },
+                                            onCancel = { editorText = selectedEntry.translatedText.orEmpty() },
                                             onSave = {
                                                 val entryId = selectedEntry.id
                                                 val translation = editorText
@@ -446,76 +385,16 @@ private fun TranslationReviewScreen(projectId: String) {
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     if (project != null) {
-                        MiuixCard(
-                            modifier = Modifier.fillMaxWidth().glassBorder(),
-                            cornerRadius = AppComponentCornerRadius,
-                        ) {
-                            Column(
-                                Modifier.fillMaxWidth().padding(16.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    Text(
-                                        stringResource(
-                                            if (project.reviewCompletedAt != null) {
-                                                R.string.translation_review_context_completed_count
-                                            } else {
-                                                R.string.translation_review_context_in_progress_count
-                                            },
-                                            entries.size,
-                                        ),
-                                        modifier = Modifier.weight(1f),
-                                        style = MiuixTheme.textStyles.body1,
-                                        color = if (project.reviewCompletedAt != null) {
-                                            MaterialTheme.colorScheme.primary
-                                        } else {
-                                            PageSecondaryTextColor
-                                        },
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                    )
-                                    TopBarIcon(
-                                        painter = painterResource(R.drawable.ic_game_search),
-                                        contentDescription = stringResource(R.string.translation_review_search),
-                                        tint = MiuixTheme.colorScheme.primary,
-                                    ) {
-                                        showSearchDialog = true
-                                    }
-                                    TopBarIcon(
-                                        painter = painterResource(R.drawable.ic_game_filter),
-                                        contentDescription = stringResource(R.string.translation_review_filter_dialog_title),
-                                        tint = MiuixTheme.colorScheme.primary,
-                                        stateDescription = if (filter != ReviewFilter.ALL) stringResource(filter.label) else null,
-                                    ) {
-                                        draftFilter = filter
-                                        showFilterDialog = true
-                                    }
-                                }
-                                if (active && project.itemTotal > 0) {
-                                    LinearProgressIndicator(
-                                        progress = { (project.completedItems.toFloat() / project.itemTotal).coerceIn(0f, 1f) },
-                                        modifier = Modifier.fillMaxWidth(),
-                                    )
-                                    Text(
-                                        stringResource(R.string.translation_item_progress, project.completedItems, project.itemTotal),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = PageSecondaryTextColor,
-                                    )
-                                }
-                                if (project.latestTaskState == "COMPLETED_WITH_ERRORS" && project.failedItems > 0) {
-                                    Text(
-                                        stringResource(R.string.translation_failed_items, project.failedItems),
-                                        color = MaterialTheme.colorScheme.error,
-                                    )
-                                }
-                                if (project.latestTaskFailureCode != null && project.latestTaskState == "FAILED") {
-                                    Text(stringResource(R.string.translation_task_failed), color = MaterialTheme.colorScheme.error)
-                                }
-                            }
-                        }
+                        ReviewProjectContextCard(
+                            project = project,
+                            entryCount = entries.size,
+                            filter = filter,
+                            onSearch = { showSearchDialog = true },
+                            onFilter = {
+                                draftFilter = filter
+                                showFilterDialog = true
+                            },
+                        )
                     }
                     MiuixCard(
                         modifier = Modifier.weight(1f).fillMaxWidth().glassBorder(),
@@ -880,61 +759,79 @@ private fun TranslationReviewScreen(projectId: String) {
 @Composable
 private fun ReviewProjectContextCard(
     project: TranslationProjectCard,
-    sourceLocation: String,
-    engineName: String,
+    entryCount: Int,
+    filter: ReviewFilter,
+    onSearch: () -> Unit,
+    onFilter: () -> Unit,
 ) {
     MiuixCard(modifier = Modifier.fillMaxWidth().glassBorder(), cornerRadius = AppComponentCornerRadius) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        Column(
+            Modifier.fillMaxWidth().padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Box(
-                modifier = Modifier.size(40.dp).clip(AppComponentShape)
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
-                contentAlignment = Alignment.Center,
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Image(
-                    painter = painterResource(R.drawable.ic_translation_workbench),
-                    contentDescription = null,
-                    colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.primary),
-                    modifier = Modifier.size(24.dp),
-                )
-            }
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text(
-                    project.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    "$engineName · $sourceLocation",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = PageSecondaryTextColor,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                val reviewComplete = project.reviewCompletedAt != null
                 Text(
                     stringResource(
-                        if (reviewComplete) R.string.translation_review_context_completed_count
-                        else R.string.translation_review_context_in_progress_count,
-                        project.entryCount,
+                        if (project.reviewCompletedAt != null) {
+                            R.string.translation_review_context_completed_count
+                        } else {
+                            R.string.translation_review_context_in_progress_count
+                        },
+                        entryCount,
                     ),
+                    modifier = Modifier.weight(1f),
                     style = MiuixTheme.textStyles.body1,
-                    color = if (reviewComplete) MaterialTheme.colorScheme.primary else PageSecondaryTextColor,
+                    color = if (project.reviewCompletedAt != null) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        PageSecondaryTextColor
+                    },
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
+                TopBarIcon(
+                    painter = painterResource(R.drawable.ic_game_search),
+                    contentDescription = stringResource(R.string.translation_review_search),
+                    tint = MiuixTheme.colorScheme.primary,
+                    onClick = onSearch,
+                )
+                TopBarIcon(
+                    painter = painterResource(R.drawable.ic_game_filter),
+                    contentDescription = stringResource(R.string.translation_review_filter_dialog_title),
+                    tint = MiuixTheme.colorScheme.primary,
+                    stateDescription = if (filter != ReviewFilter.ALL) stringResource(filter.label) else null,
+                    onClick = onFilter,
+                )
+            }
+            if (project.latestTaskState in setOf("QUEUED", "RUNNING") && project.itemTotal > 0) {
+                LinearProgressIndicator(
+                    progress = { (project.completedItems.toFloat() / project.itemTotal).coerceIn(0f, 1f) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Text(
+                    stringResource(R.string.translation_item_progress, project.completedItems, project.itemTotal),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = PageSecondaryTextColor,
+                )
+            }
+            if (project.latestTaskState == "COMPLETED_WITH_ERRORS" && project.failedItems > 0) {
+                Text(
+                    stringResource(R.string.translation_failed_items, project.failedItems),
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+            if (project.latestTaskFailureCode != null && project.latestTaskState == "FAILED") {
+                Text(stringResource(R.string.translation_task_failed), color = MaterialTheme.colorScheme.error)
             }
         }
     }
 }
 
 @Composable
-private fun ReviewEntryTable(
+private fun ReviewEntryList(
     entries: List<TranslationReviewEntry>,
     allEntries: List<TranslationReviewEntry>,
     selectedEntryId: String?,
@@ -957,118 +854,47 @@ private fun ReviewEntryTable(
             contentColor = TextColor,
         ),
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            Row(
-                modifier = Modifier.fillMaxWidth()
-                    .background(DialogItemSurface)
-                    .padding(horizontal = 10.dp, vertical = 5.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
+        if (entries.isEmpty()) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
-                    stringResource(R.string.translation_review_column_sequence),
-                    modifier = Modifier.width(42.dp),
-                    style = MaterialTheme.typography.labelSmall,
+                    stringResource(
+                        if (allEntries.isEmpty()) R.string.translation_review_no_entries
+                        else R.string.translation_review_no_matches,
+                    ),
+                    modifier = Modifier.padding(20.dp),
+                    style = MaterialTheme.typography.bodyMedium,
                     color = PageSecondaryTextColor,
-                    textAlign = TextAlign.Center,
-                )
-                MiuixVerticalDivider(modifier = Modifier.height(22.dp))
-                Text(
-                    stringResource(R.string.translation_review_source),
-                    modifier = Modifier.weight(1f).padding(horizontal = 10.dp),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = PageSecondaryTextColor,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                MiuixVerticalDivider(modifier = Modifier.height(22.dp))
-                Text(
-                    stringResource(R.string.translation_review_translation),
-                    modifier = Modifier.weight(1f).padding(horizontal = 10.dp),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = PageSecondaryTextColor,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                MiuixVerticalDivider(modifier = Modifier.height(22.dp))
-                Text(
-                    stringResource(R.string.translation_review_column_status),
-                    modifier = Modifier.width(94.dp),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = PageSecondaryTextColor,
-                    textAlign = TextAlign.Center,
                 )
             }
-            MiuixHorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f))
-            if (entries.isEmpty()) {
-                Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    Text(
-                        stringResource(
-                            if (allEntries.isEmpty()) R.string.translation_review_no_entries
-                            else R.string.translation_review_no_matches,
-                        ),
-                        modifier = Modifier.padding(20.dp),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = PageSecondaryTextColor,
-                    )
-                }
-            } else {
-                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                    val showScrollbar = listState.layoutInfo.totalItemsCount > listState.layoutInfo.visibleItemsInfo.size
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier.fillMaxSize(),
-                        overscrollEffect = null,
-                        contentPadding = PaddingValues(0.dp),
-                        verticalArrangement = Arrangement.Top,
-                    ) {
-                        itemsIndexed(entries, key = { _, entry -> entry.id }) { index, entry ->
-                            val selected = entry.id == selectedEntryId
-                            Row(
-                                modifier = Modifier.fillMaxWidth()
-                                    .pressSquishGroup()
-                                    .reviewEntrySelection(selected)
-                                    .clickable { onSelect(entry) }
-                                    .heightIn(min = 36.dp)
-                                    .padding(horizontal = 10.dp, vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Text(
-                                    (sequenceById[entry.id] ?: index + 1).toString(),
-                                    modifier = Modifier.width(42.dp),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = PageSecondaryTextColor,
-                                    textAlign = TextAlign.Center,
-                                )
-                                MiuixVerticalDivider(modifier = Modifier.height(24.dp))
-                                Text(
-                                    entry.sourceText,
-                                    modifier = Modifier.weight(1f).padding(horizontal = 10.dp),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = PageTextColor,
-                                )
-                                MiuixVerticalDivider(modifier = Modifier.height(24.dp))
-                                Text(
-                                    entry.translatedText.orEmpty().ifBlank { stringResource(R.string.translation_review_no_translation) },
-                                    modifier = Modifier.weight(1f).padding(horizontal = 10.dp),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = if (entry.translatedText.isNullOrBlank()) PageSecondaryTextColor else PageTextColor,
-                                )
-                                MiuixVerticalDivider(modifier = Modifier.height(24.dp))
-                                Box(modifier = Modifier.width(44.dp), contentAlignment = Alignment.Center) {
-                                    ReviewEntryStatusIcon(entry)
-                                }
-                            }
-                            if (index != entries.lastIndex) {
-                                MiuixHorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
-                            }
-                        }
-                    }
-                    if (showScrollbar) {
-                        ReviewEntryScrollbar(
-                            state = listState,
-                            modifier = Modifier.align(Alignment.CenterEnd),
+        } else {
+            Box(modifier = Modifier.fillMaxSize()) {
+                val showScrollbar = listState.layoutInfo.totalItemsCount > listState.layoutInfo.visibleItemsInfo.size
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize(),
+                    overscrollEffect = null,
+                    contentPadding = PaddingValues(top = 4.dp, bottom = 72.dp),
+                    verticalArrangement = Arrangement.Top,
+                ) {
+                    itemsIndexed(entries, key = { _, entry -> entry.id }) { index, entry ->
+                        TranslationReviewEntryRow(
+                            entry = entry,
+                            sequence = sequenceById[entry.id] ?: index + 1,
+                            selected = entry.id == selectedEntryId,
+                            modifier = listItemMotion(),
+                            onClick = { onSelect(entry) },
+                        )
+                        MiuixHorizontalDivider(
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
                         )
                     }
+                }
+                if (showScrollbar) {
+                    ReviewEntryScrollbar(
+                        state = listState,
+                        modifier = Modifier.align(Alignment.CenterEnd),
+                    )
                 }
             }
         }
@@ -1299,6 +1125,7 @@ private fun TranslationReviewEntryDetailPane(
     enabled: Boolean,
     modifier: Modifier = Modifier,
     onTranslationTextChange: (String) -> Unit,
+    onCancel: () -> Unit,
     onSave: () -> Unit,
 ) {
     val panelBorder = translationReviewPanelBorderColor()
@@ -1314,7 +1141,7 @@ private fun TranslationReviewEntryDetailPane(
     ) {
         Column(
             Modifier.fillMaxWidth().padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -1323,50 +1150,39 @@ private fun TranslationReviewEntryDetailPane(
             ) {
                 Text(
                     stringResource(R.string.translation_review_entry_position, sequence, totalCount),
-                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.titleMedium,
                     color = PageSecondaryTextColor,
                     maxLines = 1,
+                    textAlign = TextAlign.Start,
                 )
                 ReviewEntryStatusLabel(entry)
             }
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(stringResource(R.string.translation_review_source), style = MaterialTheme.typography.labelMedium)
-                Box(
-                    modifier = Modifier.fillMaxWidth().clip(AppComponentShape)
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.58f))
-                        .padding(14.dp),
-                ) {
-                    Text(entry.sourceText, style = MaterialTheme.typography.bodyMedium, color = PageTextColor)
-                }
-            }
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(stringResource(R.string.translation_review_translation), style = MaterialTheme.typography.labelMedium)
-                Box(
-                    modifier = Modifier.fillMaxWidth().clip(AppComponentShape)
-                        .background(MiuixTheme.colorScheme.secondaryContainer),
-                ) {
-                    MiuixTextField(
-                        value = translationText,
-                        onValueChange = onTranslationTextChange,
-                        modifier = Modifier.fillMaxWidth().heightIn(max = 220.dp),
-                        insideMargin = DpSize(14.dp, 14.dp),
-                        colors = MiuixTextFieldDefaults.textFieldColors(
-                            backgroundColor = Color.Transparent,
-                            labelColor = PageSecondaryTextColor,
-                            borderColor = MaterialTheme.colorScheme.primary,
-                        ),
-                        cornerRadius = AppComponentCornerRadius,
-                        minLines = 1,
-                        maxLines = 10,
-                        enabled = enabled,
-                        textStyle = MaterialTheme.typography.bodyMedium.copy(color = PageTextColor),
-                    )
-                }
-            }
-            NoRippleButton(
-                text = stringResource(R.string.translation_review_save_translation),
+            TranslationGlossaryDialogTextField(
+                value = entry.sourceText,
+                onValueChange = {},
+                label = stringResource(R.string.translation_review_source),
+                modifier = Modifier.fillMaxWidth(),
+                enabled = false,
+                minLines = 2,
+                maxLines = 8,
+            )
+            TranslationGlossaryDialogTextField(
+                value = translationText,
+                onValueChange = onTranslationTextChange,
+                label = stringResource(R.string.translation_glossary_target_term),
+                modifier = Modifier.fillMaxWidth(),
                 enabled = enabled,
-                onClick = onSave,
+                minLines = 2,
+                maxLines = 8,
+            )
+            DialogActionButtons(
+                cancelText = stringResource(R.string.common_cancel),
+                confirmText = stringResource(R.string.common_save),
+                cancelEnabled = enabled,
+                confirmEnabled = enabled,
+                onCancel = onCancel,
+                onConfirm = onSave,
             )
         }
     }
@@ -1384,27 +1200,6 @@ private fun ReviewInfoCard(text: String, modifier: Modifier = Modifier) {
     MiuixCard(modifier = modifier.fillMaxWidth().glassBorder(), cornerRadius = AppComponentCornerRadius) {
         Text(text, modifier = Modifier.padding(18.dp), style = MaterialTheme.typography.bodyMedium, color = PageSecondaryTextColor)
     }
-}
-
-@Composable
-private fun ReviewFilterTrigger(
-    filter: ReviewFilter,
-    count: Int,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    NoRippleButton(
-        text = stringResource(
-            R.string.translation_review_filter_button,
-            stringResource(filter.label),
-            count,
-        ),
-        modifier = modifier,
-        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 7.dp),
-        tonal = true,
-        leadingIcon = painterResource(R.drawable.ic_game_filter),
-        onClick = onClick,
-    )
 }
 
 @Composable
@@ -1572,38 +1367,6 @@ private fun highlightedSearchText(text: String, query: String, highlightColor: C
             searchFrom = matchIndex + query.length
         }
         append(text.substring(searchFrom))
-    }
-
-@Composable
-private fun TranslationProjectCard.reviewEngineName(): String = when (engineId) {
-    EngineType.RPG_MV.name -> stringResource(R.string.translation_engine_rpg_maker_mv)
-    EngineType.RPG_MZ.name -> stringResource(R.string.translation_engine_rpg_maker_mz)
-    TranslationExtractorEngineIds.RPG_MAKER_2000_2003 -> stringResource(R.string.translation_engine_rpg2k)
-    TranslationExtractorEngineIds.RPG_MAKER_RGSS -> stringResource(R.string.translation_engine_rgss)
-    else -> engineId?.let { id -> runCatching { EngineType.valueOf(id).displayName }.getOrNull() }
-        ?.takeIf(String::isNotBlank)
-        ?: stringResource(R.string.translation_engine_unknown)
-}
-
-private suspend fun queryReviewSourcePath(context: Context, uri: Uri, fallbackName: String): String =
-    withContext(Dispatchers.IO) {
-        val documentId = runCatching { DocumentsContract.getTreeDocumentId(uri) }.getOrNull()
-        val rawPath = documentId?.removePrefix("raw:")?.takeIf { it.startsWith('/') }
-        if (rawPath != null) return@withContext rawPath
-        if (uri.authority == "com.android.externalstorage.documents" && documentId != null) {
-            val separator = documentId.indexOf(':')
-            if (separator > 0) {
-                val volumeId = documentId.substring(0, separator)
-                val relativePath = documentId.substring(separator + 1).trim('/')
-                val root = if (volumeId.equals("primary", ignoreCase = true)) {
-                    Environment.getExternalStorageDirectory().absolutePath
-                } else {
-                    "/storage/$volumeId"
-                }
-                return@withContext if (relativePath.isBlank()) root else "$root/$relativePath"
-            }
-        }
-        fallbackName
     }
 
 private fun TranslationReviewIssueCode.labelResource(): Int = when (this) {
