@@ -468,7 +468,7 @@ private fun TranslationReviewScreen(projectId: String) {
                                             entries.size,
                                         ),
                                         modifier = Modifier.weight(1f),
-                                        style = MaterialTheme.typography.bodyMedium,
+                                        style = MiuixTheme.textStyles.body1,
                                         color = if (project.reviewCompletedAt != null) {
                                             MaterialTheme.colorScheme.primary
                                         } else {
@@ -923,7 +923,7 @@ private fun ReviewProjectContextCard(
                         else R.string.translation_review_context_in_progress_count,
                         project.entryCount,
                     ),
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MiuixTheme.textStyles.body1,
                     color = if (reviewComplete) MaterialTheme.colorScheme.primary else PageSecondaryTextColor,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
