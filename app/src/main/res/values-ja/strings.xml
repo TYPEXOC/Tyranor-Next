@@ -1724,6 +1724,8 @@
     <string name="translation_review_edit">訳文を編集</string>
     <string name="translation_review_save_translation">訳文を保存</string>
     <string name="translation_review_complete_round">今回の校正を完了</string>
+    <string name="translation_review_complete_confirm_title">今回の校正を完了しますか？</string>
+    <string name="translation_review_complete_confirm_message">完了するとプロジェクトは「完了」に移動します。「校正を表示」から再度開けます。</string>
     <string name="translation_review_completed">今回の校正は完了しました</string>
     <string name="translation_review_no_entries">このプロジェクトには抽出またはインポートされたテキストがありません。</string>
     <string name="translation_review_no_matches">現在の条件に一致する項目はありません。</string>

@@ -1724,6 +1724,8 @@
     <string name="translation_review_edit">编辑译文</string>
     <string name="translation_review_save_translation">保存译文</string>
     <string name="translation_review_complete_round">完成本轮校对</string>
+    <string name="translation_review_complete_confirm_title">确认完成本轮校对？</string>
+    <string name="translation_review_complete_confirm_message">完成后项目将归入“已完成”，仍可通过“查看校对”再次打开。</string>
     <string name="translation_review_completed">本轮校对已完成</string>
     <string name="translation_review_no_entries">项目还没有提取或导入文本。</string>
     <string name="translation_review_no_matches">当前条件下没有条目。</string>

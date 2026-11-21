@@ -169,6 +169,7 @@ private fun TranslationReviewScreen(projectId: String) {
     var replacingEntries by remember { mutableStateOf(false) }
     var showSearchDialog by remember { mutableStateOf(false) }
     var showFilterDialog by remember { mutableStateOf(false) }
+    var showCompleteReviewDialog by remember { mutableStateOf(false) }
     var draftFilter by remember { mutableStateOf(ReviewFilter.ALL) }
     val mobileReviewListState = rememberLazyListState()
     var errorCode by remember { mutableStateOf<TranslationWorkbenchError?>(null) }
@@ -305,9 +306,9 @@ private fun TranslationReviewScreen(projectId: String) {
             containerColor = Color.Transparent,
             contentWindowInsets = WindowInsets(0.dp),
             floatingActionButton = {
-                if (!active && entries.isNotEmpty()) {
+                if (!active && entries.isNotEmpty() && project?.reviewCompletedAt == null) {
                     ReviewCompleteFloatingActionButton {
-                        completeReviewRoundAndReturn()
+                        showCompleteReviewDialog = true
                     }
                 }
             },
@@ -816,6 +817,36 @@ private fun TranslationReviewScreen(projectId: String) {
                     onConfirm = {
                         filter = draftFilter
                         showFilterDialog = false
+                    },
+                )
+            },
+        )
+    }
+
+    if (showCompleteReviewDialog) {
+        AppAlertDialog(
+            onDismissRequest = { showCompleteReviewDialog = false },
+            title = {
+                Text(
+                    stringResource(R.string.translation_review_complete_confirm_title),
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                )
+            },
+            text = {
+                Text(
+                    stringResource(R.string.translation_review_complete_confirm_message),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = PageSecondaryTextColor,
+                )
+            },
+            confirmButton = {
+                DialogActionButtons(
+                    cancelText = stringResource(R.string.common_cancel),
+                    confirmText = stringResource(R.string.translation_review_complete_round),
+                    onCancel = { showCompleteReviewDialog = false },
+                    onConfirm = {
+                        showCompleteReviewDialog = false
+                        completeReviewRoundAndReturn()
                     },
                 )
             },
