@@ -226,13 +226,13 @@ private fun TranslationReviewScreen(projectId: String) {
     val filterCounts = remember(entries) {
         ReviewFilter.entries.associateWith { option -> entries.count(option::matches) }
     }
-    val filteredEntries = entries.filter { entry ->
-        val matchesSearch = normalizedSearchQuery.isBlank() ||
+    val filteredEntries = entries.filter(filter::matches)
+    val searchResultEntries = filteredEntries.filter { entry ->
+        normalizedSearchQuery.isNotBlank() &&
             searchTarget.text(entry).contains(normalizedSearchQuery, ignoreCase = true)
-        filter.matches(entry) && matchesSearch
     }
     val matchOccurrences = if (normalizedSearchQuery.isBlank()) 0 else {
-        filteredEntries.sumOf { searchTarget.text(it).countOccurrences(normalizedSearchQuery) }
+        searchResultEntries.sumOf { searchTarget.text(it).countOccurrences(normalizedSearchQuery) }
     }
     val searchResultTextStyle = MaterialTheme.typography.bodyMedium
     val searchResultRowVerticalPadding = 10.dp
@@ -240,15 +240,22 @@ private fun TranslationReviewScreen(projectId: String) {
         searchResultTextStyle.lineHeight.toDp() * SEARCH_RESULT_PREVIEW_MAX_LINES.toFloat()
     } + searchResultRowVerticalPadding * 2f + 1.dp
     val searchResultListHeight = searchResultRowMaxHeight *
-        minOf(filteredEntries.size, SEARCH_RESULT_MAX_VISIBLE_ROWS).toFloat() + 8.dp
+        minOf(searchResultEntries.size, SEARCH_RESULT_MAX_VISIBLE_ROWS).toFloat() + 8.dp
     val tabletLayout = isTabletScreen()
     val filteredSelection = filteredEntries.firstOrNull { it.id == selectedEntryId }
     val selectedEntry = filteredSelection ?: if (tabletLayout) filteredEntries.firstOrNull() else null
     val editingEntry = entries.firstOrNull { it.id == editingEntryId }
     val sequenceById = remember(entries) { entries.mapIndexed { index, entry -> entry.id to index + 1 }.toMap() }
 
-    fun jumpToSearchResult(entry: TranslationReviewEntry) {
+    fun dismissSearchDialog() {
         showSearchDialog = false
+        searchQuery = ""
+        replaceText = ""
+        searchTarget = ReviewSearchTarget.TRANSLATION
+    }
+
+    fun jumpToSearchResult(entry: TranslationReviewEntry) {
+        dismissSearchDialog()
         if (tabletLayout) {
             selectedEntryId = entry.id
             searchJumpEntryId = entry.id
@@ -261,8 +268,8 @@ private fun TranslationReviewScreen(projectId: String) {
     }
 
     fun replaceAllMatches() {
-        if (active || replacingEntries || normalizedSearchQuery.isBlank() || filteredEntries.isEmpty()) return
-        val replacements = filteredEntries.associate { entry ->
+        if (active || replacingEntries || normalizedSearchQuery.isBlank() || searchResultEntries.isEmpty()) return
+        val replacements = searchResultEntries.associate { entry ->
             entry.id to searchTarget.text(entry).replaceOccurrences(normalizedSearchQuery, replaceText)
         }
         if (replacements.isEmpty()) return
@@ -274,9 +281,7 @@ private fun TranslationReviewScreen(projectId: String) {
                 } else {
                     repository.replaceReviewTranslations(projectId, replacements)
                 }
-                searchQuery = ""
-                replaceText = ""
-                showSearchDialog = false
+                dismissSearchDialog()
             } catch (failure: Exception) {
                 reportFailure(failure)
             } finally {
@@ -636,7 +641,7 @@ private fun TranslationReviewScreen(projectId: String) {
 
     if (showSearchDialog) {
         AppBottomSheet(
-            onDismissRequest = { showSearchDialog = false },
+            onDismissRequest = ::dismissSearchDialog,
             expandToAvailableHeight = true,
         ) {
             Column(
@@ -682,7 +687,7 @@ private fun TranslationReviewScreen(projectId: String) {
                         style = MaterialTheme.typography.bodyMedium,
                         color = PageSecondaryTextColor,
                     )
-                    filteredEntries.isEmpty() -> Text(
+                    searchResultEntries.isEmpty() -> Text(
                         stringResource(R.string.translation_review_search_no_matches),
                         style = MaterialTheme.typography.bodyMedium,
                         color = PageSecondaryTextColor,
@@ -692,7 +697,7 @@ private fun TranslationReviewScreen(projectId: String) {
                             stringResource(
                                 R.string.translation_review_search_matches,
                                 matchOccurrences,
-                                filteredEntries.size,
+                                searchResultEntries.size,
                             ),
                             style = MaterialTheme.typography.bodyMedium,
                             color = PageSecondaryTextColor,
@@ -712,7 +717,7 @@ private fun TranslationReviewScreen(projectId: String) {
                                 modifier = Modifier.fillMaxSize(),
                                 contentPadding = PaddingValues(vertical = 4.dp),
                             ) {
-                                itemsIndexed(filteredEntries, key = { _, entry -> entry.id }) { index, entry ->
+                                itemsIndexed(searchResultEntries, key = { _, entry -> entry.id }) { index, entry ->
                                     Row(
                                         modifier = Modifier.fillMaxWidth()
                                             .clickable { jumpToSearchResult(entry) }
@@ -738,7 +743,7 @@ private fun TranslationReviewScreen(projectId: String) {
                                             overflow = TextOverflow.Ellipsis,
                                         )
                                     }
-                                    if (index != filteredEntries.lastIndex) {
+                                    if (index != searchResultEntries.lastIndex) {
                                         MiuixHorizontalDivider(
                                             modifier = Modifier.padding(horizontal = 14.dp),
                                             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
