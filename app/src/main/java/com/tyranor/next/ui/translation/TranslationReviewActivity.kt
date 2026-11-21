@@ -347,7 +347,6 @@ private fun TranslationReviewScreen(projectId: String) {
                                     enabled = !active && !savingEntry,
                                     modifier = Modifier.weight(0.92f).fillMaxHeight(),
                                     onTranslationTextChange = { editorText = it },
-                                    onCancel = { editorText = selectedEntry.translatedText.orEmpty() },
                                     onSave = {
                                         val entryId = selectedEntry.id
                                         val translation = editorText
@@ -1116,7 +1115,6 @@ private fun TranslationReviewEntryDetailPane(
     enabled: Boolean,
     modifier: Modifier = Modifier,
     onTranslationTextChange: (String) -> Unit,
-    onCancel: () -> Unit,
     onSave: () -> Unit,
 ) {
     val panelBorder = translationReviewPanelBorderColor()
@@ -1167,14 +1165,21 @@ private fun TranslationReviewEntryDetailPane(
                 minLines = 2,
                 maxLines = 8,
             )
-            DialogActionButtons(
-                cancelText = stringResource(R.string.common_cancel),
-                confirmText = stringResource(R.string.common_save),
-                cancelEnabled = enabled,
-                confirmEnabled = enabled,
-                onCancel = onCancel,
-                onConfirm = onSave,
-            )
+            MiuixButton(
+                onClick = onSave,
+                enabled = enabled,
+                modifier = Modifier.align(Alignment.End).pressSquish().height(48.dp),
+                minWidth = 120.dp,
+                minHeight = 48.dp,
+                cornerRadius = AppComponentCornerRadius,
+                insideMargin = PaddingValues(horizontal = 20.dp, vertical = 10.dp),
+                colors = MiuixButtonDefaults.buttonColorsPrimary(),
+            ) {
+                Text(
+                    text = stringResource(R.string.common_save),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
         }
     }
 }
