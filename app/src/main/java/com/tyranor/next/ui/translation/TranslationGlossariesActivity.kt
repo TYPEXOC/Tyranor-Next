@@ -56,6 +56,7 @@ import com.tyranor.next.ui.common.AppAlertDialog
 import com.tyranor.next.ui.common.AppScreenActivity
 import com.tyranor.next.ui.common.AppSecondaryTopBar
 import com.tyranor.next.ui.common.ArrowPreference
+import com.tyranor.next.ui.common.DialogActionButtons
 import com.tyranor.next.ui.common.DialogTextButton
 import com.tyranor.next.ui.common.NoRippleButton
 import com.tyranor.next.ui.common.isTabletScreen
@@ -241,10 +242,13 @@ private fun TranslationGlossariesScreen() {
                 }
             },
             confirmButton = {
-                DialogTextButton(
-                    text = stringResource(R.string.common_save),
-                    enabled = current.name.isNotBlank() && !creating,
-                    onClick = {
+                DialogActionButtons(
+                    cancelText = stringResource(R.string.common_cancel),
+                    confirmText = stringResource(R.string.common_save),
+                    cancelEnabled = !creating,
+                    confirmEnabled = current.name.isNotBlank() && !creating,
+                    onCancel = { editor = null },
+                    onConfirm = {
                         creating = true
                         scope.launch {
                             try {
@@ -262,13 +266,6 @@ private fun TranslationGlossariesScreen() {
                             }
                         }
                     },
-                )
-            },
-            dismissButton = {
-                DialogTextButton(
-                    text = stringResource(R.string.common_cancel),
-                    enabled = !creating,
-                    onClick = { editor = null },
                 )
             },
         )

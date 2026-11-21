@@ -99,6 +99,7 @@ import com.tyranor.next.ui.common.AppAlertDialog
 import com.tyranor.next.ui.common.AppScreenActivity
 import com.tyranor.next.ui.common.AppSecondaryTopBar
 import com.tyranor.next.ui.common.ArrowPreference
+import com.tyranor.next.ui.common.DialogActionButtons
 import com.tyranor.next.ui.common.DialogTextButton
 import com.tyranor.next.ui.common.NoIndication
 import com.tyranor.next.ui.common.NoRippleButton
@@ -1554,12 +1555,14 @@ private fun TranslationServicesScreen() {
                         }
                     },
                     confirmButton = {
-                        DialogTextButton(
-                            text = stringResource(
+                        DialogActionButtons(
+                            cancelText = stringResource(R.string.common_cancel),
+                            confirmText = stringResource(
                                 if (state.editingIndex == null) R.string.translation_services_custom_parameter_add
                                 else R.string.common_save,
                             ),
-                            onClick = {
+                            onCancel = dismissParameterEditor,
+                            onConfirm = {
                                 val parameter = TranslationCustomParameter(
                                     name = state.name.trim(),
                                     type = if (headerTab) TranslationParameterType.STRING else state.type,
@@ -1589,12 +1592,6 @@ private fun TranslationServicesScreen() {
                                     advancedSettingsEditor = advancedSettingsEditor?.copy(customParameters = nextParameters)
                                 }
                             },
-                        )
-                    },
-                    dismissButton = {
-                        DialogTextButton(
-                            text = stringResource(R.string.common_cancel),
-                            onClick = dismissParameterEditor,
                         )
                     },
                     textScrollEnabled = true,

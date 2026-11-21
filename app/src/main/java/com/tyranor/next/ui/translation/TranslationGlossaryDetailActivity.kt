@@ -61,6 +61,7 @@ import com.tyranor.next.theme.glassBorder
 import com.tyranor.next.ui.common.AppAlertDialog
 import com.tyranor.next.ui.common.AppScreenActivity
 import com.tyranor.next.ui.common.AppSecondaryTopBar
+import com.tyranor.next.ui.common.DialogActionButtons
 import com.tyranor.next.ui.common.DialogTextButton
 import com.tyranor.next.ui.common.isTabletScreen
 import com.tyranor.next.ui.common.NoRippleButton
@@ -386,11 +387,14 @@ private fun TranslationGlossaryDetailScreen(
                 }
             },
             confirmButton = {
-                DialogTextButton(
-                    text = stringResource(R.string.common_save),
-                    enabled = current.source.isNotBlank() && current.target.isNotBlank() &&
+                DialogActionButtons(
+                    cancelText = stringResource(R.string.common_cancel),
+                    confirmText = stringResource(R.string.common_save),
+                    cancelEnabled = !saving,
+                    confirmEnabled = current.source.isNotBlank() && current.target.isNotBlank() &&
                         name.isNotBlank() && !saving,
-                    onClick = {
+                    onCancel = { termEditor = null },
+                    onConfirm = {
                         val term = TranslationGlossaryTerm(
                             current.source,
                             current.target,
@@ -419,13 +423,6 @@ private fun TranslationGlossaryDetailScreen(
                             }
                         }
                     },
-                )
-            },
-            dismissButton = {
-                DialogTextButton(
-                    text = stringResource(R.string.common_cancel),
-                    enabled = !saving,
-                    onClick = { termEditor = null },
                 )
             },
         )

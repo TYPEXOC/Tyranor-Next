@@ -89,6 +89,7 @@ import com.tyranor.next.ui.common.AppBottomSheet
 import com.tyranor.next.ui.common.AppNavItem
 import com.tyranor.next.ui.common.AppScreenActivity
 import com.tyranor.next.ui.common.AppSecondaryTopBar
+import com.tyranor.next.ui.common.DialogActionButtons
 import com.tyranor.next.ui.common.motion.startActivityWithPageTransition
 import com.tyranor.next.ui.common.DialogTextButton
 import com.tyranor.next.ui.common.NoRippleButton
@@ -909,17 +910,15 @@ private fun TranslationWorkbenchScreen() {
                 }
             },
             confirmButton = {
-                DialogTextButton(
-                    text = stringResource(if (exporting) R.string.translation_exporting else R.string.translation_export_confirm),
-                    enabled = !exporting && exportDestinationUri != null && project != null,
-                    onClick = ::beginExport,
-                )
-            },
-            dismissButton = {
-                DialogTextButton(
-                    text = stringResource(R.string.common_cancel),
-                    enabled = !exporting,
-                    onClick = { exportProjectId = null },
+                DialogActionButtons(
+                    cancelText = stringResource(R.string.common_cancel),
+                    confirmText = stringResource(
+                        if (exporting) R.string.translation_exporting else R.string.translation_export_confirm,
+                    ),
+                    cancelEnabled = !exporting,
+                    confirmEnabled = !exporting && exportDestinationUri != null && project != null,
+                    onCancel = { exportProjectId = null },
+                    onConfirm = ::beginExport,
                 )
             },
         )
@@ -1013,12 +1012,13 @@ private fun TranslationReviewModeDialog(
                 }
             },
             confirmButton = {
-                DialogTextButton(
-                    text = stringResource(R.string.translation_review_mode_enter),
-                    onClick = onConfirm,
+                DialogActionButtons(
+                    cancelText = stringResource(R.string.common_cancel),
+                    confirmText = stringResource(R.string.translation_review_mode_enter),
+                    onCancel = onDismiss,
+                    onConfirm = onConfirm,
                 )
             },
-            dismissButton = { DialogTextButton(stringResource(R.string.common_cancel), onClick = onDismiss) },
         )
     }
 }
@@ -1139,15 +1139,14 @@ private fun TranslationStartDialog(
                 }
             },
             confirmButton = {
-                DialogTextButton(
-                    text = stringResource(R.string.translation_start_translation),
-                    enabled = services.isNotEmpty() && selectedServiceId != null &&
+                DialogActionButtons(
+                    cancelText = stringResource(R.string.common_cancel),
+                    confirmText = stringResource(R.string.translation_start_translation),
+                    confirmEnabled = services.isNotEmpty() && selectedServiceId != null &&
                         sourceLanguage.isNotBlank() && targetLanguage.isNotBlank(),
-                    onClick = onStart,
+                    onCancel = onDismiss,
+                    onConfirm = onStart,
                 )
-            },
-            dismissButton = {
-                DialogTextButton(text = stringResource(R.string.common_cancel), onClick = onDismiss)
             },
         )
     }
