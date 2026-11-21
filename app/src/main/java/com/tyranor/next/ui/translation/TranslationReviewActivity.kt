@@ -15,7 +15,6 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
@@ -94,7 +93,6 @@ import com.tyranor.next.ui.common.DialogTextButton
 import com.tyranor.next.ui.common.DialogActionButtons
 import com.tyranor.next.ui.common.TopBarIcon
 import com.tyranor.next.ui.common.NoRippleButton
-import com.tyranor.next.ui.common.NoRippleTextButton
 import com.tyranor.next.ui.common.isTabletScreen
 import com.tyranor.next.ui.common.motion.PageTransitions
 import com.tyranor.next.ui.common.motion.listItemMotion
@@ -195,6 +193,11 @@ private fun TranslationReviewScreen(projectId: String) {
                 reportFailure(failure)
             }
         }
+    }
+
+    suspend fun saveReviewEntry(entryId: String, translation: String) {
+        repository.saveManualTranslation(projectId, entryId, translation)
+        repository.confirmCurrentTranslation(projectId, entryId)
     }
 
     fun completeReviewRoundAndReturn() {
@@ -344,16 +347,11 @@ private fun TranslationReviewScreen(projectId: String) {
                                             modifier = Modifier.weight(0.92f).fillMaxHeight(),
                                             onTranslationTextChange = { editorText = it },
                                             onSave = {
+                                                val entryId = selectedEntry.id
+                                                val translation = editorText
                                                 runOperation {
-                                                    repository.saveManualTranslation(projectId, selectedEntry.id, editorText)
-                                                    repository.runLocalRules(projectId)
+                                                    saveReviewEntry(entryId, translation)
                                                 }
-                                            },
-                                            onConfirm = {
-                                                runOperation { repository.confirmCurrentTranslation(projectId, selectedEntry.id) }
-                                            },
-                                            onIssueState = { issue, ignore ->
-                                                runOperation { repository.updateReviewIssue(projectId, issue.id, ignore) }
                                             },
                                         )
                                     } else {
@@ -486,12 +484,10 @@ private fun TranslationReviewScreen(projectId: String) {
                                             editorText = entry.translatedText.orEmpty()
                                         },
                                     )
-                                    if (index != filteredEntries.lastIndex) {
-                                        MiuixHorizontalDivider(
-                                            modifier = Modifier.padding(horizontal = 16.dp),
-                                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
-                                        )
-                                    }
+                                    MiuixHorizontalDivider(
+                                        modifier = Modifier.padding(horizontal = 16.dp),
+                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
+                                    )
                                 }
                             }
                         }
@@ -503,7 +499,9 @@ private fun TranslationReviewScreen(projectId: String) {
 
     editingEntry?.let { entry ->
         AppAlertDialog(
-            onDismissRequest = { if (!savingEntry) editingEntryId = null },
+            onDismissRequest = {
+                if (!savingEntry) editingEntryId = null
+            },
             dismissEnabled = !savingEntry,
             title = {
                 Row(
@@ -521,7 +519,7 @@ private fun TranslationReviewScreen(projectId: String) {
                         style = MaterialTheme.typography.titleMedium,
                         textAlign = TextAlign.Start,
                     )
-                    ReviewEntryStatusIcon(entry)
+                    ReviewEntryStatusLabel(entry)
                 }
             },
             textScrollEnabled = true,
@@ -546,16 +544,7 @@ private fun TranslationReviewScreen(projectId: String) {
                         maxLines = 8,
                     )
                     entry.issues.filter { it.state == "OPEN" }.forEach { issue ->
-                        ReviewIssueActionsRow(
-                            issue = issue,
-                            enabled = !active && !savingEntry,
-                            onResolve = {
-                                runOperation { repository.updateReviewIssue(projectId, issue.id, false) }
-                            },
-                            onIgnore = {
-                                runOperation { repository.updateReviewIssue(projectId, issue.id, true) }
-                            },
-                        )
+                        ReviewIssueMessage(issue = issue)
                     }
                 }
             },
@@ -571,11 +560,7 @@ private fun TranslationReviewScreen(projectId: String) {
                         savingEntry = true
                         scope.launch {
                             try {
-                                repository.saveManualTranslation(projectId, entry.id, translation)
-                                repository.runLocalRules(projectId)
-                                if (translation.isNotBlank()) {
-                                    repository.confirmCurrentTranslation(projectId, entry.id)
-                                }
+                                saveReviewEntry(entry.id, translation)
                                 editingEntryId = null
                             } catch (failure: Exception) {
                                 reportFailure(failure)
@@ -987,46 +972,19 @@ private suspend fun scrollReviewTableToFraction(state: LazyListState, fraction: 
 }
 
 @Composable
-private fun ReviewIssueActionsRow(
-    issue: TranslationReviewIssue,
-    enabled: Boolean,
-    onResolve: () -> Unit,
-    onIgnore: () -> Unit,
-) {
+private fun ReviewIssueMessage(issue: TranslationReviewIssue) {
     val issueColor = MaterialTheme.colorScheme.error
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    Box(
+        modifier = Modifier.fillMaxWidth()
+            .clip(AppComponentShape)
+            .background(issueColor.copy(alpha = 0.08f))
+            .border(1.dp, issueColor.copy(alpha = 0.18f), AppComponentShape)
+            .padding(horizontal = 10.dp, vertical = 8.dp),
     ) {
-        Box(
-            modifier = Modifier.weight(1f)
-                .clip(AppComponentShape)
-                .background(issueColor.copy(alpha = 0.08f))
-                .border(1.dp, issueColor.copy(alpha = 0.18f), AppComponentShape)
-                .padding(horizontal = 10.dp, vertical = 8.dp),
-        ) {
-            Text(
-                stringResource(issue.code.labelResource()),
-                color = issueColor,
-                style = MaterialTheme.typography.bodySmall,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-        NoRippleButton(
-            text = stringResource(R.string.translation_review_resolve_issue),
-            enabled = enabled,
-            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
-            tonal = true,
-            onClick = onResolve,
-        )
-        NoRippleButton(
-            text = stringResource(R.string.translation_review_ignore_issue),
-            enabled = enabled,
-            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
-            tonal = true,
-            onClick = onIgnore,
+        Text(
+            stringResource(issue.code.labelResource()),
+            color = issueColor,
+            style = MaterialTheme.typography.bodySmall,
         )
     }
 }
@@ -1066,7 +1024,8 @@ private fun TranslationReviewEntryRow(
 
 @Composable
 private fun ReviewEntryStatusIcon(entry: TranslationReviewEntry) {
-    val hasRuleIssue = entry.issues.any { it.state == "OPEN" } || entry.translatedText.isNullOrBlank()
+    val hasRuleIssue = entry.issues.any { it.state == "OPEN" } ||
+        (entry.translatedText.isNullOrBlank() && entry.reviewState != TranslationReviewState.CONFIRMED)
     Image(
         painter = painterResource(
             if (hasRuleIssue) R.drawable.ic_notice_limit else R.drawable.ic_notice_success,
@@ -1083,6 +1042,36 @@ private fun ReviewEntryStatusIcon(entry: TranslationReviewEntry) {
 }
 
 @Composable
+private fun ReviewEntryStatusLabel(entry: TranslationReviewEntry) {
+    val openIssue = entry.issues.firstOrNull { it.state == "OPEN" }
+    val statusResource = when {
+        openIssue != null -> openIssue.code.labelResource()
+        entry.reviewState == TranslationReviewState.CONFIRMED -> R.string.translation_review_confirmed
+        entry.translatedText.isNullOrBlank() -> R.string.translation_review_status_untranslated
+        else -> R.string.translation_review_status_translated
+    }
+    val statusColor = when {
+        openIssue != null -> MaterialTheme.colorScheme.error
+        entry.reviewState == TranslationReviewState.CONFIRMED -> MaterialTheme.colorScheme.primary
+        entry.translatedText.isNullOrBlank() -> PageSecondaryTextColor
+        else -> MaterialTheme.colorScheme.primary
+    }
+    Box(
+        modifier = Modifier.clip(AppComponentShape)
+            .background(statusColor.copy(alpha = 0.12f))
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+    ) {
+        Text(
+            stringResource(statusResource),
+            color = statusColor,
+            style = MaterialTheme.typography.labelMedium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
 private fun TranslationReviewEntryDetailPane(
     entry: TranslationReviewEntry,
     sequence: Int,
@@ -1092,8 +1081,6 @@ private fun TranslationReviewEntryDetailPane(
     modifier: Modifier = Modifier,
     onTranslationTextChange: (String) -> Unit,
     onSave: () -> Unit,
-    onConfirm: () -> Unit,
-    onIssueState: (TranslationReviewIssue, Boolean) -> Unit,
 ) {
     val panelBorder = translationReviewPanelBorderColor()
     MiuixCard(
@@ -1121,7 +1108,7 @@ private fun TranslationReviewEntryDetailPane(
                     color = PageSecondaryTextColor,
                     maxLines = 1,
                 )
-                ReviewEntryStatusIcon(entry)
+                ReviewEntryStatusLabel(entry)
             }
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(stringResource(R.string.translation_review_source), style = MaterialTheme.typography.labelMedium)
@@ -1158,28 +1145,13 @@ private fun TranslationReviewEntryDetailPane(
                 }
             }
             entry.issues.filter { it.state == "OPEN" }.forEach { issue ->
-                ReviewIssueActionsRow(
-                    issue = issue,
-                    enabled = enabled,
-                    onResolve = { onIssueState(issue, false) },
-                    onIgnore = { onIssueState(issue, true) },
-                )
+                ReviewIssueMessage(issue)
             }
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                NoRippleButton(
-                    text = stringResource(R.string.translation_review_save_translation),
-                    enabled = enabled,
-                    onClick = onSave,
-                )
-                NoRippleTextButton(
-                    text = stringResource(
-                        if (entry.reviewState == TranslationReviewState.CONFIRMED) R.string.translation_review_confirmed
-                        else R.string.translation_review_confirm,
-                    ),
-                    enabled = enabled && !translationText.isBlank() && entry.reviewState != TranslationReviewState.CONFIRMED,
-                    onClick = onConfirm,
-                )
-            }
+            NoRippleButton(
+                text = stringResource(R.string.translation_review_save_translation),
+                enabled = enabled,
+                onClick = onSave,
+            )
         }
     }
 }

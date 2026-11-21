@@ -1714,9 +1714,6 @@
     <string name="translation_review_status_issue">存在问题</string>
     <string name="translation_review_edit">编辑译文</string>
     <string name="translation_review_save_translation">保存译文</string>
-    <string name="translation_review_confirm">确认当前译文</string>
-    <string name="translation_review_ignore_issue">忽略</string>
-    <string name="translation_review_resolve_issue">标记已解决</string>
     <string name="translation_review_complete_round">完成本轮校对</string>
     <string name="translation_review_completed">本轮校对已完成</string>
     <string name="translation_review_no_entries">项目还没有提取或导入文本。</string>

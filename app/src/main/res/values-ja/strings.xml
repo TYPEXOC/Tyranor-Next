@@ -1714,9 +1714,6 @@
     <string name="translation_review_status_issue">問題あり</string>
     <string name="translation_review_edit">訳文を編集</string>
     <string name="translation_review_save_translation">訳文を保存</string>
-    <string name="translation_review_confirm">現在の訳文を確認</string>
-    <string name="translation_review_ignore_issue">無視</string>
-    <string name="translation_review_resolve_issue">解決済みにする</string>
     <string name="translation_review_complete_round">今回の校正を完了</string>
     <string name="translation_review_completed">今回の校正は完了しました</string>
     <string name="translation_review_no_entries">このプロジェクトには抽出またはインポートされたテキストがありません。</string>

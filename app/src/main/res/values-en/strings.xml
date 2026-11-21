@@ -1714,9 +1714,6 @@
     <string name="translation_review_status_issue">Issue found</string>
     <string name="translation_review_edit">Edit translation</string>
     <string name="translation_review_save_translation">Save translation</string>
-    <string name="translation_review_confirm">Confirm current translation</string>
-    <string name="translation_review_ignore_issue">Ignore</string>
-    <string name="translation_review_resolve_issue">Mark resolved</string>
     <string name="translation_review_complete_round">Complete this review round</string>
     <string name="translation_review_completed">This review round is complete</string>
     <string name="translation_review_no_entries">This project has no extracted or imported text yet.</string>

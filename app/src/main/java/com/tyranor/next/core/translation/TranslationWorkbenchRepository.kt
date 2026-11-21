@@ -116,8 +116,12 @@ class TranslationWorkbenchRepository(context: Context) {
     suspend fun runLocalRules(projectId: String): Int {
         if (dao.getProject(projectId) == null) throw TranslationWorkbenchException(TranslationWorkbenchError.PROJECT_NOT_FOUND)
         val findings = TranslationLocalRuleChecker().inspect(dao.getEntries(projectId))
+        val settledIssues = dao.getSettledRuleIssues(projectId)
+            .mapTo(mutableSetOf()) { it.entryId to it.code }
         val now = System.currentTimeMillis()
-        val rows = findings.map { finding ->
+        val rows = findings.filterNot { finding ->
+            (finding.entryId to finding.code.name) in settledIssues
+        }.map { finding ->
             TranslationReviewIssueEntity(
                 id = UUID.randomUUID().toString(),
                 projectId = projectId,
@@ -147,14 +151,6 @@ class TranslationWorkbenchRepository(context: Context) {
 
     suspend fun confirmCurrentTranslation(projectId: String, entryId: String) {
         if (!dao.confirmEntry(projectId, entryId, System.currentTimeMillis())) {
-            if (dao.getActiveTask(projectId) != null) throw TranslationWorkbenchException(TranslationWorkbenchError.TASK_ALREADY_ACTIVE)
-            throw TranslationWorkbenchException(TranslationWorkbenchError.INVALID_REVIEW_ENTRY)
-        }
-    }
-
-    suspend fun updateReviewIssue(projectId: String, issueId: String, ignore: Boolean) {
-        val nextState = if (ignore) "IGNORED" else "RESOLVED"
-        if (!dao.changeReviewIssueState(projectId, issueId, nextState, System.currentTimeMillis())) {
             if (dao.getActiveTask(projectId) != null) throw TranslationWorkbenchException(TranslationWorkbenchError.TASK_ALREADY_ACTIVE)
             throw TranslationWorkbenchException(TranslationWorkbenchError.INVALID_REVIEW_ENTRY)
         }

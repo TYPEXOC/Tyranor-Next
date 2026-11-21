@@ -384,11 +384,23 @@ internal abstract class TranslationWorkbenchDao {
     @Query("UPDATE translation_entries SET translated_text = :translation, status = :status, review_state = 'UNREVIEWED', failure_code = NULL WHERE id = :entryId AND project_id = :projectId")
     abstract suspend fun updateManualTranslation(projectId: String, entryId: String, translation: String?, status: String): Int
 
-    @Query("UPDATE translation_entries SET review_state = 'CONFIRMED' WHERE id = :entryId AND project_id = :projectId AND translated_text IS NOT NULL")
+    @Query("UPDATE translation_entries SET review_state = 'CONFIRMED' WHERE id = :entryId AND project_id = :projectId")
     abstract suspend fun setEntryConfirmed(projectId: String, entryId: String): Int
 
-    @Query("UPDATE translation_review_issues SET state = :state, updated_at = :updatedAt WHERE id = :issueId AND project_id = :projectId AND state = 'OPEN'")
-    abstract suspend fun updateReviewIssueState(projectId: String, issueId: String, state: String, updatedAt: Long): Int
+    @Query(
+        "SELECT * FROM translation_review_issues WHERE project_id = :projectId AND source = 'RULE' " +
+            "AND state IN ('RESOLVED', 'IGNORED')",
+    )
+    abstract suspend fun getSettledRuleIssues(projectId: String): List<TranslationReviewIssueEntity>
+
+    @Query("SELECT translated_text FROM translation_entries WHERE id = :entryId AND project_id = :projectId")
+    abstract suspend fun getTranslatedText(projectId: String, entryId: String): String?
+
+    @Query(
+        "DELETE FROM translation_review_issues WHERE project_id = :projectId AND entry_id = :entryId " +
+            "AND source = 'RULE' AND state IN ('RESOLVED', 'IGNORED')",
+    )
+    abstract suspend fun deleteSettledRuleIssuesForEntry(projectId: String, entryId: String)
 
     @Query("UPDATE translation_review_issues SET state = 'RESOLVED', updated_at = :updatedAt WHERE project_id = :projectId AND entry_id = :entryId AND state = 'OPEN'")
     abstract suspend fun resolveEntryIssues(projectId: String, entryId: String, updatedAt: Long): Int
@@ -424,6 +436,11 @@ internal abstract class TranslationWorkbenchDao {
     open suspend fun saveManualTranslation(projectId: String, entryId: String, translation: String?): Boolean {
         if (getProject(projectId) == null || getActiveTask(projectId) != null) return false
         val status = if (translation.isNullOrBlank()) "UNTRANSLATED" else "TRANSLATED"
+        val normalizedTranslation = translation?.takeIf(String::isNotBlank)
+        val previousTranslation = getTranslatedText(projectId, entryId)
+        if (previousTranslation != normalizedTranslation) {
+            deleteSettledRuleIssuesForEntry(projectId, entryId)
+        }
         if (updateManualTranslation(projectId, entryId, translation?.takeIf(String::isNotBlank), status) != 1) return false
         markReviewChanged(projectId, System.currentTimeMillis())
         return true
@@ -434,14 +451,6 @@ internal abstract class TranslationWorkbenchDao {
         if (getProject(projectId) == null || getActiveTask(projectId) != null) return false
         if (setEntryConfirmed(projectId, entryId) != 1) return false
         resolveEntryIssues(projectId, entryId, updatedAt)
-        bumpProjectReviewRevision(projectId, updatedAt)
-        return true
-    }
-
-    @Transaction
-    open suspend fun changeReviewIssueState(projectId: String, issueId: String, state: String, updatedAt: Long): Boolean {
-        if (getProject(projectId) == null || getActiveTask(projectId) != null) return false
-        if (updateReviewIssueState(projectId, issueId, state, updatedAt) != 1) return false
         bumpProjectReviewRevision(projectId, updatedAt)
         return true
     }
