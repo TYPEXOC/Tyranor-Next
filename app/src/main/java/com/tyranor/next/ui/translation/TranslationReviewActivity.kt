@@ -233,6 +233,12 @@ private fun TranslationReviewScreen(projectId: String) {
     val matchOccurrences = if (normalizedSearchQuery.isBlank()) 0 else {
         filteredEntries.sumOf { searchTarget.text(it).countOccurrences(normalizedSearchQuery) }
     }
+    val searchResultTextStyle = MaterialTheme.typography.bodyMedium
+    val searchResultRowVerticalPadding = 10.dp
+    val searchResultListMaxHeight = (
+        with(LocalDensity.current) { searchResultTextStyle.lineHeight.toDp() } +
+            searchResultRowVerticalPadding * 2f
+        ) * SEARCH_RESULT_MAX_VISIBLE_ROWS.toFloat() + 8.dp
     val tabletLayout = isTabletScreen()
     val filteredSelection = filteredEntries.firstOrNull { it.id == selectedEntryId }
     val selectedEntry = filteredSelection ?: if (tabletLayout) filteredEntries.firstOrNull() else null
@@ -697,19 +703,19 @@ private fun TranslationReviewScreen(projectId: String) {
                         MiuixCard(
                             modifier = Modifier.fillMaxWidth()
                                 .weight(1f, fill = false)
-                                .heightIn(max = 220.dp),
+                                .heightIn(max = searchResultListMaxHeight),
                             cornerRadius = AppComponentCornerRadius,
                             colors = MiuixCardDefaults.defaultColors(color = DialogItemSurface),
                         ) {
                             LazyColumn(
-                                modifier = Modifier.fillMaxWidth().heightIn(max = 220.dp),
+                                modifier = Modifier.fillMaxWidth().heightIn(max = searchResultListMaxHeight),
                                 contentPadding = PaddingValues(vertical = 4.dp),
                             ) {
                                 itemsIndexed(filteredEntries, key = { _, entry -> entry.id }) { index, entry ->
                                     Row(
                                         modifier = Modifier.fillMaxWidth()
                                             .clickable { jumpToSearchResult(entry) }
-                                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                                            .padding(horizontal = 14.dp, vertical = searchResultRowVerticalPadding),
                                         verticalAlignment = Alignment.Top,
                                     ) {
                                         Text(
@@ -725,7 +731,7 @@ private fun TranslationReviewScreen(projectId: String) {
                                                 highlightColor = MiuixTheme.colorScheme.primary.copy(alpha = 0.20f),
                                             ),
                                             modifier = Modifier.weight(1f),
-                                            style = MaterialTheme.typography.bodyMedium,
+                                            style = searchResultTextStyle,
                                             color = TextColor,
                                             maxLines = 3,
                                             overflow = TextOverflow.Ellipsis,
@@ -1456,6 +1462,8 @@ private enum class ReviewSearchTarget {
         SOURCE -> entry.sourceText
     }
 }
+
+private const val SEARCH_RESULT_MAX_VISIBLE_ROWS = 3
 
 private fun String.countOccurrences(query: String): Int {
     if (query.isEmpty()) return 0
