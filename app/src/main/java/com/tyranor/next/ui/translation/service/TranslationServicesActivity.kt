@@ -636,6 +636,35 @@ private fun TranslationServicesScreen() {
                         ),
                         background = Color.Transparent,
                         contentColor = PageTextColor,
+                        trailing = if (!isFixedMachineTemplate) {
+                            {
+                                TopBarIcon(
+                                    painter = painterResource(R.drawable.ic_save),
+                                    contentDescription = stringResource(R.string.common_save),
+                                    tint = MiuixTheme.colorScheme.primary,
+                                    onClick = {
+                                        if (!isSaving) {
+                                            cancelConnectionTest()
+                                            scope.launch {
+                                                isSaving = true
+                                                try {
+                                                    repository.saveProfile(state.toDraft())
+                                                    errorCode = null
+                                                    showModelPicker = false
+                                                    activePage = TranslationServicesPage.LIST
+                                                } catch (failure: Throwable) {
+                                                    reportFailure(failure)
+                                                } finally {
+                                                    isSaving = false
+                                                }
+                                            }
+                                        }
+                                    },
+                                )
+                            }
+                        } else {
+                            null
+                        },
                     )
                 },
             ) { innerPadding ->
@@ -947,43 +976,6 @@ private fun TranslationServicesScreen() {
                     }
                     Spacer(Modifier.height(2.dp))
                 }
-                        if (!isFixedMachineTemplate) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(vertical = 12.dp),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                NoRippleTextButton(
-                                    text = stringResource(R.string.common_cancel),
-                                    enabled = !isSaving,
-                                    onClick = {
-                                        cancelConnectionTest()
-                                        showModelPicker = false
-                                        activePage = TranslationServicesPage.LIST
-                                    },
-                                )
-                                NoRippleButton(
-                                    text = stringResource(if (isSaving) R.string.common_loading else R.string.common_save),
-                                    enabled = !isSaving,
-                                    onClick = {
-                                        cancelConnectionTest()
-                                        scope.launch {
-                                            isSaving = true
-                                            try {
-                                                repository.saveProfile(state.toDraft())
-                                                errorCode = null
-                                                showModelPicker = false
-                                                activePage = TranslationServicesPage.LIST
-                                            } catch (failure: Throwable) {
-                                                reportFailure(failure)
-                                            } finally {
-                                                isSaving = false
-                                            }
-                                        }
-                                    },
-                                )
-                            }
-                        }
                     }
                 }
             }
@@ -1149,6 +1141,33 @@ private fun TranslationServicesScreen() {
                         title = stringResource(R.string.translation_services_advanced_settings),
                         background = Color.Transparent,
                         contentColor = PageTextColor,
+                        trailing = {
+                            TopBarIcon(
+                                painter = painterResource(R.drawable.ic_save),
+                                contentDescription = stringResource(R.string.common_done),
+                                tint = MiuixTheme.colorScheme.primary,
+                                onClick = {
+                                    if (!isSaving) {
+                                        val options = state.toGenerationOptions(
+                                            editor?.generationOptions ?: TranslationGenerationOptions(),
+                                        )
+                                        if (options == null) {
+                                            invalidOptions = true
+                                        } else {
+                                            editor = editor?.copy(
+                                                prompt = state.translationSystemPrompt,
+                                                translationUserPrompt = state.translationUserPrompt,
+                                                proofreadingPrompt = state.proofreadingSystemPrompt,
+                                                proofreadingUserPrompt = state.proofreadingUserPrompt,
+                                                generationOptions = options,
+                                                customParameters = state.customParameters,
+                                            )
+                                            activePage = TranslationServicesPage.EDITOR
+                                        }
+                                    }
+                                },
+                            )
+                        },
                     )
                 },
             ) { innerPadding ->
@@ -1291,39 +1310,6 @@ private fun TranslationServicesScreen() {
                                     style = MaterialTheme.typography.bodySmall,
                                 )
                             }
-                        }
-                        Row(
-                            modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(vertical = 12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            NoRippleTextButton(
-                                text = stringResource(R.string.common_cancel),
-                                enabled = !isSaving,
-                                onClick = { activePage = TranslationServicesPage.EDITOR },
-                            )
-                            NoRippleButton(
-                                text = stringResource(R.string.translation_services_advanced_done),
-                                enabled = !isSaving,
-                                onClick = {
-                                    val options = state.toGenerationOptions(
-                                        editor?.generationOptions ?: TranslationGenerationOptions(),
-                                    )
-                                    if (options == null) {
-                                        invalidOptions = true
-                                    } else {
-                                        editor = editor?.copy(
-                                            prompt = state.translationSystemPrompt,
-                                            translationUserPrompt = state.translationUserPrompt,
-                                            proofreadingPrompt = state.proofreadingSystemPrompt,
-                                            proofreadingUserPrompt = state.proofreadingUserPrompt,
-                                            generationOptions = options,
-                                            customParameters = state.customParameters,
-                                        )
-                                        activePage = TranslationServicesPage.EDITOR
-                                    }
-                                },
-                            )
                         }
                     }
                 }
