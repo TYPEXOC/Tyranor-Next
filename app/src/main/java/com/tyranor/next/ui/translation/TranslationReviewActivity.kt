@@ -51,6 +51,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -987,10 +988,7 @@ private fun ReviewEntryTable(
                             Row(
                                 modifier = Modifier.fillMaxWidth()
                                     .pressSquishGroup()
-                                    .background(
-                                        if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
-                                        else Color.Transparent,
-                                    )
+                                    .reviewEntrySelection(selected)
                                     .clickable { onSelect(entry) }
                                     .heightIn(min = 36.dp)
                                     .padding(horizontal = 10.dp, vertical = 4.dp),
@@ -1166,10 +1164,7 @@ private fun TranslationReviewEntryRow(
         modifier = Modifier.fillMaxWidth()
             .pressSquishGroup()
             .then(modifier)
-            .background(
-                if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
-                else Color.Transparent,
-            )
+            .reviewEntrySelection(selected)
             .clickable(onClick = onClick)
             .padding(horizontal = 8.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -1189,6 +1184,22 @@ private fun TranslationReviewEntryRow(
             color = if (entry.translatedText.isNullOrBlank()) PageSecondaryTextColor else PageTextColor,
         )
         ReviewEntryStatusIcon(entry)
+    }
+}
+
+@Composable
+private fun Modifier.reviewEntrySelection(selected: Boolean): Modifier {
+    val accentColor = MaterialTheme.colorScheme.primary
+    return background(
+        if (selected) accentColor.copy(alpha = 0.14f) else Color.Transparent,
+    ).drawBehind {
+        if (selected) {
+            val accentWidth = 4.dp.toPx()
+            drawRect(
+                color = accentColor,
+                size = Size(accentWidth, size.height),
+            )
+        }
     }
 }
 
