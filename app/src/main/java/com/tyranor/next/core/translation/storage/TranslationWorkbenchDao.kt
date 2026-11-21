@@ -64,6 +64,12 @@ internal abstract class TranslationWorkbenchDao {
     @Query("SELECT * FROM translation_entries WHERE project_id = :projectId ORDER BY source_key")
     abstract suspend fun getEntries(projectId: String): List<TranslationEntryEntity>
 
+    @Query("SELECT source_text FROM translation_entries WHERE project_id = :projectId AND id = :entryId")
+    abstract suspend fun getSourceText(projectId: String, entryId: String): String?
+
+    @Query("UPDATE translation_entries SET source_text = :sourceText, review_state = 'UNREVIEWED' WHERE project_id = :projectId AND id = :entryId")
+    abstract suspend fun updateReviewSource(projectId: String, entryId: String, sourceText: String): Int
+
     @Query(
         "SELECT * FROM translation_entries WHERE project_id = :projectId AND " +
             "(status = 'UNTRANSLATED' OR (:retryFailed = 1 AND status = 'FAILED')) " +
@@ -444,6 +450,49 @@ internal abstract class TranslationWorkbenchDao {
         if (updateManualTranslation(projectId, entryId, translation?.takeIf(String::isNotBlank), status) != 1) return false
         markReviewChanged(projectId, System.currentTimeMillis())
         return true
+    }
+
+    @Transaction
+    open suspend fun replaceReviewSources(
+        projectId: String,
+        replacements: Map<String, String>,
+        updatedAt: Long,
+    ): Int {
+        if (getProject(projectId) == null) throw TranslationWorkbenchException(TranslationWorkbenchError.PROJECT_NOT_FOUND)
+        if (getActiveTask(projectId) != null) throw TranslationWorkbenchException(TranslationWorkbenchError.TASK_ALREADY_ACTIVE)
+        var changed = 0
+        replacements.forEach { (entryId, sourceText) ->
+            if (getSourceText(projectId, entryId) == sourceText) return@forEach
+            deleteSettledRuleIssuesForEntry(projectId, entryId)
+            if (updateReviewSource(projectId, entryId, sourceText) == 1) changed++
+        }
+        if (changed > 0) markReviewChanged(projectId, updatedAt)
+        return changed
+    }
+
+    @Transaction
+    open suspend fun replaceReviewTranslations(
+        projectId: String,
+        replacements: Map<String, String>,
+        updatedAt: Long,
+    ): Int {
+        if (getProject(projectId) == null) throw TranslationWorkbenchException(TranslationWorkbenchError.PROJECT_NOT_FOUND)
+        if (getActiveTask(projectId) != null) throw TranslationWorkbenchException(TranslationWorkbenchError.TASK_ALREADY_ACTIVE)
+        var changed = 0
+        replacements.forEach { (entryId, translation) ->
+            val normalizedTranslation = translation.takeIf(String::isNotBlank)
+            if (getTranslatedText(projectId, entryId) == normalizedTranslation) return@forEach
+            deleteSettledRuleIssuesForEntry(projectId, entryId)
+            val status = if (normalizedTranslation == null) "UNTRANSLATED" else "TRANSLATED"
+            if (updateManualTranslation(projectId, entryId, normalizedTranslation, status) != 1) return@forEach
+            if (normalizedTranslation != null) {
+                setEntryConfirmed(projectId, entryId)
+                resolveEntryIssues(projectId, entryId, updatedAt)
+            }
+            changed++
+        }
+        if (changed > 0) markReviewChanged(projectId, updatedAt)
+        return changed
     }
 
     @Transaction

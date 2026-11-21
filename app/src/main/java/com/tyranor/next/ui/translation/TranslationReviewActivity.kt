@@ -36,6 +36,7 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -59,6 +60,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.DpSize
@@ -85,7 +89,7 @@ import com.tyranor.next.theme.PageSecondaryTextColor
 import com.tyranor.next.theme.PageTextColor
 import com.tyranor.next.theme.TextColor
 import com.tyranor.next.ui.common.AppAlertDialog
-import com.tyranor.next.ui.common.AppSearchField
+import com.tyranor.next.ui.common.AppBottomSheet
 import com.tyranor.next.ui.common.AppScreenActivity
 import com.tyranor.next.ui.common.AppSecondaryTopBar
 import com.tyranor.next.ui.common.DialogTextButton
@@ -103,6 +107,8 @@ import kotlinx.coroutines.launch
 import com.tyranor.next.theme.glassBorder
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
 import top.yukonga.miuix.kmp.basic.CardDefaults as MiuixCardDefaults
+import top.yukonga.miuix.kmp.basic.Button as MiuixButton
+import top.yukonga.miuix.kmp.basic.ButtonDefaults as MiuixButtonDefaults
 import top.yukonga.miuix.kmp.basic.BasicComponentDefaults
 import top.yukonga.miuix.kmp.basic.FabPosition
 import top.yukonga.miuix.kmp.basic.FloatingActionButton as MiuixFloatingActionButton
@@ -139,6 +145,7 @@ class TranslationReviewActivity : AppScreenActivity() {
 }
 
 @Composable
+@OptIn(ExperimentalMaterial3Api::class)
 private fun TranslationReviewScreen(projectId: String) {
     val context = LocalContext.current
     val repository = remember(context) { TranslationWorkbenchRepository(context.applicationContext) }
@@ -150,14 +157,18 @@ private fun TranslationReviewScreen(projectId: String) {
     var sourceLocation by remember(projectId) { mutableStateOf("") }
     var filter by remember { mutableStateOf(ReviewFilter.ALL) }
     var searchQuery by remember(projectId) { mutableStateOf("") }
-    var draftSearchQuery by remember(projectId) { mutableStateOf("") }
+    var replaceText by remember(projectId) { mutableStateOf("") }
+    var searchTarget by remember(projectId) { mutableStateOf(ReviewSearchTarget.TRANSLATION) }
     var selectedEntryId by remember { mutableStateOf<String?>(null) }
+    var searchJumpEntryId by remember { mutableStateOf<String?>(null) }
     var editingEntryId by remember { mutableStateOf<String?>(null) }
     var editorText by remember { mutableStateOf("") }
     var savingEntry by remember { mutableStateOf(false) }
+    var replacingEntries by remember { mutableStateOf(false) }
     var showSearchDialog by remember { mutableStateOf(false) }
     var showFilterDialog by remember { mutableStateOf(false) }
     var draftFilter by remember { mutableStateOf(ReviewFilter.ALL) }
+    val mobileReviewListState = rememberLazyListState()
     var errorCode by remember { mutableStateOf<TranslationWorkbenchError?>(null) }
     var localRulesInitialized by remember(projectId) { mutableStateOf(false) }
 
@@ -216,15 +227,54 @@ private fun TranslationReviewScreen(projectId: String) {
     }
     val filteredEntries = entries.filter { entry ->
         val matchesSearch = normalizedSearchQuery.isBlank() ||
-            entry.sourceText.contains(normalizedSearchQuery, ignoreCase = true) ||
-            entry.translatedText.orEmpty().contains(normalizedSearchQuery, ignoreCase = true)
+            searchTarget.text(entry).contains(normalizedSearchQuery, ignoreCase = true)
         filter.matches(entry) && matchesSearch
+    }
+    val matchOccurrences = if (normalizedSearchQuery.isBlank()) 0 else {
+        filteredEntries.sumOf { searchTarget.text(it).countOccurrences(normalizedSearchQuery) }
     }
     val tabletLayout = isTabletScreen()
     val filteredSelection = filteredEntries.firstOrNull { it.id == selectedEntryId }
     val selectedEntry = filteredSelection ?: if (tabletLayout) filteredEntries.firstOrNull() else null
     val editingEntry = entries.firstOrNull { it.id == editingEntryId }
     val sequenceById = remember(entries) { entries.mapIndexed { index, entry -> entry.id to index + 1 }.toMap() }
+
+    fun jumpToSearchResult(entry: TranslationReviewEntry) {
+        showSearchDialog = false
+        if (tabletLayout) {
+            selectedEntryId = entry.id
+            searchJumpEntryId = entry.id
+            editorText = entry.translatedText.orEmpty()
+        } else {
+            val index = filteredEntries.indexOfFirst { it.id == entry.id }
+            if (index >= 0) scope.launch { mobileReviewListState.animateScrollToItem(index) }
+        }
+    }
+
+    fun replaceAllMatches() {
+        if (active || replacingEntries || normalizedSearchQuery.isBlank() || filteredEntries.isEmpty()) return
+        val replacements = filteredEntries.associate { entry ->
+            entry.id to searchTarget.text(entry).replaceOccurrences(normalizedSearchQuery, replaceText)
+        }
+        if (replacements.isEmpty()) return
+        replacingEntries = true
+        scope.launch {
+            try {
+                if (searchTarget == ReviewSearchTarget.SOURCE) {
+                    repository.replaceReviewSources(projectId, replacements)
+                } else {
+                    repository.replaceReviewTranslations(projectId, replacements)
+                }
+                searchQuery = ""
+                replaceText = ""
+                showSearchDialog = false
+            } catch (failure: Exception) {
+                reportFailure(failure)
+            } finally {
+                replacingEntries = false
+            }
+        }
+    }
 
     LaunchedEffect(selectedEntry?.id, selectedEntry?.translatedText) {
         editorText = selectedEntry?.translatedText.orEmpty()
@@ -288,13 +338,13 @@ private fun TranslationReviewScreen(projectId: String) {
                                         style = MiuixTheme.textStyles.headline1.copy(fontWeight = FontWeight.Bold),
                                         modifier = Modifier.weight(1f),
                                     )
-                                    AppSearchField(
-                                        query = searchQuery,
-                                        onQueryChange = { searchQuery = it },
-                                        iconContentDescription = stringResource(R.string.translation_review_search),
-                                        textStyle = MaterialTheme.typography.bodySmall,
-                                        modifier = Modifier.widthIn(min = 150.dp, max = 190.dp).height(48.dp),
-                                    )
+                                    TopBarIcon(
+                                        painter = painterResource(R.drawable.ic_game_search),
+                                        contentDescription = stringResource(R.string.translation_review_search),
+                                        tint = MiuixTheme.colorScheme.primary,
+                                    ) {
+                                        showSearchDialog = true
+                                    }
                                     ReviewFilterTrigger(
                                         filter = filter,
                                         count = filterCounts[filter] ?: 0,
@@ -332,6 +382,7 @@ private fun TranslationReviewScreen(projectId: String) {
                                         entries = filteredEntries,
                                         allEntries = entries,
                                         selectedEntryId = selectedEntry?.id,
+                                        scrollToEntryId = searchJumpEntryId,
                                         modifier = Modifier.weight(1.08f).fillMaxHeight(),
                                         onSelect = { entry ->
                                             selectedEntryId = entry.id
@@ -405,7 +456,6 @@ private fun TranslationReviewScreen(projectId: String) {
                                         contentDescription = stringResource(R.string.translation_review_search),
                                         tint = MiuixTheme.colorScheme.primary,
                                     ) {
-                                        draftSearchQuery = searchQuery
                                         showSearchDialog = true
                                     }
                                     TopBarIcon(
@@ -472,6 +522,7 @@ private fun TranslationReviewScreen(projectId: String) {
                                 )
                             }
                             else -> LazyColumn(
+                                state = mobileReviewListState,
                                 modifier = Modifier.fillMaxSize(),
                                 contentPadding = PaddingValues(top = 4.dp, bottom = 72.dp),
                             ) {
@@ -573,35 +624,141 @@ private fun TranslationReviewScreen(projectId: String) {
     }
 
     if (showSearchDialog) {
-        AppAlertDialog(
+        AppBottomSheet(
             onDismissRequest = { showSearchDialog = false },
-            title = {
-                Text(
-                    stringResource(R.string.translation_review_search),
-                    style = MaterialTheme.typography.titleMedium,
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+                    .padding(top = 16.dp, bottom = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                MiuixText(
+                    text = stringResource(R.string.translation_review_search),
+                    style = MiuixTheme.textStyles.headline1.copy(fontWeight = FontWeight.Bold),
                 )
-            },
-            text = {
-                AppSearchField(
-                    query = draftSearchQuery,
-                    onQueryChange = { draftSearchQuery = it },
-                    iconContentDescription = stringResource(R.string.translation_review_search),
-                    textStyle = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                TranslationGlossaryDialogTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    label = stringResource(R.string.translation_review_find),
+                    modifier = Modifier.fillMaxWidth(),
+                    backgroundColor = NavWhite,
+                    singleLine = true,
                 )
-            },
-            confirmButton = {
-                DialogActionButtons(
-                    cancelText = stringResource(R.string.common_cancel),
-                    confirmText = stringResource(R.string.common_confirm),
-                    onCancel = { showSearchDialog = false },
-                    onConfirm = {
-                        searchQuery = draftSearchQuery
-                        showSearchDialog = false
-                    },
+                TranslationGlossaryDialogTextField(
+                    value = replaceText,
+                    onValueChange = { replaceText = it },
+                    label = stringResource(R.string.translation_review_replace_with),
+                    modifier = Modifier.fillMaxWidth(),
+                    backgroundColor = NavWhite,
+                    singleLine = true,
                 )
-            },
-        )
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    NoRippleButton(
+                        text = stringResource(R.string.translation_review_translation),
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
+                        tonal = searchTarget == ReviewSearchTarget.TRANSLATION,
+                        containerColorOverride = if (searchTarget == ReviewSearchTarget.TRANSLATION) null else DialogItemSurface,
+                        contentColorOverride = if (searchTarget == ReviewSearchTarget.TRANSLATION) null else PageSecondaryTextColor,
+                        onClick = { searchTarget = ReviewSearchTarget.TRANSLATION },
+                    )
+                    NoRippleButton(
+                        text = stringResource(R.string.translation_review_source),
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
+                        tonal = searchTarget == ReviewSearchTarget.SOURCE,
+                        containerColorOverride = if (searchTarget == ReviewSearchTarget.SOURCE) null else DialogItemSurface,
+                        contentColorOverride = if (searchTarget == ReviewSearchTarget.SOURCE) null else PageSecondaryTextColor,
+                        onClick = { searchTarget = ReviewSearchTarget.SOURCE },
+                    )
+                }
+                when {
+                    normalizedSearchQuery.isBlank() -> Text(
+                        stringResource(R.string.translation_review_search_enter_query),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = PageSecondaryTextColor,
+                    )
+                    filteredEntries.isEmpty() -> Text(
+                        stringResource(R.string.translation_review_search_no_matches),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = PageSecondaryTextColor,
+                    )
+                    else -> {
+                        Text(
+                            stringResource(
+                                R.string.translation_review_search_matches,
+                                matchOccurrences,
+                                filteredEntries.size,
+                            ),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = PageSecondaryTextColor,
+                        )
+                        MiuixCard(
+                            modifier = Modifier.fillMaxWidth().heightIn(max = 220.dp),
+                            cornerRadius = AppComponentCornerRadius,
+                            colors = MiuixCardDefaults.defaultColors(color = DialogItemSurface),
+                        ) {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxWidth().heightIn(max = 220.dp),
+                                contentPadding = PaddingValues(vertical = 4.dp),
+                            ) {
+                                itemsIndexed(filteredEntries, key = { _, entry -> entry.id }) { index, entry ->
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth()
+                                            .clickable { jumpToSearchResult(entry) }
+                                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                                        verticalAlignment = Alignment.Top,
+                                    ) {
+                                        Text(
+                                            (sequenceById[entry.id] ?: index + 1).toString(),
+                                            modifier = Modifier.width(36.dp),
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = PageSecondaryTextColor,
+                                        )
+                                        Text(
+                                            text = highlightedSearchText(
+                                                text = searchTarget.text(entry),
+                                                query = normalizedSearchQuery,
+                                                highlightColor = MiuixTheme.colorScheme.primary.copy(alpha = 0.20f),
+                                            ),
+                                            modifier = Modifier.weight(1f),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = TextColor,
+                                            maxLines = 3,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                    }
+                                    if (index != filteredEntries.lastIndex) {
+                                        MiuixHorizontalDivider(
+                                            modifier = Modifier.padding(horizontal = 14.dp),
+                                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                MiuixButton(
+                    onClick = ::replaceAllMatches,
+                    enabled = !active && !replacingEntries && normalizedSearchQuery.isNotBlank() && matchOccurrences > 0,
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    cornerRadius = AppComponentCornerRadius,
+                    insideMargin = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                    colors = MiuixButtonDefaults.buttonColorsPrimary(),
+                ) {
+                    Text(
+                        text = stringResource(
+                            if (replacingEntries) R.string.translation_review_replacing
+                            else R.string.translation_review_replace_all,
+                            matchOccurrences,
+                        ),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                }
+            }
+        }
     }
 
     if (showFilterDialog) {
@@ -715,12 +872,17 @@ private fun ReviewEntryTable(
     entries: List<TranslationReviewEntry>,
     allEntries: List<TranslationReviewEntry>,
     selectedEntryId: String?,
+    scrollToEntryId: String?,
     modifier: Modifier = Modifier,
     onSelect: (TranslationReviewEntry) -> Unit,
 ) {
     val sequenceById = remember(allEntries) { allEntries.mapIndexed { index, entry -> entry.id to index + 1 }.toMap() }
     val panelBorder = translationReviewPanelBorderColor()
     val listState = rememberLazyListState()
+    LaunchedEffect(scrollToEntryId) {
+        val index = entries.indexOfFirst { it.id == scrollToEntryId }
+        if (index >= 0) listState.animateScrollToItem(index)
+    }
     MiuixCard(
         modifier = modifier.border(1.dp, panelBorder, AppComponentShape).glassBorder(),
         cornerRadius = AppComponentCornerRadius,
@@ -1280,6 +1442,53 @@ private enum class ReviewFilter(val label: Int) {
         )
     }
 }
+
+private enum class ReviewSearchTarget {
+    TRANSLATION,
+    SOURCE;
+
+    fun text(entry: TranslationReviewEntry): String = when (this) {
+        TRANSLATION -> entry.translatedText.orEmpty()
+        SOURCE -> entry.sourceText
+    }
+}
+
+private fun String.countOccurrences(query: String): Int {
+    if (query.isEmpty()) return 0
+    var count = 0
+    var startIndex = 0
+    while (startIndex <= length - query.length) {
+        val matchIndex = indexOf(query, startIndex, ignoreCase = true)
+        if (matchIndex < 0) break
+        count++
+        startIndex = matchIndex + query.length
+    }
+    return count
+}
+
+private fun String.replaceOccurrences(query: String, replacement: String): String {
+    if (query.isEmpty()) return this
+    return Regex(Regex.escape(query), RegexOption.IGNORE_CASE).replace(this) { replacement }
+}
+
+private fun highlightedSearchText(text: String, query: String, highlightColor: Color): AnnotatedString =
+    buildAnnotatedString {
+        if (query.isEmpty()) {
+            append(text)
+            return@buildAnnotatedString
+        }
+        var searchFrom = 0
+        while (searchFrom <= text.length - query.length) {
+            val matchIndex = text.indexOf(query, searchFrom, ignoreCase = true)
+            if (matchIndex < 0) break
+            append(text.substring(searchFrom, matchIndex))
+            pushStyle(SpanStyle(background = highlightColor))
+            append(text.substring(matchIndex, matchIndex + query.length))
+            pop()
+            searchFrom = matchIndex + query.length
+        }
+        append(text.substring(searchFrom))
+    }
 
 @Composable
 private fun TranslationProjectCard.reviewEngineName(): String = when (engineId) {

@@ -165,6 +165,20 @@ class TranslationWorkbenchRepository(context: Context) {
         }
     }
 
+    suspend fun replaceReviewSources(projectId: String, replacements: Map<String, String>): Int {
+        if (replacements.values.any { it.length > MAX_MANUAL_TRANSLATION_LENGTH }) {
+            throw TranslationWorkbenchException(TranslationWorkbenchError.INVALID_REVIEW_ENTRY)
+        }
+        return dao.replaceReviewSources(projectId, replacements, System.currentTimeMillis())
+    }
+
+    suspend fun replaceReviewTranslations(projectId: String, replacements: Map<String, String>): Int {
+        if (replacements.values.any { it.length > MAX_MANUAL_TRANSLATION_LENGTH }) {
+            throw TranslationWorkbenchException(TranslationWorkbenchError.INVALID_REVIEW_ENTRY)
+        }
+        return dao.replaceReviewTranslations(projectId, replacements, System.currentTimeMillis())
+    }
+
     suspend fun confirmCurrentTranslation(projectId: String, entryId: String) {
         if (!dao.confirmEntry(projectId, entryId, System.currentTimeMillis())) {
             if (dao.getActiveTask(projectId) != null) throw TranslationWorkbenchException(TranslationWorkbenchError.TASK_ALREADY_ACTIVE)
