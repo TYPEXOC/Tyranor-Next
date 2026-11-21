@@ -2,6 +2,7 @@ package com.tyranor.next.ui.translation
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
@@ -37,7 +38,6 @@ internal fun TranslationConfirmationDialog(
     ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             errorMessage?.let { message ->
                 Text(
@@ -46,28 +46,33 @@ internal fun TranslationConfirmationDialog(
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
-            MiuixButton(
-                modifier = Modifier.fillMaxWidth(),
-                enabled = primaryEnabled,
-                colors = MiuixButtonDefaults.buttonColors(
-                    color = DangerFill,
-                    contentColor = OnDangerFill,
-                ),
-                onClick = onPrimaryClick,
-            ) {
-                Text(primaryLabel, color = OnDangerFill)
-            }
             val secondaryContentColor = MaterialTheme.colorScheme.onSurface
-            MiuixButton(
-                modifier = Modifier.fillMaxWidth(),
-                enabled = secondaryEnabled,
-                colors = MiuixButtonDefaults.buttonColors(
-                    color = secondaryContentColor.copy(alpha = 0.1f),
-                    contentColor = secondaryContentColor,
-                ),
-                onClick = onSecondaryClick,
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = if (errorMessage == null) 0.dp else 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Text(secondaryLabel, color = secondaryContentColor)
+                MiuixButton(
+                    modifier = Modifier.weight(1f),
+                    enabled = primaryEnabled,
+                    colors = MiuixButtonDefaults.buttonColors(
+                        color = DangerFill,
+                        contentColor = OnDangerFill,
+                    ),
+                    onClick = onPrimaryClick,
+                ) {
+                    Text(primaryLabel, color = OnDangerFill)
+                }
+                MiuixButton(
+                    modifier = Modifier.weight(1f),
+                    enabled = secondaryEnabled,
+                    colors = MiuixButtonDefaults.buttonColors(
+                        color = secondaryContentColor.copy(alpha = 0.1f),
+                        contentColor = secondaryContentColor,
+                    ),
+                    onClick = onSecondaryClick,
+                ) {
+                    Text(secondaryLabel, color = secondaryContentColor)
+                }
             }
         }
     }
