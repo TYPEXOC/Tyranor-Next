@@ -533,15 +533,24 @@ private fun TranslationReviewScreen(projectId: String) {
                         )
                         ReviewEntryStatusBadge(entry)
                     }
-                    Text(stringResource(R.string.translation_review_source), style = MaterialTheme.typography.labelMedium)
-                    Box(
-                        modifier = Modifier.fillMaxWidth()
-                            .clip(AppComponentShape)
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.58f))
-                            .padding(14.dp),
-                    ) {
-                        Text(entry.sourceText, style = MaterialTheme.typography.bodyMedium, color = PageTextColor)
-                    }
+                    MiuixTextField(
+                        value = entry.sourceText,
+                        onValueChange = {},
+                        modifier = Modifier.fillMaxWidth(),
+                        insideMargin = DpSize(14.dp, 12.dp),
+                        colors = MiuixTextFieldDefaults.textFieldColors(
+                            backgroundColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.58f),
+                            labelColor = PageSecondaryTextColor,
+                            borderColor = MaterialTheme.colorScheme.surfaceVariant,
+                        ),
+                        cornerRadius = AppComponentCornerRadius,
+                        label = "",
+                        enabled = false,
+                        readOnly = true,
+                        minLines = 2,
+                        maxLines = 8,
+                        textStyle = MaterialTheme.typography.bodyMedium.copy(color = PageTextColor),
+                    )
                     TranslationGlossaryDialogTextField(
                         value = editorText,
                         onValueChange = { editorText = it },
