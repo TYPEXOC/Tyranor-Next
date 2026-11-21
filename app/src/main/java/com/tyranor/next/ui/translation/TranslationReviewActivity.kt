@@ -103,16 +103,19 @@ import kotlinx.coroutines.launch
 import com.tyranor.next.theme.glassBorder
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
 import top.yukonga.miuix.kmp.basic.CardDefaults as MiuixCardDefaults
+import top.yukonga.miuix.kmp.basic.BasicComponentDefaults
 import top.yukonga.miuix.kmp.basic.FabPosition
 import top.yukonga.miuix.kmp.basic.FloatingActionButton as MiuixFloatingActionButton
 import top.yukonga.miuix.kmp.basic.HorizontalDivider as MiuixHorizontalDivider
 import top.yukonga.miuix.kmp.basic.Icon as MiuixIcon
+import top.yukonga.miuix.kmp.basic.RadioButtonDefaults
 import top.yukonga.miuix.kmp.basic.Text as MiuixText
 import top.yukonga.miuix.kmp.basic.TextFieldDefaults as MiuixTextFieldDefaults
 import top.yukonga.miuix.kmp.basic.VerticalDivider as MiuixVerticalDivider
 import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
 import top.yukonga.miuix.kmp.basic.TextField as MiuixTextField
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.preference.RadioButtonPreference
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -1185,51 +1188,33 @@ private fun ReviewFilterOptionRow(
                         .background(accentColor.copy(alpha = 0.12f)),
                 )
             }
-            Row(
-                modifier = Modifier.fillMaxWidth()
-                    .clickable(onClick = onClick)
-                    .heightIn(min = 44.dp)
-                    .padding(horizontal = 14.dp, vertical = 3.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Box(
-                    modifier = Modifier.width(34.dp).height(24.dp),
-                    contentAlignment = Alignment.CenterStart,
-                ) {
-                    BlurVisibility(
-                        visible = selected,
-                        modifier = Modifier.matchParentSize(),
-                        label = "reviewFilterSelectedCheck",
-                    ) {
-                        MiuixIcon(
-                            painter = painterResource(R.drawable.ic_check),
-                            contentDescription = null,
-                            tint = accentColor,
-                            modifier = Modifier.size(24.dp),
-                        )
-                    }
-                }
-                Text(
-                    stringResource(option.label),
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-                    ),
+            RadioButtonPreference(
+                title = stringResource(option.label),
+                selected = selected,
+                onClick = onClick,
+                modifier = Modifier.fillMaxWidth(),
+                titleColor = BasicComponentDefaults.titleColor(
                     color = if (selected) accentColor else TextColor,
-                )
-                Text(
-                    count.toString(),
-                    modifier = Modifier
-                        .clip(AppComponentShape)
-                        .background(
-                            if (selected) accentColor.copy(alpha = 0.12f)
-                            else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f),
-                        )
-                        .padding(horizontal = 10.dp, vertical = 4.dp),
-                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
-                    color = if (selected) accentColor else PageSecondaryTextColor,
-                )
-            }
+                ),
+                radioButtonColors = RadioButtonDefaults.radioButtonColors(
+                    selectedColor = accentColor,
+                ),
+                endActions = {
+                    Text(
+                        count.toString(),
+                        modifier = Modifier
+                            .clip(AppComponentShape)
+                            .background(
+                                if (selected) accentColor.copy(alpha = 0.12f)
+                                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f),
+                            )
+                            .padding(horizontal = 10.dp, vertical = 4.dp),
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                        color = if (selected) accentColor else PageSecondaryTextColor,
+                    )
+                },
+                insideMargin = PaddingValues(horizontal = 14.dp, vertical = 3.dp),
+            )
         }
     }
 }
