@@ -1189,6 +1189,16 @@ private fun TranslationProjectCardView(
     val fullyTranslated = project.isFullyTranslated()
     val extractionActive = isActive && project.latestTaskType == "EXTRACT"
     val reviewComplete = project.reviewCompletedAt != null
+    val cardIconResource = when {
+        extractionActive -> R.drawable.ic_translation_extract
+        isActive && project.latestTaskType == "TRANSLATE" -> R.drawable.ic_translation_workbench
+        fullyTranslated || reviewComplete || project.translatedCount > 0 && project.entryCount <= project.translatedCount ->
+            R.drawable.ic_translation_review
+        isGameDirectory && (project.entryCount == 0 || project.latestTaskType == "EXTRACT" && canContinue) ->
+            R.drawable.ic_translation_extract
+        project.entryCount > project.translatedCount -> R.drawable.ic_translation_workbench
+        else -> R.drawable.ic_translation_extract
+    }
     val statusRes = when {
         isActive && project.latestTaskState == "QUEUED" -> R.string.translation_task_queued
         isActive && project.latestTaskType == "TRANSLATE" -> R.string.translation_task_translating
@@ -1315,7 +1325,7 @@ private fun TranslationProjectCardView(
             Row(horizontalArrangement = Arrangement.spacedBy(9.dp), verticalAlignment = Alignment.CenterVertically) {
                 Surface(shape = RoundedCornerShape(10.dp), color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)) {
                     Image(
-                        painter = painterResource(R.drawable.ic_translation_workbench),
+                        painter = painterResource(cardIconResource),
                         contentDescription = null,
                         colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.primary),
                         modifier = Modifier.size(if (tabletLayout) 34.dp else 28.dp).padding(5.dp),
