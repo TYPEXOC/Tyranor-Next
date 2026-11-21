@@ -254,13 +254,15 @@
     <string name="translation_services_error_storage">翻訳サービス設定を保存できませんでした。</string>
     <string name="translation_workbench_title">翻訳ワークベンチ</string>
     <string name="translation_add_project">プロジェクトを追加</string>
-    <string name="translation_add_project_description">抽出または翻訳プロジェクトの読み込みを選び、対象を指定します。</string>
+    <string name="translation_add_project_description">抽出・翻訳・校正から選び、対象を指定します。</string>
     <string name="translation_choose_project_source">ゲームフォルダーからテキストを抽出するか、原文と訳文を含む MTool JSON を読み込みます。</string>
     <string name="translation_add_project_operation">操作</string>
     <string name="translation_add_project_extract">抽出</string>
     <string name="translation_add_project_translate">翻訳</string>
+    <string name="translation_add_project_proofread">校正</string>
     <string name="translation_add_project_extract_hint">ゲームフォルダーを解析して翻訳対象のテキストを抽出</string>
     <string name="translation_add_project_translate_hint">テキストを読み込み、設定済みのサービスで一括翻訳</string>
+    <string name="translation_add_project_proofread_hint">既存の訳文を読み込み、手動校正を行う</string>
     <string name="translation_add_project_engine_hint">ゲームのエンジンを選択</string>
     <string name="translation_add_project_engine_disabled_hint">抽出のみで使用</string>
     <string name="translation_add_project_engine">ゲームエンジン</string>

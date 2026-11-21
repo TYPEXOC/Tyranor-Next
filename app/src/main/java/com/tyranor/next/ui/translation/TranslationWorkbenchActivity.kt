@@ -132,6 +132,7 @@ class TranslationWorkbenchActivity : AppScreenActivity() {
 private enum class ProjectAddOperation {
     EXTRACT,
     TRANSLATE,
+    PROOFREAD,
 }
 
 private enum class ProjectListFilter {
@@ -388,7 +389,8 @@ private fun TranslationWorkbenchScreen() {
                             throw TranslationWorkbenchException(TranslationWorkbenchError.PROJECT_ALREADY_EXISTS)
                         }
                     }
-                    ProjectAddOperation.TRANSLATE -> {
+                    ProjectAddOperation.TRANSLATE,
+                    ProjectAddOperation.PROOFREAD -> {
                         val displayName = addProjectSourceName.ifBlank { queryDisplayName(appContext, sourceUri) }
                         val format = addProjectSourceFormat
                             ?: throw TranslationWorkbenchException(TranslationWorkbenchError.INVALID_PROJECT_FILE)
@@ -426,7 +428,8 @@ private fun TranslationWorkbenchScreen() {
         addProjectErrorCode = null
         when (addProjectOperation) {
             ProjectAddOperation.EXTRACT -> chooseGameDirectory.launch(null)
-            ProjectAddOperation.TRANSLATE -> chooseProjectFile()
+            ProjectAddOperation.TRANSLATE,
+            ProjectAddOperation.PROOFREAD -> chooseProjectFile()
         }
     }
 
@@ -707,10 +710,12 @@ private fun TranslationWorkbenchScreen() {
                     val operationItems = listOf(
                         stringResource(R.string.translation_add_project_extract),
                         stringResource(R.string.translation_add_project_translate),
+                        stringResource(R.string.translation_add_project_proofread),
                     )
                     val operationSummary = when (addProjectOperation) {
                         ProjectAddOperation.EXTRACT -> stringResource(R.string.translation_add_project_extract_hint)
                         ProjectAddOperation.TRANSLATE -> stringResource(R.string.translation_add_project_translate_hint)
+                        ProjectAddOperation.PROOFREAD -> stringResource(R.string.translation_add_project_proofread_hint)
                     }
                     val engineIds = listOf(
                         EngineType.RPG_MV.name,
