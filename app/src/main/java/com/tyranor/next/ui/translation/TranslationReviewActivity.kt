@@ -323,57 +323,47 @@ private fun TranslationReviewScreen(projectId: String) {
                                 },
                             )
                         }
-                        MiuixCard(
-                            modifier = Modifier.weight(1f).fillMaxWidth().glassBorder(),
-                            cornerRadius = AppComponentCornerRadius,
+                        Row(
+                            modifier = Modifier.weight(1f).fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
-                            Column(
-                                modifier = Modifier.fillMaxSize().padding(18.dp),
-                                verticalArrangement = Arrangement.spacedBy(12.dp),
-                            ) {
-                                Row(
-                                    modifier = Modifier.weight(1f).fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                ) {
-                                    ReviewEntryList(
-                                        entries = filteredEntries,
-                                        allEntries = entries,
-                                        selectedEntryId = selectedEntry?.id,
-                                        scrollToEntryId = searchJumpEntryId,
-                                        modifier = Modifier.weight(1.08f).fillMaxHeight(),
-                                        onSelect = { entry ->
-                                            selectedEntryId = entry.id
-                                            editorText = entry.translatedText.orEmpty()
-                                        },
-                                    )
-                                    if (selectedEntry != null) {
-                                        TranslationReviewEntryDetailPane(
-                                            entry = selectedEntry,
-                                            sequence = entries.indexOfFirst { it.id == selectedEntry.id } + 1,
-                                            totalCount = entries.size,
-                                            translationText = editorText,
-                                            enabled = !active && !savingEntry,
-                                            modifier = Modifier.weight(0.92f).fillMaxHeight(),
-                                            onTranslationTextChange = { editorText = it },
-                                            onCancel = { editorText = selectedEntry.translatedText.orEmpty() },
-                                            onSave = {
-                                                val entryId = selectedEntry.id
-                                                val translation = editorText
-                                                runOperation {
-                                                    saveReviewEntry(entryId, translation)
-                                                }
-                                            },
-                                        )
-                                    } else {
-                                        ReviewInfoCard(
-                                            text = stringResource(
-                                                if (entries.isEmpty()) R.string.translation_review_no_entries
-                                                else R.string.translation_review_no_matches,
-                                            ),
-                                            modifier = Modifier.weight(0.92f).fillMaxHeight(),
-                                        )
-                                    }
-                                }
+                            ReviewEntryList(
+                                entries = filteredEntries,
+                                allEntries = entries,
+                                selectedEntryId = selectedEntry?.id,
+                                scrollToEntryId = searchJumpEntryId,
+                                modifier = Modifier.weight(1.08f).fillMaxHeight(),
+                                onSelect = { entry ->
+                                    selectedEntryId = entry.id
+                                    editorText = entry.translatedText.orEmpty()
+                                },
+                            )
+                            if (selectedEntry != null) {
+                                TranslationReviewEntryDetailPane(
+                                    entry = selectedEntry,
+                                    sequence = entries.indexOfFirst { it.id == selectedEntry.id } + 1,
+                                    totalCount = entries.size,
+                                    translationText = editorText,
+                                    enabled = !active && !savingEntry,
+                                    modifier = Modifier.weight(0.92f).fillMaxHeight(),
+                                    onTranslationTextChange = { editorText = it },
+                                    onCancel = { editorText = selectedEntry.translatedText.orEmpty() },
+                                    onSave = {
+                                        val entryId = selectedEntry.id
+                                        val translation = editorText
+                                        runOperation {
+                                            saveReviewEntry(entryId, translation)
+                                        }
+                                    },
+                                )
+                            } else {
+                                ReviewInfoCard(
+                                    text = stringResource(
+                                        if (entries.isEmpty()) R.string.translation_review_no_entries
+                                        else R.string.translation_review_no_matches,
+                                    ),
+                                    modifier = Modifier.weight(0.92f).fillMaxHeight(),
+                                )
                             }
                         }
                     }
@@ -592,7 +582,8 @@ private fun TranslationReviewScreen(projectId: String) {
                         )
                         MiuixCard(
                             modifier = Modifier.fillMaxWidth()
-                                .height(searchResultListHeight)
+                                .weight(1f, fill = false)
+                                .heightIn(max = searchResultListHeight)
                                 .border(1.dp, translationReviewPanelBorderColor(), AppComponentShape)
                                 .glassBorder(),
                             cornerRadius = AppComponentCornerRadius,
