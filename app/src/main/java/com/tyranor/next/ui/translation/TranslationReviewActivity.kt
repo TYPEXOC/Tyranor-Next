@@ -519,37 +519,20 @@ private fun TranslationReviewScreen(projectId: String) {
             textScrollEnabled = true,
             text = {
                 Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Row(
+                    Box(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
+                        contentAlignment = Alignment.CenterEnd,
                     ) {
-                        Text(
-                            entry.sourceKey,
-                            modifier = Modifier.weight(1f),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = PageSecondaryTextColor,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
                         ReviewEntryStatusBadge(entry)
                     }
-                    MiuixTextField(
+                    TranslationGlossaryDialogTextField(
                         value = entry.sourceText,
                         onValueChange = {},
+                        label = stringResource(R.string.translation_review_source),
                         modifier = Modifier.fillMaxWidth(),
-                        insideMargin = DpSize(14.dp, 12.dp),
-                        colors = MiuixTextFieldDefaults.textFieldColors(
-                            backgroundColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.58f),
-                            labelColor = PageSecondaryTextColor,
-                            borderColor = MaterialTheme.colorScheme.surfaceVariant,
-                        ),
-                        cornerRadius = AppComponentCornerRadius,
-                        label = "",
                         enabled = false,
-                        readOnly = true,
                         minLines = 2,
                         maxLines = 8,
-                        textStyle = MaterialTheme.typography.bodyMedium.copy(color = PageTextColor),
                     )
                     TranslationGlossaryDialogTextField(
                         value = editorText,
@@ -1134,20 +1117,13 @@ private fun TranslationReviewEntryDetailPane(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Text(
                     stringResource(R.string.translation_review_entry_position, sequence, totalCount),
                     style = MaterialTheme.typography.labelMedium,
                     color = PageSecondaryTextColor,
                     maxLines = 1,
-                )
-                Text(
-                    entry.sourceKey,
-                    modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = PageSecondaryTextColor,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
                 )
                 ReviewEntryStatusBadge(entry)
             }
