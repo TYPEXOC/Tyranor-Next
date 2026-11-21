@@ -21,9 +21,15 @@ internal object NoticeCenter : NoticeState(MainNoticeClock, { notice ->
 }) {
     private var nextId = 1L
 
-    fun show(context: Context, text: CharSequence, duration: Int, kind: AppNotice.Kind) {
+    fun show(
+        context: Context,
+        text: CharSequence,
+        duration: Int,
+        kind: AppNotice.Kind,
+        position: AppNotice.Position,
+    ) {
         if (Looper.myLooper() != Looper.getMainLooper()) {
-            MainNoticeClock.handler.post { show(context, text, duration, kind) }
+            MainNoticeClock.handler.post { show(context, text, duration, kind, position) }
             return
         }
         if (!MotionMode.enhanced || !canPresent) {
@@ -34,6 +40,10 @@ internal object NoticeCenter : NoticeState(MainNoticeClock, { notice ->
         val base = if (duration == Toast.LENGTH_LONG) 3500L else 2000L
         val extra = if (kind == AppNotice.Kind.Failure) 800L else 0L
         val dwell = maxOf(base, 1200L + 55L * text.length).coerceAtMost(5000L) + extra
-        show(Notice(nextId++, text.toString(), kind, dwell) { Toast.makeText(appContext, text, duration).show() })
+        show(
+            Notice(nextId++, text.toString(), kind, dwell, position) {
+                Toast.makeText(appContext, text, duration).show()
+            },
+        )
     }
 }

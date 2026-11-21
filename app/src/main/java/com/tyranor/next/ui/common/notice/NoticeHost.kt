@@ -149,12 +149,12 @@ private fun rememberHostEntry(cover: Boolean): NoticeHostEntry {
 /**
  * 灵动岛式提示条（设计参考 mochi-compose 的 MochiToast，Apache-2.0，见 THIRD_PARTY_NOTICES.md，代码为本项目重写）。
  *
- * - **出现**：从屏幕顶部中央一颗小「岛」（[ISLAND_WIDTH] × [ISLAND_HEIGHT]）柔和展开成内容大小的胶囊并落位，内容提前显影；
+ * - **出现**：从屏幕顶部或底部中央一颗小「岛」（[ISLAND_WIDTH] × [ISLAND_HEIGHT]）柔和展开成内容大小的胶囊并落位，内容提前显影；
  *   尺寸由进场进度 [NoticeCenter.appear] 在岛与内容之间插值，外壳与内容共用同一帧尺寸。
  * - **连续点 / 替换**：容器不收起，胶囊直接变成新内容的大小，图标与文字模糊交叉替换（[BlurCrossfade] 自带尺寸过渡）。
  * - **按住**：放大 1.04、轻微跟手（朝手指偏 ≤ 4dp）、按住点发光；按住期间暂停计时，松手后至少再留约 0.8 秒。
- * - **手势**：往上甩 / 上拉过 24dp 收起；往下拉被橡皮筋拉住；轻点收起；其余区域的触摸完全穿透。
- * - **收起**：独立于展开，190ms 轻收（缩 3.5%）、上移 18dp、淡出。
+ * - **手势**：向远离停靠边缘的方向甩 / 拖过 24dp 收起；朝窗口内侧拉会被橡皮筋拉住；轻点收起；其余区域的触摸完全穿透。
+ * - **收起**：独立于展开，190ms 轻收（缩 3.5%）、向停靠边缘移动 18dp、淡出。
  * - **配色**：按主题深浅取反色——浅色类主题（默认浅色、白雾玻璃）黑胶囊白字，深色类（深色外观、复古玻璃）白胶囊黑字；不做玻璃。
  */
 @Composable
@@ -211,14 +211,23 @@ private fun NoticeSurface(modifier: Modifier, draw: NoticeDrawing, last: Notice)
             }
         }
     }
+    val bottomPosition = last.position == AppNotice.Position.Bottom
+    val tabletLayout = isTabletScreen()
     Box(
         modifier
             .fillMaxSize()
-            .then(if (isTabletScreen()) Modifier.windowInsetsPadding(
-                WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal),
-            ) else Modifier.statusBarsPadding())
-            .padding(top = 6.dp),
-        contentAlignment = Alignment.TopCenter,
+            .then(
+                when {
+                    bottomPosition -> Modifier.windowInsetsPadding(
+                        WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal),
+                    ).padding(bottom = 16.dp)
+                    tabletLayout -> Modifier.windowInsetsPadding(
+                        WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal),
+                    ).padding(top = 6.dp)
+                    else -> Modifier.statusBarsPadding().padding(top = 6.dp)
+                },
+            ),
+        contentAlignment = if (bottomPosition) Alignment.BottomCenter else Alignment.TopCenter,
     ) {
         Layout(
             content = {
@@ -243,14 +252,15 @@ private fun NoticeSurface(modifier: Modifier, draw: NoticeDrawing, last: Notice)
                     val scale = (ENTER_SCALE + (1f - ENTER_SCALE) * p) * (1f - EXIT_SHRINK * exit) * (1f + PRESS_SCALE * k) * pulse.value
                     scaleX = scale
                     scaleY = scale
-                    transformOrigin = TransformOrigin(0.5f, 0f)
+                    transformOrigin = TransformOrigin(0.5f, if (bottomPosition) 1f else 0f)
                     // 按住时轻微朝手指偏（跟手）
                     val followPx = FOLLOW_DP.dp.toPx() * k
                     val fx = if (size.width > 0f) (pointer.x / size.width - 0.5f) * 2f else 0f
                     val fy = if (size.height > 0f) (pointer.y / size.height - 0.5f) * 2f else 0f
                     translationX = fx.coerceIn(-1f, 1f) * followPx
-                    translationY = drag.offset + fy.coerceIn(-1f, 1f) * followPx -
-                        ENTER_RISE_DP.dp.toPx() * (1f - p) - EXIT_RISE_DP.dp.toPx() * exit
+                    val edgeTravel = ENTER_RISE_DP.dp.toPx() * (1f - p) + EXIT_RISE_DP.dp.toPx() * exit
+                    translationY = drag.offset + fy.coerceIn(-1f, 1f) * followPx +
+                        if (bottomPosition) edgeTravel else -edgeTravel
                     alpha = smoothstep(0f, 0.2f, p) * (1f - exit)
                     // 透明度逐元素调制、不走离屏缓冲：离屏缓冲只有胶囊外框那么大，画在外框外面的阴影会被切成一个灰方框
                     // （淡出 / 淡入时可见）
@@ -310,7 +320,11 @@ private fun NoticeSurface(modifier: Modifier, draw: NoticeDrawing, last: Notice)
                                 c.consume()
                                 if (!c.pressed) {
                                     velocity = tracker.calculateVelocity().y
-                                    dismiss = pull.dismissOnUp(dismissPx, velocity)
+                                    dismiss = pull.dismissOnUp(
+                                        dismissPx,
+                                        velocity,
+                                        dismissalDirection = if (bottomPosition) 1f else -1f,
+                                    )
                                     break
                                 }
                             }
@@ -459,8 +473,8 @@ internal class NoticePull(private val slop: Float, private val limit: Float, pri
         return band.position(start + travel.y)
     }
 
-    fun dismissOnUp(dismissPx: Float, velocityY: Float): Boolean =
-        !dragged || travel.y < -dismissPx || velocityY < -FLICK_PX_PER_SECOND
+    fun dismissOnUp(dismissPx: Float, velocityY: Float, dismissalDirection: Float = -1f): Boolean =
+        !dragged || travel.y * dismissalDirection > dismissPx || velocityY * dismissalDirection > FLICK_PX_PER_SECOND
 
     fun releaseVelocity(fingerVelocity: Float): Float = band.velocity(start + travel.y, fingerVelocity)
 }
