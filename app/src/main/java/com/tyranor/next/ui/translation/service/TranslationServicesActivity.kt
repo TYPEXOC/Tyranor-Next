@@ -107,6 +107,7 @@ import com.tyranor.next.ui.common.OverlayDropdownPreference
 import com.tyranor.next.ui.common.SegmentedControl
 import com.tyranor.next.ui.common.SettingsEntryCard
 import com.tyranor.next.ui.common.TabPagerPageHost
+import com.tyranor.next.ui.common.TopBarIcon
 import com.tyranor.next.ui.common.rememberTabPagerState
 import com.tyranor.next.ui.common.motion.MotionMode
 import com.tyranor.next.ui.common.motion.TabPageContent
@@ -127,6 +128,7 @@ import top.yukonga.miuix.kmp.basic.ButtonDefaults as MiuixButtonDefaults
 import top.yukonga.miuix.kmp.basic.FabPosition
 import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
 import top.yukonga.miuix.kmp.basic.TextField as MiuixTextField
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 class TranslationServicesActivity : AppScreenActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -1006,6 +1008,22 @@ private fun TranslationServicesScreen() {
                         title = stringResource(R.string.translation_services_task_settings),
                         background = Color.Transparent,
                         contentColor = PageTextColor,
+                        trailing = {
+                            TopBarIcon(
+                                painter = painterResource(R.drawable.ic_save),
+                                contentDescription = stringResource(R.string.common_done),
+                                tint = MiuixTheme.colorScheme.primary,
+                                onClick = {
+                                    val settings = state.toTaskSettings()
+                                    if (settings == null || !settings.isValidFor(state.protocolId.category)) {
+                                        invalidSettings = true
+                                    } else {
+                                        editor = editor?.copy(taskSettings = settings)
+                                        activePage = TranslationServicesPage.EDITOR
+                                    }
+                                },
+                            )
+                        },
                     )
                 },
             ) { innerPadding ->
@@ -1106,28 +1124,6 @@ private fun TranslationServicesScreen() {
                                     style = MaterialTheme.typography.bodySmall,
                                 )
                             }
-                        }
-                        Row(
-                            modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(vertical = 12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            NoRippleTextButton(
-                                text = stringResource(R.string.common_cancel),
-                                onClick = { activePage = TranslationServicesPage.EDITOR },
-                            )
-                            NoRippleButton(
-                                text = stringResource(R.string.translation_services_advanced_done),
-                                onClick = {
-                                    val settings = state.toTaskSettings()
-                                    if (settings == null || !settings.isValidFor(state.protocolId.category)) {
-                                        invalidSettings = true
-                                    } else {
-                                        editor = editor?.copy(taskSettings = settings)
-                                        activePage = TranslationServicesPage.EDITOR
-                                    }
-                                },
-                            )
                         }
                     }
                 }
