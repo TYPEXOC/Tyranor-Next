@@ -93,6 +93,7 @@ import com.tyranor.next.ui.common.DialogActionButtons
 import com.tyranor.next.ui.common.TopBarIcon
 import com.tyranor.next.ui.common.NoRippleButton
 import com.tyranor.next.ui.common.isTabletScreen
+import com.tyranor.next.ui.common.motion.BlurVisibility
 import com.tyranor.next.ui.common.motion.PageTransitions
 import com.tyranor.next.ui.common.motion.listItemMotion
 import com.tyranor.next.ui.common.motion.pressSquish
@@ -1171,50 +1172,64 @@ private fun ReviewFilterOptionRow(
     MiuixCard(
         modifier = Modifier.fillMaxWidth().pressSquishGroup(),
         cornerRadius = AppComponentCornerRadius,
-        colors = MiuixCardDefaults.defaultColors(
-            color = if (selected) accentColor.copy(alpha = 0.12f) else DialogItemSurface,
-        ),
+        colors = MiuixCardDefaults.defaultColors(color = DialogItemSurface),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth()
-                .clickable(onClick = onClick)
-                .heightIn(min = 44.dp)
-                .padding(horizontal = 14.dp, vertical = 3.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(
-                modifier = Modifier.width(34.dp),
-                contentAlignment = Alignment.CenterStart,
+        Box(modifier = Modifier.fillMaxWidth()) {
+            BlurVisibility(
+                visible = selected,
+                modifier = Modifier.matchParentSize().clip(AppComponentShape),
+                label = "reviewFilterSelectedSurface",
             ) {
-                if (selected) {
-                    MiuixIcon(
-                        painter = painterResource(R.drawable.ic_check),
-                        contentDescription = null,
-                        tint = accentColor,
-                        modifier = Modifier.size(24.dp),
-                    )
-                }
+                Box(
+                    modifier = Modifier.fillMaxSize()
+                        .background(accentColor.copy(alpha = 0.12f)),
+                )
             }
-            Text(
-                stringResource(option.label),
-                modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-                ),
-                color = if (selected) accentColor else TextColor,
-            )
-            Text(
-                count.toString(),
-                modifier = Modifier
-                    .clip(AppComponentShape)
-                    .background(
-                        if (selected) accentColor.copy(alpha = 0.12f)
-                        else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f),
-                    )
-                    .padding(horizontal = 10.dp, vertical = 4.dp),
-                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
-                color = if (selected) accentColor else PageSecondaryTextColor,
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth()
+                    .clickable(onClick = onClick)
+                    .heightIn(min = 44.dp)
+                    .padding(horizontal = 14.dp, vertical = 3.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(
+                    modifier = Modifier.width(34.dp).height(24.dp),
+                    contentAlignment = Alignment.CenterStart,
+                ) {
+                    BlurVisibility(
+                        visible = selected,
+                        modifier = Modifier.matchParentSize(),
+                        label = "reviewFilterSelectedCheck",
+                    ) {
+                        MiuixIcon(
+                            painter = painterResource(R.drawable.ic_check),
+                            contentDescription = null,
+                            tint = accentColor,
+                            modifier = Modifier.size(24.dp),
+                        )
+                    }
+                }
+                Text(
+                    stringResource(option.label),
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                    ),
+                    color = if (selected) accentColor else TextColor,
+                )
+                Text(
+                    count.toString(),
+                    modifier = Modifier
+                        .clip(AppComponentShape)
+                        .background(
+                            if (selected) accentColor.copy(alpha = 0.12f)
+                            else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f),
+                        )
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                    color = if (selected) accentColor else PageSecondaryTextColor,
+                )
+            }
         }
     }
 }
