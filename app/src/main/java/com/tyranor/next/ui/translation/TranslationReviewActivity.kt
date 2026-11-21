@@ -235,10 +235,10 @@ private fun TranslationReviewScreen(projectId: String) {
     }
     val searchResultTextStyle = MaterialTheme.typography.bodyMedium
     val searchResultRowVerticalPadding = 10.dp
-    val searchResultListMaxHeight = (
-        with(LocalDensity.current) { searchResultTextStyle.lineHeight.toDp() } +
-            searchResultRowVerticalPadding * 2f
-        ) * SEARCH_RESULT_MAX_VISIBLE_ROWS.toFloat() + 8.dp
+    val searchResultRowMaxHeight = with(LocalDensity.current) {
+        searchResultTextStyle.lineHeight.toDp() * SEARCH_RESULT_PREVIEW_MAX_LINES.toFloat()
+    } + searchResultRowVerticalPadding * 2f + 1.dp
+    val searchResultListMaxHeight = searchResultRowMaxHeight * SEARCH_RESULT_MAX_VISIBLE_ROWS.toFloat() + 8.dp
     val tabletLayout = isTabletScreen()
     val filteredSelection = filteredEntries.firstOrNull { it.id == selectedEntryId }
     val selectedEntry = filteredSelection ?: if (tabletLayout) filteredEntries.firstOrNull() else null
@@ -733,7 +733,7 @@ private fun TranslationReviewScreen(projectId: String) {
                                             modifier = Modifier.weight(1f),
                                             style = searchResultTextStyle,
                                             color = TextColor,
-                                            maxLines = 3,
+                                            maxLines = SEARCH_RESULT_PREVIEW_MAX_LINES,
                                             overflow = TextOverflow.Ellipsis,
                                         )
                                     }
@@ -1463,6 +1463,7 @@ private enum class ReviewSearchTarget {
     }
 }
 
+private const val SEARCH_RESULT_PREVIEW_MAX_LINES = 3
 private const val SEARCH_RESULT_MAX_VISIBLE_ROWS = 3
 
 private fun String.countOccurrences(query: String): Int {
