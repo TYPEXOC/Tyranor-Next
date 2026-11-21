@@ -312,14 +312,6 @@
     <string name="translation_project_ready">项目就绪</string>
     <string name="translation_project_waiting">待提取</string>
     <string name="translation_card_imported_source">导入的文本项目</string>
-    <string name="translation_card_stage_extracted">提取完成</string>
-    <string name="translation_card_stage_extracting">提取中</string>
-    <string name="translation_card_stage_waiting_extraction">待提取</string>
-    <string name="translation_card_stage_translated">翻译完成</string>
-    <string name="translation_card_stage_translating">翻译中</string>
-    <string name="translation_card_stage_waiting_translation">待翻译</string>
-    <string name="translation_card_stage_reviewed">校对完成</string>
-    <string name="translation_card_stage_waiting_review">待校对</string>
     <string name="translation_card_review_pending">待校对</string>
     <string name="translation_card_review_pending_count">待校对 · %1$d 项</string>
     <string name="translation_card_review_completed">校对完成</string>
@@ -332,6 +324,7 @@
     <string name="translation_card_progress_indeterminate">—</string>
     <string name="translation_card_export">导出</string>
     <string name="translation_card_delete">删除</string>
+    <string name="translation_card_more">更多</string>
     <string name="translation_start_extraction">开始提取</string>
     <string name="translation_continue_extraction">继续提取</string>
     <string name="translation_start_translation">开始翻译</string>

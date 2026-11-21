@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -73,12 +74,11 @@ import com.tyranor.next.core.translation.extraction.TranslationExtractorEngineId
 import com.tyranor.next.core.translation.service.TranslationServiceProfile
 import com.tyranor.next.core.translation.service.TranslationServiceCategory
 import com.tyranor.next.theme.AppComponentCornerRadius
+import com.tyranor.next.theme.AppComponentShape
 import com.tyranor.next.theme.DialogItemSurface
 import com.tyranor.next.theme.AppThemeColors
-import com.tyranor.next.theme.DangerFill
 import com.tyranor.next.theme.MiuixSettingsTheme
 import com.tyranor.next.theme.NavWhite
-import com.tyranor.next.theme.OnDangerFill
 import com.tyranor.next.theme.PageSecondaryTextColor
 import com.tyranor.next.theme.PageTextColor
 import com.tyranor.next.theme.glassBorder
@@ -109,8 +109,11 @@ import java.util.Locale
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
 import top.yukonga.miuix.kmp.basic.CardDefaults as MiuixCardDefaults
 import top.yukonga.miuix.kmp.basic.CircularProgressIndicator as MiuixCircularProgressIndicator
+import top.yukonga.miuix.kmp.basic.DropdownEntry
+import top.yukonga.miuix.kmp.basic.DropdownItem
 import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
 import top.yukonga.miuix.kmp.basic.TabRow as MiuixTabRow
+import top.yukonga.miuix.kmp.menu.OverlayIconDropdownMenu
 import androidx.compose.foundation.Image
 
 class TranslationWorkbenchActivity : AppScreenActivity() {
@@ -1152,8 +1155,6 @@ private fun TranslationProjectCardView(
     val canContinueTranslation = project.latestTaskState in setOf("CANCELLED", "FAILED", "COMPLETED_WITH_ERRORS")
     val fullyTranslated = project.isFullyTranslated()
     val extractionActive = isActive && project.latestTaskType == "EXTRACT"
-    val translationActive = isActive && project.latestTaskType == "TRANSLATE"
-    val extractionComplete = project.entryCount > 0
     val reviewComplete = project.reviewCompletedAt != null
     val statusRes = when {
         isActive && project.latestTaskState == "QUEUED" -> R.string.translation_task_queued
@@ -1196,20 +1197,6 @@ private fun TranslationProjectCardView(
         }
     }
 
-    val extractionPhase = when {
-        extractionComplete -> ProjectPhase.COMPLETE
-        else -> ProjectPhase.CURRENT
-    }
-    val translationPhase = when {
-        fullyTranslated -> ProjectPhase.COMPLETE
-        extractionComplete -> ProjectPhase.CURRENT
-        else -> ProjectPhase.WAITING
-    }
-    val reviewPhase = when {
-        reviewComplete -> ProjectPhase.COMPLETE
-        fullyTranslated -> ProjectPhase.CURRENT
-        else -> ProjectPhase.WAITING
-    }
     val progress = when {
         extractionActive && project.totalFiles > 0 ->
             (project.completedFiles.toFloat() / project.totalFiles).coerceIn(0f, 1f)
@@ -1347,50 +1334,6 @@ private fun TranslationProjectCardView(
             )
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                ProjectPhaseChip(
-                    text = stringResource(
-                        when {
-                            extractionComplete -> R.string.translation_card_stage_extracted
-                            extractionActive -> R.string.translation_card_stage_extracting
-                            else -> R.string.translation_card_stage_waiting_extraction
-                        },
-                    ),
-                    phase = extractionPhase,
-                    tabletLayout = tabletLayout,
-                    modifier = Modifier.weight(1f),
-                )
-                Text("›", color = PageSecondaryTextColor, style = MaterialTheme.typography.labelSmall)
-                ProjectPhaseChip(
-                    text = stringResource(
-                        when {
-                            fullyTranslated -> R.string.translation_card_stage_translated
-                            translationActive -> R.string.translation_card_stage_translating
-                            extractionComplete -> R.string.translation_card_stage_waiting_translation
-                            else -> R.string.translation_card_stage_waiting_translation
-                        },
-                    ),
-                    phase = translationPhase,
-                    tabletLayout = tabletLayout,
-                    modifier = Modifier.weight(1f),
-                )
-                Text("›", color = PageSecondaryTextColor, style = MaterialTheme.typography.labelSmall)
-                ProjectPhaseChip(
-                    text = stringResource(
-                        when {
-                            reviewComplete -> R.string.translation_card_stage_reviewed
-                            else -> R.string.translation_card_stage_waiting_review
-                        },
-                    ),
-                    phase = reviewPhase,
-                    tabletLayout = tabletLayout,
-                    modifier = Modifier.weight(1f),
-                )
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -1412,7 +1355,7 @@ private fun TranslationProjectCardView(
             MotionLinearProgressIndicator(progress, Modifier.fillMaxWidth())
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(7.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 primaryAction?.let { action ->
@@ -1426,31 +1369,42 @@ private fun TranslationProjectCardView(
                         },
                         onClick = action.onClick,
                     )
-                }
+                } ?: Spacer(Modifier.weight(1f))
                 val canExport = project.entryCount > 0 && !isActive
-                NoRippleButton(
-                    text = stringResource(R.string.translation_card_export),
-                    enabled = canExport,
-                    tonal = true,
-                    containerColorOverride = if (canExport) null else MaterialTheme.colorScheme.surfaceVariant,
-                    contentColorOverride = if (canExport) null else MaterialTheme.colorScheme.onSurfaceVariant,
-                    onClick = onExport,
-                )
-                NoRippleButton(
-                    text = stringResource(R.string.translation_card_delete),
-                    containerColorOverride = DangerFill,
-                    contentColorOverride = OnDangerFill,
-                    onClick = onDelete,
-                )
+                OverlayIconDropdownMenu(
+                    entry = DropdownEntry(
+                        items = listOf(
+                            DropdownItem(
+                                text = stringResource(R.string.translation_card_export),
+                                enabled = canExport,
+                                onClick = onExport,
+                            ),
+                            DropdownItem(
+                                text = stringResource(R.string.translation_card_delete),
+                                onClick = onDelete,
+                            ),
+                        ),
+                    ),
+                    modifier = Modifier.border(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant,
+                        shape = AppComponentShape,
+                    ),
+                    backgroundColor = Color.Transparent,
+                    cornerRadius = AppComponentCornerRadius,
+                    minHeight = 44.dp,
+                    minWidth = 76.dp,
+                ) {
+                    Text(
+                        text = stringResource(R.string.translation_card_more),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                    )
+                }
             }
         }
     }
-}
-
-private enum class ProjectPhase {
-    COMPLETE,
-    CURRENT,
-    WAITING,
 }
 
 private data class ProjectCardAction(
@@ -1458,36 +1412,6 @@ private data class ProjectCardAction(
     val color: Color,
     val onClick: () -> Unit,
 )
-
-@Composable
-private fun ProjectPhaseChip(
-    text: String,
-    phase: ProjectPhase,
-    tabletLayout: Boolean,
-    modifier: Modifier = Modifier,
-) {
-    val container = when (phase) {
-        ProjectPhase.COMPLETE -> MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
-        ProjectPhase.CURRENT -> MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
-        ProjectPhase.WAITING -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f)
-    }
-    val content = when (phase) {
-        ProjectPhase.COMPLETE -> MaterialTheme.colorScheme.primary
-        ProjectPhase.CURRENT -> MaterialTheme.colorScheme.primary
-        ProjectPhase.WAITING -> MaterialTheme.colorScheme.onSurfaceVariant
-    }
-    Surface(modifier = modifier.heightIn(min = 30.dp), shape = RoundedCornerShape(9.dp), color = container) {
-        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 5.dp)) {
-            Text(
-                text = text,
-                style = if (tabletLayout) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelSmall,
-                color = content,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-    }
-}
 
 private fun engineDisplayName(engineId: String): String =
     runCatching { EngineType.valueOf(engineId).displayName }.getOrElse { "" }

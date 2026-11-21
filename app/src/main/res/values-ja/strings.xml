@@ -312,14 +312,6 @@
     <string name="translation_project_ready">準備完了</string>
     <string name="translation_project_waiting">抽出待ち</string>
     <string name="translation_card_imported_source">インポートしたテキストプロジェクト</string>
-    <string name="translation_card_stage_extracted">抽出完了</string>
-    <string name="translation_card_stage_extracting">抽出中</string>
-    <string name="translation_card_stage_waiting_extraction">抽出</string>
-    <string name="translation_card_stage_translated">翻訳完了</string>
-    <string name="translation_card_stage_translating">翻訳中</string>
-    <string name="translation_card_stage_waiting_translation">翻訳</string>
-    <string name="translation_card_stage_reviewed">校正完了</string>
-    <string name="translation_card_stage_waiting_review">校正</string>
     <string name="translation_card_review_pending">校正待ち</string>
     <string name="translation_card_review_pending_count">校正待ち · %1$d 件</string>
     <string name="translation_card_review_completed">校正完了</string>
@@ -332,6 +324,7 @@
     <string name="translation_card_progress_indeterminate">—</string>
     <string name="translation_card_export">書き出す</string>
     <string name="translation_card_delete">削除</string>
+    <string name="translation_card_more">その他</string>
     <string name="translation_start_extraction">抽出を開始</string>
     <string name="translation_continue_extraction">抽出を続ける</string>
     <string name="translation_start_translation">翻訳を開始</string>

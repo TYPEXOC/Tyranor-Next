@@ -312,14 +312,6 @@
     <string name="translation_project_ready">Project ready</string>
     <string name="translation_project_waiting">Waiting for extraction</string>
     <string name="translation_card_imported_source">Imported text project</string>
-    <string name="translation_card_stage_extracted">Extracted</string>
-    <string name="translation_card_stage_extracting">Extracting</string>
-    <string name="translation_card_stage_waiting_extraction">Extract</string>
-    <string name="translation_card_stage_translated">Translated</string>
-    <string name="translation_card_stage_translating">Translating</string>
-    <string name="translation_card_stage_waiting_translation">Translate</string>
-    <string name="translation_card_stage_reviewed">Reviewed</string>
-    <string name="translation_card_stage_waiting_review">Review</string>
     <string name="translation_card_review_pending">Needs review</string>
     <string name="translation_card_review_pending_count">Review · %1$d items</string>
     <string name="translation_card_review_completed">Review completed</string>
@@ -332,6 +324,7 @@
     <string name="translation_card_progress_indeterminate">—</string>
     <string name="translation_card_export">Export</string>
     <string name="translation_card_delete">Delete</string>
+    <string name="translation_card_more">More</string>
     <string name="translation_start_extraction">Start extraction</string>
     <string name="translation_continue_extraction">Continue extraction</string>
     <string name="translation_start_translation">Start translation</string>
