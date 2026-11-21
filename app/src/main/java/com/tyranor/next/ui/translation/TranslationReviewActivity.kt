@@ -507,24 +507,27 @@ private fun TranslationReviewScreen(projectId: String) {
             onDismissRequest = { if (!savingEntry) editingEntryId = null },
             dismissEnabled = !savingEntry,
             title = {
-                Text(
-                    stringResource(
-                        R.string.translation_review_entry_position,
-                        sequenceById[entry.id] ?: 1,
-                        entries.size,
-                    ),
-                    style = MaterialTheme.typography.titleMedium,
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text(
+                        stringResource(
+                            R.string.translation_review_entry_position,
+                            sequenceById[entry.id] ?: 1,
+                            entries.size,
+                        ),
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.titleMedium,
+                        textAlign = TextAlign.Start,
+                    )
+                    ReviewEntryStatusBadge(entry)
+                }
             },
             textScrollEnabled = true,
             text = {
                 Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Box(
-                        modifier = Modifier.fillMaxWidth(),
-                        contentAlignment = Alignment.CenterEnd,
-                    ) {
-                        ReviewEntryStatusBadge(entry)
-                    }
                     TranslationGlossaryDialogTextField(
                         value = entry.sourceText,
                         onValueChange = {},
@@ -537,7 +540,7 @@ private fun TranslationReviewScreen(projectId: String) {
                     TranslationGlossaryDialogTextField(
                         value = editorText,
                         onValueChange = { editorText = it },
-                        label = stringResource(R.string.translation_review_translation),
+                        label = stringResource(R.string.translation_glossary_target_term),
                         modifier = Modifier.fillMaxWidth(),
                         enabled = !active && !savingEntry,
                         minLines = 2,
