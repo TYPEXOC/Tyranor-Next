@@ -1168,7 +1168,7 @@ private fun TranslationReviewEntryDetailPane(
             MiuixButton(
                 onClick = onSave,
                 enabled = enabled,
-                modifier = Modifier.align(Alignment.End).pressSquish().height(48.dp),
+                modifier = Modifier.fillMaxWidth().pressSquish().height(48.dp),
                 minWidth = 120.dp,
                 minHeight = 48.dp,
                 cornerRadius = AppComponentCornerRadius,
@@ -1178,6 +1178,7 @@ private fun TranslationReviewEntryDetailPane(
                 Text(
                     text = stringResource(R.string.common_save),
                     style = MaterialTheme.typography.bodyMedium,
+                    color = if (enabled) MiuixTheme.colorScheme.onPrimary else PageSecondaryTextColor,
                 )
             }
         }
