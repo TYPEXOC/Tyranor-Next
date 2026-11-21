@@ -268,13 +268,7 @@ private fun TranslationServicesScreen() {
         if (failure is CancellationException) throw failure
         val code = (failure as? TranslationServiceException)?.code
             ?: TranslationServiceErrorCode.STORAGE_FAILURE
-        AppNotice.makeText(
-            context,
-            code.messageResource(),
-            Toast.LENGTH_SHORT,
-            AppNotice.Kind.Failure,
-            AppNotice.Position.Bottom,
-        ).show()
+        AppNotice.makeText(context, code.messageResource(), Toast.LENGTH_SHORT, AppNotice.Kind.Failure).show()
     }
 
     fun updateAiConnection(updated: ServiceEditor) {

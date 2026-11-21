@@ -10,7 +10,7 @@ import androidx.annotation.StringRes
  * ```
  * AppNotice.makeText(context, R.string.engine_settings_saved, Toast.LENGTH_SHORT, AppNotice.Kind.Success).show()
  * ```
- * 提示条默认画在窗口顶部，也可指定画在底部；弹窗打开时画在弹窗窗口里、遮罩之上；
+ * 提示条画在窗口顶部（不会被底栏 / 弹窗卡 / 抽屉 / 输入法挡住），弹窗打开时画在弹窗窗口里、遮罩之上；
  * 当前没有可用的界面窗口（后台完成、没有界面的 Activity、抽屉打开期间）时自动退回系统 Toast，所以任何时候都不会丢提示。
  * 位置、进退场、驻留时长、替换 / 排队规则见 [NoticeCenter] 与 [NoticeHost]。
  */
@@ -25,38 +25,23 @@ object AppNotice {
      */
     enum class Kind { Auto, Success, Failure, Info, Limit }
 
-    /** 提示条在当前窗口中的停靠位置。系统 Toast 回退时使用 Android 默认位置。 */
-    enum class Position { Top, Bottom }
-
     /** [makeText] 的返回值，`show()` 才真正显示（与 `Toast` 一致）。 */
     class Handle internal constructor(
         private val context: Context,
         private val text: CharSequence,
         private val duration: Int,
         private val kind: Kind,
-        private val position: Position,
     ) {
-        fun show() = NoticeCenter.show(context, text, duration, kind, position)
+        fun show() = NoticeCenter.show(context, text, duration, kind)
     }
 
     /** [duration] 取 `Toast.LENGTH_SHORT` / `Toast.LENGTH_LONG`：决定驻留时长的基准。 */
-    fun makeText(
-        context: Context,
-        text: CharSequence,
-        duration: Int,
-        kind: Kind = Kind.Info,
-        position: Position = Position.Top,
-    ): Handle = Handle(context, text, duration, if (kind == Kind.Auto) Kind.Info else kind, position)
+    fun makeText(context: Context, text: CharSequence, duration: Int, kind: Kind = Kind.Info): Handle =
+        Handle(context, text, duration, if (kind == Kind.Auto) Kind.Info else kind)
 
-    fun makeText(
-        context: Context,
-        @StringRes resId: Int,
-        duration: Int,
-        kind: Kind = Kind.Auto,
-        position: Position = Position.Top,
-    ): Handle {
+    fun makeText(context: Context, @StringRes resId: Int, duration: Int, kind: Kind = Kind.Auto): Handle {
         val resolved = if (kind == Kind.Auto) inferKind(runCatching { context.resources.getResourceEntryName(resId) }.getOrDefault("")) else kind
-        return Handle(context, context.getString(resId), duration, resolved, position)
+        return Handle(context, context.getString(resId), duration, resolved)
     }
 
     /**

@@ -11,12 +11,11 @@ internal data class Notice(
     val text: String,
     val kind: AppNotice.Kind,
     val dwellMillis: Long,
-    val position: AppNotice.Position = AppNotice.Position.Top,
     val fallback: () -> Unit,
 ) {
     val strong: Boolean get() = kind == AppNotice.Kind.Failure || kind == AppNotice.Kind.Limit
 
-    fun sameMessage(other: Notice) = text == other.text && kind == other.kind && position == other.position
+    fun sameMessage(other: Notice) = text == other.text && kind == other.kind
 }
 
 internal interface NoticeClock {
