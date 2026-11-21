@@ -742,9 +742,10 @@ private fun TranslationReviewScreen(projectId: String) {
                         }
                     }
                 }
+                val canReplaceAll = !active && !replacingEntries && normalizedSearchQuery.isNotBlank() && matchOccurrences > 0
                 MiuixButton(
                     onClick = ::replaceAllMatches,
-                    enabled = !active && !replacingEntries && normalizedSearchQuery.isNotBlank() && matchOccurrences > 0,
+                    enabled = canReplaceAll,
                     modifier = Modifier.fillMaxWidth().height(56.dp),
                     cornerRadius = AppComponentCornerRadius,
                     insideMargin = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
@@ -757,6 +758,7 @@ private fun TranslationReviewScreen(projectId: String) {
                             matchOccurrences,
                         ),
                         style = MaterialTheme.typography.titleMedium,
+                        color = if (canReplaceAll) MiuixTheme.colorScheme.onPrimary else PageSecondaryTextColor,
                     )
                 }
             }
