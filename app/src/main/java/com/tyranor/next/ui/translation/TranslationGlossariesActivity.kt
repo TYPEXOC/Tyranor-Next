@@ -67,6 +67,7 @@ import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
 import top.yukonga.miuix.kmp.basic.FabPosition
 import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
+import top.yukonga.miuix.kmp.utils.PressFeedbackType
 
 class TranslationGlossariesActivity : AppScreenActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -283,6 +284,7 @@ private fun GlossaryCard(
     MiuixCard(
         modifier = Modifier.fillMaxWidth().glassBorder(),
         cornerRadius = AppComponentCornerRadius,
+        pressFeedbackType = PressFeedbackType.Sink,
     ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(14.dp),

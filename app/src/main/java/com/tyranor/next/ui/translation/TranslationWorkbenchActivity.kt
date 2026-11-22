@@ -124,6 +124,7 @@ import top.yukonga.miuix.kmp.basic.DropdownItem
 import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
 import top.yukonga.miuix.kmp.popup.OverlayDropdownPopup
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.utils.PressFeedbackType
 import androidx.compose.foundation.Image
 
 class TranslationWorkbenchActivity : AppScreenActivity() {
@@ -1338,6 +1339,7 @@ private fun TranslationProjectCardView(
     MiuixCard(
         modifier = modifier.fillMaxWidth().glassBorder(),
         cornerRadius = AppComponentCornerRadius,
+        pressFeedbackType = PressFeedbackType.Sink,
     ) {
         Column(
             Modifier.fillMaxWidth().padding(if (tabletLayout) 18.dp else 14.dp),
