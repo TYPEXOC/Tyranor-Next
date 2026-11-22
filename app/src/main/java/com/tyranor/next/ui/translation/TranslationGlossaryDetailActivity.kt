@@ -395,6 +395,7 @@ private fun TranslationGlossaryDetailScreen(
                     label = stringResource(R.string.translation_glossary_search_hint),
                     modifier = Modifier.fillMaxWidth(),
                     backgroundColor = NavWhite,
+                    labelColor = PageSecondaryTextColor,
                     singleLine = true,
                 )
                 when {

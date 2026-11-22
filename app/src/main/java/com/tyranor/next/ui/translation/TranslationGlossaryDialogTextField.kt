@@ -17,6 +17,7 @@ internal fun TranslationGlossaryDialogTextField(
     label: String,
     modifier: Modifier = Modifier,
     backgroundColor: Color = DialogItemSurface,
+    labelColor: Color = TextColor,
     enabled: Boolean = true,
     singleLine: Boolean = false,
     minLines: Int = 1,
@@ -24,7 +25,7 @@ internal fun TranslationGlossaryDialogTextField(
 ) {
     val colors = TextFieldDefaults.textFieldColors(
         backgroundColor = backgroundColor,
-        labelColor = TextColor,
+        labelColor = labelColor,
         borderColor = MiuixTheme.colorScheme.primary,
     )
     MiuixTextField(
