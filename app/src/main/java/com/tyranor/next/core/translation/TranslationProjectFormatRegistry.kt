@@ -97,14 +97,14 @@ internal object CsvTranslationProjectFormatHandler : TranslationProjectFormatHan
 internal object WorkspaceJsonTranslationProjectFormatHandler : TranslationProjectFormatHandler {
     override val descriptor = TranslationProjectFormatRegistry.Descriptor(
         format = TranslationProjectFormat.JSON,
-        extension = ".json",
+        extension = ".twj",
         mimeType = "application/json",
         sourceType = TranslationProjectSource.IMPORTED_JSON,
     )
     override val detectionPriority = 100
 
     override fun supportsFile(displayName: String, mimeType: String?) =
-        displayName.hasExtension("json") || mimeType.isJsonMimeType()
+        displayName.hasExtension("twj")
 
     override fun matchesDocument(displayName: String, mimeType: String?, text: String) =
         supportsFile(displayName, mimeType) && TranslationProjectCodec.isWorkspaceJson(text)
@@ -124,7 +124,7 @@ internal object MToolJsonTranslationProjectFormatHandler : TranslationProjectFor
     override val detectionPriority = 0
 
     override fun supportsFile(displayName: String, mimeType: String?) =
-        displayName.hasExtension("json") || mimeType.isJsonMimeType()
+        !displayName.hasExtension("twj") && (displayName.hasExtension("json") || mimeType.isJsonMimeType())
 
     override fun matchesDocument(displayName: String, mimeType: String?, text: String) =
         supportsFile(displayName, mimeType)

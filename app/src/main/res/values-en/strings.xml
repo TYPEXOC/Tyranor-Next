@@ -385,7 +385,7 @@
     <string name="translation_export_confirm">Export</string>
     <string name="translation_exporting">Exporting…</string>
     <string name="translation_format_csv">CSV</string>
-    <string name="translation_format_json">JSON</string>
+    <string name="translation_format_twj">Workbench TWJ</string>
     <string name="translation_format_mtool_json">MTool JSON</string>
     <string name="translation_delete_project">Delete project</string>
     <string name="translation_delete_project_title">Delete translation project?</string>

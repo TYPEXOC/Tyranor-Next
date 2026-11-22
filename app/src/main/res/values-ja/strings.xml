@@ -385,7 +385,7 @@
     <string name="translation_export_confirm">書き出す</string>
     <string name="translation_exporting">書き出し中…</string>
     <string name="translation_format_csv">CSV</string>
-    <string name="translation_format_json">JSON</string>
+    <string name="translation_format_twj">ワークベンチ TWJ</string>
     <string name="translation_format_mtool_json">MTool JSON</string>
     <string name="translation_delete_project">プロジェクトを削除</string>
     <string name="translation_delete_project_title">翻訳プロジェクトを削除しますか？</string>
