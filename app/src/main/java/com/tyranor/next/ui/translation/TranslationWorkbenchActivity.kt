@@ -161,7 +161,7 @@ private val visibleProjectFilters = listOf(
     ProjectListFilter.COMPLETED,
 )
 
-private val supportedTranslationExportFormats = TranslationProjectFormatRegistry.exportFormats()
+private val selectableTranslationExportFormats = listOf(TranslationProjectFormat.MTOOL_JSON)
 
 private fun ProjectListFilter.visibleFilter(): ProjectListFilter = when (this) {
     ProjectListFilter.CONTINUABLE -> ProjectListFilter.IN_PROGRESS
@@ -246,10 +246,8 @@ private fun TranslationWorkbenchScreen() {
     var exportProjectId by remember { mutableStateOf<String?>(null) }
     var exportDestinationUri by remember { mutableStateOf<Uri?>(null) }
     var exportDestinationPath by remember { mutableStateOf("") }
-    var exportFormatName by rememberSaveable { mutableStateOf(TranslationProjectFormat.MTOOL_JSON.name) }
     var exporting by remember { mutableStateOf(false) }
-    val exportFormat = TranslationProjectFormat.entries.firstOrNull { it.name == exportFormatName }
-        ?: TranslationProjectFormat.MTOOL_JSON
+    val exportFormat = TranslationProjectFormat.MTOOL_JSON
     var translationProjectId by remember { mutableStateOf<String?>(null) }
     var selectedTranslationServiceId by remember { mutableStateOf<String?>(null) }
     var translationSourceLanguage by remember { mutableStateOf("") }
@@ -848,7 +846,7 @@ private fun TranslationWorkbenchScreen() {
 
     exportProjectId?.let { projectId ->
         val project = projects.firstOrNull { it.id == projectId }
-        val exportFormatOptions = supportedTranslationExportFormats
+        val exportFormatOptions = selectableTranslationExportFormats
         val exportFormatLabels = exportFormatOptions.map { format ->
             stringResource(
                 when (format) {
@@ -910,10 +908,7 @@ private fun TranslationWorkbenchScreen() {
                                 modifier = Modifier.fillMaxWidth(),
                                 enabled = !exporting,
                                 renderInRootScaffold = false,
-                                onSelectedIndexChange = { index ->
-                                    exportFormatName = exportFormatOptions.getOrNull(index)?.name
-                                        ?: TranslationProjectFormat.MTOOL_JSON.name
-                                },
+                                onSelectedIndexChange = {},
                             )
                         }
                         MiuixCard(

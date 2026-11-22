@@ -28,7 +28,7 @@ object TranslationProjectFormatRegistry {
         require(handlersByFormat.size == handlers.size) { "Project format handlers must have unique formats" }
     }
 
-    /** The UI derives its choices from paired handlers, so an unpaired format cannot be offered. */
+    /** Lists registered formats with paired import/export handlers; the UI may expose a smaller subset. */
     fun exportFormats(): List<TranslationProjectFormat> = handlers.map { it.descriptor.format }
 
     fun descriptor(format: TranslationProjectFormat): Descriptor =
