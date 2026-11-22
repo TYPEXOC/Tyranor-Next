@@ -215,6 +215,7 @@
     <string name="translation_services_custom_body_empty">カスタム本文パラメーターはありません。</string>
     <string name="translation_services_custom_parameter_add">パラメーターを追加</string>
     <string name="translation_services_custom_parameter_edit">パラメーターを編集</string>
+    <string name="translation_services_custom_parameter_edit_action">編集</string>
     <string name="translation_services_custom_parameter_name">パラメーター名</string>
     <string name="translation_services_custom_parameter_type">種類</string>
     <string name="translation_services_custom_parameter_value">値</string>

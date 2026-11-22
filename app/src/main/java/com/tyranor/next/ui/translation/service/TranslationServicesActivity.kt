@@ -1883,6 +1883,9 @@ private fun CustomParameterEntryCard(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
+                    CustomParameterFieldLabel(
+                        text = stringResource(R.string.translation_services_custom_parameter_name),
+                    )
                     Text(
                         text = parameter.name,
                         modifier = Modifier.weight(1f),
@@ -1903,20 +1906,30 @@ private fun CustomParameterEntryCard(
                         )
                     }
                 }
-                Text(
-                    text = parameter.value,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = PageTextColor,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.Top,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    CustomParameterFieldLabel(
+                        text = stringResource(R.string.translation_services_custom_parameter_value),
+                    )
+                    Text(
+                        text = parameter.value,
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = PageTextColor,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
             Column(
                 horizontalAlignment = Alignment.End,
                 verticalArrangement = Arrangement.spacedBy(0.dp),
             ) {
                 NoRippleTextButton(
-                    text = stringResource(R.string.translation_services_custom_parameter_edit),
+                    text = stringResource(R.string.translation_services_custom_parameter_edit_action),
                     onClick = onEdit,
                 )
                 NoRippleTextButton(
@@ -1927,6 +1940,20 @@ private fun CustomParameterEntryCard(
             }
         }
     }
+}
+
+@Composable
+private fun CustomParameterFieldLabel(text: String) {
+    Text(
+        text = text,
+        modifier = Modifier.clip(AppComponentShape)
+            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
+            .padding(horizontal = 7.dp, vertical = 4.dp),
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.primary,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+    )
 }
 
 @Composable
