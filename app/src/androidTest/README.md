@@ -6,7 +6,27 @@
 
 WebDAV 存档同步、恢复与 Compose UI 的独立验收入口见 [WebDAV 设备验收记录](../../../docs/WebDAV-device-acceptance.md)。这些测试要求专用 application ID 与显式 opt-in；其纯框架辅助 Activity 不证明原生游戏兼容性。
 
+## 下载目录启动回归
+
+`DownloadsLaunchDeviceTest` 在 Android 8–10 使用 Downloads provider 的 `raw:` 游戏 URI，验证权限不足时打开系统设置、权限已授予时可向 Web 宿主交棒。Android 10 在已授权时还通过 MediaStore 索引原创 HTML 夹具，验证 `msd:` 目录交棒和混合 tree/document URI 的 `msf:` 路径解析。
+
+以 `TYRANOR_APPLICATION_ID=com.tyranor.next.downloadstest` 构建并安装 `:app:assembleDebug` 与 `:app:assembleDebugAndroidTest` 的 APK。用下列命令先在未授予存储权限时运行，再授予两项权限，以 `downloads_permission_granted true` 重跑。
+
+```bash
+adb shell am instrument -w -e class com.tyranor.next.core.game.launch.DownloadsLaunchDeviceTest \
+  -e downloads_permission_granted false com.tyranor.next.downloadstest.test/androidx.test.runner.AndroidJUnitRunner
+adb shell pm grant com.tyranor.next.downloadstest android.permission.READ_EXTERNAL_STORAGE
+adb shell pm grant com.tyranor.next.downloadstest android.permission.WRITE_EXTERNAL_STORAGE
+```
+
+2026-11-22 在 ARM64 模拟器 API 26 和 API 29 上验证通过，共 5 次测试执行。结果覆盖存储权限引导、路径解析和 Web 宿主交棒。
+
 ## 界面动效设备验收
+
+`GameSheetShortWindowDeviceTest` 在真实抽屉窗口内限制内容为 100dp，覆盖普通/增强与 1.0/1.5 字体比例，滚动到底后验证启动文字不溢出并以真实触摸触发合成回调；常规高度另外验证启动按钮不随列表滚动。测试不会启动游戏。可与 `AppBottomSheetDeviceTest` 一起运行，复核下拉菜单及抽屉关闭守卫。
+
+2026-11-18 验证：隔离包 `com.tyranor.next.sheetheighttest`，MAA_AN10 / Android 16，密度 530dpi。常规手机视口的 6 项新用例与 4 项原抽屉用例通过；以 `wm size` 临时模拟 1224×500、1224×600、1224×900，各运行 4 项短窗用例，以及 3072×2048、2048×3072 的平板横竖视口，各运行 6 项新用例，合计 34 次执行通过。截图已人工核对，测试后恢复原始 1224×2700 视口。平板结果来自同一手机上的大窗口模拟，不代表另一台平板的实测；本轮为默认浅色外观，未额外覆盖深色/玻璃外观或系统动画关闭。截图与各轮日志保存在本机 `/tmp/tyranor-game-sheet-evidence/`，未纳入仓库。
+
 
 动效测试通过 `MotionDeviceAcceptance` 同时校验显式 opt-in 与本轮期望的隔离 application ID。包名由 `motion_target_package` 参数指定，可沿用本页的 `com.tyranor.next.ethornelltest`，不再固定为某个本地私有包名。缺少参数、未授权或实际 target 与参数不一致时，测试会明确失败并说明原因，不能把跳过当成验收通过。正式包 `com.tyranor.next` 与 instrumentation 的 `.test` 包不接受为 target。
 
@@ -251,7 +271,7 @@ failed identity_sha256=<64hex> token=<session token>
 
 2026-10-27 本轮仅编译该测试和普通 AndroidTest APK，按用户要求未连接设备、未执行新增 UI 用例；原有截图与设备报告不代表这两个新增用例已执行。
 
-固定横屏设备回归另含 `com.core.engine.EngineOrientationDeviceTest`（安装后20个宿主清单与Android 16属性）和 `com.tyranor.next.core.engine.external.ExternalEngineOrientationDeviceTest`（三个外置Intent方向请求）。两项均要求隔离包 `com.tyranor.next.startuptest` 与 `startup_test=true`；不启动外置APK，不保证其应用方向参数。
+横屏方向回归另含 `com.core.engine.EngineOrientationDeviceTest`（安装后20个宿主清单 `sensorLandscape` 与Android 16属性）和 `com.tyranor.next.core.engine.external.ExternalEngineOrientationDeviceTest`（三个外置Intent默认与反向横屏方向请求）。两项均要求隔离包 `com.tyranor.next.startuptest` 与 `startup_test=true`；不启动外置APK，不保证其应用方向参数。
 
 BGI 游戏目录存档回归使用 `EthornellSaveDeviceTest`（旧私有数据迁入共享存储、ZIP、回滚、限额与门禁）、`EthornellDispatchDeviceTest`、`EthornellStartupActivityTest`，以及 `EthornellDeviceTest#vmWritesAndReopensGameLocalSaveOnSharedStorage`（真实 VM 在外部存储的游戏 `savedata` 写入和重开读取）。该 VM 用例与启动 Activity 用例要求隔离包 `com.tyranor.next.startuptest` 及 `-e startup_test true`。在隔离包的新安装或清理数据后执行；保留的播放器任务会按设计阻止存档管理。设备结果不能代替商业游戏槽位兼容性验收。
 

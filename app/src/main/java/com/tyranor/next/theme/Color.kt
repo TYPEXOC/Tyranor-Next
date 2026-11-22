@@ -32,6 +32,9 @@ val CoverBadgeBackground = Color(0x8F000000)
 /** 角标文字/图标色：固定白色。 */
 val CoverBadgeText = Color.White
 
+/** 主题色名牌上的文字（游戏操作抽屉档案卡的引擎名牌）：固定白色。 */
+val AccentTagText = Color.White
+
 /** 未读/更新提醒红点：固定亮红，不随主题色与深浅色变化。 */
 val NoticeDotRed = Color(0xFFFF2D2D)
 
@@ -222,6 +225,15 @@ val PageSecondaryTextColor: Color
 /** 抽屉辅助文字：白雾玻璃的亮面板使用深色正文。 */
 val SheetSecondaryTextColor: Color
     get() = if (AppThemeColors.isMilkGlass) TextColor else PageSecondaryTextColor
+
+/** 卡片/弹窗内的次要说明文字：与所在面板表面匹配。 */
+val SecondaryTextColor: Color
+    get() = when {
+        AppThemeColors.isMilkGlass -> MilkTextSecondary
+        AppThemeColors.isGlass -> GlassTextSecondary
+        AppThemeColors.isDark -> TextColorDark.copy(alpha = 0.72f)
+        else -> TextColorLight.copy(alpha = 0.6f)
+    }
 
 /** 抽屉遮罩：玻璃面板需要加深与页面之间的层次。 */
 val SheetScrimColor: Color

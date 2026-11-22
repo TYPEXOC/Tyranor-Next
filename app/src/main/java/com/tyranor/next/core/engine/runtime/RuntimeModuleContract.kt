@@ -29,6 +29,8 @@ object RuntimeModuleContract {
 
     /** 可选 extra：主 App 解析后的规范化 JSON 翻译 map 会话 URI；模块获临时读取授权。 */
     const val EXTRA_TRANSLATION_MAP_URI = TranslationMapContract.EXTRA_TRANSLATION_MAP_URI
+    /** Optional full v1 JSON settings payload for modules declaring valid settings. */
+    const val EXTRA_SETTINGS = "com.tyranor.runtime.extra.SETTINGS"
 
     /** 当前主 App 支持的协议版本。 */
     const val PROTOCOL_VERSION = 1

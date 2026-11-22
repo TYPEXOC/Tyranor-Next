@@ -4,7 +4,6 @@ import android.app.Activity
 import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
-import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
@@ -33,6 +32,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import com.core.engine.DoubleBackExit
+import com.core.engine.EnginePlayerOrientation
 import com.core.engine.EnginePrefs
 import com.core.engine.EngineSessionRegistry
 import com.core.engine.EngineStartupOverlay
@@ -62,7 +62,7 @@ import org.json.JSONObject
  */
 class TyranoActivity : Activity() {
     override fun setRequestedOrientation(requestedOrientation: Int) {
-        super.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE)
+        EnginePlayerOrientation.applyWithSuper(this) { super.setRequestedOrientation(it) }
     }
 
     private var webView: WebView? = null
@@ -115,6 +115,7 @@ class TyranoActivity : Activity() {
                 intent.removeExtra(LaunchContract.PLAYTIME_SESSION_STARTED_AT)
             }
         }
+        EnginePlayerOrientation.syncOnNewIntent(this, intent, changed)
         setIntent(intent)
         if (changed && !isFinishing) {
             Log.i(TAG, "onNewIntent relaunch with changed intent; recreate")
@@ -122,11 +123,21 @@ class TyranoActivity : Activity() {
         }
     }
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        EnginePlayerOrientation.saveState(this, outState)
+        super.onSaveInstanceState(outState)
+    }
+
     /** 影响引擎行为的 Intent extras 摘要，用于判断单游戏重启是否需要重建。 */
     private fun behaviorSignature(intent: Intent): String = listOf(
         resolveGameDir(intent),
         intent.getBooleanExtra(LaunchContract.SCOPED_SAVE_DIR, false).toString(),
         intent.getStringExtra(LaunchContract.SCOPED_SAVE_ROOT),
+        if (intent.hasExtra(LaunchContract.WEB_EXTERNAL_NETWORK)) {
+            intent.getBooleanExtra(LaunchContract.WEB_EXTERNAL_NETWORK, false).toString()
+        } else {
+            null
+        },
         intent.getBooleanExtra(LaunchContract.RPG_MAKER_MOD_ENABLED, true).toString(),
         intent.getStringExtra(LaunchContract.RPG_TRANSLATION_MAP_URI),
         intent.getStringExtra(LaunchContract.RPG_MAKER_MOD_GAME_ID),
@@ -135,11 +146,16 @@ class TyranoActivity : Activity() {
     ).joinToString("\u0000")
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        EnginePlayerOrientation.lockOnCreate(this, savedInstanceState)
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         enterFullscreen()
-        allowExternalNetwork = getSharedPreferences(EnginePrefs.APP_PREFS, Context.MODE_PRIVATE)
-            .getBoolean(EnginePrefs.KEY_TYRANO_EXTERNAL_NETWORK, false)
+        allowExternalNetwork = if (intent.hasExtra(LaunchContract.WEB_EXTERNAL_NETWORK)) {
+            intent.getBooleanExtra(LaunchContract.WEB_EXTERNAL_NETWORK, false)
+        } else {
+            getSharedPreferences(EnginePrefs.APP_PREFS, Context.MODE_PRIVATE)
+                .getBoolean(EnginePrefs.KEY_TYRANO_EXTERNAL_NETWORK, false)
+        }
 
         gameDir = resolveGameDir(intent)
         Log.i(TAG, "onCreate gameDir=$gameDir")
@@ -834,6 +850,7 @@ class TyranoActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        EnginePlayerOrientation.applyLocked(this)
         enterFullscreen()
         inputRemap?.onResume()
         if (firstResume) firstResume = false else {

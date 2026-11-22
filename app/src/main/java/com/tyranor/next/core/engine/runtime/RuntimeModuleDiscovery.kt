@@ -91,6 +91,11 @@ object RuntimeModuleDiscovery {
             enabled = false,
             capabilities = manifest?.capabilities.orEmpty(),
             translationRuleId = manifest?.translationRuleId,
+            settings = manifest?.settings,
+            saves = manifest?.saves,
+            settingsDiagnostic = manifest?.settingsDiagnostic,
+            savesDiagnostic = manifest?.savesDiagnostic,
+            fileImports = manifest?.fileImports.orEmpty(),
         )
     }
 

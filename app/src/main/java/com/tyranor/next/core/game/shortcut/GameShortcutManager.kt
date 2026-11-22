@@ -1,5 +1,6 @@
 package com.tyranor.next.core.game.shortcut
 
+import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ShortcutInfo
@@ -11,10 +12,12 @@ import android.net.Uri
 import com.tyranor.next.R
 import com.tyranor.next.core.game.model.ScanGame
 import com.tyranor.next.core.settings.AppSettingsStore
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.security.MessageDigest
 import java.io.File
+import java.io.InputStream
+import java.security.MessageDigest
 import kotlin.math.max
 import kotlin.math.min
 
@@ -28,6 +31,7 @@ object GameShortcutManager {
         game: ScanGame,
         launchIntent: Intent,
         customIconUri: Uri? = null,
+        pinResultIntent: Intent? = null,
     ): RequestResult {
         val appContext = context.applicationContext
         val shortcutManager = appContext.getSystemService(ShortcutManager::class.java)
@@ -71,12 +75,25 @@ object GameShortcutManager {
                 if (!shortcutManager.isRequestPinShortcutSupported) {
                     return@runCatching RequestResult.UNSUPPORTED
                 }
-                if (shortcutManager.requestPinShortcut(shortcut, null)) {
-                    RequestResult.REQUESTED
-                } else {
-                    RequestResult.FAILED
+                val callback = pinResultIntent?.let {
+                    PendingIntent.getBroadcast(
+                        appContext,
+                        0,
+                        it,
+                        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_ONE_SHOT,
+                    )
                 }
-            }.getOrElse { RequestResult.FAILED }
+                var accepted = false
+                try {
+                    accepted = shortcutManager.requestPinShortcut(shortcut, callback?.intentSender)
+                    if (accepted) RequestResult.REQUESTED else RequestResult.FAILED
+                } finally {
+                    if (!accepted) callback?.cancel()
+                }
+            }.getOrElse { error ->
+                if (error is kotlinx.coroutines.CancellationException) throw error
+                RequestResult.FAILED
+            }
         }
     }
 
@@ -87,47 +104,63 @@ object GameShortcutManager {
     }
 
     /** Decodes and center-crops a fallback icon source to the launcher target size. */
-    private fun decodeSquareIcon(context: Context, uriText: String, targetSize: Int): Bitmap? = runCatching {
-        val uri = Uri.parse(uriText)
-        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        openShortcutIconInputStream(context, uri)?.use {
-            BitmapFactory.decodeStream(it, null, bounds)
-        }
-        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return@runCatching null
+    @androidx.annotation.VisibleForTesting
+    internal fun decodeSquareIcon(context: Context, uriText: String, targetSize: Int): Bitmap? {
+        var decoded: Bitmap? = null
+        var cropped: Bitmap? = null
+        var scaled: Bitmap? = null
+        var returned = false
+        return try {
+            val uri = Uri.parse(uriText)
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            openShortcutIconInputStream(context, uri)?.use {
+                BitmapFactory.decodeStream(it, null, bounds)
+            }
+            if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
 
-        var sampleSize = 1
-        while (max(bounds.outWidth, bounds.outHeight) / (sampleSize * 2) >= targetSize * 2) {
-            sampleSize *= 2
-        }
-        val decoded = openShortcutIconInputStream(context, uri)?.use {
-            BitmapFactory.decodeStream(
-                it,
-                null,
-                BitmapFactory.Options().apply {
-                    inSampleSize = sampleSize
-                    inPreferredConfig = Bitmap.Config.ARGB_8888
-                },
+            var sampleSize = 1
+            while (max(bounds.outWidth, bounds.outHeight) / (sampleSize * 2) >= targetSize * 2) {
+                sampleSize *= 2
+            }
+            decoded = openShortcutIconInputStream(context, uri)?.use {
+                BitmapFactory.decodeStream(
+                    it,
+                    null,
+                    BitmapFactory.Options().apply {
+                        inSampleSize = sampleSize
+                        inPreferredConfig = Bitmap.Config.ARGB_8888
+                    },
+                )
+            } ?: return null
+
+            val side = min(decoded.width, decoded.height)
+            cropped = Bitmap.createBitmap(
+                decoded,
+                (decoded.width - side) / 2,
+                (decoded.height - side) / 2,
+                side,
+                side,
             )
-        } ?: return@runCatching null
+            scaled = Bitmap.createScaledBitmap(cropped, targetSize, targetSize, true)
+            returned = true
+            scaled
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            null
+        } finally {
+            if (!returned && scaled != null && !scaled.isRecycled) scaled.recycle()
+            if (cropped != null && cropped !== scaled && !cropped.isRecycled) cropped.recycle()
+            if (decoded != null && decoded !== cropped && decoded !== scaled && !decoded.isRecycled) decoded.recycle()
+        }
+    }
 
-        val side = min(decoded.width, decoded.height)
-        val cropped = Bitmap.createBitmap(
-            decoded,
-            (decoded.width - side) / 2,
-            (decoded.height - side) / 2,
-            side,
-            side,
-        )
-        val scaled = Bitmap.createScaledBitmap(cropped, targetSize, targetSize, true)
-        if (cropped !== decoded) decoded.recycle()
-        if (scaled !== cropped) cropped.recycle()
-        scaled
-    }.getOrNull()
-
-    /** Opens a shortcut icon URI through the resolver, with a local file fallback. */
-    private fun openShortcutIconInputStream(context: Context, uri: Uri): java.io.InputStream? {
+    /** Opens a shortcut icon URI through the resolver, with a local file fallback for file/empty schemes. */
+    private fun openShortcutIconInputStream(context: Context, uri: Uri): InputStream? {
         val resolverStream = runCatching { context.contentResolver.openInputStream(uri) }.getOrNull()
         if (resolverStream != null) return resolverStream
+        val scheme = uri.scheme
+        if (!scheme.equals("file", ignoreCase = true) && !scheme.isNullOrBlank()) return null
         val path = uri.path?.takeIf { it.isNotBlank() } ?: return null
         return runCatching { File(path).inputStream() }.getOrNull()
     }

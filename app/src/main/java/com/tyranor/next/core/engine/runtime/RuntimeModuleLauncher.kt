@@ -43,10 +43,19 @@ object RuntimeModuleLauncher {
         module: RuntimeModuleDescriptor,
         game: ScanGame,
         folderPath: String,
+        settingsPayload: String? = null,
     ): RuntimeModuleLaunchResult {
         if (!module.enabled) return RuntimeModuleLaunchResult.ModuleDisabled
         if (module.packageName.isBlank() || module.activityName.isBlank()) return RuntimeModuleLaunchResult.EntryMissing
         if (folderPath.isBlank()) return RuntimeModuleLaunchResult.PathUnresolved
+        if (module.settings != null && settingsPayload == null) {
+            return RuntimeModuleLaunchResult.StartFailed("runtime module settings payload missing")
+        }
+        if (module.settings != null && settingsPayload != null &&
+            settingsPayload.toByteArray(Charsets.UTF_8).size > RuntimeModuleSettingsParser.MAX_PAYLOAD_BYTES
+        ) {
+            return RuntimeModuleLaunchResult.StartFailed("runtime module settings payload exceeds 48 KiB")
+        }
 
         val translationMapUri = if (TranslationCatalog.supports(game, module)) {
             runCatching {
@@ -65,6 +74,9 @@ object RuntimeModuleLauncher {
                 putExtra(RuntimeModuleContract.EXTRA_TRANSLATION_MAP_URI, it.toString())
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 clipData = ClipData.newUri(context.contentResolver, "Tyranor translation map", it)
+            }
+            if (module.settings != null && settingsPayload != null) {
+                putExtra(RuntimeModuleContract.EXTRA_SETTINGS, settingsPayload)
             }
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }

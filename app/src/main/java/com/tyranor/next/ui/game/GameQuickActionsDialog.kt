@@ -1,6 +1,8 @@
 package com.tyranor.next.ui.game
 
 import android.net.Uri
+import android.util.Log
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.DrawableRes
@@ -75,15 +77,20 @@ import com.tyranor.next.ui.common.AppNavItem
 import com.tyranor.next.ui.common.AppSearchField
 import com.tyranor.next.ui.common.DialogTextButton
 import com.tyranor.next.ui.common.NoIndication
+import com.tyranor.next.ui.common.motion.PressSquishDefaults
 import com.tyranor.next.ui.common.motion.ProvideEntrance
+import com.tyranor.next.ui.common.motion.pressSquish
 import com.tyranor.next.ui.common.motion.shakeOnTrigger
 import com.tyranor.next.ui.common.motion.skipEntranceOnDrag
 import com.tyranor.next.ui.common.motion.staggeredEntrance
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.tyranor.next.ui.common.notice.AppNotice
+
+private const val TAG = "GameQuickActions"
 
 // 长按弹窗顶部超框封面的尺寸：封面从卡片上沿向上探出 Overhang，卡片内为封面预留剩余高度。
 private val QuickActionCoverWidth = 100.dp
@@ -113,6 +120,8 @@ internal fun GameQuickActionsDialog(
     quickLaunched: Boolean,
     onDismiss: () -> Unit,
     onGameUpdated: (ScanGame) -> Unit,
+    onGameCoverUpdated: (ScanGame) -> Unit = onGameUpdated,
+    onGameRenamed: ((String, String) -> Unit)? = null,
     onDeleteGame: () -> Unit,
     onQuickLaunchToggle: () -> Boolean,
 ) {
@@ -149,7 +158,7 @@ internal fun GameQuickActionsDialog(
     /** Blocks destructive cover/shortcut actions while a batch scrape is running. */
     fun isBatchScrapingActive(): Boolean {
         if (!CoverScrapeTaskManager.state.value.running) return false
-        AppNotice.makeText(context, batchScrapeRunningMessage, android.widget.Toast.LENGTH_SHORT, AppNotice.Kind.Limit).show()
+        AppNotice.makeText(context, batchScrapeRunningMessage, Toast.LENGTH_SHORT, AppNotice.Kind.Limit).show()
         // 仅「修改封面」走这道拦截：被拒绝时该条目抖一下
         feedback.rejectCover()
         return true
@@ -157,9 +166,13 @@ internal fun GameQuickActionsDialog(
 
     /** Requests a new shortcut or updates the existing shortcut for this game. */
     fun requestDesktopShortcut(customIconUri: Uri? = null) {
+        val appContext = context.applicationContext
         if (shortcutRequestInFlight) {
-            // 上一次请求（系统确认框）尚未结束：丢弃新生成的临时图标，避免孤儿文件
-            deleteShortcutCropBitmap(context.applicationContext, customIconUri)
+            if (customIconUri != null) {
+                scope.launch(NonCancellable + Dispatchers.IO) {
+                    deleteShortcutCropBitmap(appContext, customIconUri)
+                }
+            }
             return
         }
         shortcutRequestInFlight = true
@@ -170,13 +183,18 @@ internal fun GameQuickActionsDialog(
                     game = game,
                     launchIntent = GameShortcutActivity.createIntent(context, game.uri),
                     customIconUri = customIconUri,
+                    pinResultIntent = GameShortcutResultReceiver.createIntent(context),
                 )
             } catch (error: Throwable) {
                 if (error is CancellationException) throw error
                 GameShortcutManager.RequestResult.FAILED
             } finally {
                 shortcutRequestInFlight = false
-                deleteShortcutCropBitmap(context.applicationContext, customIconUri)
+                if (customIconUri != null) {
+                    withContext(NonCancellable + Dispatchers.IO) {
+                        deleteShortcutCropBitmap(appContext, customIconUri)
+                    }
+                }
             }
             val message = when (result) {
                 GameShortcutManager.RequestResult.REQUESTED -> shortcutRequestedMessage
@@ -184,12 +202,17 @@ internal fun GameQuickActionsDialog(
                 GameShortcutManager.RequestResult.UNSUPPORTED -> shortcutUnsupportedMessage
                 GameShortcutManager.RequestResult.FAILED -> shortcutFailedMessage
             }
-            val requested = result == GameShortcutManager.RequestResult.REQUESTED || result == GameShortcutManager.RequestResult.UPDATED
+            val kind = when (result) {
+                GameShortcutManager.RequestResult.REQUESTED -> AppNotice.Kind.Info
+                GameShortcutManager.RequestResult.UPDATED -> AppNotice.Kind.Success
+                GameShortcutManager.RequestResult.UNSUPPORTED, GameShortcutManager.RequestResult.FAILED -> AppNotice.Kind.Failure
+            }
             AppNotice.makeText(
-                context, message, android.widget.Toast.LENGTH_SHORT,
-                if (requested) AppNotice.Kind.Success else AppNotice.Kind.Failure,
+                context, message,
+                if (result == GameShortcutManager.RequestResult.REQUESTED) Toast.LENGTH_LONG else Toast.LENGTH_SHORT,
+                kind,
             ).show()
-            if (requested) {
+            if (kind != AppNotice.Kind.Failure) {
                 exitHandle.closeThen(onDismiss)
             } else {
                 feedback.rejectShortcut()
@@ -223,20 +246,23 @@ internal fun GameQuickActionsDialog(
         if (uri == null) return@rememberLauncherForActivityResult
         if (isBatchScrapingActive()) return@rememberLauncherForActivityResult
         scope.launch {
+            val appContext = context.applicationContext
             val updated = withContext(Dispatchers.IO) {
                 try {
-                    VndbCoverService.saveCustomCover(context, game, uri)
+                    VndbCoverService.saveCustomCover(appContext, game, uri)
                 } catch (cancelled: CancellationException) {
                     throw cancelled
-                } catch (_: Throwable) {
+                } catch (e: Throwable) {
+                    // 与 HttpJson 同口径：脱敏 Log.w 留排障线索，UI 仅展示失败文案
+                    Log.w(TAG, "save custom cover failed", e)
                     null
                 }
             }
             if (updated != null) {
-                onGameUpdated(updated)
+                onGameCoverUpdated(updated)
                 exitHandle.closeThen(onDismiss)
             } else {
-                AppNotice.makeText(context, coverSetFailedMessage, android.widget.Toast.LENGTH_SHORT, AppNotice.Kind.Failure)
+                AppNotice.makeText(context, coverSetFailedMessage, Toast.LENGTH_SHORT, AppNotice.Kind.Failure)
                     .show()
                 feedback.rejectCover()
             }
@@ -287,7 +313,7 @@ internal fun GameQuickActionsDialog(
                         leadingIcon = R.drawable.ic_home,
                         onClick = {
                             feedback.toggle(onQuickLaunchToggle, close = { exitHandle.closeThen(onDismiss) }) {
-                                AppNotice.makeText(context, quickLaunchFullMessage, android.widget.Toast.LENGTH_SHORT, AppNotice.Kind.Limit)
+                                AppNotice.makeText(context, quickLaunchFullMessage, Toast.LENGTH_SHORT, AppNotice.Kind.Limit)
                                     .show()
                             }
                         },
@@ -369,7 +395,8 @@ internal fun GameQuickActionsDialog(
             onDismiss = { showRenameDialog = false },
             onConfirm = { title ->
                 showRenameDialog = false
-                onGameUpdated(game.copy(title = title))
+                val renamer = onGameRenamed
+                if (renamer != null) renamer(game.uri, title) else onGameUpdated(game.copy(title = title))
             },
         )
     }
@@ -399,6 +426,7 @@ internal fun GameQuickActionsDialog(
                         deleteExitHandle.closeThen {
                             showDeleteConfirm = false
                             exitHandle.closeThen {
+                                PlayStatusSummaryCache.invalidate(game.uri)
                                 onDeleteGame()
                                 onDismiss()
                             }
@@ -550,6 +578,7 @@ private fun QuickActionDeleteButton(modifier: Modifier, onClick: () -> Unit) {
     // 在复古玻璃的深色面板上会发白失焦，与其它外观风格割裂（见 theme/Color.kt）。
     Row(
         modifier = modifier
+            .pressSquish()
             .fillMaxWidth()
             .clip(AppComponentShape)
             .background(DangerFill)
@@ -590,6 +619,7 @@ private fun QuickActionCover(
     val editCoverLabel = stringResource(R.string.game_edit_cover)
     Box(
         modifier = modifier
+            .pressSquish(scale = PressSquishDefaults.CardScale)
             .size(width = QuickActionCoverWidth, height = QuickActionCoverHeight)
             .clip(AppComponentShape)
             .background(game.engine.coverColor())
