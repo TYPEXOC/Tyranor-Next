@@ -389,15 +389,10 @@ private fun TranslationGlossaryDetailScreen(
                     style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                     color = PageTextColor,
                 )
-                Text(
-                    stringResource(R.string.translation_glossary_search_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = PageSecondaryTextColor,
-                )
                 TranslationGlossaryDialogTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    label = stringResource(R.string.translation_review_find),
+                    label = stringResource(R.string.translation_glossary_search_hint),
                     modifier = Modifier.fillMaxWidth(),
                     backgroundColor = NavWhite,
                     singleLine = true,
