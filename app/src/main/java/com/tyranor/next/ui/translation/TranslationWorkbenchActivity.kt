@@ -57,12 +57,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.verticalScroll
@@ -99,7 +96,6 @@ import com.tyranor.next.ui.common.motion.startActivityWithPageTransition
 import com.tyranor.next.ui.common.DialogTextButton
 import com.tyranor.next.ui.common.NoRippleButton
 import com.tyranor.next.ui.common.OverlayDropdownPreference
-import com.tyranor.next.ui.common.SlidingTabRow
 import com.tyranor.next.ui.common.TabPagerPageHost
 import com.tyranor.next.ui.common.rememberTabPagerState
 import com.tyranor.next.ui.common.MotionLinearProgressIndicator
@@ -177,42 +173,6 @@ private fun TranslationProjectCard.isFullyTranslated(): Boolean =
 
 private fun TranslationProjectCard.isCompleted(): Boolean =
     !isInProgress() && isFullyTranslated() && reviewCompletedAt != null
-
-@Composable
-private fun ContentSizedMiuixTabRow(
-    tabs: List<String>,
-    selectedTabIndex: Int,
-    onTabSelected: (Int) -> Unit,
-) {
-    if (tabs.isEmpty()) return
-
-    val textMeasurer = rememberTextMeasurer()
-    val density = LocalDensity.current
-    val tabTextStyle = MiuixTheme.textStyles.body1.copy(fontWeight = FontWeight.Bold)
-    val tabWidth = remember(tabs, textMeasurer, density, tabTextStyle) {
-        val widestLabelPx = tabs.maxOf { label ->
-            textMeasurer.measure(AnnotatedString(label), style = tabTextStyle).size.width
-        }
-        with(density) { widestLabelPx.toDp() + 24.dp }
-    }
-    val itemSpacing = 9.dp
-    val contentWidth = tabWidth * tabs.size + itemSpacing * (tabs.size - 1)
-
-    BoxWithConstraints(Modifier.fillMaxWidth()) {
-        val rowWidth = minOf(maxWidth, contentWidth)
-        Box(Modifier.width(rowWidth)) {
-            MiuixTabRow(
-                tabs = tabs,
-                selectedTabIndex = selectedTabIndex,
-                onTabSelected = onTabSelected,
-                modifier = Modifier.fillMaxWidth(),
-                minWidth = tabWidth,
-                maxWidth = tabWidth,
-                itemSpacing = itemSpacing,
-            )
-        }
-    }
-}
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
@@ -558,22 +518,12 @@ private fun TranslationWorkbenchScreen() {
                     val onProjectFilterSelected: (Int) -> Unit = { index ->
                         projectFilter = visibleProjectFilters.getOrNull(index) ?: ProjectListFilter.ALL
                     }
-                    if (MotionMode.enhanced) {
-                        SlidingTabRow(
-                            tabs = filterLabels,
-                            selectedIndex = selectedProjectFilterIndex,
-                            onTabSelected = onProjectFilterSelected,
-                            pager = filterPager,
-                            scrollable = true,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    } else {
-                        ContentSizedMiuixTabRow(
-                            tabs = filterLabels,
-                            selectedTabIndex = selectedProjectFilterIndex,
-                            onTabSelected = onProjectFilterSelected,
-                        )
-                    }
+                    MiuixTabRow(
+                        tabs = filterLabels,
+                        selectedTabIndex = selectedProjectFilterIndex,
+                        onTabSelected = onProjectFilterSelected,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                     Box(
                         modifier = Modifier.weight(1f).fillMaxWidth().clipToBounds(),
                     ) {

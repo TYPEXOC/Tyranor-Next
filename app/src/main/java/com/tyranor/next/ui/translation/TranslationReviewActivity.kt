@@ -93,7 +93,6 @@ import com.tyranor.next.ui.common.DialogTextButton
 import com.tyranor.next.ui.common.DialogActionButtons
 import com.tyranor.next.ui.common.TabPagerPageHost
 import com.tyranor.next.ui.common.TopBarIcon
-import com.tyranor.next.ui.common.SlidingTabRow
 import com.tyranor.next.ui.common.isTabletScreen
 import com.tyranor.next.ui.common.rememberTabPagerState
 import com.tyranor.next.ui.common.motion.BlurVisibility
@@ -589,25 +588,14 @@ private fun TranslationReviewScreen(projectId: String) {
                     stringResource(R.string.translation_review_source),
                 )
                 val selectedSearchTargetIndex = if (searchTarget == ReviewSearchTarget.TRANSLATION) 0 else 1
-                if (MotionMode.enhanced) {
-                    SlidingTabRow(
-                        tabs = searchTargetTabs,
-                        selectedIndex = selectedSearchTargetIndex,
-                        onTabSelected = { index ->
-                            searchTarget = if (index == 0) ReviewSearchTarget.TRANSLATION else ReviewSearchTarget.SOURCE
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                } else {
-                    MiuixTabRow(
-                        tabs = searchTargetTabs,
-                        selectedTabIndex = selectedSearchTargetIndex,
-                        onTabSelected = { index ->
-                            searchTarget = if (index == 0) ReviewSearchTarget.TRANSLATION else ReviewSearchTarget.SOURCE
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
+                MiuixTabRow(
+                    tabs = searchTargetTabs,
+                    selectedTabIndex = selectedSearchTargetIndex,
+                    onTabSelected = { index ->
+                        searchTarget = if (index == 0) ReviewSearchTarget.TRANSLATION else ReviewSearchTarget.SOURCE
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                )
                 Box(
                     modifier = Modifier.fillMaxWidth()
                         .weight(1f, fill = false)
