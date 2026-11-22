@@ -1323,8 +1323,7 @@ private fun TranslationServicesScreen() {
                         modifier = Modifier.fillMaxWidth()
                             .widthIn(max = if (tabletLayout) 1440.dp else 760.dp)
                             .fillMaxSize()
-                            .padding(horizontal = 16.dp)
-                            .padding(bottom = 96.dp),
+                            .padding(horizontal = 16.dp),
                     ) {
                         Column(
                             modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()),
@@ -1418,6 +1417,7 @@ private fun TranslationServicesScreen() {
                                     }
                                 }
                             }
+                            Spacer(Modifier.height(86.dp))
                         }
                     }
                 }
