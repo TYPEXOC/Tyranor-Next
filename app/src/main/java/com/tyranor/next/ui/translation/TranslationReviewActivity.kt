@@ -588,14 +588,16 @@ private fun TranslationReviewScreen(projectId: String) {
                     stringResource(R.string.translation_review_source),
                 )
                 val selectedSearchTargetIndex = if (searchTarget == ReviewSearchTarget.TRANSLATION) 0 else 1
-                MiuixTabRow(
-                    tabs = searchTargetTabs,
-                    selectedTabIndex = selectedSearchTargetIndex,
-                    onTabSelected = { index ->
-                        searchTarget = if (index == 0) ReviewSearchTarget.TRANSLATION else ReviewSearchTarget.SOURCE
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                MiuixSettingsTheme {
+                    MiuixTabRow(
+                        tabs = searchTargetTabs,
+                        selectedTabIndex = selectedSearchTargetIndex,
+                        onTabSelected = { index ->
+                            searchTarget = if (index == 0) ReviewSearchTarget.TRANSLATION else ReviewSearchTarget.SOURCE
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
                 Box(
                     modifier = Modifier.fillMaxWidth()
                         .weight(1f, fill = false)
