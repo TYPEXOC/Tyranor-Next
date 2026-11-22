@@ -59,6 +59,7 @@ import com.tyranor.next.theme.AppComponentCornerRadius
 import com.tyranor.next.theme.AppComponentShape
 import com.tyranor.next.theme.DangerFill
 import com.tyranor.next.theme.MiuixSettingsTheme
+import com.tyranor.next.theme.NavWhite
 import com.tyranor.next.theme.OnDangerFill
 import com.tyranor.next.theme.PageSecondaryTextColor
 import com.tyranor.next.theme.PageTextColor
@@ -388,11 +389,17 @@ private fun TranslationGlossaryDetailScreen(
                     style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                     color = PageTextColor,
                 )
+                Text(
+                    stringResource(R.string.translation_glossary_search_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = PageSecondaryTextColor,
+                )
                 TranslationGlossaryDialogTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    label = stringResource(R.string.translation_glossary_search_hint),
+                    label = stringResource(R.string.translation_review_find),
                     modifier = Modifier.fillMaxWidth(),
+                    backgroundColor = NavWhite,
                     singleLine = true,
                 )
                 when {
