@@ -1,17 +1,18 @@
 package com.tyranor.next.ui.translation
 
-import com.tyranor.next.core.translation.TranslationProjectFormat
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
+import com.tyranor.next.core.translation.TranslationProjectFormatRegistry
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TranslationProjectImportFormatTest {
     @Test
-    fun detectsMToolJsonByExtensionOrJsonMimeTypeAndRejectsCsv() {
-        assertEquals(TranslationProjectFormat.MTOOL_JSON, detectProjectImportFormat("game.JSON", null))
-        assertEquals(TranslationProjectFormat.MTOOL_JSON, detectProjectImportFormat("game", "application/json; charset=utf-8"))
-        assertEquals(TranslationProjectFormat.MTOOL_JSON, detectProjectImportFormat("game", "application/vnd.tyranor+json"))
-        assertNull(detectProjectImportFormat("game.csv", "application/json"))
-        assertNull(detectProjectImportFormat("game.txt", "text/plain"))
+    fun acceptsRegisteredExtensionsAndMimeTypes() {
+        assertTrue(TranslationProjectFormatRegistry.supportsImportFile("game.CSV", null))
+        assertTrue(TranslationProjectFormatRegistry.supportsImportFile("game", "text/csv; charset=utf-8"))
+        assertTrue(TranslationProjectFormatRegistry.supportsImportFile("game.JSON", null))
+        assertTrue(TranslationProjectFormatRegistry.supportsImportFile("game", "application/json; charset=utf-8"))
+        assertTrue(TranslationProjectFormatRegistry.supportsImportFile("game", "application/vnd.tyranor+json"))
+        assertFalse(TranslationProjectFormatRegistry.supportsImportFile("game.txt", "text/plain"))
     }
 }

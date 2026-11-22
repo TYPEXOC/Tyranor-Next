@@ -67,6 +67,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.tyranor.next.R
 import com.tyranor.next.core.engine.EngineType
 import com.tyranor.next.core.translation.TranslationProjectFormat
+import com.tyranor.next.core.translation.TranslationProjectFormatRegistry
 import com.tyranor.next.core.translation.TranslationProjectState
 import com.tyranor.next.core.translation.TranslationProjectSource
 import com.tyranor.next.core.translation.TranslationWorkbenchError
@@ -160,7 +161,7 @@ private val visibleProjectFilters = listOf(
     ProjectListFilter.COMPLETED,
 )
 
-private val supportedTranslationExportFormats = listOf(TranslationProjectFormat.MTOOL_JSON)
+private val supportedTranslationExportFormats = TranslationProjectFormatRegistry.exportFormats()
 
 private fun ProjectListFilter.visibleFilter(): ProjectListFilter = when (this) {
     ProjectListFilter.CONTINUABLE -> ProjectListFilter.IN_PROGRESS
@@ -233,7 +234,7 @@ private fun TranslationWorkbenchScreen() {
     var showAddDialog by remember { mutableStateOf(false) }
     var addProjectOperation by remember { mutableStateOf(ProjectAddOperation.EXTRACT) }
     var addProjectEngineId by remember { mutableStateOf(EngineType.RPG_MV.name) }
-    var addProjectSourceFormat by remember { mutableStateOf<TranslationProjectFormat?>(null) }
+    var addProjectSourceFormatSupported by remember { mutableStateOf(false) }
     var addProjectSourceUri by remember { mutableStateOf<Uri?>(null) }
     var addProjectSourceName by remember { mutableStateOf("") }
     var addProjectSourcePath by remember { mutableStateOf("") }
@@ -333,12 +334,12 @@ private fun TranslationWorkbenchScreen() {
         addProjectSourceUri = uri
         addProjectSourceName = ""
         addProjectSourcePath = ""
-        addProjectSourceFormat = null
+        addProjectSourceFormatSupported = false
         addProjectErrorCode = null
         scope.launch {
             try {
                 val displayName = queryDisplayName(appContext, uri)
-                val format = detectProjectImportFormat(displayName, appContext.contentResolver.getType(uri))
+                val supported = supportsProjectImportFile(displayName, appContext.contentResolver.getType(uri))
                 val path = querySelectedSourcePath(
                     appContext,
                     uri,
@@ -347,8 +348,8 @@ private fun TranslationWorkbenchScreen() {
                 )
                 addProjectSourceName = displayName
                 addProjectSourcePath = path
-                addProjectSourceFormat = format
-                if (format == null) addProjectErrorCode = TranslationWorkbenchError.INVALID_PROJECT_FILE
+                addProjectSourceFormatSupported = supported
+                if (!supported) addProjectErrorCode = TranslationWorkbenchError.INVALID_PROJECT_FILE
             } catch (failure: Throwable) {
                 if (failure is CancellationException) throw failure
                 addProjectErrorCode = TranslationWorkbenchError.INVALID_PROJECT_FILE
@@ -372,7 +373,7 @@ private fun TranslationWorkbenchScreen() {
             addProjectSourceUri = uri
             addProjectSourceName = ""
             addProjectSourcePath = ""
-            addProjectSourceFormat = null
+            addProjectSourceFormatSupported = false
             addProjectErrorCode = null
             scope.launch {
                 val displayName = withContext(Dispatchers.IO) {
@@ -417,15 +418,21 @@ private fun TranslationWorkbenchScreen() {
                     ProjectAddOperation.TRANSLATE,
                     ProjectAddOperation.PROOFREAD -> {
                         val displayName = addProjectSourceName.ifBlank { queryDisplayName(appContext, sourceUri) }
-                        val format = addProjectSourceFormat
-                            ?: throw TranslationWorkbenchException(TranslationWorkbenchError.INVALID_PROJECT_FILE)
+                        if (!addProjectSourceFormatSupported) {
+                            throw TranslationWorkbenchException(TranslationWorkbenchError.INVALID_PROJECT_FILE)
+                        }
                         val sourceDisplayPath = querySelectedSourcePath(
                             appContext,
                             sourceUri,
                             isTree = false,
                             fallbackName = displayName,
                         )
-                        repository.importDocument(sourceUri, displayName, format, sourceDisplayPath)
+                        repository.importDocument(
+                            sourceUri,
+                            displayName,
+                            appContext.contentResolver.getType(sourceUri),
+                            sourceDisplayPath,
+                        )
                     }
                 }
                 projectToRevealId = createdProjectId
@@ -433,7 +440,7 @@ private fun TranslationWorkbenchScreen() {
                 addProjectSourceUri = null
                 addProjectSourceName = ""
                 addProjectSourcePath = ""
-                addProjectSourceFormat = null
+                addProjectSourceFormatSupported = false
             } catch (failure: Throwable) {
                 if (failure is CancellationException) throw failure
                 addProjectErrorCode = (failure as? TranslationWorkbenchException)?.code
@@ -445,14 +452,14 @@ private fun TranslationWorkbenchScreen() {
     }
 
     fun chooseProjectFile() {
-        importProject.launch(arrayOf("application/json", "text/json", "*/*"))
+        importProject.launch(arrayOf("application/json", "text/json", "text/csv", "*/*"))
     }
 
     fun clearNewProjectSource() {
         addProjectSourceUri = null
         addProjectSourceName = ""
         addProjectSourcePath = ""
-        addProjectSourceFormat = null
+        addProjectSourceFormatSupported = false
         addProjectErrorCode = null
     }
 
@@ -501,7 +508,7 @@ private fun TranslationWorkbenchScreen() {
                             onClick = {
                                 addProjectOperation = ProjectAddOperation.EXTRACT
                                 addProjectEngineId = EngineType.RPG_MV.name
-                                addProjectSourceFormat = null
+                                addProjectSourceFormatSupported = false
                                 clearNewProjectSource()
                                 addingProject = false
                                 showAddDialog = true
@@ -705,7 +712,7 @@ private fun TranslationWorkbenchScreen() {
 
     if (showAddDialog) {
         val choosingDirectory = addProjectOperation == ProjectAddOperation.EXTRACT
-        val sourceFormatReady = choosingDirectory || addProjectSourceFormat == TranslationProjectFormat.MTOOL_JSON
+        val sourceFormatReady = choosingDirectory || addProjectSourceFormatSupported
         val addProjectCardColor = if (AppThemeColors.isGlass || AppThemeColors.isMilkGlass) {
             DialogItemSurface
         } else {
@@ -1571,11 +1578,8 @@ private fun createExportDocument(
     val directory = DocumentFile.fromTreeUri(context, directoryUri)
         ?.takeIf(DocumentFile::isDirectory)
         ?: throw TranslationWorkbenchException(TranslationWorkbenchError.EXPORT_FAILED)
-    val extension = when (format) {
-        TranslationProjectFormat.CSV -> ".csv"
-        TranslationProjectFormat.JSON -> ".json"
-        TranslationProjectFormat.MTOOL_JSON -> ".json"
-    }
+    val descriptor = TranslationProjectFormatRegistry.descriptor(format)
+    val extension = descriptor.extension
     val preferredName = exportName(title, extension)
     val existingNames = directory.listFiles().mapNotNull(DocumentFile::getName).toHashSet()
     val dot = preferredName.lastIndexOf('.')
@@ -1587,21 +1591,9 @@ private fun createExportDocument(
         candidate = "$stem ($index)$suffix"
         index++
     }
-    val mimeType = if (format == TranslationProjectFormat.CSV) "text/csv" else "application/json"
-    return directory.createFile(mimeType, candidate)
+    return directory.createFile(descriptor.mimeType, candidate)
         ?: throw TranslationWorkbenchException(TranslationWorkbenchError.EXPORT_FAILED)
 }
 
-internal fun detectProjectImportFormat(displayName: String, mimeType: String?): TranslationProjectFormat? {
-    val fileName = displayName.substringAfterLast('/')
-    val extension = fileName.substringAfterLast('.', missingDelimiterValue = "").lowercase()
-    if (extension.isNotBlank()) {
-        return TranslationProjectFormat.MTOOL_JSON.takeIf { extension == "json" }
-    }
-    val normalizedMimeType = mimeType?.substringBefore(';')?.trim()?.lowercase().orEmpty()
-    return TranslationProjectFormat.MTOOL_JSON.takeIf {
-        normalizedMimeType == "application/json" ||
-            normalizedMimeType == "text/json" ||
-            normalizedMimeType.endsWith("+json")
-    }
-}
+internal fun supportsProjectImportFile(displayName: String, mimeType: String?): Boolean =
+    TranslationProjectFormatRegistry.supportsImportFile(displayName, mimeType)

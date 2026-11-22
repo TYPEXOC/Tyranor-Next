@@ -28,8 +28,6 @@ import com.tyranor.next.core.translation.service.TranslationServiceException
 import com.tyranor.next.core.translation.service.TranslationServiceProfile
 import com.tyranor.next.core.translation.service.TranslationServiceRepository
 import com.tyranor.next.core.translation.service.TranslationProtocolRegistry
-import com.tyranor.next.core.translation.export.mtool.MToolJsonExporter
-import com.tyranor.next.core.translation.export.mtool.MToolJsonImporter
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.nio.charset.StandardCharsets
@@ -352,7 +350,7 @@ class TranslationWorkbenchRepository(context: Context) {
     suspend fun importDocument(
         uri: Uri,
         displayName: String,
-        format: TranslationProjectFormat,
+        mimeType: String?,
         sourceDisplayPath: String? = null,
     ): String =
         withContext(Dispatchers.IO) {
@@ -360,15 +358,9 @@ class TranslationWorkbenchRepository(context: Context) {
                 ?: throw TranslationWorkbenchException(TranslationWorkbenchError.INVALID_PROJECT_FILE)
             val text = input.use { readBoundedText(it) }
             val fallbackTitle = displayName.substringBeforeLast('.', displayName).ifBlank { displayName }
-            val archive = when (format) {
-                TranslationProjectFormat.JSON -> TranslationProjectCodec.decodeJson(text)
-                TranslationProjectFormat.CSV -> TranslationProjectCodec.decodeCsv(text, fallbackTitle)
-                TranslationProjectFormat.MTOOL_JSON -> MToolJsonImporter.decode(text, displayName)
-            }
-            val sourceType = when (format) {
-                TranslationProjectFormat.CSV -> TranslationProjectSource.IMPORTED_CSV
-                TranslationProjectFormat.JSON, TranslationProjectFormat.MTOOL_JSON -> TranslationProjectSource.IMPORTED_JSON
-            }
+            val decoded = TranslationProjectFormatRegistry.decode(displayName, mimeType, text)
+            val archive = decoded.archive
+            val sourceType = TranslationProjectFormatRegistry.descriptor(decoded.format).sourceType
             val engine = archive.engineId?.takeIf { value ->
                 runCatching { EngineType.valueOf(value) }.isSuccess || TextExtractorRegistry.find(value) != null
             }
@@ -442,16 +434,7 @@ class TranslationWorkbenchRepository(context: Context) {
                     )
                 },
             )
-            val mtoolExport = if (format == TranslationProjectFormat.MTOOL_JSON) {
-                MToolJsonExporter.export(archive.entries)
-            } else {
-                null
-            }
-            val text = when (format) {
-                TranslationProjectFormat.CSV -> TranslationProjectCodec.encodeCsv(archive)
-                TranslationProjectFormat.JSON -> TranslationProjectCodec.encodeJson(archive)
-                TranslationProjectFormat.MTOOL_JSON -> mtoolExport!!.text
-            }
+            val text = TranslationProjectFormatRegistry.encode(archive, format)
             try {
                 val output = appContext.contentResolver.openOutputStream(uri, "wt")
                     ?: throw IOException("Output stream unavailable")

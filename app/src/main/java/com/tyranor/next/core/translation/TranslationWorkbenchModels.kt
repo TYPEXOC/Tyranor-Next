@@ -2,7 +2,7 @@ package com.tyranor.next.core.translation
 
 import androidx.room.ColumnInfo
 
-/** 项目文件交换与导出格式；工作台当前对用户提供 MTool JSON。 */
+/** Paired project import/export formats registered by [TranslationProjectFormatRegistry]. */
 enum class TranslationProjectFormat {
     CSV,
     JSON,

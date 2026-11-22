@@ -10,6 +10,14 @@ object TranslationProjectCodec {
     const val MAX_ENTRIES = 200_000
     const val MAX_DOCUMENT_CHARS = 32 * 1024 * 1024
 
+    fun isWorkspaceJson(text: String): Boolean = runCatching {
+        val root = JSONObject(text.removePrefix("\uFEFF"))
+        root.optString("format") == FORMAT_ID &&
+            root.has("version") &&
+            root.has("title") &&
+            root.has("entries")
+    }.getOrDefault(false)
+
     private val csvColumns = listOf(
         "projectKey",
         "projectTitle",
