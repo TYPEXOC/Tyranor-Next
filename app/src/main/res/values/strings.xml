@@ -363,7 +363,7 @@
     <string name="translation_glossary_delete_term_message">确认后立即从术语表中删除“%1$s → %2$s”。</string>
     <string name="translation_glossary_select">术语表</string>
     <string name="translation_glossary_none">不应用</string>
-    <string name="translation_glossary_support_none">此服务不会把术语表用于翻译，但仍会保留给后续校对检查。</string>
+    <string name="translation_glossary_support_none">术语表仅用于校对，不参与翻译。</string>
     <string name="translation_glossary_support_ai">术语表会作为参考提供给 AI，并用于后续校对检查。</string>
     <string name="translation_glossary_support_context">术语表会作为上下文提供给服务，并用于后续校对检查。</string>
     <string name="translation_glossary_support_native">当前文本命中的术语会发送给服务，并用于后续校对检查。</string>
