@@ -4,6 +4,7 @@ import com.tyranor.next.core.translation.service.TranslationTextIntegrity
 import com.tyranor.next.core.translation.service.TranslationTextProblem
 import com.tyranor.next.core.translation.service.TranslationGlossaryMatching
 import com.tyranor.next.core.translation.storage.TranslationEntryEntity
+import java.text.Normalizer
 import java.util.Locale
 
 internal class TranslationLocalRuleChecker {
@@ -32,7 +33,7 @@ internal class TranslationLocalRuleChecker {
                 if (residues.isNotEmpty()) {
                     add(RuleFinding(entry.id, TranslationReviewIssueCode.FOREIGN_TEXT_REMAINS))
                 }
-                if (sourceLanguage != null && targetLanguage != null && isTooSimilar(
+                if (isTooSimilar(
                         source = sourceText,
                         translated = translatedText,
                         sourceLanguage = sourceLanguage,
@@ -62,13 +63,18 @@ internal class TranslationLocalRuleChecker {
     private fun isTooSimilar(
         source: String,
         translated: String,
-        sourceLanguage: String,
-        targetLanguage: String,
+        sourceLanguage: String?,
+        targetLanguage: String?,
         hasForeignResidue: Boolean,
     ): Boolean {
         val sourceText = source.trim()
         val translatedText = translated.trim()
         if (sourceText.isEmpty() || translatedText.isEmpty()) return false
+        val normalizedSource = normalizedComparableText(sourceText)
+        if (
+            normalizedSource.isNotEmpty() && normalizedSource == normalizedComparableText(translatedText)
+        ) return true
+        if (sourceLanguage == null || targetLanguage == null) return false
         val sourceCode = normalizeLanguage(sourceLanguage)
         val targetCode = normalizeLanguage(targetLanguage)
         val isChineseTarget = targetCode == "ZH" || targetCode == "ZH-HANT"
@@ -77,6 +83,15 @@ internal class TranslationLocalRuleChecker {
         }
         return sourceText.contains(translatedText) || translatedText.contains(sourceText) ||
             similarByCharacters(sourceText, translatedText)
+    }
+
+    private fun normalizedComparableText(text: String): String {
+        val normalized = Normalizer.normalize(text, Normalizer.Form.NFKC).lowercase(Locale.ROOT)
+        return buildString {
+            normalized.codePoints().forEach { codePoint ->
+                if (Character.isLetterOrDigit(codePoint)) appendCodePoint(codePoint)
+            }
+        }
     }
 
     private fun similarByCharacters(left: String, right: String): Boolean {

@@ -1183,6 +1183,7 @@ private fun TranslationReviewEntryDetailPane(
     val panelBorder = translationReviewPanelBorderColor()
     MiuixCard(
         modifier = modifier.border(1.dp, panelBorder, AppComponentShape)
+            .verticalScroll(rememberScrollState())
             .glassBorder(),
         cornerRadius = AppComponentCornerRadius,
         colors = MiuixCardDefaults.defaultColors(
@@ -1191,7 +1192,7 @@ private fun TranslationReviewEntryDetailPane(
         ),
     ) {
         Column(
-            Modifier.fillMaxSize().padding(16.dp),
+            Modifier.fillMaxWidth().padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Row(
@@ -1209,29 +1210,24 @@ private fun TranslationReviewEntryDetailPane(
                 )
                 ReviewEntryStatusLabel(entry)
             }
-            Column(
-                modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                TranslationGlossaryDialogTextField(
-                    value = entry.sourceText,
-                    onValueChange = {},
-                    label = stringResource(R.string.translation_review_source),
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = false,
-                    minLines = 2,
-                    maxLines = 8,
-                )
-                TranslationGlossaryDialogTextField(
-                    value = translationText,
-                    onValueChange = onTranslationTextChange,
-                    label = stringResource(R.string.translation_glossary_target_term),
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = enabled,
-                    minLines = 2,
-                    maxLines = 8,
-                )
-            }
+            TranslationGlossaryDialogTextField(
+                value = entry.sourceText,
+                onValueChange = {},
+                label = stringResource(R.string.translation_review_source),
+                modifier = Modifier.fillMaxWidth(),
+                enabled = false,
+                minLines = 2,
+                maxLines = 8,
+            )
+            TranslationGlossaryDialogTextField(
+                value = translationText,
+                onValueChange = onTranslationTextChange,
+                label = stringResource(R.string.translation_glossary_target_term),
+                modifier = Modifier.fillMaxWidth(),
+                enabled = enabled,
+                minLines = 2,
+                maxLines = 8,
+            )
             MiuixButton(
                 onClick = onSave,
                 enabled = enabled,
