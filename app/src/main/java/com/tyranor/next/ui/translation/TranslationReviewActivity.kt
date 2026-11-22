@@ -565,6 +565,7 @@ private fun TranslationReviewScreen(projectId: String) {
             ) {
                 MiuixText(
                     text = stringResource(R.string.translation_review_search),
+                    color = TextColor,
                     style = MiuixTheme.textStyles.headline1.copy(fontWeight = FontWeight.Bold),
                 )
                 TranslationGlossaryDialogTextField(
@@ -596,7 +597,6 @@ private fun TranslationReviewScreen(projectId: String) {
                             searchTarget = if (index == 0) ReviewSearchTarget.TRANSLATION else ReviewSearchTarget.SOURCE
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        pager = searchTargetPager,
                     )
                 } else {
                     MiuixTabRow(
