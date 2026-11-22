@@ -3,6 +3,7 @@ package com.tyranor.next.core.translation.service.protocol.machine
 import com.tyranor.next.core.translation.service.TranslationBatchResponse
 import com.tyranor.next.core.translation.service.TranslationGlossaryEntry
 import com.tyranor.next.core.translation.service.TranslationInput
+import com.tyranor.next.core.translation.service.TranslationGlossarySupport
 import com.tyranor.next.core.translation.service.TranslationProtocolId
 import com.tyranor.next.core.translation.service.TranslationServiceErrorCode
 import com.tyranor.next.core.translation.service.TranslationServiceException
@@ -18,6 +19,7 @@ internal class YandexTranslateV2Adapter(
     private val transport: TranslationHttpTransport = TranslationHttpTransport(),
 ) : MachineTranslationAdapter(TranslationProtocolId.YANDEX_TRANSLATE_V2) {
     override val maxBatchSize = 30
+    override val glossarySupport = TranslationGlossarySupport.NATIVE_TERMS
 
     override suspend fun translateBatch(
         profile: TranslationServiceProfile,

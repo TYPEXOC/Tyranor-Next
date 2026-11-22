@@ -108,13 +108,18 @@ class TranslationServiceClient(
         glossary: List<TranslationGlossaryEntry> = emptyList(),
     ): TranslationBatchResponse {
         val requestProfile = profile.withRequestParameters(repository.readCustomParameters(profile.customParametersRef))
-        return adapter(requestProfile).translateBatch(
-        profile = requestProfile,
-        apiKey = resolveSecret(secretRef),
-        sourceLanguage = sourceLanguage,
-        targetLanguage = targetLanguage,
-        inputs = inputs,
-        glossary = glossary,
+        val protocolAdapter = adapter(requestProfile)
+        val serviceGlossary = when (protocolAdapter.glossarySupport) {
+            TranslationGlossarySupport.NONE -> emptyList()
+            else -> TranslationGlossaryMatching.matchingTerms(inputs, glossary)
+        }
+        return protocolAdapter.translateBatch(
+            profile = requestProfile,
+            apiKey = resolveSecret(secretRef),
+            sourceLanguage = sourceLanguage,
+            targetLanguage = targetLanguage,
+            inputs = inputs,
+            glossary = serviceGlossary,
         )
     }
 
@@ -188,4 +193,7 @@ internal object TranslationProtocolRegistry {
 
     fun supports(protocolId: TranslationProtocolId, capability: TranslationServiceCapability): Boolean =
         adapters[protocolId]?.capabilities?.contains(capability) == true
+
+    fun glossarySupport(protocolId: TranslationProtocolId): TranslationGlossarySupport =
+        adapter(protocolId).glossarySupport
 }

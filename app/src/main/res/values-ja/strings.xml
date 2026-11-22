@@ -363,6 +363,10 @@
     <string name="translation_glossary_delete_term_message">確認すると「%1$s → %2$s」を用語集からすぐに削除します。</string>
     <string name="translation_glossary_select">用語集</string>
     <string name="translation_glossary_none">適用しない</string>
+    <string name="translation_glossary_support_none">このサービスは翻訳に用語集を使用しませんが、校正チェック用に保持されます。</string>
+    <string name="translation_glossary_support_ai">用語集は AI への参考情報として提供され、校正チェックにも使用されます。</string>
+    <string name="translation_glossary_support_context">用語集は翻訳コンテキストとして送信され、校正チェックにも使用されます。</string>
+    <string name="translation_glossary_support_native">現在のテキストに含まれる用語をサービスに送信し、校正チェックにも使用します。</string>
     <string name="translation_cancel_task">タスクを中止</string>
     <string name="translation_reauthorize_directory">フォルダーを再許可</string>
     <string name="translation_export_csv">CSV を書き出す</string>

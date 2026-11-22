@@ -78,6 +78,8 @@ import com.tyranor.next.core.translation.extraction.TranslationExtractorEngineId
 import com.tyranor.next.core.translation.service.TranslationServiceProfile
 import com.tyranor.next.core.translation.service.TranslationServiceCategory
 import com.tyranor.next.core.translation.service.TranslationProtocolId
+import com.tyranor.next.core.translation.service.TranslationGlossarySupport
+import com.tyranor.next.core.translation.service.TranslationProtocolRegistry
 import com.tyranor.next.theme.AppComponentCornerRadius
 import com.tyranor.next.theme.DialogItemSurface
 import com.tyranor.next.theme.AppThemeColors
@@ -1066,21 +1068,43 @@ private fun TranslationStartDialog(
                     val selectedGlossaryIndex = selectedGlossaryId?.let { selected ->
                         glossaries.indexOfFirst { it.id == selected }.takeIf { it >= 0 }?.plus(1)
                     } ?: 0
+                    val selectedService = services.firstOrNull { it.id == selectedServiceId }
+                    val glossarySupport = selectedService?.let {
+                        TranslationProtocolRegistry.glossarySupport(it.protocolId)
+                    } ?: TranslationGlossarySupport.NONE
                     MiuixCard(
                         modifier = Modifier.fillMaxWidth().glassBorder(),
                         cornerRadius = AppComponentCornerRadius,
                         colors = MiuixCardDefaults.defaultColors(color = cardColor, contentColor = PageTextColor),
                     ) {
-                        OverlayDropdownPreference(
-                            items = glossaryItems,
-                            selectedIndex = selectedGlossaryIndex,
-                            title = stringResource(R.string.translation_glossary_select),
-                            modifier = Modifier.fillMaxWidth(),
-                            renderInRootScaffold = false,
-                            onSelectedIndexChange = { index ->
-                                onSelectGlossary(glossaries.getOrNull(index - 1)?.id)
-                            },
-                        )
+                        Column {
+                            OverlayDropdownPreference(
+                                items = glossaryItems,
+                                selectedIndex = selectedGlossaryIndex,
+                                title = stringResource(R.string.translation_glossary_select),
+                                modifier = Modifier.fillMaxWidth(),
+                                renderInRootScaffold = false,
+                                onSelectedIndexChange = { index ->
+                                    onSelectGlossary(glossaries.getOrNull(index - 1)?.id)
+                                },
+                            )
+                            if (selectedGlossaryId != null && selectedService != null) {
+                                val note = when (glossarySupport) {
+                                    TranslationGlossarySupport.NONE -> R.string.translation_glossary_support_none
+                                    TranslationGlossarySupport.AI_PROMPT -> R.string.translation_glossary_support_ai
+                                    TranslationGlossarySupport.CONTEXT -> R.string.translation_glossary_support_context
+                                    TranslationGlossarySupport.NATIVE_TERMS -> R.string.translation_glossary_support_native
+                                }
+                                Text(
+                                    text = stringResource(note),
+                                    modifier = Modifier.fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 4.dp)
+                                        .padding(bottom = 12.dp),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = PageSecondaryTextColor,
+                                )
+                            }
+                        }
                     }
 
                     MiuixCard(

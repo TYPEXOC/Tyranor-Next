@@ -32,6 +32,14 @@ enum class TranslationItemFailureCode {
     INPUT_TOKEN_LIMIT,
 }
 
+/** How a protocol consumes a selected glossary during translation. Review checks always use the task snapshot. */
+enum class TranslationGlossarySupport {
+    NONE,
+    AI_PROMPT,
+    CONTEXT,
+    NATIVE_TERMS,
+}
+
 data class TranslationBatchResponse(
     val successes: List<TranslationOutput>,
     val itemFailures: Map<String, TranslationItemFailureCode>,
@@ -41,6 +49,12 @@ data class TranslationBatchResponse(
 interface TranslationProtocolAdapter {
     val protocolId: TranslationProtocolId
     val capabilities: Set<TranslationServiceCapability>
+    val glossarySupport: TranslationGlossarySupport
+        get() = if (protocolId.category == TranslationServiceCategory.AI_TRANSLATION) {
+            TranslationGlossarySupport.AI_PROMPT
+        } else {
+            TranslationGlossarySupport.NONE
+        }
     val maxBatchSize: Int get() = 30
     val maxConcurrentRequests: Int get() = Int.MAX_VALUE
     val handlesRequestPacing: Boolean get() = false

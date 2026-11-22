@@ -2,6 +2,7 @@ package com.tyranor.next.core.translation
 
 import com.tyranor.next.core.translation.service.TranslationTextIntegrity
 import com.tyranor.next.core.translation.service.TranslationTextProblem
+import com.tyranor.next.core.translation.service.TranslationGlossaryMatching
 import com.tyranor.next.core.translation.storage.TranslationEntryEntity
 import java.util.Locale
 
@@ -43,7 +44,7 @@ internal class TranslationLocalRuleChecker {
                 }
                 if (glossary.any { term ->
                         term.sourceTerm.isNotBlank() && term.targetTerm.isNotBlank() &&
-                            entry.sourceText.contains(term.sourceTerm.trim(), ignoreCase = true) &&
+                            TranslationGlossaryMatching.containsSourceTerm(entry.sourceText, term.sourceTerm) &&
                             !translation.contains(term.targetTerm.trim(), ignoreCase = true)
                     }
                 ) {

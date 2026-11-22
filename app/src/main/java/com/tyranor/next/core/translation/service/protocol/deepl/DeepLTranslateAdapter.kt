@@ -8,6 +8,7 @@ import com.tyranor.next.core.translation.service.TranslationModelInfo
 import com.tyranor.next.core.translation.service.TranslationOutput
 import com.tyranor.next.core.translation.service.TranslationProtocolAdapter
 import com.tyranor.next.core.translation.service.TranslationProtocolId
+import com.tyranor.next.core.translation.service.TranslationGlossarySupport
 import com.tyranor.next.core.translation.service.TranslationProviderCredentialBundle
 import com.tyranor.next.core.translation.service.TranslationServiceCapability
 import com.tyranor.next.core.translation.service.TranslationServiceErrorCode
@@ -31,6 +32,7 @@ internal class DeepLTranslateAdapter(
 ) : TranslationProtocolAdapter {
     override val protocolId = TranslationProtocolId.DEEPL_TRANSLATE_V2
     override val capabilities = setOf(TranslationServiceCapability.TRANSLATE)
+    override val glossarySupport = TranslationGlossarySupport.CONTEXT
 
     override suspend fun listModels(
         profile: TranslationServiceProfile,
