@@ -94,6 +94,7 @@ import com.tyranor.next.theme.AppComponentShape
 import com.tyranor.next.theme.DangerFill
 import com.tyranor.next.theme.MiuixSettingsTheme
 import com.tyranor.next.theme.NavWhite
+import com.tyranor.next.theme.OnDangerFill
 import com.tyranor.next.theme.PageSecondaryTextColor
 import com.tyranor.next.theme.PageTextColor
 import com.tyranor.next.theme.TextColor
@@ -1558,10 +1559,13 @@ private fun TranslationServicesScreen() {
                             )
                         },
                         confirmButton = {
-                            DialogTextButton(
-                                text = stringResource(R.string.common_delete),
-                                contentColor = DangerFill,
-                                onClick = {
+                            DialogActionButtons(
+                                cancelText = stringResource(R.string.common_cancel),
+                                confirmText = stringResource(R.string.common_delete),
+                                confirmContainerColorOverride = DangerFill,
+                                confirmContentColorOverride = OnDangerFill,
+                                onCancel = { pendingDeleteIndex = null },
+                                onConfirm = {
                                     val updated = entries.toMutableList().apply { removeAt(index) }
                                     val nextParameters = if (headerTab) {
                                         state.parameters.copy(headers = updated)
@@ -1584,12 +1588,6 @@ private fun TranslationServicesScreen() {
                                     advancedSettingsEditor = advancedSettingsEditor?.copy(customParameters = nextParameters)
                                     pendingDeleteIndex = null
                                 },
-                            )
-                        },
-                        dismissButton = {
-                            DialogTextButton(
-                                text = stringResource(R.string.common_cancel),
-                                onClick = { pendingDeleteIndex = null },
                             )
                         },
                     )
