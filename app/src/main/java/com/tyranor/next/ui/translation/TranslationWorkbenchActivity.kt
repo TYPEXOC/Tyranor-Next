@@ -96,6 +96,7 @@ import com.tyranor.next.ui.common.motion.startActivityWithPageTransition
 import com.tyranor.next.ui.common.DialogTextButton
 import com.tyranor.next.ui.common.NoRippleButton
 import com.tyranor.next.ui.common.OverlayDropdownPreference
+import com.tyranor.next.ui.common.SlidingTabRow
 import com.tyranor.next.ui.common.TabPagerPageHost
 import com.tyranor.next.ui.common.rememberTabPagerState
 import com.tyranor.next.ui.common.MotionLinearProgressIndicator
@@ -119,7 +120,6 @@ import top.yukonga.miuix.kmp.basic.DropdownDefaults
 import top.yukonga.miuix.kmp.basic.DropdownEntry
 import top.yukonga.miuix.kmp.basic.DropdownItem
 import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
-import top.yukonga.miuix.kmp.basic.TabRow as MiuixTabRow
 import top.yukonga.miuix.kmp.popup.OverlayDropdownPopup
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import androidx.compose.foundation.Image
@@ -518,11 +518,12 @@ private fun TranslationWorkbenchScreen() {
                     val onProjectFilterSelected: (Int) -> Unit = { index ->
                         projectFilter = visibleProjectFilters.getOrNull(index) ?: ProjectListFilter.ALL
                     }
-                    MiuixTabRow(
+                    SlidingTabRow(
                         tabs = filterLabels,
-                        selectedTabIndex = selectedProjectFilterIndex,
+                        selectedIndex = selectedProjectFilterIndex,
                         onTabSelected = onProjectFilterSelected,
                         modifier = Modifier.fillMaxWidth(),
+                        scrollable = true,
                     )
                     Box(
                         modifier = Modifier.weight(1f).fillMaxWidth().clipToBounds(),

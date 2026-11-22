@@ -91,6 +91,7 @@ import com.tyranor.next.ui.common.AppScreenActivity
 import com.tyranor.next.ui.common.AppSecondaryTopBar
 import com.tyranor.next.ui.common.DialogTextButton
 import com.tyranor.next.ui.common.DialogActionButtons
+import com.tyranor.next.ui.common.SlidingTabRow
 import com.tyranor.next.ui.common.TabPagerPageHost
 import com.tyranor.next.ui.common.TopBarIcon
 import com.tyranor.next.ui.common.isTabletScreen
@@ -114,7 +115,6 @@ import top.yukonga.miuix.kmp.basic.FloatingActionButton as MiuixFloatingActionBu
 import top.yukonga.miuix.kmp.basic.HorizontalDivider as MiuixHorizontalDivider
 import top.yukonga.miuix.kmp.basic.Icon as MiuixIcon
 import top.yukonga.miuix.kmp.basic.RadioButtonDefaults
-import top.yukonga.miuix.kmp.basic.TabRow as MiuixTabRow
 import top.yukonga.miuix.kmp.basic.Text as MiuixText
 import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -588,16 +588,15 @@ private fun TranslationReviewScreen(projectId: String) {
                     stringResource(R.string.translation_review_source),
                 )
                 val selectedSearchTargetIndex = if (searchTarget == ReviewSearchTarget.TRANSLATION) 0 else 1
-                MiuixSettingsTheme {
-                    MiuixTabRow(
-                        tabs = searchTargetTabs,
-                        selectedTabIndex = selectedSearchTargetIndex,
-                        onTabSelected = { index ->
-                            searchTarget = if (index == 0) ReviewSearchTarget.TRANSLATION else ReviewSearchTarget.SOURCE
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
+                val onSearchTargetSelected: (Int) -> Unit = { index ->
+                    searchTarget = if (index == 0) ReviewSearchTarget.TRANSLATION else ReviewSearchTarget.SOURCE
                 }
+                SlidingTabRow(
+                    tabs = searchTargetTabs,
+                    selectedIndex = selectedSearchTargetIndex,
+                    onTabSelected = onSearchTargetSelected,
+                    modifier = Modifier.fillMaxWidth(),
+                )
                 Box(
                     modifier = Modifier.fillMaxWidth()
                         .weight(1f, fill = false)

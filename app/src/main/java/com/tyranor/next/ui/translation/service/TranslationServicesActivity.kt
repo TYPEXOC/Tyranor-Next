@@ -106,6 +106,7 @@ import com.tyranor.next.ui.common.DialogTextButton
 import com.tyranor.next.ui.common.NoRippleButton
 import com.tyranor.next.ui.common.NoRippleTextButton
 import com.tyranor.next.ui.common.OverlayDropdownPreference
+import com.tyranor.next.ui.common.SlidingTabRow
 import com.tyranor.next.ui.common.SettingsEntryCard
 import com.tyranor.next.ui.common.TabPagerPageHost
 import com.tyranor.next.ui.common.TopBarIcon
@@ -130,7 +131,6 @@ import top.yukonga.miuix.kmp.basic.Button as MiuixButton
 import top.yukonga.miuix.kmp.basic.ButtonDefaults as MiuixButtonDefaults
 import top.yukonga.miuix.kmp.basic.FabPosition
 import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
-import top.yukonga.miuix.kmp.basic.TabRow as MiuixTabRow
 import top.yukonga.miuix.kmp.basic.TextField as MiuixTextField
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
@@ -479,9 +479,9 @@ private fun TranslationServicesScreen() {
                     modifier = Modifier.fillMaxSize().padding(top = innerPadding.calculateTopPadding()),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    MiuixTabRow(
+                    SlidingTabRow(
                         tabs = tabs,
-                        selectedTabIndex = activeCategoryPage,
+                        selectedIndex = activeCategoryPage,
                         onTabSelected = { index ->
                             selectedCategory = if (index == 0) TranslationServiceCategory.MACHINE_TRANSLATION
                             else TranslationServiceCategory.AI_TRANSLATION
@@ -1325,12 +1325,12 @@ private fun TranslationServicesScreen() {
                             modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()),
                             verticalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
-                            MiuixTabRow(
+                            SlidingTabRow(
                                 tabs = listOf(
                                     stringResource(R.string.translation_services_custom_headers),
                                     stringResource(R.string.translation_services_custom_body),
                                 ),
-                                selectedTabIndex = state.selectedTab,
+                                selectedIndex = state.selectedTab,
                                 onTabSelected = { index ->
                                     state = state.copy(
                                         selectedTab = index,
