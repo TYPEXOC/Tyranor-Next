@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -1398,7 +1397,6 @@ private fun TranslationServicesScreen() {
                                                     CustomParameterEntryCard(
                                                         modifier = Modifier.weight(1f),
                                                         parameter = parameter,
-                                                        showType = !showingHeaders,
                                                         onEdit = {
                                                             state = state.copy(
                                                                 name = parameter.name,
@@ -1899,7 +1897,6 @@ private fun ServiceStatusContent(
 @Composable
 private fun CustomParameterEntryCard(
     parameter: TranslationCustomParameter,
-    showType: Boolean,
     modifier: Modifier = Modifier,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
@@ -1908,71 +1905,66 @@ private fun CustomParameterEntryCard(
         modifier = modifier.fillMaxWidth().glassBorder(),
         cornerRadius = AppComponentCornerRadius,
     ) {
-        Row(
+        Column(
             modifier = Modifier.fillMaxWidth().padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    CustomParameterFieldLabel(
-                        text = stringResource(R.string.translation_services_custom_parameter_name),
-                    )
-                    Text(
-                        text = parameter.name,
-                        modifier = Modifier.weight(1f),
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    if (showType) {
-                        Text(
-                            text = stringResource(parameter.type.labelResource()),
-                            modifier = Modifier.clip(AppComponentShape)
-                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
-                                .padding(horizontal = 8.dp, vertical = 4.dp),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            maxLines = 1,
-                        )
-                    }
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.Top,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    CustomParameterFieldLabel(
-                        text = stringResource(R.string.translation_services_custom_parameter_value),
-                    )
-                    Text(
-                        text = parameter.value,
-                        modifier = Modifier.weight(1f),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = PageTextColor,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
+                CustomParameterFieldLabel(
+                    text = stringResource(R.string.translation_services_custom_parameter_name),
+                )
+                Text(
+                    text = parameter.name,
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = stringResource(parameter.type.labelResource()),
+                    modifier = Modifier.clip(AppComponentShape)
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    maxLines = 1,
+                )
             }
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Top,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                CustomParameterFieldLabel(
+                    text = stringResource(R.string.translation_services_custom_parameter_value),
+                )
+                Text(
+                    text = parameter.value,
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = PageTextColor,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 NoRippleButton(
                     text = stringResource(R.string.translation_services_custom_parameter_edit_action),
-                    modifier = Modifier.width(72.dp),
+                    modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
                     onClick = onEdit,
                 )
                 NoRippleButton(
                     text = stringResource(R.string.common_delete),
-                    modifier = Modifier.width(72.dp),
+                    modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
                     containerColorOverride = DangerFill,
                     contentColorOverride = OnDangerFill,
