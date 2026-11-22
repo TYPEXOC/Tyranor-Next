@@ -1133,7 +1133,7 @@ private fun ReviewEntryStatusIcon(entry: TranslationReviewEntry) {
             else R.string.translation_review_status_translated,
         ),
         colorFilter = ColorFilter.tint(
-            if (hasRuleIssue) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary,
+            if (hasRuleIssue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
         ),
         modifier = Modifier.size(22.dp),
     )

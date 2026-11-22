@@ -329,7 +329,7 @@ private fun TranslationServicesScreen() {
             add(
                 ServiceListRow(
                     key = "machine:${template.protocolId.wireId}",
-                    displayName = profile?.displayName?.takeUnless { profile.id == builtinMachineProfileId(template.protocolId) },
+                    displayName = null,
                     displayNameResource = template.nameResource,
                     mark = template.mark,
                     iconResource = template.iconResource,
@@ -2128,8 +2128,6 @@ private fun TranslationProtocolId.serviceIconResource(): Int? = when (this) {
     TranslationProtocolId.GOOGLE_CLOUD_TRANSLATE_V2 -> R.drawable.ic_translation_provider_google_cloud
     else -> null
 }
-
-private fun builtinMachineProfileId(protocolId: TranslationProtocolId): String = "builtin-machine-${protocolId.wireId}"
 
 private fun TranslationProtocolId.protocolTitleResource(): Int = when (this) {
     TranslationProtocolId.OPENAI_COMPATIBLE_CHAT -> R.string.translation_services_protocol_chat_short
