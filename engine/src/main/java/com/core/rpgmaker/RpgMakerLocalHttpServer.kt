@@ -20,7 +20,6 @@ import java.util.Locale
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
-import com.core.engine.RpgMakerTranslationPlugin
 
 // ASAR 条目走流式的体积阈值：低于此值一次性读取更简单高效
 internal const val ASAR_STREAM_THRESHOLD = 256L * 1024L
@@ -38,7 +37,7 @@ internal class RpgMakerLocalHttpServer(
     private val fuzzyNames: Boolean = false,
     /** 期望的固定端口（0 = 随机）；被占用时回退随机并由 [usedFallbackPort] 标记。 */
     preferredPort: Int = com.core.web.WebShellServerSocket.RANDOM_PORT,
-    private val injectTranslationPluginScriptTag: Boolean = false,
+    private val transformIndexHtml: ((String) -> String?)? = null,
 ) : Runnable {
     private val root: File
     private val asar: AsarArchive?
@@ -91,7 +90,7 @@ internal class RpgMakerLocalHttpServer(
         v12Compat: Boolean = true,
         fuzzyNames: Boolean = false,
         preferredPort: Int = com.core.web.WebShellServerSocket.RANDOM_PORT,
-        injectTranslationPluginScriptTag: Boolean = false,
+        transformIndexHtml: ((String) -> String?)? = null,
     ) : this(
         root,
         null,
@@ -104,7 +103,7 @@ internal class RpgMakerLocalHttpServer(
         v12Compat,
         fuzzyNames,
         preferredPort,
-        injectTranslationPluginScriptTag,
+        transformIndexHtml,
     )
 
     fun start() { thread.start() }
@@ -211,11 +210,6 @@ internal class RpgMakerLocalHttpServer(
                 return
             }
             internalResources[normalizedLookup]?.let { resource ->
-                if (normalizedLookup == RpgMakerTranslationPlugin.PLUGIN_LIST_PATH.lowercase(Locale.ROOT) ||
-                    normalizedLookup == RpgMakerTranslationPlugin.PLUGIN_SCRIPT_PATH.lowercase(Locale.ROOT)
-                ) {
-                    Log.i(TAG, "served virtual translation resource uri=$uri bytes=${resource.size}")
-                }
                 sendBytes(socket, resource, uri, method.equals("HEAD", true))
                 return
             }
@@ -411,10 +405,10 @@ internal class RpgMakerLocalHttpServer(
 
     private fun sendInjectedIndex(socket: Socket, html: String?, headOnly: Boolean) {
         val sourceHtml = html.orEmpty()
-        val preparedHtml = if (injectTranslationPluginScriptTag) {
-            RpgMakerTranslationPlugin.insertPluginListScriptBeforeMain(sourceHtml) ?: run {
-                Log.e(TAG, "cannot insert virtual translation plugin list before standard main.js")
-                sendText(socket, 500, "Internal Server Error", "unsupported RPG Maker entry script order")
+        val preparedHtml = if (transformIndexHtml != null) {
+            transformIndexHtml.invoke(sourceHtml) ?: run {
+                Log.e(TAG, "cannot apply engine-specific index HTML transformation")
+                sendText(socket, 500, "Internal Server Error", "unsupported game entry script structure")
                 return
             }
         } else {
@@ -427,7 +421,7 @@ internal class RpgMakerLocalHttpServer(
         } else {
             buildInjectedHtml(preparedHtml, tyranoHook, injectedHtml, injectBeforeBody)
         }
-        Log.i(TAG, "served injected index bytes=${data.size} hook=${tyranoHook.size} translationPluginTag=$injectTranslationPluginScriptTag")
+        Log.i(TAG, "served injected index bytes=${data.size} hook=${tyranoHook.size} indexTransform=${transformIndexHtml != null}")
         val out = BufferedOutputStream(socket.getOutputStream())
         out.write(("HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nCache-Control: no-cache\r\nAccess-Control-Allow-Origin: *\r\n" + authCookieHeader() + "Content-Length: ${data.size}\r\nConnection: close\r\n\r\n").toByteArray(StandardCharsets.UTF_8))
         if (!headOnly) out.write(data)

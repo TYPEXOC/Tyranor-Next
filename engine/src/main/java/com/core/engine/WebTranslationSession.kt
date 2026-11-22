@@ -21,6 +21,7 @@ class WebTranslationSession(
     translationMapUri: String?,
     private val evaluateJs: (String, ValueCallback<String>?) -> Unit,
     private val delivery: WebTranslationDelivery = WebTranslationDelivery.HOST_INJECTION,
+    private val runtimeAssets: List<String> = WebTranslationRuntime.GENERIC_WEB_ASSETS,
 ) {
     private val appContext = context.applicationContext
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -43,11 +44,13 @@ class WebTranslationSession(
 
     private val runtimeJs: String? by lazy {
         runCatching {
-            appContext.assets.open(WebTranslationRuntime.RUNTIME_ASSET).buffered().use {
-                it.readBytes().toString(Charsets.UTF_8)
+            val sources = runtimeAssets.map { asset ->
+                appContext.assets.open(asset).buffered().use { it.readBytes() }
             }
+            WebTranslationRuntime.composeRuntime(sources)?.toString(Charsets.UTF_8)
+                ?: error("translation runtime asset bundle is invalid")
         }.onFailure {
-            Log.w(WEB_TRANSLATION_SESSION_TAG, "runtime asset missing: ${WebTranslationRuntime.RUNTIME_ASSET}", it)
+            Log.w(WEB_TRANSLATION_SESSION_TAG, "runtime assets unavailable: ${runtimeAssets.joinToString()}", it)
         }.getOrNull()
     }
 

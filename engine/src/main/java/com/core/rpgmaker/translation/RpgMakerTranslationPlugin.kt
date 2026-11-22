@@ -1,4 +1,4 @@
-package com.core.engine
+package com.core.rpgmaker.translation
 
 import java.io.File
 import java.nio.charset.StandardCharsets
