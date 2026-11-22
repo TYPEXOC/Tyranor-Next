@@ -244,6 +244,7 @@
     <string name="game_launch_file">启动文件</string>
     <string name="game_launch_file_auto_summary">自动 - 如有错误请手动选择启动文件</string>
     <string name="game_translation">翻译文件</string>
+    <string name="game_translation_select_title">选择翻译文件</string>
     <string name="game_translation_default">默认</string>
     <string name="game_remove_quick_launch">移除首页</string>
     <string name="game_add_quick_launch">添加首页</string>

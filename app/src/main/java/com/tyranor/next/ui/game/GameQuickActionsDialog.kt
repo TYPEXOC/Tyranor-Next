@@ -468,7 +468,7 @@ private fun TranslationSelectDialog(
 
     AppAlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.game_translation), style = MaterialTheme.typography.titleMedium) },
+        title = { Text(stringResource(R.string.game_translation_select_title), style = MaterialTheme.typography.titleMedium) },
         text = {
             LazyColumn(
                 modifier = Modifier.fillMaxWidth().heightIn(max = 320.dp),
