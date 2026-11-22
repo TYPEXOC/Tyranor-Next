@@ -81,6 +81,7 @@ import com.tyranor.next.core.translation.service.TranslationModelInfo
 import com.tyranor.next.core.translation.service.TranslationServiceProfile
 import com.tyranor.next.core.translation.service.TranslationServiceTaskSettings
 import com.tyranor.next.core.translation.service.TranslationServiceRepository
+import com.tyranor.next.core.translation.service.TranslationSecretResult
 import com.tyranor.next.core.translation.service.TranslationCustomParametersChange
 import com.tyranor.next.core.translation.service.TranslationCustomParameter
 import com.tyranor.next.core.translation.service.TranslationCustomParameters
@@ -162,7 +163,6 @@ private fun TranslationServicesScreen() {
     val profiles by repository.observeProfiles().collectAsStateWithLifecycle(initialValue = emptyList())
     val scope = rememberCoroutineScope()
     var editor by remember { mutableStateOf<ServiceEditor?>(null) }
-    var initialServiceEditor by remember { mutableStateOf<ServiceEditor?>(null) }
     var advancedSettingsEditor by remember { mutableStateOf<AdvancedSettingsEditor?>(null) }
     var customParametersEditor by remember { mutableStateOf<CustomParametersEditor?>(null) }
     var taskSettingsEditor by remember { mutableStateOf<TaskSettingsEditor?>(null) }
@@ -199,7 +199,6 @@ private fun TranslationServicesScreen() {
         when (targetPage) {
             TranslationServicesPage.LIST -> {
                 editor = null
-                initialServiceEditor = null
                 taskSettingsEditor = null
                 advancedSettingsEditor = null
                 customParametersEditor = null
@@ -261,7 +260,6 @@ private fun TranslationServicesScreen() {
             allowProtocolSelection = template.allowProtocolSelection,
             templateId = template.templateId.takeUnless { it == "custom-chat" },
         )
-        initialServiceEditor = editor
         activePage = TranslationServicesPage.EDITOR
     }
 
@@ -408,7 +406,9 @@ private fun TranslationServicesScreen() {
 
     fun openServiceEditor(row: ServiceListRow, displayName: String) {
         if (row.profile != null) {
+            val profile = row.profile
             startEditorSession()
+            val sessionId = editorSessionId
             fetchedModels = emptyList()
             modelSearch = ""
             showModelPicker = false
@@ -418,7 +418,7 @@ private fun TranslationServicesScreen() {
             modelListEmpty = false
             advancedSettingsEditor = null
             editor = ServiceEditor.from(
-                row.profile,
+                profile,
                 showBaseUrl = row.protocolId.category == TranslationServiceCategory.AI_TRANSLATION,
                 allowProtocolSelection = row.aiTemplate?.allowProtocolSelection
                     ?: (row.protocolId.category == TranslationServiceCategory.AI_TRANSLATION),
@@ -427,13 +427,29 @@ private fun TranslationServicesScreen() {
             ).let { state ->
                 state.copy(displayName = displayName)
             }
+            if (profile.hasSecret) {
+                scope.launch {
+                    try {
+                        val secret = when (val result = repository.readSecretForEditing(profile)) {
+                            is TranslationSecretResult.Available -> result.value
+                            TranslationSecretResult.Missing,
+                            TranslationSecretResult.Unavailable ->
+                                throw TranslationServiceException(TranslationServiceErrorCode.SECRET_UNAVAILABLE)
+                        }
+                        if (editorSessionId == sessionId && editor?.id == profile.id && editor?.clearSecret == false) {
+                            editor = editor?.withStoredCredentials(secret)
+                        }
+                    } catch (failure: Throwable) {
+                        reportFailure(failure)
+                    }
+                }
+            }
         } else if (row.protocolId.category == TranslationServiceCategory.MACHINE_TRANSLATION) {
             startEditorSession()
             editor = ServiceEditor.newMachine(row.protocolId, displayName)
         } else {
             row.aiTemplate?.let { beginEditingAiTemplate(it, displayName) }
         }
-        initialServiceEditor = editor
         activePage = TranslationServicesPage.EDITOR
     }
 
@@ -543,26 +559,7 @@ private fun TranslationServicesScreen() {
                 TranslationServicesPage.EDITOR -> {
                     cancelConnectionTest()
                     showModelPicker = false
-                    val current = editor
-                    if (current != null &&
-                        current.protocolId.category == TranslationServiceCategory.MACHINE_TRANSLATION &&
-                        current.isBuiltInTemplate &&
-                        current != initialServiceEditor
-                    ) {
-                        scope.launch {
-                            isSaving = true
-                            try {
-                                repository.saveProfile(current.toDraft())
-                                activePage = TranslationServicesPage.LIST
-                            } catch (failure: Throwable) {
-                                reportFailure(failure)
-                            } finally {
-                                isSaving = false
-                            }
-                        }
-                    } else {
-                        activePage = TranslationServicesPage.LIST
-                    }
+                    activePage = TranslationServicesPage.LIST
                 }
                 TranslationServicesPage.LIST -> Unit
             }
@@ -632,33 +629,29 @@ private fun TranslationServicesScreen() {
                         title = editorTitle,
                         background = Color.Transparent,
                         contentColor = PageTextColor,
-                        trailing = if (!isFixedMachineTemplate) {
-                            {
-                                TopBarIcon(
-                                    painter = painterResource(R.drawable.ic_save),
-                                    contentDescription = stringResource(R.string.common_save),
-                                    tint = MiuixTheme.colorScheme.primary,
-                                    onClick = {
-                                        if (!isSaving) {
-                                            cancelConnectionTest()
-                                            scope.launch {
-                                                isSaving = true
-                                                try {
-                                                    repository.saveProfile(state.toDraft())
-                                                    showModelPicker = false
-                                                    activePage = TranslationServicesPage.LIST
-                                                } catch (failure: Throwable) {
-                                                    reportFailure(failure)
-                                                } finally {
-                                                    isSaving = false
-                                                }
+                        trailing = {
+                            TopBarIcon(
+                                painter = painterResource(R.drawable.ic_save),
+                                contentDescription = stringResource(R.string.common_save),
+                                tint = MiuixTheme.colorScheme.primary,
+                                onClick = {
+                                    if (!isSaving) {
+                                        cancelConnectionTest()
+                                        scope.launch {
+                                            isSaving = true
+                                            try {
+                                                repository.saveProfile(state.toDraft())
+                                                showModelPicker = false
+                                                activePage = TranslationServicesPage.LIST
+                                            } catch (failure: Throwable) {
+                                                reportFailure(failure)
+                                            } finally {
+                                                isSaving = false
                                             }
                                         }
-                                    },
-                                )
-                            }
-                        } else {
-                            null
+                                    }
+                                },
+                            )
                         },
                     )
                 },
@@ -824,25 +817,22 @@ private fun TranslationServicesScreen() {
                                         singleLine = true,
                                         modifier = Modifier.fillMaxWidth(),
                                     )
-                                    if (state.hasSavedSecret) {
-                                        DialogTextButton(
-                                            text = stringResource(
-                                                if (state.clearSecret) R.string.translation_services_key_will_clear
-                                                else R.string.translation_services_clear_key,
-                                            ),
-                                            onClick = {
-                                                updateAiConnection(
-                                                    state.copy(
-                                                        clearSecret = !state.clearSecret,
-                                                        apiKey = "",
-                                                        credentialSecond = "",
-                                                        credentialRegion = "",
-                                                        credentialThird = "",
-                                                    ),
-                                                )
-                                            },
-                                        )
-                                    }
+                                    DialogTextButton(
+                                        text = stringResource(R.string.translation_services_clear_key),
+                                        modifier = Modifier.align(Alignment.End),
+                                        enabled = state.hasSavedSecret && !state.clearSecret,
+                                        onClick = {
+                                            updateAiConnection(
+                                                state.copy(
+                                                    clearSecret = true,
+                                                    apiKey = "",
+                                                    credentialSecond = "",
+                                                    credentialRegion = "",
+                                                    credentialThird = "",
+                                                ),
+                                            )
+                                        },
+                                    )
                                     ServiceStatusContent(
                                         statusText = connectionStatusText,
                                         detailText = connectionStatusDetailText,
@@ -862,25 +852,22 @@ private fun TranslationServicesScreen() {
                                         style = MaterialTheme.typography.bodySmall,
                                         color = PageSecondaryTextColor,
                                     )
-                                    if (state.hasSavedSecret) {
-                                        DialogTextButton(
-                                            text = stringResource(
-                                                if (state.clearSecret) R.string.translation_services_key_will_clear
-                                                else R.string.translation_services_clear_key,
-                                            ),
-                                            onClick = {
-                                                updateMachineConnection(
-                                                    state.copy(
-                                                        clearSecret = !state.clearSecret,
-                                                        apiKey = "",
-                                                        credentialSecond = "",
-                                                        credentialRegion = "",
-                                                        credentialThird = "",
-                                                    ),
-                                                )
-                                            },
-                                        )
-                                    }
+                                    DialogTextButton(
+                                        text = stringResource(R.string.translation_services_clear_key),
+                                        modifier = Modifier.align(Alignment.End),
+                                        enabled = state.hasSavedSecret && !state.clearSecret,
+                                        onClick = {
+                                            updateMachineConnection(
+                                                state.copy(
+                                                    clearSecret = true,
+                                                    apiKey = "",
+                                                    credentialSecond = "",
+                                                    credentialRegion = "",
+                                                    credentialThird = "",
+                                                ),
+                                            )
+                                        },
+                                    )
                                     ServiceStatusContent(
                                         statusText = connectionStatusText,
                                         detailText = connectionStatusDetailText,
@@ -2420,6 +2407,20 @@ private data class ServiceEditor(
             customParameters = null,
         )
     }
+}
+
+private fun ServiceEditor.withStoredCredentials(secret: String): ServiceEditor {
+    if (protocolId.category == TranslationServiceCategory.MACHINE_TRANSLATION) {
+        val credentials = TranslationProviderCredentialBundle.decode(protocolId, secret)
+            ?: throw TranslationServiceException(TranslationServiceErrorCode.SECRET_UNAVAILABLE)
+        return copy(
+            apiKey = credentials.first,
+            credentialSecond = credentials.second,
+            credentialRegion = credentials.region,
+            credentialThird = credentials.third,
+        )
+    }
+    return copy(apiKey = secret)
 }
 
 private data class TaskSettingsEditor(

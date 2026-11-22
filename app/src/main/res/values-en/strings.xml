@@ -154,13 +154,12 @@
     <string name="translation_services_iflytek_api_key">iFlytek APIKey</string>
     <string name="translation_services_iflytek_api_secret">iFlytek APISecret</string>
     <string name="translation_services_machine_secret_hint">Credentials are stored in the encrypted translation secret store and are not shown again after saving.</string>
-    <string name="translation_services_machine_secret_keep_hint">Saved credentials are hidden. Leave every field blank to keep them; enter the full credential set to replace them.</string>
-    <string name="translation_services_key_keep_hint">Leave blank to keep the saved key. It is encrypted with Android Keystore and excluded from backups.</string>
+    <string name="translation_services_machine_secret_keep_hint">Saved credentials are masked and editable. Enter the full credential set to replace them.</string>
+    <string name="translation_services_key_keep_hint">The saved key is masked and editable. Leave it blank to keep the saved key.</string>
     <string name="translation_services_key_optional_hint">Enter a key if required; otherwise leave blank.</string>
     <string name="translation_services_gemini_key_hint">A Gemini API key is required. It is encrypted with Android Keystore and excluded from backups.</string>
     <string name="translation_services_responses_key_hint">An OpenAI API key is required. It is encrypted with Android Keystore and excluded from backups.</string>
     <string name="translation_services_clear_key">Clear saved credentials</string>
-    <string name="translation_services_key_will_clear">Saved credentials will be cleared</string>
     <string name="translation_services_protocol_note">Only the explicitly implemented OpenAI-compatible Chat Completions protocol is supported. Use HTTP only for trusted local or LAN services.</string>
     <string name="translation_services_gemini_protocol_note">Uses Google Gemini Interactions API v1 with an API-key header. Requests disable remote storage; the model catalog is fetched from Gemini API.</string>
     <string name="translation_services_responses_protocol_note">Uses OpenAI Responses API at /v1/responses and /v1/models with store=false. Responses API and Chat Completions are separate protocols.</string>

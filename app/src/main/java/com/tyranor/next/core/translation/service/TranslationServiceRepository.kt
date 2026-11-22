@@ -227,6 +227,10 @@ class TranslationServiceRepository(context: Context) {
         }
     }
 
+    /** Reads a saved credential only for populating the masked service configuration fields. */
+    fun readSecretForEditing(profile: TranslationServiceProfile): TranslationSecretResult =
+        readSecret(profile.secretRef)
+
     fun readCustomParameters(reference: String?): TranslationCustomParameters = when (reference) {
         null -> TranslationCustomParameters()
         else -> when (val result = secretStore.read(reference)) {

@@ -154,13 +154,12 @@
     <string name="translation_services_iflytek_api_key">讯飞 APIKey</string>
     <string name="translation_services_iflytek_api_secret">讯飞 APISecret</string>
     <string name="translation_services_machine_secret_hint">凭据会保存在翻译域加密存储中；保存后不会回显。</string>
-    <string name="translation_services_machine_secret_keep_hint">凭据不会回显。全部留空会保留已保存凭据；替换时请填写完整凭据组。</string>
-    <string name="translation_services_key_keep_hint">留空会保留已保存的密钥。密钥使用设备 Keystore 加密，并排除在备份之外。</string>
+    <string name="translation_services_machine_secret_keep_hint">已保存凭据会以圆点隐藏，可直接编辑；替换时请填写完整凭据组。</string>
+    <string name="translation_services_key_keep_hint">已保存密钥会以圆点隐藏，可直接编辑；留空会保留已保存密钥。</string>
     <string name="translation_services_key_optional_hint">按服务要求填写；无需鉴权可留空。</string>
     <string name="translation_services_gemini_key_hint">Gemini API Key 必填；保存后使用 Android Keystore 加密，并排除在备份之外。</string>
     <string name="translation_services_responses_key_hint">OpenAI API Key 必填；保存后使用 Android Keystore 加密，并排除在备份之外。</string>
     <string name="translation_services_clear_key">清除已保存凭据</string>
-    <string name="translation_services_key_will_clear">将清除已保存凭据</string>
     <string name="translation_services_protocol_note">仅支持明确实现的 OpenAI 兼容 Chat Completions 请求。设置 HTTP 地址时请仅用于你信任的本机或局域网服务。</string>
     <string name="translation_services_gemini_protocol_note">使用 Google Gemini Interactions API v1 和 API Key 请求头；请求设置为不保存到远端。模型目录通过 Gemini API 获取。</string>
     <string name="translation_services_responses_protocol_note">使用 OpenAI Responses API 的 /v1/responses 与 /v1/models；请求设置为 store=false。Responses API 与 Chat Completions 是两个独立协议。</string>
