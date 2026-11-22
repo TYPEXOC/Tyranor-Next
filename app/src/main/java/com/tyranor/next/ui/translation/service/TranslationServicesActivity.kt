@@ -743,7 +743,26 @@ private fun TranslationServicesScreen() {
                                         color = PageSecondaryTextColor,
                                     )
                                 }
-                                ServiceSectionCard(title = stringResource(R.string.translation_services_section_connection)) {
+                                ServiceSectionCard(
+                                    title = stringResource(R.string.translation_services_section_connection),
+                                    trailingAction = {
+                                        DialogTextButton(
+                                            text = stringResource(R.string.translation_services_clear_key),
+                                            enabled = state.hasSavedSecret && !state.clearSecret,
+                                            onClick = {
+                                                updateAiConnection(
+                                                    state.copy(
+                                                        clearSecret = true,
+                                                        apiKey = "",
+                                                        credentialSecond = "",
+                                                        credentialRegion = "",
+                                                        credentialThird = "",
+                                                    ),
+                                                )
+                                            },
+                                        )
+                                    },
+                                ) {
                                     if (state.showBaseUrl) {
                                         ServiceTextField(
                                             value = state.baseUrl,
@@ -817,22 +836,6 @@ private fun TranslationServicesScreen() {
                                         singleLine = true,
                                         modifier = Modifier.fillMaxWidth(),
                                     )
-                                    DialogTextButton(
-                                        text = stringResource(R.string.translation_services_clear_key),
-                                        modifier = Modifier.align(Alignment.End),
-                                        enabled = state.hasSavedSecret && !state.clearSecret,
-                                        onClick = {
-                                            updateAiConnection(
-                                                state.copy(
-                                                    clearSecret = true,
-                                                    apiKey = "",
-                                                    credentialSecond = "",
-                                                    credentialRegion = "",
-                                                    credentialThird = "",
-                                                ),
-                                            )
-                                        },
-                                    )
                                     ServiceStatusContent(
                                         statusText = connectionStatusText,
                                         detailText = connectionStatusDetailText,
@@ -845,35 +848,37 @@ private fun TranslationServicesScreen() {
                                 }
                             }
                             if (isMachineTranslation) {
-                                ServiceSectionCard(title = stringResource(R.string.translation_services_section_credentials)) {
+                                ServiceSectionCard(
+                                    title = stringResource(R.string.translation_services_section_credentials),
+                                    trailingAction = if (state.protocolId.requiresStoredCredentials()) {
+                                        {
+                                            DialogTextButton(
+                                                text = stringResource(R.string.translation_services_clear_key),
+                                                enabled = state.hasSavedSecret && !state.clearSecret,
+                                                onClick = {
+                                                    updateMachineConnection(
+                                                        state.copy(
+                                                            clearSecret = true,
+                                                            apiKey = "",
+                                                            credentialSecond = "",
+                                                            credentialRegion = "",
+                                                            credentialThird = "",
+                                                        ),
+                                                    )
+                                                },
+                                            )
+                                        }
+                                    } else {
+                                        null
+                                    },
+                                ) {
                                     MachineProviderCredentialsFields(state = state, onChange = ::updateMachineConnection)
                                     Text(
                                         stringResource(state.protocolId.machineProtocolNote()),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = PageSecondaryTextColor,
                                     )
-                                    if (state.protocolId.requiresStoredCredentials()) {
-                                        DialogTextButton(
-                                            text = stringResource(R.string.translation_services_clear_key),
-                                            modifier = Modifier.align(Alignment.End),
-                                            enabled = state.hasSavedSecret && !state.clearSecret,
-                                            onClick = {
-                                                updateMachineConnection(
-                                                    state.copy(
-                                                        clearSecret = true,
-                                                        apiKey = "",
-                                                        credentialSecond = "",
-                                                        credentialRegion = "",
-                                                        credentialThird = "",
-                                                    ),
-                                                )
-                                            },
-                                        )
-                                    }
-                                }
-                                ServiceSectionCard(title = stringResource(R.string.translation_services_service_status)) {
                                     ServiceStatusContent(
-                                        showTitle = false,
                                         statusText = connectionStatusText,
                                         detailText = connectionStatusDetailText,
                                         statusColor = connectionStatusColor,
