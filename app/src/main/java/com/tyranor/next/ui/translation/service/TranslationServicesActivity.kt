@@ -1954,6 +1954,7 @@ private fun ServiceTextField(
             maxLines = if (singleLine) 1 else Int.MAX_VALUE,
             readOnly = readOnly,
             visualTransformation = visualTransformation,
+            textStyle = MiuixTheme.textStyles.main.copy(color = MiuixTheme.colorScheme.onSurface),
             trailingIcon = trailingAction,
             modifier = Modifier.fillMaxWidth(),
         )
