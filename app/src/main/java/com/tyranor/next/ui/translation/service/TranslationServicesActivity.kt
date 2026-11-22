@@ -852,22 +852,26 @@ private fun TranslationServicesScreen() {
                                         style = MaterialTheme.typography.bodySmall,
                                         color = PageSecondaryTextColor,
                                     )
-                                    DialogTextButton(
-                                        text = stringResource(R.string.translation_services_clear_key),
-                                        modifier = Modifier.align(Alignment.End),
-                                        enabled = state.hasSavedSecret && !state.clearSecret,
-                                        onClick = {
-                                            updateMachineConnection(
-                                                state.copy(
-                                                    clearSecret = true,
-                                                    apiKey = "",
-                                                    credentialSecond = "",
-                                                    credentialRegion = "",
-                                                    credentialThird = "",
-                                                ),
-                                            )
-                                        },
-                                    )
+                                    if (state.protocolId.requiresStoredCredentials()) {
+                                        DialogTextButton(
+                                            text = stringResource(R.string.translation_services_clear_key),
+                                            modifier = Modifier.align(Alignment.End),
+                                            enabled = state.hasSavedSecret && !state.clearSecret,
+                                            onClick = {
+                                                updateMachineConnection(
+                                                    state.copy(
+                                                        clearSecret = true,
+                                                        apiKey = "",
+                                                        credentialSecond = "",
+                                                        credentialRegion = "",
+                                                        credentialThird = "",
+                                                    ),
+                                                )
+                                            },
+                                        )
+                                    }
+                                }
+                                ServiceSectionCard(title = stringResource(R.string.translation_services_service_status)) {
                                     ServiceStatusContent(
                                         statusText = connectionStatusText,
                                         detailText = connectionStatusDetailText,
