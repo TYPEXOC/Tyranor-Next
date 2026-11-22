@@ -159,7 +159,7 @@
     <string name="translation_services_key_optional_hint">Enter a key if required; otherwise leave blank.</string>
     <string name="translation_services_gemini_key_hint">A Gemini API key is required. It is encrypted with Android Keystore and excluded from backups.</string>
     <string name="translation_services_responses_key_hint">An OpenAI API key is required. It is encrypted with Android Keystore and excluded from backups.</string>
-    <string name="translation_services_clear_key">Clear saved credentials</string>
+    <string name="translation_services_clear_key">Clear credentials</string>
     <string name="translation_services_protocol_note">Only the explicitly implemented OpenAI-compatible Chat Completions protocol is supported. Use HTTP only for trusted local or LAN services.</string>
     <string name="translation_services_gemini_protocol_note">Uses Google Gemini Interactions API v1 with an API-key header. Requests disable remote storage; the model catalog is fetched from Gemini API.</string>
     <string name="translation_services_responses_protocol_note">Uses OpenAI Responses API at /v1/responses and /v1/models with store=false. Responses API and Chat Completions are separate protocols.</string>

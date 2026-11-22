@@ -159,7 +159,7 @@
     <string name="translation_services_key_optional_hint">必要な場合のみ入力してください。不要なら空欄で構いません。</string>
     <string name="translation_services_gemini_key_hint">Gemini API キーは必須です。Android Keystore で暗号化し、バックアップ対象外にします。</string>
     <string name="translation_services_responses_key_hint">OpenAI API キーは必須です。Android Keystore で暗号化し、バックアップ対象外にします。</string>
-    <string name="translation_services_clear_key">保存済み認証情報を消去</string>
+    <string name="translation_services_clear_key">認証情報を消去</string>
     <string name="translation_services_protocol_note">明示的に実装した OpenAI 互換 Chat Completions プロトコルのみ対応します。HTTP は信頼できる端末内または LAN サービスだけで使用してください。</string>
     <string name="translation_services_gemini_protocol_note">API キーヘッダーを使用する Google Gemini Interactions API v1 に接続します。リクエストのリモート保存は無効です。モデル一覧は Gemini API から取得します。</string>
     <string name="translation_services_responses_protocol_note">OpenAI Responses API の /v1/responses と /v1/models を使用し、store=false を設定します。Responses API と Chat Completions は別プロトコルです。</string>
