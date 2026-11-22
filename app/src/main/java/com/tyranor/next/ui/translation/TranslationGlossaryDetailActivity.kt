@@ -77,6 +77,7 @@ import com.tyranor.next.ui.common.notice.AppNotice
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
+import top.yukonga.miuix.kmp.basic.CardDefaults as MiuixCardDefaults
 import top.yukonga.miuix.kmp.basic.FabPosition
 import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
 import top.yukonga.miuix.kmp.basic.TextField as MiuixTextField
@@ -133,6 +134,7 @@ private fun TranslationGlossaryDetailScreen(
     var error by remember { mutableStateOf<TranslationWorkbenchError?>(null) }
     var showSearchSheet by remember { mutableStateOf(false) }
     var searchQuery by remember(glossaryId) { mutableStateOf("") }
+    var selectedTermSource by remember(glossaryId) { mutableStateOf<String?>(null) }
     val hasNameChanges = loaded && name != savedName
     val tabletLayout = isTabletScreen()
     val glossaryGridState = rememberLazyGridState()
@@ -313,6 +315,7 @@ private fun TranslationGlossaryDetailScreen(
                         ) { index, term ->
                             GlossaryTermCard(
                                 term = term,
+                                selected = term.sourceTerm == selectedTermSource,
                                 onEdit = {
                                     termEditor = TermEditor(index, term.sourceTerm, term.targetTerm, term.note.orEmpty())
                                 },
@@ -433,6 +436,7 @@ private fun TranslationGlossaryDetailScreen(
                                     Column(
                                         modifier = Modifier.fillMaxWidth()
                                             .clickable {
+                                                selectedTermSource = term.sourceTerm
                                                 dismissSearchSheet()
                                                 scope.launch {
                                                     glossaryGridState.animateScrollToItem(indexedTerm.index + 2)
@@ -570,12 +574,17 @@ private fun TranslationGlossaryDetailScreen(
 @Composable
 private fun GlossaryTermCard(
     term: TranslationGlossaryTerm,
+    selected: Boolean,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
     MiuixCard(
         modifier = Modifier.fillMaxWidth().glassBorder(),
         cornerRadius = AppComponentCornerRadius,
+        colors = MiuixCardDefaults.defaultColors(
+            color = if (selected) MiuixTheme.colorScheme.primary.copy(alpha = 0.14f) else NavWhite,
+            contentColor = PageTextColor,
+        ),
     ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(8.dp),
