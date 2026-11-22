@@ -74,7 +74,7 @@ import com.tyranor.next.ui.common.isTabletScreen
 import com.tyranor.next.ui.common.NoRippleButton
 import com.tyranor.next.ui.common.TopBarIcon
 import com.tyranor.next.ui.common.notice.AppNotice
-import com.tyranor.next.ui.common.motion.rememberMiuixCardPressPulse
+import com.tyranor.next.ui.common.motion.rememberMiuixCardPressFeedback
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
@@ -434,6 +434,10 @@ private fun TranslationGlossaryDetailScreen(
                                 .heightIn(max = 300.dp)
                                 .glassBorder(),
                             cornerRadius = AppComponentCornerRadius,
+                            colors = MiuixCardDefaults.defaultColors(
+                                color = NavWhite,
+                                contentColor = PageTextColor,
+                            ),
                         ) {
                             LazyColumn(
                                 modifier = Modifier.fillMaxWidth(),
@@ -592,7 +596,7 @@ private fun GlossaryTermCard(
     onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    val holdDownState = rememberMiuixCardPressPulse(
+    val holdDownState = rememberMiuixCardPressFeedback(
         trigger = pressPulseTrigger,
         onFinished = { trigger -> (trigger as? Int)?.let(onPressPulseFinished) },
     )

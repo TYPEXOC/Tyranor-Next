@@ -184,7 +184,7 @@ fun Modifier.shimmerSweep(
 }
 
 @Composable
-fun rememberMiuixCardPressPulse(
+fun rememberMiuixCardPressFeedback(
     trigger: Any?,
     onFinished: (Any) -> Unit = {},
 ): Boolean {
@@ -195,13 +195,11 @@ fun rememberMiuixCardPressPulse(
             holdDownState = false
         } else {
             try {
-                repeat(3) { pulse ->
-                    holdDownState = true
-                    delay(180)
-                    holdDownState = false
-                    delay(180)
-                    if (pulse == 2) currentOnFinished.value(trigger)
-                }
+                holdDownState = true
+                delay(180)
+                holdDownState = false
+                delay(180)
+                currentOnFinished.value(trigger)
             } finally {
                 holdDownState = false
             }
