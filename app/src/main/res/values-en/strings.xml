@@ -216,6 +216,8 @@
     <string name="translation_services_custom_parameter_add">Add parameter</string>
     <string name="translation_services_custom_parameter_edit">Edit parameter</string>
     <string name="translation_services_custom_parameter_edit_action">Edit</string>
+    <string name="translation_services_custom_parameter_delete_title">Delete parameter?</string>
+    <string name="translation_services_custom_parameter_delete_message">Delete the parameter “%1$s”?</string>
     <string name="translation_services_custom_parameter_name">Parameter name</string>
     <string name="translation_services_custom_parameter_type">Type</string>
     <string name="translation_services_custom_parameter_value">Value</string>

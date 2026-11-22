@@ -1284,6 +1284,7 @@ private fun TranslationServicesScreen() {
     ) {
     customParametersEditor?.let { initialState ->
         var state by remember(initialState) { mutableStateOf(initialState) }
+        var pendingDeleteIndex by remember { mutableStateOf<Int?>(null) }
         val headerTab = state.selectedTab == 0
         val entries = if (headerTab) state.parameters.headers else state.parameters.body
         val typeOptions = TranslationParameterType.entries
@@ -1407,26 +1408,7 @@ private fun TranslationServicesScreen() {
                                                             )
                                                         },
                                                         onDelete = {
-                                                            val updated = visibleEntries.toMutableList().apply { removeAt(index) }
-                                                            val nextParameters = if (showingHeaders) {
-                                                                state.parameters.copy(headers = updated)
-                                                            } else {
-                                                                state.parameters.copy(body = updated)
-                                                            }
-                                                            state = state.copy(
-                                                                parameters = nextParameters,
-                                                                editingIndex = state.editingIndex?.let { editing ->
-                                                                    when {
-                                                                        editing == index -> null
-                                                                        editing > index -> editing - 1
-                                                                        else -> editing
-                                                                    }
-                                                                },
-                                                                name = if (state.editingIndex == index) "" else state.name,
-                                                                value = if (state.editingIndex == index) "" else state.value,
-                                                            )
-                                                            editor = editor?.copy(customParameters = nextParameters)
-                                                            advancedSettingsEditor = advancedSettingsEditor?.copy(customParameters = nextParameters)
+                                                            pendingDeleteIndex = index
                                                         },
                                                     )
                                                 }
@@ -1554,6 +1536,64 @@ private fun TranslationServicesScreen() {
                     },
                     textScrollEnabled = true,
                 )
+            }
+        }
+        pendingDeleteIndex?.let { index ->
+            entries.getOrNull(index)?.let { parameter ->
+                MiuixSettingsTheme {
+                    AppAlertDialog(
+                        onDismissRequest = { pendingDeleteIndex = null },
+                        title = {
+                            Text(
+                                stringResource(R.string.translation_services_custom_parameter_delete_title),
+                                style = MaterialTheme.typography.titleMedium,
+                            )
+                        },
+                        text = {
+                            Text(
+                                stringResource(
+                                    R.string.translation_services_custom_parameter_delete_message,
+                                    parameter.name,
+                                ),
+                            )
+                        },
+                        confirmButton = {
+                            DialogTextButton(
+                                text = stringResource(R.string.common_delete),
+                                contentColor = DangerFill,
+                                onClick = {
+                                    val updated = entries.toMutableList().apply { removeAt(index) }
+                                    val nextParameters = if (headerTab) {
+                                        state.parameters.copy(headers = updated)
+                                    } else {
+                                        state.parameters.copy(body = updated)
+                                    }
+                                    state = state.copy(
+                                        parameters = nextParameters,
+                                        editingIndex = state.editingIndex?.let { editing ->
+                                            when {
+                                                editing == index -> null
+                                                editing > index -> editing - 1
+                                                else -> editing
+                                            }
+                                        },
+                                        name = if (state.editingIndex == index) "" else state.name,
+                                        value = if (state.editingIndex == index) "" else state.value,
+                                    )
+                                    editor = editor?.copy(customParameters = nextParameters)
+                                    advancedSettingsEditor = advancedSettingsEditor?.copy(customParameters = nextParameters)
+                                    pendingDeleteIndex = null
+                                },
+                            )
+                        },
+                        dismissButton = {
+                            DialogTextButton(
+                                text = stringResource(R.string.common_cancel),
+                                onClick = { pendingDeleteIndex = null },
+                            )
+                        },
+                    )
+                }
             }
         }
     }

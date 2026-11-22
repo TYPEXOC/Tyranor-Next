@@ -216,6 +216,8 @@
     <string name="translation_services_custom_parameter_add">添加参数</string>
     <string name="translation_services_custom_parameter_edit">编辑参数</string>
     <string name="translation_services_custom_parameter_edit_action">编辑</string>
+    <string name="translation_services_custom_parameter_delete_title">删除参数？</string>
+    <string name="translation_services_custom_parameter_delete_message">确定删除参数“%1$s”吗？</string>
     <string name="translation_services_custom_parameter_name">参数名</string>
     <string name="translation_services_custom_parameter_type">类型</string>
     <string name="translation_services_custom_parameter_value">参数值</string>
