@@ -1176,9 +1176,8 @@ private fun TranslationServicesScreen() {
                         ServiceSectionCard(
                             title = stringResource(R.string.translation_services_translation_prompts),
                             trailingAction = {
-                                NoRippleButton(
+                                NoRippleTextButton(
                                     text = stringResource(R.string.translation_services_prompt_restore_defaults),
-                                    tonal = true,
                                     onClick = {
                                         advancedSettingsEditor = state.copy(
                                             translationSystemPrompt = DEFAULT_TRANSLATION_PROMPT,

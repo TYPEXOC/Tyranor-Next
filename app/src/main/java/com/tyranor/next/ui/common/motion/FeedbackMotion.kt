@@ -12,18 +12,16 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.drawOutline
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.Measurable
 import androidx.compose.ui.layout.MeasureResult
@@ -37,6 +35,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 // ---------------------------------------------------------------------------------------------
@@ -184,52 +183,29 @@ fun Modifier.shimmerSweep(
     }
 }
 
-/**
- * 焦点描边闪烁：[trigger] 每变为一个新的非 null 值，在内容外沿短暂闪出主题色描边。
- * 两档都闪三次；没有触发时不改变静止外观。
- */
 @Composable
-fun Modifier.focusRingFlashOnChange(
+fun rememberMiuixCardPressPulse(
     trigger: Any?,
-    color: Color,
-    shape: Shape,
-    width: Dp = 2.dp,
     onFinished: (Any) -> Unit = {},
-): Modifier {
-    val alpha = remember { Animatable(0f) }
-    val flashCount = 3
+): Boolean {
+    var holdDownState by remember { mutableStateOf(false) }
     val currentOnFinished = rememberUpdatedState(onFinished)
-    LaunchedEffect(trigger, flashCount) {
+    LaunchedEffect(trigger) {
         if (trigger == null || trigger == false) {
-            alpha.snapTo(0f)
+            holdDownState = false
         } else {
-            repeat(flashCount) {
-                alpha.animateTo(1f, MotionTokens.fadeIn(0.01f))
-                alpha.animateTo(0f, MotionTokens.fadeOut(0.01f))
-            }
-            currentOnFinished.value(trigger)
-        }
-    }
-    return drawWithContent {
-        drawContent()
-        val outlineAlpha = alpha.value
-        if (outlineAlpha > 0f) {
-            val strokeWidth = width.toPx()
-            val inset = strokeWidth / 2f
-            withTransform({ translate(left = inset, top = inset) }) {
-                drawOutline(
-                    outline = shape.createOutline(
-                        Size(
-                            width = (size.width - strokeWidth).coerceAtLeast(0f),
-                            height = (size.height - strokeWidth).coerceAtLeast(0f),
-                        ),
-                        layoutDirection,
-                        this,
-                    ),
-                    color = color.copy(alpha = outlineAlpha),
-                    style = Stroke(strokeWidth),
-                )
+            try {
+                repeat(3) { pulse ->
+                    holdDownState = true
+                    delay(180)
+                    holdDownState = false
+                    delay(180)
+                    if (pulse == 2) currentOnFinished.value(trigger)
+                }
+            } finally {
+                holdDownState = false
             }
         }
     }
+    return holdDownState
 }

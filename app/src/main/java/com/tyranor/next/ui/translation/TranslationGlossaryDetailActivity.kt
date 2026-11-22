@@ -74,7 +74,7 @@ import com.tyranor.next.ui.common.isTabletScreen
 import com.tyranor.next.ui.common.NoRippleButton
 import com.tyranor.next.ui.common.TopBarIcon
 import com.tyranor.next.ui.common.notice.AppNotice
-import com.tyranor.next.ui.common.motion.focusRingFlashOnChange
+import com.tyranor.next.ui.common.motion.rememberMiuixCardPressPulse
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
@@ -83,6 +83,7 @@ import top.yukonga.miuix.kmp.basic.FabPosition
 import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
 import top.yukonga.miuix.kmp.basic.TextField as MiuixTextField
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.utils.PressFeedbackType
 
 class TranslationGlossaryDetailActivity : AppScreenActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -136,7 +137,7 @@ private fun TranslationGlossaryDetailScreen(
     var showSearchSheet by remember { mutableStateOf(false) }
     var searchQuery by remember(glossaryId) { mutableStateOf("") }
     var highlightedTermSource by remember(glossaryId) { mutableStateOf<String?>(null) }
-    var searchJumpFlashToken by remember(glossaryId) { mutableStateOf(0) }
+    var searchJumpPressPulseToken by remember(glossaryId) { mutableStateOf(0) }
     val hasNameChanges = loaded && name != savedName
     val tabletLayout = isTabletScreen()
     val glossaryGridState = rememberLazyGridState()
@@ -317,12 +318,12 @@ private fun TranslationGlossaryDetailScreen(
                         ) { index, term ->
                             GlossaryTermCard(
                                 term = term,
-                                flashTrigger = searchJumpFlashToken.takeIf {
+                                pressPulseTrigger = searchJumpPressPulseToken.takeIf {
                                     it > 0 && term.sourceTerm == highlightedTermSource
                                 },
-                                onFlashFinished = { trigger ->
-                                    if (searchJumpFlashToken == trigger) {
-                                        searchJumpFlashToken = 0
+                                onPressPulseFinished = { trigger ->
+                                    if (searchJumpPressPulseToken == trigger) {
+                                        searchJumpPressPulseToken = 0
                                         highlightedTermSource = null
                                     }
                                 },
@@ -447,11 +448,11 @@ private fun TranslationGlossaryDetailScreen(
                                         modifier = Modifier.fillMaxWidth()
                                             .clickable {
                                                 highlightedTermSource = term.sourceTerm
-                                                searchJumpFlashToken = 0
+                                                searchJumpPressPulseToken = 0
                                                 dismissSearchSheet()
                                                 scope.launch {
                                                     glossaryGridState.animateScrollToItem(indexedTerm.index + 2)
-                                                    searchJumpFlashToken++
+                                                    searchJumpPressPulseToken++
                                                 }
                                             }
                                             .padding(horizontal = 16.dp, vertical = 12.dp),
@@ -586,25 +587,24 @@ private fun TranslationGlossaryDetailScreen(
 @Composable
 private fun GlossaryTermCard(
     term: TranslationGlossaryTerm,
-    flashTrigger: Int?,
-    onFlashFinished: (Int) -> Unit,
+    pressPulseTrigger: Int?,
+    onPressPulseFinished: (Int) -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
+    val holdDownState = rememberMiuixCardPressPulse(
+        trigger = pressPulseTrigger,
+        onFinished = { trigger -> (trigger as? Int)?.let(onPressPulseFinished) },
+    )
     MiuixCard(
-        modifier = Modifier.fillMaxWidth()
-            .glassBorder()
-            .focusRingFlashOnChange(
-                trigger = flashTrigger,
-                color = MiuixTheme.colorScheme.primary,
-                shape = AppComponentShape,
-                onFinished = { trigger -> (trigger as? Int)?.let(onFlashFinished) },
-            ),
+        modifier = Modifier.fillMaxWidth().glassBorder(),
         cornerRadius = AppComponentCornerRadius,
         colors = MiuixCardDefaults.defaultColors(
             color = NavWhite,
             contentColor = PageTextColor,
         ),
+        pressFeedbackType = PressFeedbackType.Sink,
+        holdDownState = holdDownState,
     ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(8.dp),
