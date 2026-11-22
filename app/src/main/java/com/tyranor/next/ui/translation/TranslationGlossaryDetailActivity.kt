@@ -21,11 +21,15 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -40,6 +44,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -59,12 +64,14 @@ import com.tyranor.next.theme.PageSecondaryTextColor
 import com.tyranor.next.theme.PageTextColor
 import com.tyranor.next.theme.glassBorder
 import com.tyranor.next.ui.common.AppAlertDialog
+import com.tyranor.next.ui.common.AppBottomSheet
 import com.tyranor.next.ui.common.AppScreenActivity
 import com.tyranor.next.ui.common.AppSecondaryTopBar
 import com.tyranor.next.ui.common.DialogActionButtons
 import com.tyranor.next.ui.common.DialogTextButton
 import com.tyranor.next.ui.common.isTabletScreen
 import com.tyranor.next.ui.common.NoRippleButton
+import com.tyranor.next.ui.common.TopBarIcon
 import com.tyranor.next.ui.common.notice.AppNotice
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
@@ -72,6 +79,7 @@ import top.yukonga.miuix.kmp.basic.Card as MiuixCard
 import top.yukonga.miuix.kmp.basic.FabPosition
 import top.yukonga.miuix.kmp.basic.Scaffold as MiuixScaffold
 import top.yukonga.miuix.kmp.basic.TextField as MiuixTextField
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 class TranslationGlossaryDetailActivity : AppScreenActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -102,6 +110,7 @@ class TranslationGlossaryDetailActivity : AppScreenActivity() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TranslationGlossaryDetailScreen(
     glossaryId: String,
@@ -121,8 +130,25 @@ private fun TranslationGlossaryDetailScreen(
     var termEditor by remember { mutableStateOf<TermEditor?>(null) }
     var deletingTermIndex by remember { mutableStateOf<Int?>(null) }
     var error by remember { mutableStateOf<TranslationWorkbenchError?>(null) }
+    var showSearchSheet by remember { mutableStateOf(false) }
+    var searchQuery by remember(glossaryId) { mutableStateOf("") }
     val hasNameChanges = loaded && name != savedName
     val tabletLayout = isTabletScreen()
+    val glossaryGridState = rememberLazyGridState()
+    val searchMatches = remember(terms, searchQuery) {
+        val query = searchQuery.trim()
+        if (query.isBlank()) emptyList()
+        else terms.withIndex().filter { (_, term) ->
+            term.sourceTerm.contains(query, ignoreCase = true) ||
+                term.targetTerm.contains(query, ignoreCase = true) ||
+                term.note.orEmpty().contains(query, ignoreCase = true)
+        }
+    }
+
+    fun dismissSearchSheet() {
+        showSearchSheet = false
+        searchQuery = ""
+    }
 
     fun reportFailure(failure: Throwable) {
         if (failure is CancellationException) throw failure
@@ -193,6 +219,14 @@ private fun TranslationGlossaryDetailScreen(
                     title = stringResource(R.string.translation_glossary_detail_title),
                     background = Color.Transparent,
                     contentColor = PageTextColor,
+                    trailing = {
+                        TopBarIcon(
+                            painter = painterResource(R.drawable.ic_game_search),
+                            contentDescription = stringResource(R.string.translation_glossary_search),
+                            tint = MiuixTheme.colorScheme.primary,
+                            onClick = { showSearchSheet = true },
+                        )
+                    },
                 )
             },
         ) { innerPadding ->
@@ -210,6 +244,7 @@ private fun TranslationGlossaryDetailScreen(
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(if (tabletLayout) 2 else 1),
                     modifier = Modifier.weight(1f).fillMaxWidth(),
+                    state = glossaryGridState,
                     contentPadding = PaddingValues(top = 12.dp, bottom = 96.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -332,6 +367,106 @@ private fun TranslationGlossaryDetailScreen(
                         },
                         onSecondaryClick = { if (!saving) deletingTermIndex = null },
                     )
+                }
+            }
+        }
+    }
+
+    if (showSearchSheet) {
+        AppBottomSheet(
+            onDismissRequest = ::dismissSearchSheet,
+            expandToAvailableHeight = true,
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+                    .padding(top = 16.dp, bottom = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Text(
+                    stringResource(R.string.translation_glossary_search),
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                    color = PageTextColor,
+                )
+                TranslationGlossaryDialogTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    label = stringResource(R.string.translation_glossary_search_hint),
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                )
+                when {
+                    searchQuery.isBlank() -> Text(
+                        stringResource(R.string.translation_review_search_enter_query),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = PageSecondaryTextColor,
+                    )
+                    searchMatches.isEmpty() -> Text(
+                        stringResource(R.string.translation_review_search_no_matches),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = PageSecondaryTextColor,
+                    )
+                    else -> {
+                        Text(
+                            stringResource(R.string.translation_glossary_search_matches, searchMatches.size),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = PageSecondaryTextColor,
+                        )
+                        MiuixCard(
+                            modifier = Modifier.fillMaxWidth()
+                                .heightIn(max = 300.dp)
+                                .glassBorder(),
+                            cornerRadius = AppComponentCornerRadius,
+                        ) {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxWidth(),
+                                contentPadding = PaddingValues(vertical = 4.dp),
+                            ) {
+                                itemsIndexed(
+                                    items = searchMatches,
+                                    key = { _, indexedTerm -> indexedTerm.index },
+                                ) { index, indexedTerm ->
+                                    val term = indexedTerm.value
+                                    Column(
+                                        modifier = Modifier.fillMaxWidth()
+                                            .clickable {
+                                                dismissSearchSheet()
+                                                scope.launch {
+                                                    glossaryGridState.animateScrollToItem(indexedTerm.index + 2)
+                                                }
+                                            }
+                                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                                    ) {
+                                        Text(
+                                            "${term.sourceTerm} → ${term.targetTerm}",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = PageTextColor,
+                                            maxLines = 2,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                        if (!term.note.isNullOrBlank()) {
+                                            Text(
+                                                term.note,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = PageSecondaryTextColor,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                            )
+                                        }
+                                    }
+                                    if (index != searchMatches.lastIndex) {
+                                        Box(
+                                            Modifier.fillMaxWidth()
+                                                .padding(horizontal = 16.dp)
+                                                .height(1.dp)
+                                                .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)),
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
