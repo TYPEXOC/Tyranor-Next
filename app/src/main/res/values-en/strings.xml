@@ -255,7 +255,7 @@
     <string name="translation_workbench_title">Translation workbench</string>
     <string name="translation_add_project">Add project</string>
     <string name="translation_add_project_description">Choose extraction, translation, or proofreading, then select a source.</string>
-    <string name="translation_choose_project_source">Add a game folder to extract text, or import MTool JSON with source and translated text.</string>
+    <string name="translation_choose_project_source">Add a game folder to extract text, or import a file containing source and translated text.</string>
     <string name="translation_add_project_operation">Operation</string>
     <string name="translation_add_project_extract">Extract</string>
     <string name="translation_add_project_translate">Translate</string>
@@ -282,7 +282,7 @@
     <string name="translation_import_csv">Import CSV project</string>
     <string name="translation_import_json">Import JSON project</string>
     <string name="translation_no_projects">No translation projects yet</string>
-    <string name="translation_no_projects_hint">Add a game folder to extract text, or import MTool JSON with source and translated text.</string>
+    <string name="translation_no_projects_hint">Add a game folder to extract text, or import a file containing source and translated text.</string>
     <string name="translation_project_filter_all">All projects %1$d</string>
     <string name="translation_project_filter_in_progress">In progress %1$d</string>
     <string name="translation_project_filter_completed">Completed %1$d</string>

@@ -255,7 +255,7 @@
     <string name="translation_workbench_title">翻訳ワークベンチ</string>
     <string name="translation_add_project">プロジェクトを追加</string>
     <string name="translation_add_project_description">抽出・翻訳・校正から選び、対象を指定します。</string>
-    <string name="translation_choose_project_source">ゲームフォルダーからテキストを抽出するか、原文と訳文を含む MTool JSON を読み込みます。</string>
+    <string name="translation_choose_project_source">ゲームフォルダーからテキストを抽出するか、原文と訳文を含むファイルを読み込みます。</string>
     <string name="translation_add_project_operation">操作</string>
     <string name="translation_add_project_extract">抽出</string>
     <string name="translation_add_project_translate">翻訳</string>
@@ -282,7 +282,7 @@
     <string name="translation_import_csv">CSV プロジェクトを読み込む</string>
     <string name="translation_import_json">JSON プロジェクトを読み込む</string>
     <string name="translation_no_projects">翻訳プロジェクトはありません</string>
-    <string name="translation_no_projects_hint">ゲームフォルダーからテキストを抽出するか、原文と訳文を含む MTool JSON を読み込みます。</string>
+    <string name="translation_no_projects_hint">ゲームフォルダーからテキストを抽出するか、原文と訳文を含むファイルを読み込みます。</string>
     <string name="translation_project_filter_all">すべて %1$d</string>
     <string name="translation_project_filter_in_progress">進行中 %1$d</string>
     <string name="translation_project_filter_completed">完了 %1$d</string>
