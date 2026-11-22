@@ -72,6 +72,7 @@ import com.tyranor.next.ui.common.DialogActionButtons
 import com.tyranor.next.ui.common.DialogTextButton
 import com.tyranor.next.ui.common.isTabletScreen
 import com.tyranor.next.ui.common.NoRippleButton
+import com.tyranor.next.ui.common.SlidingTabRow
 import com.tyranor.next.ui.common.TopBarIcon
 import com.tyranor.next.ui.common.notice.AppNotice
 import com.tyranor.next.ui.common.motion.rememberMiuixCardPressFeedback
@@ -136,18 +137,21 @@ private fun TranslationGlossaryDetailScreen(
     var error by remember { mutableStateOf<TranslationWorkbenchError?>(null) }
     var showSearchSheet by remember { mutableStateOf(false) }
     var searchQuery by remember(glossaryId) { mutableStateOf("") }
+    var searchCategory by remember(glossaryId) { mutableStateOf(GlossarySearchCategory.SOURCE) }
     var highlightedTermSource by remember(glossaryId) { mutableStateOf<String?>(null) }
     var searchJumpPressPulseToken by remember(glossaryId) { mutableStateOf(0) }
     val hasNameChanges = loaded && name != savedName
     val tabletLayout = isTabletScreen()
     val glossaryGridState = rememberLazyGridState()
-    val searchMatches = remember(terms, searchQuery) {
+    val searchMatches = remember(terms, searchQuery, searchCategory) {
         val query = searchQuery.trim()
         if (query.isBlank()) emptyList()
         else terms.withIndex().filter { (_, term) ->
-            term.sourceTerm.contains(query, ignoreCase = true) ||
-                term.targetTerm.contains(query, ignoreCase = true) ||
-                term.note.orEmpty().contains(query, ignoreCase = true)
+            when (searchCategory) {
+                GlossarySearchCategory.SOURCE -> term.sourceTerm.contains(query, ignoreCase = true)
+                GlossarySearchCategory.TARGET -> term.targetTerm.contains(query, ignoreCase = true)
+                GlossarySearchCategory.NOTE -> term.note.orEmpty().contains(query, ignoreCase = true)
+            }
         }
     }
 
@@ -412,6 +416,20 @@ private fun TranslationGlossaryDetailScreen(
                     labelColor = PageSecondaryTextColor,
                     singleLine = true,
                 )
+                val searchCategoryLabels = listOf(
+                    stringResource(R.string.translation_glossary_source_label),
+                    stringResource(R.string.translation_glossary_target_label),
+                    stringResource(R.string.translation_glossary_note_label),
+                )
+                SlidingTabRow(
+                    tabs = searchCategoryLabels,
+                    selectedIndex = searchCategory.ordinal,
+                    onTabSelected = { index ->
+                        searchCategory = GlossarySearchCategory.entries.getOrNull(index)
+                            ?: GlossarySearchCategory.SOURCE
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                )
                 when {
                     searchQuery.isBlank() -> Text(
                         stringResource(R.string.translation_review_search_enter_query),
@@ -586,6 +604,12 @@ private fun TranslationGlossaryDetailScreen(
         )
     }
 
+}
+
+private enum class GlossarySearchCategory {
+    SOURCE,
+    TARGET,
+    NOTE,
 }
 
 @Composable

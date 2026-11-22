@@ -367,7 +367,7 @@
     <string name="translation_glossary_select">用語集</string>
     <string name="translation_glossary_none">適用しない</string>
     <string name="translation_glossary_search">用語を検索</string>
-    <string name="translation_glossary_search_hint">原文・訳文・メモを検索</string>
+    <string name="translation_glossary_search_hint">検索する内容を入力</string>
     <string name="translation_glossary_search_matches">%1$d 件の用語が見つかりました · タップして移動</string>
     <string name="translation_glossary_support_none">用語集は校正のみで使用し、翻訳には使いません。</string>
     <string name="translation_glossary_support_ai">用語集は AI への参考情報として提供され、校正チェックにも使用されます。</string>

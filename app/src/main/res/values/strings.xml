@@ -367,7 +367,7 @@
     <string name="translation_glossary_select">术语表</string>
     <string name="translation_glossary_none">不应用</string>
     <string name="translation_glossary_search">搜索术语</string>
-    <string name="translation_glossary_search_hint">输入原文、译文或备注</string>
+    <string name="translation_glossary_search_hint">输入搜索内容</string>
     <string name="translation_glossary_search_matches">找到 %1$d 个术语，点击跳转</string>
     <string name="translation_glossary_support_none">术语表仅用于校对，不参与翻译。</string>
     <string name="translation_glossary_support_ai">术语表会作为参考提供给 AI，并用于后续校对检查。</string>
