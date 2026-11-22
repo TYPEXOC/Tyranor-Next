@@ -11,11 +11,17 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.Measurable
 import androidx.compose.ui.layout.MeasureResult
@@ -173,5 +179,44 @@ fun Modifier.shimmerSweep(
                 end = Offset(x + band, size.height * 0.35f),
             ),
         )
+    }
+}
+
+/**
+ * 焦点描边闪烁：[trigger] 每变为一个新的非 null 值，在内容外沿短暂闪出主题色描边。
+ * 普通档闪一次，增强档闪三次；没有触发时不改变静止外观。
+ */
+@Composable
+fun Modifier.focusRingFlashOnChange(
+    trigger: Any?,
+    color: Color,
+    shape: Shape,
+    width: Dp = 2.dp,
+    onFinished: (Any) -> Unit = {},
+): Modifier {
+    val alpha = remember { Animatable(0f) }
+    val flashCount = if (MotionMode.enhanced) 3 else 1
+    val currentOnFinished = rememberUpdatedState(onFinished)
+    LaunchedEffect(trigger, flashCount) {
+        if (trigger == null || trigger == false) {
+            alpha.snapTo(0f)
+        } else {
+            repeat(flashCount) {
+                alpha.animateTo(1f, MotionTokens.fadeIn(0.01f))
+                alpha.animateTo(0f, MotionTokens.fadeOut(0.01f))
+            }
+            currentOnFinished.value(trigger)
+        }
+    }
+    return drawWithContent {
+        drawContent()
+        val outlineAlpha = alpha.value
+        if (outlineAlpha > 0f) {
+            drawOutline(
+                outline = shape.createOutline(size, layoutDirection, this),
+                color = color.copy(alpha = outlineAlpha),
+                style = Stroke(width.toPx()),
+            )
+        }
     }
 }

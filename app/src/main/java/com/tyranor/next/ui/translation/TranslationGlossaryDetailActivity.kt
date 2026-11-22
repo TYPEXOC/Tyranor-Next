@@ -74,6 +74,7 @@ import com.tyranor.next.ui.common.isTabletScreen
 import com.tyranor.next.ui.common.NoRippleButton
 import com.tyranor.next.ui.common.TopBarIcon
 import com.tyranor.next.ui.common.notice.AppNotice
+import com.tyranor.next.ui.common.motion.focusRingFlashOnChange
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
@@ -134,7 +135,8 @@ private fun TranslationGlossaryDetailScreen(
     var error by remember { mutableStateOf<TranslationWorkbenchError?>(null) }
     var showSearchSheet by remember { mutableStateOf(false) }
     var searchQuery by remember(glossaryId) { mutableStateOf("") }
-    var selectedTermSource by remember(glossaryId) { mutableStateOf<String?>(null) }
+    var highlightedTermSource by remember(glossaryId) { mutableStateOf<String?>(null) }
+    var searchJumpFlashToken by remember(glossaryId) { mutableStateOf(0) }
     val hasNameChanges = loaded && name != savedName
     val tabletLayout = isTabletScreen()
     val glossaryGridState = rememberLazyGridState()
@@ -315,7 +317,15 @@ private fun TranslationGlossaryDetailScreen(
                         ) { index, term ->
                             GlossaryTermCard(
                                 term = term,
-                                selected = term.sourceTerm == selectedTermSource,
+                                flashTrigger = searchJumpFlashToken.takeIf {
+                                    it > 0 && term.sourceTerm == highlightedTermSource
+                                },
+                                onFlashFinished = { trigger ->
+                                    if (searchJumpFlashToken == trigger) {
+                                        searchJumpFlashToken = 0
+                                        highlightedTermSource = null
+                                    }
+                                },
                                 onEdit = {
                                     termEditor = TermEditor(index, term.sourceTerm, term.targetTerm, term.note.orEmpty())
                                 },
@@ -436,10 +446,12 @@ private fun TranslationGlossaryDetailScreen(
                                     Column(
                                         modifier = Modifier.fillMaxWidth()
                                             .clickable {
-                                                selectedTermSource = term.sourceTerm
+                                                highlightedTermSource = term.sourceTerm
+                                                searchJumpFlashToken = 0
                                                 dismissSearchSheet()
                                                 scope.launch {
                                                     glossaryGridState.animateScrollToItem(indexedTerm.index + 2)
+                                                    searchJumpFlashToken++
                                                 }
                                             }
                                             .padding(horizontal = 16.dp, vertical = 12.dp),
@@ -574,15 +586,23 @@ private fun TranslationGlossaryDetailScreen(
 @Composable
 private fun GlossaryTermCard(
     term: TranslationGlossaryTerm,
-    selected: Boolean,
+    flashTrigger: Int?,
+    onFlashFinished: (Int) -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
     MiuixCard(
-        modifier = Modifier.fillMaxWidth().glassBorder(),
+        modifier = Modifier.fillMaxWidth()
+            .glassBorder()
+            .focusRingFlashOnChange(
+                trigger = flashTrigger,
+                color = MiuixTheme.colorScheme.primary,
+                shape = AppComponentShape,
+                onFinished = { trigger -> (trigger as? Int)?.let(onFlashFinished) },
+            ),
         cornerRadius = AppComponentCornerRadius,
         colors = MiuixCardDefaults.defaultColors(
-            color = if (selected) MiuixTheme.colorScheme.primary.copy(alpha = 0.14f) else NavWhite,
+            color = NavWhite,
             contentColor = PageTextColor,
         ),
     ) {
