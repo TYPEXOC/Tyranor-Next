@@ -619,6 +619,9 @@ private fun TranslationServicesScreen() {
             state.id == null -> stringResource(R.string.translation_services_add_title)
             else -> stringResource(R.string.translation_services_edit_title)
         }
+        val showSaveButton = !isFixedMachineTemplate ||
+            !isMachineTranslation ||
+            state.protocolId.requiresStoredCredentials()
         MiuixSettingsTheme {
             MiuixScaffold(
                 modifier = Modifier.fillMaxSize(),
@@ -629,29 +632,33 @@ private fun TranslationServicesScreen() {
                         title = editorTitle,
                         background = Color.Transparent,
                         contentColor = PageTextColor,
-                        trailing = {
-                            TopBarIcon(
-                                painter = painterResource(R.drawable.ic_save),
-                                contentDescription = stringResource(R.string.common_save),
-                                tint = MiuixTheme.colorScheme.primary,
-                                onClick = {
-                                    if (!isSaving) {
-                                        cancelConnectionTest()
-                                        scope.launch {
-                                            isSaving = true
-                                            try {
-                                                repository.saveProfile(state.toDraft())
-                                                showModelPicker = false
-                                                activePage = TranslationServicesPage.LIST
-                                            } catch (failure: Throwable) {
-                                                reportFailure(failure)
-                                            } finally {
-                                                isSaving = false
+                        trailing = if (showSaveButton) {
+                            {
+                                TopBarIcon(
+                                    painter = painterResource(R.drawable.ic_save),
+                                    contentDescription = stringResource(R.string.common_save),
+                                    tint = MiuixTheme.colorScheme.primary,
+                                    onClick = {
+                                        if (!isSaving) {
+                                            cancelConnectionTest()
+                                            scope.launch {
+                                                isSaving = true
+                                                try {
+                                                    repository.saveProfile(state.toDraft())
+                                                    showModelPicker = false
+                                                    activePage = TranslationServicesPage.LIST
+                                                } catch (failure: Throwable) {
+                                                    reportFailure(failure)
+                                                } finally {
+                                                    isSaving = false
+                                                }
                                             }
                                         }
-                                    }
-                                },
-                            )
+                                    },
+                                )
+                            }
+                        } else {
+                            null
                         },
                     )
                 },
