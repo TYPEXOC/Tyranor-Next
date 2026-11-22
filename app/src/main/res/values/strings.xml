@@ -341,7 +341,7 @@
     <string name="translation_target_language">目标语言</string>
     <string name="translation_language_auto">自动检测</string>
     <string name="translation_glossaries_title">术语表管理</string>
-    <string name="translation_glossaries_empty">还没有术语表。添加术语表后，可在批量翻译时选择。</string>
+    <string name="translation_glossaries_empty">还没有术语表。添加术语表后，可在翻译时选择。</string>
     <string name="translation_glossary_add">添加术语表</string>
     <string name="translation_glossary_edit">编辑</string>
     <string name="translation_glossary_manage">编辑术语</string>
