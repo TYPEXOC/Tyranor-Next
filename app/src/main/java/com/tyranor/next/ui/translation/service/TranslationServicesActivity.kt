@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -1962,17 +1963,19 @@ private fun CustomParameterEntryCard(
                     )
                 }
             }
-            Column(
-                horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(0.dp),
-            ) {
-                NoRippleTextButton(
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                NoRippleButton(
                     text = stringResource(R.string.translation_services_custom_parameter_edit_action),
+                    modifier = Modifier.width(72.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
                     onClick = onEdit,
                 )
-                NoRippleTextButton(
+                NoRippleButton(
                     text = stringResource(R.string.common_delete),
-                    contentColor = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.width(72.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+                    containerColorOverride = DangerFill,
+                    contentColorOverride = OnDangerFill,
                     onClick = onDelete,
                 )
             }
