@@ -211,7 +211,7 @@
     <string name="translation_services_custom_body">本文パラメーター</string>
     <string name="translation_services_custom_headers_hint">追加ヘッダーはモデル一覧と翻訳リクエストに送信されます。値は1行のテキストのみです。</string>
     <string name="translation_services_custom_body_hint">本文フィールドは翻訳リクエストに統合され、同名項目は既定値を上書きします。モデル、入力、プロンプト、構造化出力はプロトコルが管理し、Gemini では generation_config オブジェクトを設定できます。</string>
-    <string name="translation_services_custom_headers_empty">カスタムリクエストヘッダーはありません。</string>
+    <string name="translation_services_custom_headers_empty">カスタムリクエストヘッダーパラメーターはありません。</string>
     <string name="translation_services_custom_body_empty">カスタム本文パラメーターはありません。</string>
     <string name="translation_services_custom_parameter_add">パラメーターを追加</string>
     <string name="translation_services_custom_parameter_edit">パラメーターを編集</string>

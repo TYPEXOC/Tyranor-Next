@@ -211,7 +211,7 @@
     <string name="translation_services_custom_body">请求体参数</string>
     <string name="translation_services_custom_headers_hint">额外请求头会随模型列表和翻译请求发送。值仅支持单行文本。</string>
     <string name="translation_services_custom_body_hint">请求体字段会合并到翻译请求，同名字段会覆盖默认值。模型、输入、提示词和结构化输出由协议管理；Gemini 可配置 generation_config 对象。</string>
-    <string name="translation_services_custom_headers_empty">还没有自定义请求头。</string>
+    <string name="translation_services_custom_headers_empty">还没有自定义请求头参数。</string>
     <string name="translation_services_custom_body_empty">还没有自定义请求体参数。</string>
     <string name="translation_services_custom_parameter_add">添加参数</string>
     <string name="translation_services_custom_parameter_edit">编辑参数</string>

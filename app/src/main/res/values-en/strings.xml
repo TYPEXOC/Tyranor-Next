@@ -211,7 +211,7 @@
     <string name="translation_services_custom_body">Request body parameters</string>
     <string name="translation_services_custom_headers_hint">Extra headers are sent with model-list and translation requests. Values must be single-line text.</string>
     <string name="translation_services_custom_body_hint">Body fields are merged into translation requests; matching fields override defaults. The protocol manages the model, input, prompts, and structured output. Gemini can use a generation_config object.</string>
-    <string name="translation_services_custom_headers_empty">No custom request headers.</string>
+    <string name="translation_services_custom_headers_empty">No custom request header parameters yet.</string>
     <string name="translation_services_custom_body_empty">No custom body parameters.</string>
     <string name="translation_services_custom_parameter_add">Add parameter</string>
     <string name="translation_services_custom_parameter_edit">Edit parameter</string>
