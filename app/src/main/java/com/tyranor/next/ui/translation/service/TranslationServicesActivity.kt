@@ -873,6 +873,7 @@ private fun TranslationServicesScreen() {
                                 }
                                 ServiceSectionCard(title = stringResource(R.string.translation_services_service_status)) {
                                     ServiceStatusContent(
+                                        showTitle = false,
                                         statusText = connectionStatusText,
                                         detailText = connectionStatusDetailText,
                                         statusColor = connectionStatusColor,
@@ -1791,6 +1792,7 @@ private fun ServiceSectionCard(
 
 @Composable
 private fun ServiceStatusContent(
+    showTitle: Boolean = true,
     statusText: String,
     detailText: String,
     statusColor: Color,
@@ -1799,12 +1801,14 @@ private fun ServiceStatusContent(
     enabled: Boolean,
     onTest: () -> Unit,
 ) {
-    Spacer(Modifier.height(4.dp))
-    Text(
-        text = stringResource(R.string.translation_services_service_status),
-        style = MaterialTheme.typography.titleSmall,
-        fontWeight = FontWeight.SemiBold,
-    )
+    if (showTitle) {
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = stringResource(R.string.translation_services_service_status),
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold,
+        )
+    }
     Column(modifier = Modifier.fillMaxWidth()) {
         Box(
             modifier = Modifier.fillMaxWidth().height(lineHeight),
