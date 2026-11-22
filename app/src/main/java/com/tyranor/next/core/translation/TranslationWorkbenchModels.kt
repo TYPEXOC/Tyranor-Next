@@ -5,7 +5,6 @@ import androidx.room.ColumnInfo
 /** Paired project import/export formats registered by [TranslationProjectFormatRegistry]. */
 enum class TranslationProjectFormat {
     CSV,
-    JSON,
     MTOOL_JSON,
 }
 

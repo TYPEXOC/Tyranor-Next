@@ -19,7 +19,6 @@ object TranslationProjectFormatRegistry {
 
     private val handlers: List<TranslationProjectFormatHandler> = listOf(
         CsvTranslationProjectFormatHandler,
-        WorkspaceJsonTranslationProjectFormatHandler,
         MToolJsonTranslationProjectFormatHandler,
     ).sortedByDescending { it.detectionPriority }
     private val handlersByFormat = handlers.associateBy { it.descriptor.format }
@@ -39,7 +38,7 @@ object TranslationProjectFormatRegistry {
     fun supportsImportFile(displayName: String, mimeType: String?): Boolean =
         handlers.any { it.supportsFile(displayName, mimeType) }
 
-    /** Handlers identify the document themselves; priority lets marked JSON precede the MTool fallback. */
+    /** Handlers match by file type; each decoder validates the document contents. */
     fun decode(
         displayName: String,
         mimeType: String?,
@@ -94,26 +93,6 @@ internal object CsvTranslationProjectFormatHandler : TranslationProjectFormatHan
     override fun encode(archive: TranslationProjectArchive) = TranslationProjectCodec.encodeCsv(archive)
 }
 
-internal object WorkspaceJsonTranslationProjectFormatHandler : TranslationProjectFormatHandler {
-    override val descriptor = TranslationProjectFormatRegistry.Descriptor(
-        format = TranslationProjectFormat.JSON,
-        extension = ".twj",
-        mimeType = "application/json",
-        sourceType = TranslationProjectSource.IMPORTED_JSON,
-    )
-    override val detectionPriority = 100
-
-    override fun supportsFile(displayName: String, mimeType: String?) =
-        displayName.hasExtension("twj")
-
-    override fun matchesDocument(displayName: String, mimeType: String?, text: String) =
-        supportsFile(displayName, mimeType) && TranslationProjectCodec.isWorkspaceJson(text)
-
-    override fun decode(text: String, displayName: String) = TranslationProjectCodec.decodeJson(text)
-
-    override fun encode(archive: TranslationProjectArchive) = TranslationProjectCodec.encodeJson(archive)
-}
-
 internal object MToolJsonTranslationProjectFormatHandler : TranslationProjectFormatHandler {
     override val descriptor = TranslationProjectFormatRegistry.Descriptor(
         format = TranslationProjectFormat.MTOOL_JSON,
@@ -124,7 +103,7 @@ internal object MToolJsonTranslationProjectFormatHandler : TranslationProjectFor
     override val detectionPriority = 0
 
     override fun supportsFile(displayName: String, mimeType: String?) =
-        !displayName.hasExtension("twj") && (displayName.hasExtension("json") || mimeType.isJsonMimeType())
+        displayName.hasExtension("json") || mimeType.isJsonMimeType()
 
     override fun matchesDocument(displayName: String, mimeType: String?, text: String) =
         supportsFile(displayName, mimeType)

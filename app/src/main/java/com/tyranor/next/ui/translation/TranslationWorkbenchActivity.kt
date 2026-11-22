@@ -162,7 +162,6 @@ private val visibleProjectFilters = listOf(
 )
 
 private val selectableTranslationExportFormats = listOf(
-    TranslationProjectFormat.JSON,
     TranslationProjectFormat.MTOOL_JSON,
 )
 
@@ -856,7 +855,6 @@ private fun TranslationWorkbenchScreen() {
             stringResource(
                 when (format) {
                     TranslationProjectFormat.CSV -> R.string.translation_format_csv
-                    TranslationProjectFormat.JSON -> R.string.translation_format_twj
                     TranslationProjectFormat.MTOOL_JSON -> R.string.translation_format_mtool_json
                 },
             )

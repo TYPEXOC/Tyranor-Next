@@ -2,7 +2,6 @@ package com.tyranor.next.core.translation
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertThrows
 import org.junit.Test
 
 class TranslationProjectCodecTest {
@@ -26,11 +25,6 @@ class TranslationProjectCodecTest {
     )
 
     @Test
-    fun jsonRoundTripPreservesProjectMetadataAndEntryLocations() {
-        assertEquals(archive, TranslationProjectCodec.decodeJson(TranslationProjectCodec.encodeJson(archive)))
-    }
-
-    @Test
     fun csvRoundTripPreservesQuotedCommasQuotesAndNewlines() {
         assertEquals(archive, TranslationProjectCodec.decodeCsv(TranslationProjectCodec.encodeCsv(archive), "fallback"))
     }
@@ -46,19 +40,5 @@ class TranslationProjectCodecTest {
         assertEquals("csv:2", imported.entries[0].sourceKey)
         assertEquals("第一行,内容\n第二行", imported.entries[0].sourceText)
         assertNull(imported.entries[1].translatedText)
-    }
-
-    @Test
-    fun unsupportedJsonAndDuplicateKeysAreRejectedWithTypedErrors() {
-        val unsupported = assertThrows(TranslationWorkbenchException::class.java) {
-            TranslationProjectCodec.decodeJson("{\"format\":\"other\",\"version\":1}")
-        }
-        assertEquals(TranslationWorkbenchError.UNSUPPORTED_PROJECT_FORMAT, unsupported.code)
-
-        val duplicate = archive.copy(entries = listOf(archive.entries.first(), archive.entries.first()))
-        val invalid = assertThrows(TranslationWorkbenchException::class.java) {
-            TranslationProjectCodec.encodeJson(duplicate)
-        }
-        assertEquals(TranslationWorkbenchError.DUPLICATE_SOURCE_KEY, invalid.code)
     }
 }

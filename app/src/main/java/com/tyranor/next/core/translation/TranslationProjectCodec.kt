@@ -1,22 +1,9 @@
 package com.tyranor.next.core.translation
 
-import org.json.JSONArray
-import org.json.JSONObject
-
-/** Versioned, data-only project exchange. Tasks, service settings, secrets, and review state are excluded. */
+/** CSV project exchange codec. JSON exchange is handled by the dedicated MTool adapter. */
 object TranslationProjectCodec {
-    const val FORMAT_ID = "tyranor-translation-project"
-    const val VERSION = 1
     const val MAX_ENTRIES = 200_000
     const val MAX_DOCUMENT_CHARS = 32 * 1024 * 1024
-
-    fun isWorkspaceJson(text: String): Boolean = runCatching {
-        val root = JSONObject(text.removePrefix("\uFEFF"))
-        root.optString("format") == FORMAT_ID &&
-            root.has("version") &&
-            root.has("title") &&
-            root.has("entries")
-    }.getOrDefault(false)
 
     private val csvColumns = listOf(
         "projectKey",
@@ -31,77 +18,6 @@ object TranslationProjectCodec {
         "sourcePointer",
         "textType",
     )
-
-    fun decodeJson(text: String): TranslationProjectArchive {
-        checkSize(text)
-        try {
-            val root = JSONObject(text)
-            if (root.optString("format") != FORMAT_ID || root.optInt("version", -1) != VERSION) {
-                throw TranslationWorkbenchException(TranslationWorkbenchError.UNSUPPORTED_PROJECT_FORMAT)
-            }
-            val title = root.optString("title").trim()
-            val entriesJson = root.optJSONArray("entries")
-                ?: throw TranslationWorkbenchException(TranslationWorkbenchError.INVALID_PROJECT_FILE)
-            if (entriesJson.length() > MAX_ENTRIES) {
-                throw TranslationWorkbenchException(TranslationWorkbenchError.PROJECT_TOO_LARGE)
-            }
-            val entries = (0 until entriesJson.length()).map { index ->
-                val item = entriesJson.optJSONObject(index)
-                    ?: throw TranslationWorkbenchException(TranslationWorkbenchError.INVALID_PROJECT_FILE)
-                TranslationArchiveEntry(
-                    sourceKey = item.optString("sourceKey").takeIf(String::isNotBlank)
-                        ?: "json:$index",
-                    sourceText = item.optString("sourceText"),
-                    translatedText = item.nullableString("translatedText"),
-                    sourceFile = item.nullableString("sourceFile"),
-                    sourcePointer = item.nullableString("sourcePointer"),
-                    textType = item.nullableString("textType"),
-                )
-            }
-            validateEntries(entries)
-            if (title.isBlank() || entries.isEmpty()) {
-                throw TranslationWorkbenchException(TranslationWorkbenchError.EMPTY_PROJECT)
-            }
-            return TranslationProjectArchive(
-                projectKey = root.nullableString("projectKey"),
-                title = title,
-                engineId = root.nullableString("engineId"),
-                sourceLanguage = root.nullableString("sourceLanguage"),
-                targetLanguage = root.nullableString("targetLanguage"),
-                entries = entries,
-            )
-        } catch (failure: TranslationWorkbenchException) {
-            throw failure
-        } catch (failure: Exception) {
-            throw TranslationWorkbenchException(TranslationWorkbenchError.INVALID_PROJECT_FILE, failure)
-        }
-    }
-
-    fun encodeJson(archive: TranslationProjectArchive): String {
-        validateEntries(archive.entries)
-        val root = JSONObject()
-            .put("format", FORMAT_ID)
-            .put("version", VERSION)
-            .put("projectKey", archive.projectKey ?: JSONObject.NULL)
-            .put("title", archive.title)
-            .put("engineId", archive.engineId ?: JSONObject.NULL)
-            .put("sourceLanguage", archive.sourceLanguage ?: JSONObject.NULL)
-            .put("targetLanguage", archive.targetLanguage ?: JSONObject.NULL)
-        val entries = JSONArray()
-        archive.entries.forEach { entry ->
-            entries.put(
-                JSONObject()
-                    .put("sourceKey", entry.sourceKey)
-                    .put("sourceText", entry.sourceText)
-                    .put("translatedText", entry.translatedText ?: JSONObject.NULL)
-                    .put("sourceFile", entry.sourceFile ?: JSONObject.NULL)
-                    .put("sourcePointer", entry.sourcePointer ?: JSONObject.NULL)
-                    .put("textType", entry.textType ?: JSONObject.NULL),
-            )
-        }
-        root.put("entries", entries)
-        return root.toString(2)
-    }
 
     /** Accepts this codec's CSV and ordinary header-based CSV with a sourceText column. */
     fun decodeCsv(text: String, fallbackTitle: String): TranslationProjectArchive {
@@ -183,9 +99,6 @@ object TranslationProjectCodec {
             throw TranslationWorkbenchException(TranslationWorkbenchError.PROJECT_TOO_LARGE)
         }
     }
-
-    private fun JSONObject.nullableString(key: String): String? =
-        if (!has(key) || isNull(key)) null else optString(key).takeIf(String::isNotBlank)
 
     private fun csvEscape(value: String): String =
         if (value.any { it == ',' || it == '"' || it == '\n' || it == '\r' }) {
