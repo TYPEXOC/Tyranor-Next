@@ -140,15 +140,14 @@ object TranslationCatalog {
     }
 
     fun selectedCandidateId(context: Context, game: ScanGame): String? =
-        PerGameSettingsStore.getStr(context, game.uri, PerGameSettingsStore.F_TRANSLATION_LANGUAGE)
-            ?.takeIf(String::isNotBlank)
+        PerGameSettingsStore.getStr(context, game.uri, PerGameSettingsStore.F_TRANSLATION_CANDIDATE_ID)
 
     fun selectCandidate(context: Context, game: ScanGame, candidateId: String?) {
         PerGameSettingsStore.setStr(
             context,
             game.uri,
-            PerGameSettingsStore.F_TRANSLATION_LANGUAGE,
-            candidateId?.takeIf(String::isNotBlank),
+            PerGameSettingsStore.F_TRANSLATION_CANDIDATE_ID,
+            candidateId,
         )
     }
 

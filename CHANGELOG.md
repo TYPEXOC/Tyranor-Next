@@ -4,6 +4,7 @@
 
 - 将内置 Web 翻译拆成共用译表核心与按路径选择的适配器：MV/MZ 主宿主和 TyranoActivity 承载的 MV/MZ v0 共用 RPG Maker 策略及钩子；真正的 Tyrano 游戏使用独立的 Tyrano 适配器与文本钩子。共用 Web 会话继续负责页面生命周期和译表更新。
 - 内置 Web 宿主仅在收到有效的已选译表 URI 时创建翻译会话；MV/MZ 没有译表选择时不再尝试注册虚拟翻译插件或加载空转运行时。
+- 单游戏译表选择字段改名为 `translation_candidate_id`。
 - 修复 Android 10 从系统「下载」入口添加的本地游戏启动时无法解析目录的问题。已有游戏记录可直接重试；Android 8–10 缺少共享存储读写权限时，会引导到系统的应用权限设置（[#209](https://github.com/Weiss-UltimateSavior/Tyranor-Next/issues/209)）。
 
 - 「添加桌面」不再假定桌面一定会弹出确认框；系统确认固定后才提示已添加，并为 MIUI / HyperOS 声明快捷方式权限、提供手动授权指引（[#207](https://github.com/Weiss-UltimateSavior/Tyranor-Next/issues/207)）。
