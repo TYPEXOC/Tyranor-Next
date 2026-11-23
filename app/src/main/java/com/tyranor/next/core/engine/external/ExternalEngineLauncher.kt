@@ -143,6 +143,9 @@ object ExternalEngineLauncher {
         )
         translationMapUri?.let { uri ->
             intent.putExtra(TranslationMapContract.EXTRA_TRANSLATION_MAP_URI, uri.toString())
+            // Intent URI-grant flags apply to every URI in ClipData. The map provider is read-only,
+            // so do not let the external module receive a write grant for the translation URI.
+            intent.removeFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
             intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             val existing = intent.clipData
             intent.clipData = if (existing == null) {
