@@ -8,6 +8,7 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="com.android.launcher.permission.INSTALL_SHORTCUT" />
     <!-- 应用内下载更新后调起系统安装器所需（canRequestPackageInstalls 判断依据） -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
@@ -77,7 +78,7 @@
         <activity
             android:name=".ui.archive.ArchiveUnpackActivity"
             android:exported="false"
-            android:configChanges="uiMode" />
+            android:configChanges="uiMode|orientation|screenSize|smallestScreenSize|screenLayout|density|keyboardHidden" />
         <activity
             android:name=".ui.translation.TranslationWorkbenchActivity"
             android:exported="false"
@@ -105,9 +106,10 @@
         <activity
             android:name=".ui.save.SaveManagementActivity"
             android:exported="false"
-            android:configChanges="uiMode" />
-        <activity android:name=".ui.save.WebDavSettingsActivity" android:exported="false" android:configChanges="uiMode" />
+            android:configChanges="uiMode|orientation|screenSize|smallestScreenSize|screenLayout|density|keyboardHidden" />
+        <activity android:name=".ui.save.WebDavSettingsActivity" android:exported="false" android:configChanges="uiMode|orientation|screenSize|smallestScreenSize|screenLayout|density|keyboardHidden" />
         <receiver android:name=".core.game.save.sync.SaveSyncExitReceiver" android:exported="false" />
+        <receiver android:name=".ui.game.GameShortcutResultReceiver" android:exported="false" />
         <!-- 桌面快捷方式回跳蹦床：exported=true 为桌面 Launcher 跨进程显式启动所必需，勿改回 false（见 GameShortcutActivity KDoc） -->
         <activity
             android:name=".ui.game.GameShortcutActivity"
@@ -118,31 +120,31 @@
         <activity
             android:name=".ui.patch.KrkrOnlinePatchActivity"
             android:exported="false"
-            android:configChanges="uiMode" />
+            android:configChanges="uiMode|orientation|screenSize|smallestScreenSize|screenLayout|density|keyboardHidden" />
         <activity
             android:name=".ui.settings.EngineSettingsActivity"
             android:exported="false"
-            android:configChanges="uiMode" />
+            android:configChanges="uiMode|orientation|screenSize|smallestScreenSize|screenLayout|density|keyboardHidden" />
         <activity
             android:name=".ui.settings.AboutAppActivity"
             android:exported="false"
-            android:configChanges="uiMode" />
+            android:configChanges="uiMode|orientation|screenSize|smallestScreenSize|screenLayout|density|keyboardHidden" />
         <activity
             android:name=".ui.runtime.EngineModuleManagementActivity"
             android:exported="false"
-            android:configChanges="uiMode" />
+            android:configChanges="uiMode|orientation|screenSize|smallestScreenSize|screenLayout|density|keyboardHidden" />
         <activity
             android:name=".ui.settings.PerGameSettingsActivity"
             android:exported="false"
-            android:configChanges="uiMode" />
+            android:configChanges="uiMode|orientation|screenSize|smallestScreenSize|screenLayout|density|keyboardHidden" />
         <activity
             android:name=".ui.settings.GamepadMapActivity"
             android:exported="false"
-            android:configChanges="uiMode" />
+            android:configChanges="uiMode|orientation|screenSize|smallestScreenSize|screenLayout|density|keyboardHidden" />
         <activity
             android:name=".ui.settings.InputSettingsActivity"
             android:exported="false"
-            android:configChanges="uiMode" />
+            android:configChanges="uiMode|orientation|screenSize|smallestScreenSize|screenLayout|density|keyboardHidden" />
         <!-- 布局编辑器：横屏 + 不因常见配置变化重建（用户可能正拖拽/编辑未保存的草稿）；
              与 engine 宿主的 configChanges 集合保持一致 -->
         <activity
@@ -153,11 +155,15 @@
         <activity
             android:name=".ui.settings.AppSettingsActivity"
             android:exported="false"
-            android:configChanges="uiMode" />
+            android:configChanges="uiMode|orientation|screenSize|smallestScreenSize|screenLayout|density|keyboardHidden" />
         <activity
             android:name=".ui.cover.CoverScraperSettingsActivity"
             android:exported="false"
-            android:configChanges="uiMode" />
+            android:configChanges="uiMode|orientation|screenSize|smallestScreenSize|screenLayout|density|keyboardHidden" />
+        <activity
+            android:name=".ui.settings.PrivacySettingsActivity"
+            android:exported="false"
+            android:configChanges="uiMode|orientation|screenSize|smallestScreenSize|screenLayout|density|keyboardHidden" />
         <activity
             android:name=".ui.auth.HikarinagiOAuthCallbackActivity"
             android:exported="false"
