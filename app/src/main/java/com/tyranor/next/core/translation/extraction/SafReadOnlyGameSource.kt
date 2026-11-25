@@ -17,10 +17,10 @@ internal class SafReadOnlyGameSource(
     private val root = DocumentFile.fromTreeUri(context.applicationContext, tree)
 
     override suspend fun list(relativePath: String): List<GameDocumentInfo> {
-        val directory = resolve(relativePath, allowEmpty = true)
-            ?: return emptyList()
-        if (!directory.isDirectory) return emptyList()
         return try {
+            val directory = resolve(relativePath, allowEmpty = true)
+                ?: return emptyList()
+            if (!directory.isDirectory) return emptyList()
             val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(
                 tree,
                 DocumentsContract.getDocumentId(directory.uri),
@@ -70,9 +70,38 @@ internal class SafReadOnlyGameSource(
     private fun resolve(relativePath: String, allowEmpty: Boolean = false): DocumentFile? {
         var current = root ?: throw TranslationExtractionException(ExtractionErrorCode.DIRECTORY_PERMISSION_LOST)
         for (segment in validateRelativePath(relativePath, allowEmpty)) {
-            current = current.findFile(segment) ?: return null
+            current = findChild(current, segment) ?: return null
         }
         return current
+    }
+
+    private fun findChild(directory: DocumentFile, name: String): DocumentFile? {
+        if (!directory.isDirectory) return null
+        val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(
+            tree,
+            DocumentsContract.getDocumentId(directory.uri),
+        )
+        val projection = arrayOf(
+            Document.COLUMN_DOCUMENT_ID,
+            Document.COLUMN_DISPLAY_NAME,
+        )
+        var documentUri: Uri? = null
+        resolver.query(childrenUri, projection, null, null, null)?.use { cursor ->
+            val idColumn = cursor.getColumnIndexOrThrow(Document.COLUMN_DOCUMENT_ID)
+            val nameColumn = cursor.getColumnIndexOrThrow(Document.COLUMN_DISPLAY_NAME)
+            var entryCount = 0
+            while (cursor.moveToNext()) {
+                entryCount++
+                if (entryCount > MAX_DIRECTORY_ENTRIES) {
+                    throw TranslationExtractionException(ExtractionErrorCode.RESOURCE_TOO_LARGE)
+                }
+                if (documentUri == null && cursor.getString(nameColumn) == name) {
+                    val documentId = cursor.getString(idColumn) ?: continue
+                    documentUri = DocumentsContract.buildDocumentUriUsingTree(tree, documentId)
+                }
+            }
+        }
+        return documentUri?.let { DocumentFile.fromSingleUri(appContext, it) }
     }
 
     private companion object {
