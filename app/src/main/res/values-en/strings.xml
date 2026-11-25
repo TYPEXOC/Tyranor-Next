@@ -1662,7 +1662,6 @@
     <string name="runtime_settings_saved">Settings saved</string>
     <string name="runtime_settings_save_failed">Save failed. Your changes are preserved</string>
     <string name="runtime_settings_descriptor_changed">Module settings changed before the save completed. Your draft is preserved; review the updated settings before saving again</string>
-    <string name="runtime_settings_restore_default">Restore default</string>
     <string name="runtime_settings_restore_all_defaults">Restore all defaults</string>
     <string name="runtime_settings_default_value">Default</string>
     <string name="runtime_settings_unsaved_title">Discard unsaved changes?</string>

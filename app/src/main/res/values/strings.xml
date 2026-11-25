@@ -1662,7 +1662,6 @@
     <string name="runtime_settings_saved">设置已保存</string>
     <string name="runtime_settings_save_failed">保存失败，修改仍保留</string>
     <string name="runtime_settings_descriptor_changed">模块设置在保存前已更新。草稿仍保留，请核对新设置后再保存</string>
-    <string name="runtime_settings_restore_default">恢复默认</string>
     <string name="runtime_settings_restore_all_defaults">全部恢复默认</string>
     <string name="runtime_settings_default_value">默认值</string>
     <string name="runtime_settings_unsaved_title">放弃未保存的修改？</string>
