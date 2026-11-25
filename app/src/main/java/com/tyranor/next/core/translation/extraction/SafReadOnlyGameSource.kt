@@ -2,6 +2,8 @@ package com.tyranor.next.core.translation.extraction
 
 import android.content.Context
 import android.net.Uri
+import android.provider.DocumentsContract
+import android.provider.DocumentsContract.Document
 import androidx.documentfile.provider.DocumentFile
 import java.io.FileNotFoundException
 
@@ -11,18 +13,41 @@ internal class SafReadOnlyGameSource(
     treeUri: String,
 ) : ReadOnlyGameSource {
     private val resolver = context.applicationContext.contentResolver
-    private val root = DocumentFile.fromTreeUri(context.applicationContext, Uri.parse(treeUri))
+    private val tree = Uri.parse(treeUri)
+    private val root = DocumentFile.fromTreeUri(context.applicationContext, tree)
 
     override suspend fun list(relativePath: String): List<GameDocumentInfo> {
         val directory = resolve(relativePath, allowEmpty = true)
             ?: return emptyList()
         if (!directory.isDirectory) return emptyList()
         return try {
-            directory.listFiles().mapNotNull { document ->
-                val name = document.name ?: return@mapNotNull null
-                if (name.isBlank() || name.contains('/') || name.contains('\\')) return@mapNotNull null
-                GameDocumentInfo(name, document.isDirectory)
+            val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(
+                tree,
+                DocumentsContract.getDocumentId(directory.uri),
+            )
+            val projection = arrayOf(
+                Document.COLUMN_DISPLAY_NAME,
+                Document.COLUMN_MIME_TYPE,
+            )
+            val documents = mutableListOf<GameDocumentInfo>()
+            resolver.query(childrenUri, projection, null, null, null)?.use { cursor ->
+                val nameColumn = cursor.getColumnIndexOrThrow(Document.COLUMN_DISPLAY_NAME)
+                val mimeTypeColumn = cursor.getColumnIndexOrThrow(Document.COLUMN_MIME_TYPE)
+                var entryCount = 0
+                while (cursor.moveToNext()) {
+                    entryCount++
+                    if (entryCount > MAX_DIRECTORY_ENTRIES) {
+                        throw TranslationExtractionException(ExtractionErrorCode.RESOURCE_TOO_LARGE)
+                    }
+                    val name = cursor.getString(nameColumn) ?: continue
+                    if (name.isBlank() || name.contains('/') || name.contains('\\')) continue
+                    documents += GameDocumentInfo(
+                        name = name,
+                        isDirectory = cursor.getString(mimeTypeColumn) == Document.MIME_TYPE_DIR,
+                    )
+                }
             }
+            documents
         } catch (failure: SecurityException) {
             throw TranslationExtractionException(ExtractionErrorCode.DIRECTORY_PERMISSION_LOST, failure)
         } catch (failure: FileNotFoundException) {
@@ -48,5 +73,9 @@ internal class SafReadOnlyGameSource(
             current = current.findFile(segment) ?: return null
         }
         return current
+    }
+
+    private companion object {
+        const val MAX_DIRECTORY_ENTRIES = 50_000
     }
 }
