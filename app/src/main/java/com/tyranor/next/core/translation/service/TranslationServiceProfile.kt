@@ -194,4 +194,3 @@ sealed interface TranslationSecretResult {
 
 const val DEFAULT_TRANSLATION_PROMPT =
     "Translate the provided game text into the target language. Use the provided glossary consistently when choosing translations. Preserve every control code, placeholder, and line break. Return only a JSON object with a results array; each result must contain the given id and its translation."
-
