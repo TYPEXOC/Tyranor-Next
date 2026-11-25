@@ -1,0 +1,340 @@
+package com.tyranor.next.core.translation.service
+
+import android.content.Context
+import com.tyranor.next.core.translation.service.secret.TranslationSecretStore
+import com.tyranor.next.core.translation.storage.TranslationServiceProfileEntity
+import com.tyranor.next.core.translation.storage.TranslationWorkbenchDatabase
+import java.net.URI
+import java.util.UUID
+import org.json.JSONObject
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+
+/** The single source of translation service profiles for settings and workbench selectors. */
+class TranslationServiceRepository(context: Context) {
+    private val dao = TranslationWorkbenchDatabase.get(context.applicationContext).translationDao()
+    private val secretStore = TranslationSecretStore(context.applicationContext)
+    private val writeMutex = Mutex()
+
+    fun observeProfiles(): Flow<List<TranslationServiceProfile>> =
+        dao.observeServiceProfiles().map { profiles -> profiles.map { it.toModel() } }
+
+    fun observeEnabled(capability: TranslationServiceCapability): Flow<List<TranslationServiceProfile>> =
+        observeProfiles().map { profiles ->
+            profiles.filter { profile ->
+                profile.enabled && profile.configured && TranslationProtocolRegistry.supports(profile.protocolId, capability)
+            }
+        }
+
+    suspend fun getProfile(id: String): TranslationServiceProfile? =
+        dao.getServiceProfile(id)?.toModel()
+
+    /** Holds the profile write lock until the caller has persisted any snapshot reference it uses. */
+    suspend fun <T> withProfileSnapshot(id: String, block: suspend (TranslationServiceProfile) -> T): T =
+        writeMutex.withLock {
+            val profile = dao.getServiceProfile(id)?.toModel()
+                ?: throw TranslationServiceException(TranslationServiceErrorCode.SERVICE_NOT_FOUND)
+            block(profile)
+        }
+
+    suspend fun saveProfile(draft: TranslationServiceDraft): TranslationServiceProfile = writeMutex.withLock {
+        val profileId = draft.id ?: UUID.randomUUID().toString()
+        val old: TranslationServiceProfileEntity? = if (draft.id == null) null else dao.getServiceProfile(draft.id)
+        if (draft.id != null && old == null) {
+            throw TranslationServiceException(TranslationServiceErrorCode.SERVICE_NOT_FOUND)
+        }
+        if (!TranslationProtocolRegistry.supports(draft.protocolId, TranslationServiceCapability.TRANSLATE)) {
+            throw TranslationServiceException(TranslationServiceErrorCode.UNSUPPORTED_PROTOCOL)
+        }
+        val displayName = draft.displayName.trim()
+        val modelId = draft.modelId.trim()
+        val translationPrompt = draft.translationPrompt.trim()
+        val translationUserPrompt = draft.translationUserPrompt.trim()
+        val generationOptions = draft.generationOptions
+        val taskSettings = draft.taskSettings
+        val customParameters = when (val change = draft.customParametersChange) {
+            TranslationCustomParametersChange.Keep -> null
+            is TranslationCustomParametersChange.Replace -> change.value
+        }
+        val baseUrl = normalizeBaseUrl(draft.baseUrl, draft.protocolId)
+        if (displayName.isBlank() || displayName.length > MAX_DISPLAY_NAME || modelId.length > MAX_MODEL_ID ||
+            translationPrompt.isBlank() || translationPrompt.length > MAX_PROMPT_LENGTH ||
+            translationUserPrompt.length > MAX_PROMPT_LENGTH ||
+            !generationOptions.isValidFor(draft.protocolId) ||
+            !taskSettings.isValidFor(draft.protocolId.category) ||
+            customParameters?.let {
+                draft.protocolId.category != TranslationServiceCategory.AI_TRANSLATION || !it.isValidForAiRequest()
+            } == true
+        ) {
+            throw TranslationServiceException(TranslationServiceErrorCode.INVALID_CONFIGURATION)
+        }
+        val hasSecret = when (draft.secretChange) {
+            TranslationSecretChange.Keep -> old?.secretRef != null
+            is TranslationSecretChange.Replace -> draft.secretChange.value.isNotBlank()
+            TranslationSecretChange.Remove -> false
+        }
+        if (draft.protocolId.category == TranslationServiceCategory.MACHINE_TRANSLATION &&
+            draft.protocolId.requiresSecret && draft.secretChange is TranslationSecretChange.Replace &&
+            !TranslationProviderCredentialBundle.isComplete(draft.protocolId, draft.secretChange.value)
+        ) {
+            throw TranslationServiceException(TranslationServiceErrorCode.INVALID_CONFIGURATION)
+        }
+        val modelConfigured = !draft.protocolId.requiresModel || modelId.isNotBlank()
+        val configured = modelConfigured &&
+            (!draft.protocolId.requiresSecret || hasSecret) &&
+            (draft.protocolId != TranslationProtocolId.GEMINI_INTERACTIONS || hasSecret)
+        if (draft.enabled && !configured) {
+            throw TranslationServiceException(TranslationServiceErrorCode.SERVICE_NOT_CONFIGURED)
+        }
+
+        val now = System.currentTimeMillis()
+        val revision = (old?.revision ?: 0L) + 1L
+        val nextSecretRef = when (val secretChange = draft.secretChange) {
+            TranslationSecretChange.Keep -> old?.secretRef
+            is TranslationSecretChange.Replace -> {
+                if (secretChange.value.isBlank()) {
+                    throw TranslationServiceException(TranslationServiceErrorCode.INVALID_CONFIGURATION)
+                }
+                val reference = "$profileId:$revision"
+                if (!secretStore.write(reference, secretChange.value)) {
+                    throw TranslationServiceException(TranslationServiceErrorCode.SECRET_STORAGE_FAILED)
+                }
+                reference
+            }
+            TranslationSecretChange.Remove -> null
+        }
+        val nextCustomParametersRef = when (val change = draft.customParametersChange) {
+            TranslationCustomParametersChange.Keep -> old?.customParametersRef
+            is TranslationCustomParametersChange.Replace -> {
+                if (change.value.isEmpty) {
+                    null
+                } else {
+                    val reference = "$profileId:custom-parameters:$revision"
+                    if (!secretStore.write(reference, change.value.encode())) {
+                        if (nextSecretRef != null && nextSecretRef != old?.secretRef) secretStore.delete(nextSecretRef)
+                        throw TranslationServiceException(TranslationServiceErrorCode.SECRET_STORAGE_FAILED)
+                    }
+                    reference
+                }
+            }
+        }
+        val entity = TranslationServiceProfileEntity(
+            id = profileId,
+            displayName = displayName,
+            protocolId = draft.protocolId.wireId,
+            baseUrl = baseUrl,
+            templateId = draft.templateId ?: old?.templateId,
+            modelId = modelId,
+            enabled = draft.enabled,
+            revision = revision,
+            translationPrompt = translationPrompt,
+            translationUserPrompt = translationUserPrompt,
+            generationOptionsJson = generationOptions.encode(),
+            taskSettingsJson = taskSettings.encode(),
+            secretRef = nextSecretRef,
+            customParametersRef = nextCustomParametersRef,
+            createdAt = old?.createdAt ?: now,
+            updatedAt = now,
+        )
+        try {
+            dao.upsertServiceProfile(entity)
+        } catch (cancelled: CancellationException) {
+            if (nextSecretRef != null && nextSecretRef != old?.secretRef) secretStore.delete(nextSecretRef)
+            if (nextCustomParametersRef != null && nextCustomParametersRef != old?.customParametersRef) {
+                secretStore.delete(nextCustomParametersRef)
+            }
+            throw cancelled
+        } catch (failure: Exception) {
+            if (nextSecretRef != null && nextSecretRef != old?.secretRef) secretStore.delete(nextSecretRef)
+            if (nextCustomParametersRef != null && nextCustomParametersRef != old?.customParametersRef) {
+                secretStore.delete(nextCustomParametersRef)
+            }
+            throw TranslationServiceException(TranslationServiceErrorCode.STORAGE_FAILURE, failure)
+        }
+        try {
+            cleanupUnusedSecretsLocked()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            // Configuration persistence has succeeded; an obsolete ciphertext can be pruned later.
+        }
+        entity.toModel()
+    }
+
+    suspend fun setEnabled(id: String, enabled: Boolean): TranslationServiceProfile {
+        val current = dao.getServiceProfile(id)?.toModel()
+            ?: throw TranslationServiceException(TranslationServiceErrorCode.SERVICE_NOT_FOUND)
+        if (enabled && !current.configured) {
+            throw TranslationServiceException(TranslationServiceErrorCode.SERVICE_NOT_CONFIGURED)
+        }
+        return saveProfile(
+            TranslationServiceDraft(
+                id = current.id,
+                displayName = current.displayName,
+                protocolId = current.protocolId,
+                baseUrl = current.baseUrl,
+                templateId = current.templateId,
+                modelId = current.modelId,
+                enabled = enabled,
+                translationPrompt = current.translationPrompt,
+                translationUserPrompt = current.translationUserPrompt,
+                generationOptions = current.generationOptions,
+                taskSettings = current.taskSettings,
+                secretChange = TranslationSecretChange.Keep,
+            ),
+        )
+    }
+
+    suspend fun deleteProfile(id: String) = writeMutex.withLock {
+        val profile = dao.getServiceProfile(id)
+            ?: throw TranslationServiceException(TranslationServiceErrorCode.SERVICE_NOT_FOUND)
+        if (dao.deleteServiceProfile(id) != 1) {
+            throw TranslationServiceException(TranslationServiceErrorCode.STORAGE_FAILURE)
+        }
+        cleanupUnusedSecretsLocked()
+    }
+
+    suspend fun cleanupUnusedSecrets() = writeMutex.withLock { cleanupUnusedSecretsLocked() }
+
+    private suspend fun cleanupUnusedSecretsLocked() {
+        val profileReferences = dao.getServiceProfiles().flatMap { profile ->
+            listOfNotNull(profile.secretRef, profile.customParametersRef)
+        }.toSet()
+        val taskReferences = dao.getAllTasks().mapNotNull { task ->
+            runCatching {
+                val snapshot = JSONObject(task.configSnapshotJson)
+                listOfNotNull(
+                    snapshot.optString("secretRef").takeIf(String::isNotBlank),
+                    snapshot.optString("customParametersRef").takeIf(String::isNotBlank),
+                )
+            }
+                .getOrNull()
+        }.flatten().toSet()
+        if (!secretStore.deleteUnreferencedSecrets(profileReferences + taskReferences)) {
+            throw TranslationServiceException(TranslationServiceErrorCode.SECRET_STORAGE_FAILED)
+        }
+    }
+
+    internal fun readSecret(reference: String?): TranslationSecretResult = when (reference) {
+        null -> TranslationSecretResult.Missing
+        else -> when (val result = secretStore.read(reference)) {
+            is TranslationSecretStore.SecretRead.Available -> TranslationSecretResult.Available(result.value)
+            TranslationSecretStore.SecretRead.Missing -> TranslationSecretResult.Missing
+            TranslationSecretStore.SecretRead.Unavailable -> TranslationSecretResult.Unavailable
+        }
+    }
+
+    /** Reads a saved credential only for populating the masked service configuration fields. */
+    fun readSecretForEditing(profile: TranslationServiceProfile): TranslationSecretResult =
+        readSecret(profile.secretRef)
+
+    fun readCustomParameters(reference: String?): TranslationCustomParameters = when (reference) {
+        null -> TranslationCustomParameters()
+        else -> when (val result = secretStore.read(reference)) {
+            is TranslationSecretStore.SecretRead.Available -> runCatching {
+                TranslationCustomParameters.decode(result.value)
+            }.getOrElse {
+                throw TranslationServiceException(TranslationServiceErrorCode.SECRET_UNAVAILABLE)
+            }
+            TranslationSecretStore.SecretRead.Missing,
+            TranslationSecretStore.SecretRead.Unavailable ->
+                throw TranslationServiceException(TranslationServiceErrorCode.SECRET_UNAVAILABLE)
+        }
+    }
+
+    private fun TranslationServiceProfileEntity.toModel(): TranslationServiceProfile {
+        val protocol = TranslationProtocolId.entries.firstOrNull { it.wireId == protocolId }
+            ?: throw TranslationServiceException(TranslationServiceErrorCode.UNSUPPORTED_PROTOCOL)
+        val validUrl = runCatching { normalizeBaseUrl(baseUrl, protocol) }.isSuccess
+        val generationOptions = runCatching { TranslationGenerationOptions.decode(generationOptionsJson, protocol) }.getOrNull()
+        val taskSettings = TranslationServiceTaskSettings.decode(taskSettingsJson, protocol.category)
+        return TranslationServiceProfile(
+            id = id,
+            displayName = displayName,
+            protocolId = protocol,
+            baseUrl = baseUrl,
+            templateId = templateId,
+            modelId = modelId,
+            enabled = enabled,
+            configured = validUrl && generationOptions?.isValidFor(protocol) == true &&
+                (!protocol.requiresModel || modelId.isNotBlank()) &&
+                (!protocol.requiresSecret || secretRef != null) &&
+                (protocol != TranslationProtocolId.GEMINI_INTERACTIONS || secretRef != null),
+            hasSecret = secretRef != null,
+            revision = revision,
+            translationPrompt = translationPrompt,
+            translationUserPrompt = translationUserPrompt,
+            generationOptions = generationOptions ?: TranslationGenerationOptions(),
+            taskSettings = taskSettings,
+            secretRef = secretRef,
+            customParametersRef = customParametersRef,
+            updatedAt = updatedAt,
+        )
+    }
+
+    companion object {
+        private const val MAX_DISPLAY_NAME = 80
+        private const val MAX_MODEL_ID = 256
+        private const val MAX_PROMPT_LENGTH = 16_000
+
+        fun normalizeBaseUrl(value: String): String {
+            val trimmed = value.trim().trimEnd('/')
+            val uri = runCatching { URI(trimmed) }.getOrNull()
+                ?: throw TranslationServiceException(TranslationServiceErrorCode.INVALID_CONFIGURATION)
+            val scheme = uri.scheme?.lowercase()
+            if (trimmed.length > 2_048 || scheme !in setOf("https", "http") || uri.host.isNullOrBlank() ||
+                uri.rawUserInfo != null || uri.rawQuery != null || uri.rawFragment != null ||
+                uri.port !in -1..65_535 || uri.port == 0 ||
+                uri.path.orEmpty().split('/').any { it == "." || it == ".." }
+            ) {
+                throw TranslationServiceException(TranslationServiceErrorCode.INVALID_CONFIGURATION)
+            }
+            val absolute = uri.normalize().toASCIIString().trimEnd('/')
+            return absolute.replaceFirst(Regex("^[A-Za-z][A-Za-z0-9+.-]*:"), "$scheme:")
+        }
+
+        fun normalizeBaseUrl(value: String, protocolId: TranslationProtocolId): String = when (protocolId) {
+            TranslationProtocolId.OPENAI_COMPATIBLE_CHAT -> normalizeBaseUrl(value)
+            TranslationProtocolId.OPENAI_RESPONSES -> normalizeBaseUrl(value)
+            TranslationProtocolId.GEMINI_INTERACTIONS -> normalizeBaseUrl(value)
+            TranslationProtocolId.ANTHROPIC_MESSAGES -> normalizeBaseUrl(value)
+            TranslationProtocolId.BING_TRANSLATOR_WEB,
+            TranslationProtocolId.NIUTRANS_TRANSLATION_V1,
+            TranslationProtocolId.VOLCENGINE_TRANSLATE_TEXT_V1,
+            TranslationProtocolId.AZURE_TRANSLATOR_V3,
+            TranslationProtocolId.DEEPL_TRANSLATE_V2,
+            TranslationProtocolId.BAIDU_TRANSLATE_VIP_V1,
+            TranslationProtocolId.TENCENT_TMT_TEXT_TRANSLATE_V1,
+            TranslationProtocolId.YOUDAO_TRANSLATE_V2,
+            TranslationProtocolId.ALIBABA_MT_ROA_V1,
+            TranslationProtocolId.CAIYUN_LINGOCLOUD_V1,
+            TranslationProtocolId.GOOGLE_CLOUD_TRANSLATE_V2,
+            TranslationProtocolId.YANDEX_TRANSLATE_V2,
+            TranslationProtocolId.HUAWEI_NLP_TRANSLATE_V1,
+            TranslationProtocolId.YOUDAO_TRANSLATE_WEB_V1,
+            TranslationProtocolId.GOOGLE_TRANSLATE_WEB_V1,
+            TranslationProtocolId.DOUBAO_TRANSLATE_RESPONSES_V1,
+            TranslationProtocolId.IFLYTEK_TRANSLATE_V2 -> normalizeFixedProviderUrl(value, protocolId)
+        }
+
+        private fun normalizeFixedProviderUrl(value: String, protocolId: TranslationProtocolId): String {
+            val expected = protocolId.defaultBaseUrl()
+            val trimmed = value.trim().trimEnd('/')
+            val uri = runCatching { URI(trimmed) }.getOrNull()
+                ?: throw TranslationServiceException(TranslationServiceErrorCode.INVALID_CONFIGURATION)
+            val expectedUri = URI(expected)
+            if (trimmed.length > 256 || uri.scheme?.lowercase() != "https" ||
+            !uri.host.equals(expectedUri.host, ignoreCase = true) || uri.rawUserInfo != null ||
+                uri.rawQuery != null || uri.rawFragment != null || uri.port !in setOf(-1, 443) ||
+                uri.path.orEmpty().trimEnd('/') != expectedUri.path.orEmpty().trimEnd('/')
+            ) {
+                throw TranslationServiceException(TranslationServiceErrorCode.INVALID_CONFIGURATION)
+            }
+            return expected
+        }
+
+    }
+}

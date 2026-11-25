@@ -3,6 +3,8 @@
     xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
@@ -84,6 +86,30 @@
             android:name=".ui.archive.ArchiveUnpackActivity"
             android:exported="false"
             android:configChanges="uiMode|orientation|screenSize|smallestScreenSize|screenLayout|density|keyboardHidden" />
+        <activity
+            android:name=".ui.translation.TranslationWorkbenchActivity"
+            android:exported="false"
+            android:configChanges="uiMode" />
+        <activity
+            android:name=".ui.translation.TranslationGlossariesActivity"
+            android:exported="false"
+            android:configChanges="uiMode" />
+        <activity
+            android:name=".ui.translation.TranslationGlossaryDetailActivity"
+            android:exported="false"
+            android:configChanges="uiMode" />
+        <activity
+            android:name=".ui.translation.TranslationReviewActivity"
+            android:exported="false"
+            android:configChanges="uiMode" />
+        <activity
+            android:name=".ui.translation.service.TranslationServicesActivity"
+            android:exported="false"
+            android:configChanges="uiMode" />
+        <service
+            android:name="androidx.work.impl.foreground.SystemForegroundService"
+            android:foregroundServiceType="dataSync"
+            tools:node="merge" />
         <activity
             android:name=".ui.save.SaveManagementActivity"
             android:exported="false"

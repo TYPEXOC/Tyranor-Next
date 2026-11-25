@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
@@ -55,7 +56,9 @@ fun NoRippleTextButton(
     }
     NoRippleActionText(
         text, modifier, enabled, targetColor,
-        verticalPadding = 8.dp, colorLabel = "noRippleTextButtonColor", onClick = onClick,
+        verticalPadding = 8.dp,
+        colorLabel = "noRippleTextButtonColor",
+        onClick = onClick,
     )
 }
 
@@ -96,25 +99,31 @@ internal fun NoRippleActionText(
 /**
  * 页内填充按钮：无涟漪/按压效果。
  * [tonal] = true 时为浅色底（[fillColor] 的 14%）+ 同色文字，用于次级动作（如「前往授权」）。
+ * [containerColorOverride] / [contentColorOverride] 可为需要特殊语义色的次级按钮指定容器色和文字色。
  */
 @Composable
 fun NoRippleButton(
     text: String,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    contentPadding: PaddingValues = PaddingValues(horizontal = 20.dp, vertical = 10.dp),
     tonal: Boolean = false,
+    containerColorOverride: Color? = null,
+    contentColorOverride: Color? = null,
     leadingIcon: Painter? = null,
     iconContentDescription: String? = null,
     fillColor: Color = MaterialTheme.colorScheme.primary,
     maxLines: Int = 1,
     onClick: () -> Unit,
 ) {
-    val container = when {
+    val defaultContainer = when {
         tonal -> fillColor.copy(alpha = 0.14f)
         enabled -> fillColor
         else -> fillColor.copy(alpha = 0.38f)
     }
-    val contentColor = if (tonal) fillColor else Color.White
+    val container = containerColorOverride ?: defaultContainer
+    // 主题色实底上的文字/图标固定白色；tonal 为浅底次级样式，默认文字使用填充色。
+    val contentColor = contentColorOverride ?: if (tonal) fillColor else Color.White
     val enhanced = MotionMode.enhanced
     // 可用 ↔ 不可用、实底 ↔ 浅底：「增强」档底色弹簧淡变（在绘制阶段读取，不逐帧重组），「普通」档直接切换
     val animatedContainer = if (enhanced) {
@@ -139,7 +148,7 @@ fun NoRippleButton(
                 indication = null,
                 onClick = onClick,
             )
-            .padding(horizontal = 20.dp, vertical = 10.dp),
+            .padding(contentPadding),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {

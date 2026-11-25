@@ -2929,8 +2929,22 @@ object EngineLauncher {
     /** 文件型外置入口使用解析出的文件父目录，包装目录仍使用自身。 */
     private fun resolveLaunchEntryDirectory(context: Context, game: ScanGame): String? {
         val uriText = game.uri.trim()
-        val path = GamePathUtils.resolveLocalPath(context, uriText) ?: return null
+        val path = GamePathUtils.resolveLocalPath(context, uriText)
+            ?: resolveDirectLocalPath(uriText)
+            ?: return null
         return resolveLaunchEntryPath(uriText, path, game.launchTarget)
+    }
+
+    /** 普通绝对路径及 file URI 不经过 SAF provider 映射。 */
+    private fun resolveDirectLocalPath(uriText: String): String? {
+        val text = uriText.trim()
+        if (text.isEmpty()) return null
+        return when {
+            File(text).isAbsolute -> text
+            text.startsWith("file:", ignoreCase = true) ->
+                runCatching { File(java.net.URI(text)).path }.getOrNull()
+            else -> null
+        }?.takeIf { File(it).isAbsolute }
     }
 
     /** 将已解析的入口路径转成外置模块所需的目录。 */

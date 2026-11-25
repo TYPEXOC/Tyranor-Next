@@ -72,6 +72,7 @@ import com.tyranor.next.ui.common.DialogTextButton
 import com.tyranor.next.ui.common.ByteFormats
 import com.tyranor.next.ui.common.NoRippleTextButton
 import com.tyranor.next.ui.common.NoRippleButton
+import com.tyranor.next.ui.common.SegmentedControl
 import com.tyranor.next.ui.common.motion.BlurCrossfade
 import com.tyranor.next.ui.common.motion.ExpandVisibility
 import com.tyranor.next.ui.common.motion.listItemMotion
@@ -211,7 +212,19 @@ private fun ArchiveScreen(vm: ArchiveViewModel = viewModel()) {
                 }
             }
 
-            ModeTabs(mode = vm.mode, onSelect = { vm.switchMode(it) })
+            SegmentedControl(
+                options = listOf(
+                    stringResource(R.string.archive_mode_unpack),
+                    stringResource(R.string.archive_mode_pack),
+                ),
+                selectedIndex = vm.mode.ordinal,
+                onOptionSelected = { index ->
+                    vm.switchMode(ArchiveMode.entries.getOrNull(index) ?: ArchiveMode.UNPACK)
+                },
+                modifier = Modifier
+                    .staggeredEntrance(1)
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
+            )
 
             // 面板占剩余空间：给关闭弹窗后的结果消息（StatusBar）留出可见区域。
             // 模式切换保留滑动 + 淡入淡出特效（与主界面水平移动切换同向语义）。
@@ -242,57 +255,6 @@ private fun ArchiveScreen(vm: ArchiveViewModel = viewModel()) {
             }
             Spacer(Modifier.navigationBarsPadding().height(4.dp))
         }
-    }
-}
-
-/** 展示解包/封包两种模式，由调用方切换任务模型；整组参与页面的错峰入场。 */
-@Composable
-private fun ModeTabs(mode: ArchiveMode, onSelect: (ArchiveMode) -> Unit) {
-    // 横排独立小按钮（形态对齐主界面左侧纵栏的小胶囊）：玻璃面 + 描边，选中态主色浅底
-    Row(
-        modifier = Modifier
-            .staggeredEntrance(1)
-            .padding(horizontal = 16.dp, vertical = 6.dp)
-            .clip(AppComponentShape)
-            .background(NavWhite)
-            .glassBorder(AppComponentShape)
-            .padding(4.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        ModeTab(
-            label = stringResource(R.string.archive_mode_unpack),
-            selected = mode == ArchiveMode.UNPACK,
-            onClick = { onSelect(ArchiveMode.UNPACK) },
-        )
-        ModeTab(
-            label = stringResource(R.string.archive_mode_pack),
-            selected = mode == ArchiveMode.PACK,
-            onClick = { onSelect(ArchiveMode.PACK) },
-        )
-    }
-}
-
-/** 绘制单个模式选项的选中配色，并将按压形变限制在不改变静止布局的图层中。 */
-@Composable
-private fun ModeTab(label: String, selected: Boolean, onClick: () -> Unit) {
-    val colors = rememberArchiveTabColors(selected)
-    Box(
-        modifier = Modifier
-            .pressSquish()
-            // 切到该模式时选中胶囊轻轻落一下（与背景 / 文字颜色过渡同步）
-            .bounceOnChange(selected, depth = 0.08f)
-            .clip(AppComponentShape)
-            .background(colors.background.value)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 18.dp, vertical = 8.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            label,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-            color = colors.foreground.value,
-        )
     }
 }
 

@@ -21,6 +21,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.tyranor.next.R
 import com.tyranor.next.core.game.launch.EngineLauncher
+import com.tyranor.next.core.translation.TranslationWorkbenchRepository
 import com.tyranor.next.ui.archive.ArchiveUnpackActivity
 import com.tyranor.next.theme.MiuixSettingsTheme
 import com.tyranor.next.ui.common.SettingsEntryCard
@@ -35,6 +36,8 @@ import com.tyranor.next.ui.runtime.EngineModuleManagementActivity
 import com.tyranor.next.ui.save.WebDavSettingsActivity
 import com.tyranor.next.ui.settings.InputSettingsActivity
 import com.tyranor.next.ui.settings.PrivacySettingsActivity
+import com.tyranor.next.ui.translation.TranslationWorkbenchActivity
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -49,8 +52,12 @@ private data class ToolEntry(
 fun ToolsScreen(modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val translationRepository = remember(context.applicationContext) {
+        TranslationWorkbenchRepository(context.applicationContext)
+    }
     var launchError by remember { mutableStateOf<LaunchErrorState?>(null) }
     var launchingNative by remember { mutableStateOf(false) }
+    var openingWorkbench by remember { mutableStateOf(false) }
     val entries = listOf(
         ToolEntry(R.string.side_panel_kr2_native_title, R.drawable.ic_settings_engine) {
             if (!launchingNative) {
@@ -79,6 +86,23 @@ fun ToolsScreen(modifier: Modifier = Modifier) {
         ToolEntry(R.string.side_panel_engine_module_title, R.drawable.ic_engine_manage) {
             startActivityWithPageTransition(context, EngineModuleManagementActivity.createIntent(context))
         },
+        ToolEntry(R.string.translation_workbench_title, R.drawable.ic_translation_workbench) {
+            if (!openingWorkbench) {
+                openingWorkbench = true
+                scope.launch {
+                    try {
+                        translationRepository.preloadProjects()
+                    } catch (cancelled: CancellationException) {
+                        openingWorkbench = false
+                        throw cancelled
+                    } catch (_: Exception) {
+                        // Preload is a warm-up only; the destination still owns its normal Room observation.
+                    }
+                    openingWorkbench = false
+                    startActivityWithPageTransition(context, TranslationWorkbenchActivity.createIntent(context))
+                }
+            }
+        },
         ToolEntry(R.string.privacy_settings_title, R.drawable.ic_settings_privacy) {
             startActivityWithPageTransition(context, PrivacySettingsActivity.createIntent(context))
         },
@@ -96,7 +120,8 @@ fun ToolsScreen(modifier: Modifier = Modifier) {
                         title = stringResource(entry.title),
                         iconRes = entry.icon,
                         modifier = Modifier.staggeredEntrance(index),
-                        enabled = index != 0 || !launchingNative,
+                        enabled = (index != 0 || !launchingNative) &&
+                            (entry.title != R.string.translation_workbench_title || !openingWorkbench),
                         onClick = entry.onClick,
                     )
                 }

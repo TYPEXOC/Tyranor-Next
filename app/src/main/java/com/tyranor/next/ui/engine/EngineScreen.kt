@@ -118,6 +118,7 @@ import com.tyranor.next.ui.common.ByteFormats
 import com.tyranor.next.ui.common.SlidingTabRow
 import com.tyranor.next.ui.common.tabDragSelect
 import com.tyranor.next.ui.common.TabPagerState
+import com.tyranor.next.ui.common.TabPagerPageHost
 import com.tyranor.next.ui.common.rememberTabPagerState
 import com.tyranor.next.ui.common.glassNavBottomInset
 import com.tyranor.next.ui.common.coachAnchor
@@ -1052,46 +1053,10 @@ internal fun EnginePageHost(
     activePage: State<Int>,
     content: @Composable BoxScope.() -> Unit,
 ) {
-    // 隐藏分页不把内容画进显示列表（见 skipDrawWhenHidden）：只在显隐边界翻转，不读逐帧变化的 alpha
-    val shown by remember(pager, pageTab) { derivedStateOf { pageTab >= 0 && pager.pageAlpha(pageTab) > HiddenPageAlpha } }
-    val settled by remember(pager, pageTab) {
-        derivedStateOf {
-            pageTab < 0 || (kotlin.math.abs(pager.pageOffset(pageTab)) < 0.02f && pager.pageAlpha(pageTab) > 0.98f)
-        }
-    }
-    val interactive = pageTab == activePage.value && (!MotionMode.enhanced || settled)
-    Box(
-        Modifier
-            .fillMaxSize()
-            // 当前页必须在最上层：几个分页叠在同一个 Box 里，命中测试从最上层的兄弟开始，
-            // 排在后面的「非当前页」挡触摸层会把压在它下面的当前页的触摸整片吃掉（列表滑不动、卡片点不了）
-            .zIndex(if (pageTab == activePage.value) 1f else 0f)
-            // 与主界面底栏切页相同的效果：整宽水平弹簧位移 + 淡入淡出弹簧 + 景深缩放（停稳时全部恒等）。
-            // 偏移 / 透明度只读 TabPagerState 里「这一页」自己的值：选中变化时只有旧页（退场）和新页（入场）在动，
-            // 跨几个标签也不会让中间的分页闪过。不用离屏图层合成透明度：逐元素调制 alpha（modulateAlpha）
-            .tabPageTransform(
-                key = pager to pageTab,
-                offset = { if (pageTab >= 0) pager.pageOffset(pageTab) else 0f },
-                alpha = { if (pageTab >= 0) pager.pageAlpha(pageTab) else 1f },
-                modulateAlpha = true,
-            )
-            .then(
-                if (MotionMode.enhanced) Modifier.skipDrawWhenHidden { shown || pageTab == activePage.value } else Modifier,
-            )
-            .then(
-                if (!interactive) {
-                    // Draw-phase movement does not move hit targets; expose only the settled page.
-                    Modifier
-                        .clearAndSetSemantics { }
-                        .pointerInput(Unit) {
-                            awaitPointerEventScope {
-                                while (true) awaitPointerEvent(PointerEventPass.Initial).changes.forEach { it.consume() }
-                            }
-                        }
-                } else {
-                    Modifier
-                },
-            ),
+    TabPagerPageHost(
+        pageTab = pageTab,
+        pager = pager,
+        activePage = activePage.value,
         content = content,
     )
 }

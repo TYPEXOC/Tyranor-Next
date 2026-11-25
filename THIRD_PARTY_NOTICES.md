@@ -33,3 +33,31 @@ taken from the original design. The original license text is available at the pr
 The drawing in `MotionLinearProgressIndicator.kt` is adapted from
 `ProgressIndicator.kt` in [Miuix](https://github.com/compose-miuix-ui/miuix) 0.9.2.
 Copyright 2025, compose-miuix-ui contributors. License: Apache License 2.0.
+
+## SmartSub（翻译服务图标）
+
+`app/src/main/res/drawable/ic_translation_provider_{aliyun,azure,baidu,bing,deepl,deepseek,doubao,gemini,google_web,openai,tencent,volcengine,xunfei}.xml` 是 SmartSub `renderer/public/images/providers/` 中对应 SVG 图标的 Android VectorDrawable 适配；`app/src/main/res/drawable-nodpi/ic_translation_provider_niutrans.png` 与 `ic_translation_provider_youdao.png` 也取自同一目录。来源固定为 [SmartSub commit a03d73c](https://github.com/buxuku/SmartSub/tree/a03d73c79a5a21513092996a9ad715ee68e57368/renderer/public/images/providers)，许可为 [MIT License](https://github.com/buxuku/SmartSub/blob/a03d73c79a5a21513092996a9ad715ee68e57368/LICENSE)，Copyright (c) 2024 Lin Xiaodong。`ic_translation_provider_google_cloud.xml` 与 `ic_translation_provider_anthropic.xml` 根据 [simple-icons commit 32e0300](https://github.com/simple-icons/simple-icons/tree/32e030086fdc605196391aab28519b14dc4295b4/icons) 中的 `googlecloud.svg`、`anthropic.svg` 转为 Android VectorDrawable；该项目图标许可为 [CC0 1.0](https://github.com/simple-icons/simple-icons/blob/32e030086fdc605196391aab28519b14dc4295b4/LICENSE.md)。`ic_translation_provider_custom_api.xml` 是 TYN 自绘的通用代码接口图标，不代表具体服务商。机器翻译服务协议 adapter 为 Tyranor-Next 独立实现，没有复制 SmartSub 源码或依赖。
+
+```text
+MIT License
+
+Copyright (c) 2024 Lin Xiaodong
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```

@@ -8,4 +8,5 @@ internal object AppStorageNames {
     const val GAME_SCANNER_PREFS = "game_scanner"
     const val GAME_LIBRARY_DATABASE = "game_library.db"
     const val GAME_PLAYTIME_DATABASE = "game_playtime.db"
+    const val TRANSLATION_WORKBENCH_DATABASE = "translation_workbench.db"
 }

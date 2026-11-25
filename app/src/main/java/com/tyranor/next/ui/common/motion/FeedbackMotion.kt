@@ -11,6 +11,12 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
@@ -29,6 +35,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 // ---------------------------------------------------------------------------------------------
@@ -174,4 +181,29 @@ fun Modifier.shimmerSweep(
             ),
         )
     }
+}
+
+@Composable
+fun rememberMiuixCardPressFeedback(
+    trigger: Any?,
+    onFinished: (Any) -> Unit = {},
+): Boolean {
+    var holdDownState by remember { mutableStateOf(false) }
+    val currentOnFinished = rememberUpdatedState(onFinished)
+    LaunchedEffect(trigger) {
+        if (trigger == null || trigger == false) {
+            holdDownState = false
+        } else {
+            try {
+                holdDownState = true
+                delay(180)
+                holdDownState = false
+                delay(180)
+                currentOnFinished.value(trigger)
+            } finally {
+                holdDownState = false
+            }
+        }
+    }
+    return holdDownState
 }

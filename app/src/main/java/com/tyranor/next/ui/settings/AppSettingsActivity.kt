@@ -78,6 +78,7 @@ import com.tyranor.next.ui.common.motion.shakeOnTrigger
 import com.tyranor.next.ui.common.motion.staggeredEntrance
 import com.tyranor.next.ui.common.notice.AppNotice
 import com.tyranor.next.core.settings.AppSettingsStore
+import com.tyranor.next.ui.common.motion.startActivityWithPageTransition
 import com.tyranor.next.core.settings.DefaultThemeParticleStyle
 import com.tyranor.next.core.settings.HomeWebUrls
 import com.tyranor.next.theme.PageTextColor

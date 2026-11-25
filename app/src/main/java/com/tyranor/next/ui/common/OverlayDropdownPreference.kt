@@ -40,6 +40,10 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.tyranor.next.theme.DialogItemSurface
+import com.tyranor.next.theme.LocalAppDialogContent
+import com.tyranor.next.theme.SecondaryTextColor
+import com.tyranor.next.theme.TextColor
 import com.tyranor.next.ui.common.motion.BlurTextWith
 import com.tyranor.next.ui.common.motion.withRowPressSquish
 import top.yukonga.miuix.kmp.basic.BasicComponent
@@ -172,8 +176,36 @@ fun OverlayDropdownPreference(
     val haptic = LocalHapticFeedback.current
     val currentHaptic by rememberUpdatedState(haptic)
     val longPressMillis = LocalViewConfiguration.current.longPressTimeoutMillis
-    val actionColor = if (actualEnabled) MiuixTheme.colorScheme.onSurfaceVariantActions
-        else MiuixTheme.colorScheme.disabledOnSecondaryVariant
+    val inDialog = LocalAppDialogContent.current
+    val actualTitleColor = if (inDialog) {
+        BasicComponentColors(color = TextColor, disabledColor = SecondaryTextColor)
+    } else {
+        titleColor
+    }
+    val actualSummaryColor = if (inDialog) {
+        BasicComponentColors(color = SecondaryTextColor, disabledColor = SecondaryTextColor)
+    } else {
+        summaryColor
+    }
+    val actualDropdownColors = if (inDialog) {
+        dropdownColors.copy(
+            containerColor = DialogItemSurface,
+            contentColor = TextColor,
+            summaryColor = SecondaryTextColor,
+            selectedContentColor = MiuixTheme.colorScheme.primary,
+            selectedSummaryColor = SecondaryTextColor,
+            selectedContainerColor = DialogItemSurface,
+            selectedIndicatorColor = MiuixTheme.colorScheme.primary,
+        )
+    } else {
+        dropdownColors
+    }
+    val actionColor = when {
+        !actualEnabled && inDialog -> SecondaryTextColor.copy(alpha = 0.55f)
+        !actualEnabled -> MiuixTheme.colorScheme.disabledOnSecondaryVariant
+        inDialog -> TextColor
+        else -> MiuixTheme.colorScheme.onSurfaceVariantActions
+    }
 
     // Preview is the only haptic event. Opening, clicking, committing and closing are silent.
     val hit: (Offset) -> Int = { position ->
@@ -232,9 +264,9 @@ fun OverlayDropdownPreference(
         interactionSource = interactionSource,
         insideMargin = insideMargin,
         title = title,
-        titleColor = titleColor,
+        titleColor = actualTitleColor,
         summary = summary,
-        summaryColor = summaryColor,
+        summaryColor = actualSummaryColor,
         startAction = startAction,
         bottomAction = bottomAction,
         onClick = { if (currentEnabled) setExpanded(!expanded.value) },
@@ -269,7 +301,7 @@ fun OverlayDropdownPreference(
                     onDismiss = { slide.resetGesture(); setExpanded(false) },
                     onDismissFinished = { holdDown.value = false; slide.reset() },
                     maxHeight = maxHeight,
-                    dropdownColors = dropdownColors,
+                    dropdownColors = actualDropdownColors,
                     renderInRootScaffold = renderInRootScaffold,
                     onLockDismiss = onLockDismiss,
                 )
@@ -345,7 +377,11 @@ private fun HoldSelectDropdownPopup(
         ListPopupColumn {
             entry.items.forEachIndexed { index, item ->
                 val coordinates = remember { arrayOfNulls<LayoutCoordinates>(1) }
-                val textColor = if (index == highlighted) MiuixTheme.colorScheme.primary else dropdownColors.contentColor
+                val textColor = if (index == highlighted) {
+                    dropdownColors.selectedContentColor
+                } else {
+                    dropdownColors.contentColor
+                }
                 Box(
                     Modifier.fillMaxWidth()
                         .onGloballyPositioned {

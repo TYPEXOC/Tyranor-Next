@@ -86,6 +86,7 @@ internal fun AppBottomSheet(
     onDismissRequest: () -> Unit,
     confirmValueChange: (SheetValue) -> Boolean = { true },
     controller: MotionSheetController = rememberMotionSheetController(),
+    expandToAvailableHeight: Boolean = false,
     /**
      * 应用锁生效时的强制清理路径；默认走 [onDismissRequest]。
      * 调用方若在 onDismissRequest 里有「运行中只能重建」之类的守卫，必须传入真正清状态的路径，
@@ -130,10 +131,14 @@ internal fun AppBottomSheet(
         controller.BindWindowScrim(SheetScrimColor)
         // 常规窗口保留页面露出；短窗优先给内容留空间，但上限始终不超过可用视口。
         val configuration = LocalConfiguration.current
-        val sheetMaxHeight = appBottomSheetMaxHeight(
-            screenHeightDp = configuration.screenHeightDp,
-            isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE,
-        )
+        val sheetMaxHeight = if (expandToAvailableHeight) {
+            (configuration.screenHeightDp.dp - 16.dp).coerceAtLeast(0.dp)
+        } else {
+            appBottomSheetMaxHeight(
+                screenHeightDp = configuration.screenHeightDp,
+                isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE,
+            )
+        }
         MotionSheetEffects(controller, onDismissRequest)
         // Material3 只在没有动画持有拖动锁时才把面板吸到新的展开位：内容在展开途中变高 / 变矮（例如游戏抽屉里
         // 异步多出「确认已退出外部游戏」一行）、旋转改变窗口高度或关闭中途接回时，面板可能停在旧展开位，

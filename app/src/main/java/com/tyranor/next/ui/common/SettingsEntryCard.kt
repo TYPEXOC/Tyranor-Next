@@ -38,7 +38,7 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 @Composable
 internal fun SettingsEntryCard(
     title: String,
-    @DrawableRes iconRes: Int,
+    @DrawableRes iconRes: Int? = null,
     modifier: Modifier = Modifier,
     showBadge: Boolean = false,
     /** 该入口对应的操作正在进行（如检查更新）：图标呼吸并在开始 / 结束时弹一下。 */
@@ -53,7 +53,9 @@ internal fun SettingsEntryCard(
         Column(Modifier.padding(vertical = 4.dp)) {
             ArrowPreference(
                 title = title,
-                startAction = { SettingsItemIcon(iconRes, showBadge = showBadge, busy = busy) },
+                startAction = iconRes?.let { resource ->
+                    { SettingsItemIcon(resource, showBadge = showBadge, busy = busy) }
+                },
                 enabled = enabled,
                 onClick = if (enabled) onClick else null,
             )
