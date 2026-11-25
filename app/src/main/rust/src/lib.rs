@@ -118,10 +118,10 @@ fn decode_archive(file_name: &str, input: &[u8]) -> Result<Vec<u8>, &'static [u8
         return Err(ERROR_UNSUPPORTED);
     }
 
+    let entry_count = bounded_archive_entry_count(extension, input)?;
     let mut archive = decrypt_from_reader(Cursor::new(input)).map_err(|_| ERROR_CORRUPT)?;
-    let entry_count = archive.entry_count();
-    if entry_count > MAX_ARCHIVE_ENTRIES {
-        return Err(ERROR_TOO_LARGE);
+    if archive.entry_count() != entry_count {
+        return Err(ERROR_CORRUPT);
     }
 
     let mut resources = Vec::new();
@@ -156,6 +156,129 @@ fn decode_archive(file_name: &str, input: &[u8]) -> Result<Vec<u8>, &'static [u8
     }
 
     serde_json::to_vec(&json!({ "resources": resources })).map_err(|_| ERROR_CORRUPT)
+}
+
+/// Count archive entries before `rpgmad-lib` builds its entry table. That crate's own cap is
+/// intentionally much higher than the limit this bridge can safely process in one request.
+fn bounded_archive_entry_count(extension: &str, input: &[u8]) -> Result<usize, &'static [u8]> {
+    const HEADER_SIZE: usize = 8;
+    const VXACE_HEADER_SIZE: usize = 12;
+
+    if input.len() < HEADER_SIZE || &input[..7] != b"RGSSAD\0" {
+        return Err(ERROR_CORRUPT);
+    }
+    let expected_version = if extension.eq_ignore_ascii_case("rgss3a") {
+        3
+    } else {
+        1
+    };
+    if input[7] != expected_version {
+        return Err(ERROR_CORRUPT);
+    }
+
+    match extension.to_ascii_lowercase().as_str() {
+        "rgssad" | "rgss2a" => {
+            let mut position = HEADER_SIZE;
+            let mut key = 0xDEAD_CAFEu32;
+            let mut count = 0usize;
+            while position < input.len() {
+                let encrypted_path_size = read_archive_u32(input, position)?;
+                let path_size = u64::from(encrypted_path_size ^ key);
+                key = step_older_key(key);
+                position = position.checked_add(4).ok_or(ERROR_CORRUPT)?;
+                let path_size = usize::try_from(path_size).map_err(|_| ERROR_CORRUPT)?;
+                let path_end = position.checked_add(path_size).ok_or(ERROR_CORRUPT)?;
+                if path_end > input.len() {
+                    return Err(ERROR_CORRUPT);
+                }
+                key = advance_older_key(key, path_size as u64);
+
+                let encrypted_data_size = read_archive_u32(input, path_end)?;
+                let data_size = u64::from(encrypted_data_size ^ key);
+                key = step_older_key(key);
+                let data_start = path_end.checked_add(4).ok_or(ERROR_CORRUPT)?;
+                let data_size = usize::try_from(data_size).map_err(|_| ERROR_CORRUPT)?;
+                let data_end = data_start.checked_add(data_size).ok_or(ERROR_CORRUPT)?;
+                if data_end > input.len() {
+                    return Err(ERROR_CORRUPT);
+                }
+
+                count += 1;
+                if count > MAX_ARCHIVE_ENTRIES {
+                    return Err(ERROR_TOO_LARGE);
+                }
+                position = data_end;
+            }
+            Ok(count)
+        }
+        "rgss3a" => {
+            if input.len() < VXACE_HEADER_SIZE {
+                return Err(ERROR_CORRUPT);
+            }
+            let seed = read_archive_u32(input, 8)?;
+            let key = seed.wrapping_mul(9).wrapping_add(3);
+            let mut position = VXACE_HEADER_SIZE;
+            let mut count = 0usize;
+            loop {
+                let encrypted_offset = read_archive_u32(input, position)?;
+                if encrypted_offset ^ key == 0 {
+                    return Ok(count);
+                }
+                let header_end = position.checked_add(16).ok_or(ERROR_CORRUPT)?;
+                if header_end > input.len() {
+                    return Err(ERROR_CORRUPT);
+                }
+                let path_size = usize::try_from(read_archive_u32(input, position + 12)? ^ key)
+                    .map_err(|_| ERROR_CORRUPT)?;
+                let next_position = header_end.checked_add(path_size).ok_or(ERROR_CORRUPT)?;
+                if next_position > input.len() {
+                    return Err(ERROR_CORRUPT);
+                }
+                count += 1;
+                if count > MAX_ARCHIVE_ENTRIES {
+                    return Err(ERROR_TOO_LARGE);
+                }
+                position = next_position;
+            }
+        }
+        _ => Err(ERROR_UNSUPPORTED),
+    }
+}
+
+fn read_archive_u32(input: &[u8], position: usize) -> Result<u32, &'static [u8]> {
+    let end = position.checked_add(4).ok_or(ERROR_CORRUPT)?;
+    let bytes: [u8; 4] = input
+        .get(position..end)
+        .ok_or(ERROR_CORRUPT)?
+        .try_into()
+        .map_err(|_| ERROR_CORRUPT)?;
+    Ok(u32::from_le_bytes(bytes))
+}
+
+fn step_older_key(key: u32) -> u32 {
+    key.wrapping_mul(7).wrapping_add(3)
+}
+
+/// Applies `key = key * 7 + 3` `count` times in logarithmic time.
+fn advance_older_key(key: u32, mut count: u64) -> u32 {
+    let (mut power_multiplier, mut power_addend) = (7u32, 3u32);
+    let (mut result_multiplier, mut result_addend) = (1u32, 0u32);
+    while count != 0 {
+        if count & 1 != 0 {
+            result_addend = power_multiplier
+                .wrapping_mul(result_addend)
+                .wrapping_add(power_addend);
+            result_multiplier = power_multiplier.wrapping_mul(result_multiplier);
+        }
+        power_addend = power_multiplier
+            .wrapping_mul(power_addend)
+            .wrapping_add(power_addend);
+        power_multiplier = power_multiplier.wrapping_mul(power_multiplier);
+        count >>= 1;
+    }
+    result_multiplier
+        .wrapping_mul(key)
+        .wrapping_add(result_addend)
 }
 
 fn decode_archive_path(raw_path: &[u8]) -> Option<String> {
