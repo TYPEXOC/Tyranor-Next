@@ -12,9 +12,10 @@ internal class SafReadOnlyGameSource(
     context: Context,
     treeUri: String,
 ) : ReadOnlyGameSource {
-    private val resolver = context.applicationContext.contentResolver
+    private val appContext = context.applicationContext
+    private val resolver = appContext.contentResolver
     private val tree = Uri.parse(treeUri)
-    private val root = DocumentFile.fromTreeUri(context.applicationContext, tree)
+    private val root = DocumentFile.fromTreeUri(appContext, tree)
 
     override suspend fun list(relativePath: String): List<GameDocumentInfo> {
         return try {
