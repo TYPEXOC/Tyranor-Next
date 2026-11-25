@@ -316,9 +316,10 @@ class TranslationWorkbenchRepository(context: Context) {
     }
 
     /** Creates one project for the selected SAF tree; an existing tree returns its existing project id. */
-    suspend fun createGameDirectoryProject(treeUri: Uri, engineId: String): ProjectCreation {
+    suspend fun createGameDirectoryProject(treeUri: Uri, engineId: String): ProjectCreation = treePermissionMutex.withLock {
         val normalized = treeUri.normalizeScheme()
         try {
+            retainTreeReadPermission(normalized)
             val extractor = TextExtractorRegistry.find(engineId)
                 ?: throw TranslationWorkbenchException(TranslationWorkbenchError.UNSUPPORTED_ENGINE)
             val sourceIdentity = directoryIdentity(normalized)
@@ -349,7 +350,10 @@ class TranslationWorkbenchRepository(context: Context) {
             } else {
                 project
             }
-            return ProjectCreation(actual.id, created = inserted != -1L)
+            if (inserted == -1L && actual.sourceTreeUri != normalized.toString()) {
+                releaseTreePermissionIfUnused(normalized.toString())
+            }
+            ProjectCreation(actual.id, created = inserted != -1L)
         } catch (failure: Throwable) {
             releaseTreePermissionIfUnused(normalized.toString())
             throw failure
@@ -457,15 +461,17 @@ class TranslationWorkbenchRepository(context: Context) {
         }
 
     suspend fun deleteProject(projectId: String) {
-        val project = dao.getProject(projectId)
-            ?: throw TranslationWorkbenchException(TranslationWorkbenchError.PROJECT_NOT_FOUND)
-        val cancelledTasks = dao.cancelProjectTasks(projectId, System.currentTimeMillis())
-        if (cancelledTasks > 0) cancelQueueWorkerAndRestart(enqueueAfterCancel = false)
-        if (dao.deleteProject(projectId) == 0) {
-            throw TranslationWorkbenchException(TranslationWorkbenchError.PROJECT_NOT_FOUND)
-        }
-        if (project.sourceType == TranslationProjectSource.GAME_DIRECTORY.name) {
-            releaseTreePermissionIfUnused(project.sourceTreeUri)
+        treePermissionMutex.withLock {
+            val project = dao.getProject(projectId)
+                ?: throw TranslationWorkbenchException(TranslationWorkbenchError.PROJECT_NOT_FOUND)
+            val cancelledTasks = dao.cancelProjectTasks(projectId, System.currentTimeMillis())
+            if (cancelledTasks > 0) cancelQueueWorkerAndRestart(enqueueAfterCancel = false)
+            if (dao.deleteProject(projectId) == 0) {
+                throw TranslationWorkbenchException(TranslationWorkbenchError.PROJECT_NOT_FOUND)
+            }
+            if (project.sourceType == TranslationProjectSource.GAME_DIRECTORY.name) {
+                releaseTreePermissionIfUnused(project.sourceTreeUri)
+            }
         }
         try {
             serviceRepository.cleanupUnusedSecrets()
@@ -477,9 +483,10 @@ class TranslationWorkbenchRepository(context: Context) {
         ensureExtractionQueue()
     }
 
-    suspend fun relinkGameDirectory(projectId: String, treeUri: Uri) {
+    suspend fun relinkGameDirectory(projectId: String, treeUri: Uri) = treePermissionMutex.withLock {
         val uri = treeUri.normalizeScheme()
         try {
+            retainTreeReadPermission(uri)
             val project = dao.getProject(projectId)
                 ?: throw TranslationWorkbenchException(TranslationWorkbenchError.PROJECT_NOT_FOUND)
             if (project.sourceType != TranslationProjectSource.GAME_DIRECTORY.name) {
@@ -495,6 +502,17 @@ class TranslationWorkbenchRepository(context: Context) {
         } catch (failure: Throwable) {
             releaseTreePermissionIfUnused(uri.toString())
             throw failure
+        }
+    }
+
+    private fun retainTreeReadPermission(treeUri: Uri) {
+        try {
+            appContext.contentResolver.takePersistableUriPermission(
+                treeUri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION,
+            )
+        } catch (failure: SecurityException) {
+            throw TranslationWorkbenchException(TranslationWorkbenchError.DIRECTORY_PERMISSION_LOST, failure)
         }
     }
 
@@ -805,6 +823,7 @@ class TranslationWorkbenchRepository(context: Context) {
     companion object {
         private val projectCardsSnapshot = kotlinx.coroutines.flow.MutableStateFlow<List<TranslationProjectCard>?>(null)
         private val projectPreloadMutex = Mutex()
+        private val treePermissionMutex = Mutex()
         private const val MAX_LANGUAGE_LENGTH = 64
         private const val MAX_GLOSSARY_TERMS = 100
         private const val MAX_GLOSSARY_NAME_LENGTH = 80
