@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -96,6 +97,8 @@ fun AppNavItem(
     /** 摘要的显式颜色（如需要在保留原布局的位置显示错误状态）。 */
     summaryColor: Color? = null,
     onClick: (() -> Unit)? = null,
+    titleTextStyle: TextStyle? = null,
+    summaryTextStyle: TextStyle? = null,
 ) {
     val enabled = onClick != null
     val targetContentAlpha = if (enabled) 1f else 0.4f
@@ -150,7 +153,7 @@ fun AppNavItem(
         ) {
             Text(
                 title,
-                style = MaterialTheme.typography.bodyMedium,
+                style = titleTextStyle ?: MaterialTheme.typography.bodyMedium,
                 color = (titleColor ?: TextColor).copy(alpha = contentAlpha),
                 maxLines = titleMaxLines,
                 overflow = TextOverflow.Ellipsis,
@@ -160,7 +163,7 @@ fun AppNavItem(
                 BlurCrossfade(targetState = shownSummary.orEmpty(), label = "navItemSummaryText") { text ->
                     Text(
                         text,
-                        style = MaterialTheme.typography.bodySmall,
+                        style = summaryTextStyle ?: MaterialTheme.typography.bodySmall,
                         color = summaryColor?.copy(alpha = summaryColor.alpha * contentAlpha)
                             ?: TextColor.copy(alpha = 0.55f * contentAlpha),
                         maxLines = summaryMaxLines,

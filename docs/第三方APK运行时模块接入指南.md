@@ -466,14 +466,14 @@ Intent("com.tyranor.runtime.action.LAUNCH").apply {
 
 - `version` 必须为整数 1；最多 32 项，key 为 `[A-Za-z][A-Za-z0-9_]{0,63}`，同名采用第一个合法项。
 - 顶层 `items` 可混合设置项与 `type: "card"` 容器；卡片使用 `key`、`title`、可选 `description` 和子 `items`。卡片不嵌套，最多 16 张；设置项总数（含卡片内子项）最多 32。旧版平铺 `items` 仍可用。
-- 每个设置项必需 `title`（1–128）和合法的 `default`，可选 `description`（最多 512）。未知类型或非法默认值丢弃该项。
+- 每个设置项必需 `title`（1–128）和合法的 `default`，可选 `description`（最多 512）。TYN 自动统一设置项与卡片标题（15sp）、说明与值（14sp）的排版，模块声明不包含字体或字号字段。
 - 布尔必须是 JSON 布尔，`default: false` 表示开关默认关闭；枚举最多 32 个选项，value 长度 1–64 且唯一，default 须在选项中。
 - 整数须声明 Int 范围内的 min/max/default；不接受字符串或小数作整数。
 - `slider` 的 min/max/default 是有限数字，min 必须小于 max；可选 step 必须大于 0，且能整除范围，default 也须落在 step 上。配置值仍以 JSON 数字传递。
 - `file` / `folder` 的 default 是空字符串或绝对文件路径；选择器只接受 TYN 能映射为本地路径的 SAF 文件/目录，最大路径长度默认 1024，可用 `maxLength` 调整到 1–4096。主 App 不传 SAF URI 授权，模块仍须自行具备访问该路径的存储权限；不能映射为本地路径的云盘等 provider 不可用。
 - 文本为单行合法 Unicode，maxLength 为 1–1024，缺省 256；保留首尾空格，拒绝 C0/C1、U+2028/U+2029 和孤立代理项。长度以 UTF-16 code unit 计算。
 - 配置 JSON 上限 48 KiB；解析时按各项允许值的序列化上界累计预算，超限关闭设置能力，不影响合法 scan/saves。描述文件整体仍受 64 KiB 限制。
-- 设置文案直接使用模块声明字符串，主 App 的固定操作文案提供三语言。
+- 设置文案直接使用模块声明字符串，主 App 的固定操作文案提供三语言。字体排版由 TYN 负责，不进入模块协议或启动载荷。
 
 收到的 extra 是完整生效配置，保持原始 JSON 值类型，例如：
 

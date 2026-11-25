@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -38,6 +40,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.state.ToggleableState
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import com.tyranor.next.ui.common.motion.MotionMode
 import com.tyranor.next.ui.common.motion.MotionSprings
@@ -97,7 +100,52 @@ fun SwitchPreference(
     insideMargin: PaddingValues = BasicComponentDefaults.InsideMargin,
     holdDownState: Boolean = false,
     enabled: Boolean = true,
+    titleTextStyle: TextStyle? = null,
 ) {
+    if (titleTextStyle != null) {
+        val currentOnCheckedChange by rememberUpdatedState(onCheckedChange)
+        BasicComponent(
+            modifier = modifier.withRowPressSquish(enabled = enabled),
+            insideMargin = insideMargin,
+            titleColor = titleColor,
+            summaryColor = summaryColor,
+            startAction = startAction,
+            endActions = {
+                Row(
+                    modifier = Modifier
+                        .padding(end = 8.dp)
+                        .align(Alignment.CenterVertically)
+                        .weight(1f, fill = false),
+                ) {
+                    endActions()
+                }
+                Switch(
+                    checked = checked,
+                    onCheckedChange = currentOnCheckedChange,
+                    enabled = enabled,
+                )
+            },
+            bottomAction = bottomAction,
+            onClick = { currentOnCheckedChange.takeIf { enabled }?.invoke(!checked) },
+            role = Role.Switch,
+            holdDownState = holdDownState,
+            enabled = enabled,
+        ) {
+            Text(
+                text = title,
+                style = titleTextStyle,
+                color = if (enabled) titleColor.color else titleColor.disabledColor,
+            )
+            summary?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (enabled) summaryColor.color else summaryColor.disabledColor,
+                )
+            }
+        }
+        return
+    }
     if (!MotionMode.enhanced) {
         MiuixSwitchPreference(
             checked = checked,

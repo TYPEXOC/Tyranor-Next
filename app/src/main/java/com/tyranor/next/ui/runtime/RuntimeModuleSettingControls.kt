@@ -110,6 +110,8 @@ private fun RuntimeSettingContent(
     onEdit: () -> Unit,
     onPickPath: () -> Unit,
 ) {
+    val titleTextStyle = MaterialTheme.typography.titleMedium
+    val valueTextStyle = MaterialTheme.typography.bodyMedium
     Column(Modifier.fillMaxWidth()) {
         when (item.type) {
             RuntimeModuleSettingItemSpec.Type.BOOLEAN -> SwitchPreference(
@@ -118,6 +120,7 @@ private fun RuntimeSettingContent(
                 title = item.title,
                 summary = item.description,
                 enabled = enabled,
+                titleTextStyle = titleTextStyle,
             )
 
             RuntimeModuleSettingItemSpec.Type.ENUM -> {
@@ -128,6 +131,8 @@ private fun RuntimeSettingContent(
                     title = item.title,
                     summary = item.description,
                     enabled = enabled,
+                    titleTextStyle = titleTextStyle,
+                    valueTextStyle = valueTextStyle,
                     onSelectedIndexChange = { index -> item.options.getOrNull(index)?.let { onChange(it.value) } },
                 )
             }
@@ -135,7 +140,9 @@ private fun RuntimeSettingContent(
             RuntimeModuleSettingItemSpec.Type.TEXT,
             RuntimeModuleSettingItemSpec.Type.INTEGER -> com.tyranor.next.ui.common.AppNavItem(
                 title = item.title,
+                titleTextStyle = titleTextStyle,
                 summary = value.toString(),
+                summaryTextStyle = valueTextStyle,
                 drawSurface = false,
                 showLeadingIcon = false,
                 showArrow = enabled,
@@ -158,7 +165,9 @@ private fun RuntimeSettingContent(
                 }
                 com.tyranor.next.ui.common.AppNavItem(
                     title = item.title,
+                    titleTextStyle = titleTextStyle,
                     summary = summary,
+                    summaryTextStyle = valueTextStyle,
                     drawSurface = false,
                     showLeadingIcon = false,
                     showArrow = enabled,
@@ -174,7 +183,12 @@ private fun RuntimeSettingContent(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(item.title, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge, color = TextColor)
+                    Text(
+                        item.title,
+                        modifier = Modifier.weight(1f),
+                        style = titleTextStyle,
+                        color = TextColor,
+                    )
                     Text(formatSliderValue(current), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 MotionSlider(
