@@ -93,6 +93,9 @@ internal abstract class TranslationWorkbenchDao {
     @Query("SELECT * FROM translation_entries WHERE project_id = :projectId AND source_key IN (:sourceKeys)")
     abstract suspend fun getEntriesByKeys(projectId: String, sourceKeys: List<String>): List<TranslationEntryEntity>
 
+    @Query("SELECT * FROM translation_entries WHERE project_id = :projectId AND id IN (:entryIds)")
+    abstract suspend fun getEntriesByIds(projectId: String, entryIds: List<String>): List<TranslationEntryEntity>
+
     @Upsert
     abstract suspend fun upsertEntries(entries: List<TranslationEntryEntity>)
 
@@ -354,6 +357,16 @@ internal abstract class TranslationWorkbenchDao {
     ): Boolean {
         val task = getTask(taskId) ?: return false
         if (task.state != "RUNNING") return false
+        val previousTranslations = if (entries.isEmpty()) {
+            emptyMap()
+        } else {
+            getEntriesByIds(task.projectId, entries.map(TranslationEntryEntity::id))
+                .associateBy(TranslationEntryEntity::id)
+        }
+        val translatedTextChanged = entries.any { entry ->
+            entry.status == "TRANSLATED" && entry.translatedText != null &&
+                previousTranslations[entry.id]?.translatedText != entry.translatedText
+        }
         if (entries.isNotEmpty()) upsertEntries(entries)
         if (updateTranslationCheckpoint(
                 taskId = taskId,
@@ -365,7 +378,13 @@ internal abstract class TranslationWorkbenchDao {
             ) != 1
         ) return false
         val project = getProject(task.projectId) ?: return false
-        upsertProject(project.copy(revision = project.revision + 1, updatedAt = updatedAt))
+        upsertProject(
+            project.copy(
+                reviewCompletedAt = if (translatedTextChanged) null else project.reviewCompletedAt,
+                revision = project.revision + 1,
+                updatedAt = updatedAt,
+            ),
+        )
         return true
     }
 
@@ -609,6 +628,7 @@ internal abstract class TranslationWorkbenchDao {
         if (task.state != "RUNNING") return false
         val keys = entries.map { it.sourceKey }
         val existing = if (keys.isEmpty()) emptyMap() else getEntriesByKeys(projectId, keys).associateBy { it.sourceKey }
+        val sourceChanged = entries.any { fresh -> existing[fresh.sourceKey]?.sourceText != fresh.sourceText }
         val merged = entries.map { fresh ->
             val previous = existing[fresh.sourceKey]
             when {
@@ -625,7 +645,13 @@ internal abstract class TranslationWorkbenchDao {
         val newEntries = merged.count { fresh -> existing[fresh.sourceKey] == null }
         if (updateTaskCheckpoint(taskId, checkpointJson, completedFiles, newEntries, updatedAt) != 1) return false
         val project = getProject(projectId) ?: return false
-        upsertProject(project.copy(revision = project.revision + 1, updatedAt = updatedAt))
+        upsertProject(
+            project.copy(
+                reviewCompletedAt = if (sourceChanged) null else project.reviewCompletedAt,
+                revision = project.revision + 1,
+                updatedAt = updatedAt,
+            ),
+        )
         return true
     }
 }
