@@ -465,7 +465,18 @@ Intent("com.tyranor.runtime.action.LAUNCH").apply {
 收到的 extra 是完整生效配置，保持原始 JSON 值类型，例如：
 
 ```json
-{ "version": 1, "values": { "vsync": false, "renderer": "auto", "player_name": "", "fps_limit": 90 } }
+{
+  "version": 1,
+  "values": {
+    "vsync": false,
+    "render_scale": 1.0,
+    "renderer": "auto",
+    "config_file": "",
+    "data_folder": "",
+    "player_name": "",
+    "fps_limit": 90
+  }
+}
 ```
 
 卡片标题和说明只用于 TYN 设置页，不会出现在启动载荷中；卡片内的字段仍按 key 平铺。`file` / `folder` 的值是绝对路径字符串，`slider` 的值是数字。
