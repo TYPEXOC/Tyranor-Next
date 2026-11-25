@@ -1751,6 +1751,7 @@
     <string name="translation_review_issue_text_preservation">Protected text not preserved</string>
     <string name="translation_review_issue_punctuation">Punctuation structure mismatch</string>
     <string name="translation_error_invalid_review_entry">The review entry changed. Refresh and try again.</string>
+    <string name="translation_error_review_translations_missing">Some entries are still untranslated. Translate them before completing review.</string>
     <string name="translation_services_task_settings">Task settings</string>
     <string name="translation_services_machine_task_limits">Machine translation request settings</string>
     <string name="translation_services_batch_size">Batch size</string>

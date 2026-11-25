@@ -1751,6 +1751,7 @@
     <string name="translation_review_issue_text_preservation">文本保护未落实</string>
     <string name="translation_review_issue_punctuation">标点结构不一致</string>
     <string name="translation_error_invalid_review_entry">校对条目已变化，刷新后再试。</string>
+    <string name="translation_error_review_translations_missing">还有未翻译条目，请先补齐译文再完成校对。</string>
     <string name="translation_services_task_settings">任务设置</string>
     <string name="translation_services_machine_task_limits">机器翻译请求设置</string>
     <string name="translation_services_batch_size">批量翻译数量</string>

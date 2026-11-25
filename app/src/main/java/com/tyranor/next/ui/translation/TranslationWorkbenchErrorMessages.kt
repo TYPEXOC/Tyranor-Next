@@ -31,6 +31,7 @@ internal fun TranslationWorkbenchError.messageResource(): Int = when (this) {
     TranslationWorkbenchError.PROJECT_CONFIGURATION_CHANGED -> R.string.translation_error_project_configuration_changed
     TranslationWorkbenchError.MTOOL_SOURCE_CONFLICT -> R.string.translation_error_mtool_source_conflict
     TranslationWorkbenchError.INVALID_REVIEW_ENTRY -> R.string.translation_error_invalid_review_entry
+    TranslationWorkbenchError.REVIEW_TRANSLATIONS_MISSING -> R.string.translation_error_review_translations_missing
     TranslationWorkbenchError.EXPORT_FAILED -> R.string.translation_error_export_failed
     TranslationWorkbenchError.STORAGE_FAILURE -> R.string.translation_error_storage_failure
 }

@@ -187,6 +187,9 @@ class TranslationWorkbenchRepository(context: Context) {
     suspend fun completeReviewRound(projectId: String) {
         if (!dao.completeReviewRound(projectId, System.currentTimeMillis())) {
             if (dao.getActiveTask(projectId) != null) throw TranslationWorkbenchException(TranslationWorkbenchError.TASK_ALREADY_ACTIVE)
+            if (dao.getProject(projectId) != null && dao.hasUntranslatedEntries(projectId)) {
+                throw TranslationWorkbenchException(TranslationWorkbenchError.REVIEW_TRANSLATIONS_MISSING)
+            }
             throw TranslationWorkbenchException(TranslationWorkbenchError.PROJECT_NOT_FOUND)
         }
     }

@@ -403,6 +403,12 @@ internal abstract class TranslationWorkbenchDao {
     abstract suspend fun getTranslatedText(projectId: String, entryId: String): String?
 
     @Query(
+        "SELECT EXISTS(SELECT 1 FROM translation_entries WHERE project_id = :projectId " +
+            "AND (translated_text IS NULL OR LENGTH(TRIM(translated_text)) = 0))",
+    )
+    abstract suspend fun hasUntranslatedEntries(projectId: String): Boolean
+
+    @Query(
         "DELETE FROM translation_review_issues WHERE project_id = :projectId AND entry_id = :entryId " +
             "AND source = 'RULE' AND state IN ('RESOLVED', 'IGNORED')",
     )
@@ -507,6 +513,7 @@ internal abstract class TranslationWorkbenchDao {
     @Transaction
     open suspend fun completeReviewRound(projectId: String, completedAt: Long): Boolean {
         if (getProject(projectId) == null || getActiveTask(projectId) != null) return false
+        if (hasUntranslatedEntries(projectId)) return false
         ignoreOpenRuleWarnings(projectId, completedAt)
         return setReviewCompleted(projectId, completedAt) == 1
     }

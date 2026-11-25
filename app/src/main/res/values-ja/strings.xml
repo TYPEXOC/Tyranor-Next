@@ -1751,6 +1751,7 @@
     <string name="translation_review_issue_text_preservation">保護テキストが保持されていません</string>
     <string name="translation_review_issue_punctuation">句読点の構造が一致しません</string>
     <string name="translation_error_invalid_review_entry">校正項目が変更されました。更新してから再試行してください。</string>
+    <string name="translation_error_review_translations_missing">未翻訳の項目があります。翻訳してから校正を完了してください。</string>
     <string name="translation_services_task_settings">タスク設定</string>
     <string name="translation_services_machine_task_limits">機械翻訳リクエスト設定</string>
     <string name="translation_services_batch_size">一括翻訳数</string>
