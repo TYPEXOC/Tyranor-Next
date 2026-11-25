@@ -19,11 +19,9 @@ import com.tyranor.next.core.engine.runtime.RuntimeModuleSettingsEntry
 import com.tyranor.next.theme.AppComponentCornerRadius
 import com.tyranor.next.theme.TextColor
 import com.tyranor.next.theme.glassBorder
-import com.tyranor.next.ui.common.NoRippleTextButton
 import com.tyranor.next.ui.common.OverlayDropdownPreference
 import com.tyranor.next.ui.common.Slider as MotionSlider
 import com.tyranor.next.ui.common.SwitchPreference
-import org.json.JSONObject
 import top.yukonga.miuix.kmp.basic.Card as MiuixCard
 import java.math.BigDecimal
 import kotlin.math.round
@@ -33,12 +31,10 @@ internal fun RuntimeSettingsEntryCard(
     modifier: Modifier = Modifier,
     entry: RuntimeModuleSettingsEntry,
     effectiveValues: Map<String, Any>,
-    overrides: JSONObject,
     enabled: Boolean,
     onChange: (RuntimeModuleSettingItemSpec, Any) -> Unit,
     onEdit: (RuntimeModuleSettingItemSpec) -> Unit,
     onPickPath: (RuntimeModuleSettingItemSpec) -> Unit,
-    onRestore: (RuntimeModuleSettingItemSpec) -> Unit,
 ) {
     when (entry) {
         is RuntimeModuleSettingsEntry.Item -> MiuixCard(
@@ -49,12 +45,10 @@ internal fun RuntimeSettingsEntryCard(
                 RuntimeSettingContent(
                     item = entry.spec,
                     value = effectiveValues[entry.spec.key] ?: entry.spec.defaultValue,
-                    overridden = overrides.has(entry.spec.key),
                     enabled = enabled,
                     onChange = { onChange(entry.spec, it) },
                     onEdit = { onEdit(entry.spec) },
                     onPickPath = { onPickPath(entry.spec) },
-                    onRestore = { onRestore(entry.spec) },
                 )
             }
         }
@@ -63,12 +57,10 @@ internal fun RuntimeSettingsEntryCard(
             spec = entry.spec,
             modifier = modifier,
             effectiveValues = effectiveValues,
-            overrides = overrides,
             enabled = enabled,
             onChange = onChange,
             onEdit = onEdit,
             onPickPath = onPickPath,
-            onRestore = onRestore,
         )
     }
 }
@@ -78,12 +70,10 @@ private fun RuntimeSettingsGroupCard(
     spec: RuntimeModuleSettingCardSpec,
     modifier: Modifier,
     effectiveValues: Map<String, Any>,
-    overrides: JSONObject,
     enabled: Boolean,
     onChange: (RuntimeModuleSettingItemSpec, Any) -> Unit,
     onEdit: (RuntimeModuleSettingItemSpec) -> Unit,
     onPickPath: (RuntimeModuleSettingItemSpec) -> Unit,
-    onRestore: (RuntimeModuleSettingItemSpec) -> Unit,
 ) {
     MiuixCard(
         cornerRadius = AppComponentCornerRadius,
@@ -101,12 +91,10 @@ private fun RuntimeSettingsGroupCard(
                 RuntimeSettingContent(
                     item = item,
                     value = effectiveValues[item.key] ?: item.defaultValue,
-                    overridden = overrides.has(item.key),
                     enabled = enabled,
                     onChange = { onChange(item, it) },
                     onEdit = { onEdit(item) },
                     onPickPath = { onPickPath(item) },
-                    onRestore = { onRestore(item) },
                 )
             }
         }
@@ -117,12 +105,10 @@ private fun RuntimeSettingsGroupCard(
 private fun RuntimeSettingContent(
     item: RuntimeModuleSettingItemSpec,
     value: Any,
-    overridden: Boolean,
     enabled: Boolean,
     onChange: (Any) -> Unit,
     onEdit: () -> Unit,
     onPickPath: () -> Unit,
-    onRestore: () -> Unit,
 ) {
     Column(Modifier.fillMaxWidth()) {
         when (item.type) {
@@ -212,11 +198,6 @@ private fun RuntimeSettingContent(
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
             )
         }
-        if (overridden) NoRippleTextButton(
-            text = stringResource(R.string.runtime_settings_restore_default),
-            enabled = enabled,
-            onClick = onRestore,
-        )
     }
 }
 

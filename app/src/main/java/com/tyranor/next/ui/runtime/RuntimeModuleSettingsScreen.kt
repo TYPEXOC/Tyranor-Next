@@ -171,7 +171,9 @@ fun RuntimeModuleSettingsScreen(game: ScanGame) {
     }
 
     fun changeOverride(item: RuntimeModuleSettingItemSpec, value: Any?) {
-        val changed = JSONObject(draft.toString())
+        // Read the backing state for every event instead of the JSONObject derived by the
+        // previous composition. Fast successive edits can arrive before Compose recomposes.
+        val changed = parseObject(draftJson)
         if (value == null) changed.remove(item.key) else changed.put(item.key, value)
         draftJson = changed.toString()
         draftFingerprint = settings?.fingerprint
@@ -353,7 +355,6 @@ fun RuntimeModuleSettingsScreen(game: ScanGame) {
                                 modifier = Modifier.then(listItemMotion()).pressSquishGroup(),
                                 entry = entry,
                                 effectiveValues = effectiveSettings?.values.orEmpty(),
-                                overrides = draft,
                                 enabled = !saveRunning && bindingValid && descriptorConfirmed,
                                 onChange = ::changeOverride,
                                 onEdit = { item ->
@@ -362,7 +363,6 @@ fun RuntimeModuleSettingsScreen(game: ScanGame) {
                                     inputError = false
                                 },
                                 onPickPath = pickSettingPath,
-                                onRestore = { item -> changeOverride(item, null) },
                             )
                         }
                     }
