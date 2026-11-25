@@ -83,11 +83,7 @@ private fun RuntimeSettingsGroupCard(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text(
-                spec.title,
-                style = spec.textStyle.toUiTextStyle() ?: MaterialTheme.typography.titleMedium,
-                color = TextColor,
-            )
+            Text(spec.title, style = MaterialTheme.typography.titleMedium, color = TextColor)
             spec.description?.let {
                 Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -114,7 +110,8 @@ private fun RuntimeSettingContent(
     onEdit: () -> Unit,
     onPickPath: () -> Unit,
 ) {
-    val titleTextStyle = item.textStyle.toUiTextStyle()
+    val titleTextStyle = MaterialTheme.typography.titleMedium
+    val valueTextStyle = MaterialTheme.typography.bodyMedium
     Column(Modifier.fillMaxWidth()) {
         when (item.type) {
             RuntimeModuleSettingItemSpec.Type.BOOLEAN -> SwitchPreference(
@@ -135,6 +132,7 @@ private fun RuntimeSettingContent(
                     summary = item.description,
                     enabled = enabled,
                     titleTextStyle = titleTextStyle,
+                    valueTextStyle = valueTextStyle,
                     onSelectedIndexChange = { index -> item.options.getOrNull(index)?.let { onChange(it.value) } },
                 )
             }
@@ -144,6 +142,7 @@ private fun RuntimeSettingContent(
                 title = item.title,
                 titleTextStyle = titleTextStyle,
                 summary = value.toString(),
+                summaryTextStyle = valueTextStyle,
                 drawSurface = false,
                 showLeadingIcon = false,
                 showArrow = enabled,
@@ -168,6 +167,7 @@ private fun RuntimeSettingContent(
                     title = item.title,
                     titleTextStyle = titleTextStyle,
                     summary = summary,
+                    summaryTextStyle = valueTextStyle,
                     drawSurface = false,
                     showLeadingIcon = false,
                     showArrow = enabled,
@@ -186,7 +186,7 @@ private fun RuntimeSettingContent(
                     Text(
                         item.title,
                         modifier = Modifier.weight(1f),
-                        style = titleTextStyle ?: MaterialTheme.typography.bodyLarge,
+                        style = titleTextStyle,
                         color = TextColor,
                     )
                     Text(formatSliderValue(current), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)

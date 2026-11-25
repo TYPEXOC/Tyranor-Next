@@ -18,25 +18,17 @@ data class RuntimeModuleSettingItemSpec(
     val sliderMin: Double? = null,
     val sliderMax: Double? = null,
     val sliderStep: Double? = null,
-    val textStyle: RuntimeModuleSettingTextStyle? = null,
 ) {
     enum class Type { BOOLEAN, ENUM, TEXT, INTEGER, SLIDER, FILE, FOLDER }
 }
 
 data class RuntimeModuleSettingOption(val value: String, val title: String)
 
-/** TYN's two standard text roles for settings content. */
-enum class RuntimeModuleSettingTextStyle(val wireValue: String) {
-    TITLE("title"),
-    BODY("body"),
-}
-
 data class RuntimeModuleSettingCardSpec(
     val key: String,
     val title: String,
     val description: String?,
     val items: List<RuntimeModuleSettingItemSpec>,
-    val textStyle: RuntimeModuleSettingTextStyle? = null,
 )
 
 sealed interface RuntimeModuleSettingsEntry {
@@ -150,7 +142,6 @@ internal object RuntimeModuleSettingsParser {
                     val card = entry.spec
                     val obj = JSONObject().put("key", card.key).put("type", "card").put("title", card.title)
                     card.description?.let { obj.put("description", it) }
-                    card.textStyle?.let { obj.put("textStyle", it.wireValue) }
                     obj.put("items", JSONArray().also { children ->
                         card.items.forEach { children.put(canonicalItem(it)) }
                     })
@@ -174,7 +165,6 @@ internal object RuntimeModuleSettingsParser {
         val description = if (obj.has("description")) {
             (obj.opt("description") as? String)?.takeIf { it.length <= 512 && validUnicode(it) } ?: return null
         } else null
-        val textStyle = parseTextStyle(obj.opt("textStyle"))
         val children = obj.opt("items") as? JSONArray ?: return null
         val items = ArrayList<RuntimeModuleSettingItemSpec>()
         for (index in 0 until children.length()) {
@@ -184,14 +174,13 @@ internal object RuntimeModuleSettingsParser {
         }
         if (items.isEmpty()) return null
         cardKeys += key
-        return RuntimeModuleSettingCardSpec(key, title, description, items, textStyle)
+        return RuntimeModuleSettingCardSpec(key, title, description, items)
     }
 
     private fun canonicalItem(item: RuntimeModuleSettingItemSpec): JSONObject = JSONObject()
         .put("key", item.key).put("type", item.type.name.lowercase())
         .put("title", item.title).put("default", item.defaultValue).also { obj ->
             item.description?.let { obj.put("description", it) }
-            item.textStyle?.let { obj.put("textStyle", it.wireValue) }
             item.min?.let { obj.put("min", it) }
             item.max?.let { obj.put("max", it) }
             item.maxLength?.let { obj.put("maxLength", it) }
@@ -222,7 +211,6 @@ internal object RuntimeModuleSettingsParser {
         val description = if (obj.has("description")) {
             (obj.opt("description") as? String)?.takeIf { it.length <= 512 && validUnicode(it) } ?: return null
         } else null
-        val textStyle = parseTextStyle(obj.opt("textStyle"))
         val default = obj.opt("default")?.takeUnless { it === JSONObject.NULL } ?: return null
         val options = if (type == RuntimeModuleSettingItemSpec.Type.ENUM) {
             val arr = obj.opt("options") as? JSONArray ?: return null
@@ -298,12 +286,9 @@ internal object RuntimeModuleSettingsParser {
         }
         return RuntimeModuleSettingItemSpec(
             key, type, title, description, normalizedDefault, options, min, max, maxLength,
-            sliderMin, sliderMax, sliderStep, textStyle,
+            sliderMin, sliderMax, sliderStep,
         )
     }
-
-    private fun parseTextStyle(value: Any?): RuntimeModuleSettingTextStyle? =
-        (value as? String)?.let { wireValue -> RuntimeModuleSettingTextStyle.values().firstOrNull { it.wireValue == wireValue } }
 
     fun isValidValue(item: RuntimeModuleSettingItemSpec, value: Any): Boolean = when (item.type) {
         RuntimeModuleSettingItemSpec.Type.BOOLEAN -> value is Boolean

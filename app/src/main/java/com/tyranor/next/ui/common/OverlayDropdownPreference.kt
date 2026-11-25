@@ -94,6 +94,7 @@ fun OverlayDropdownPreference(
     /** 应用锁生效时的强制清理路径；默认走内部收起回调。带业务守卫的调用方可传真正清状态的路径。 */
     onLockDismiss: (() -> Unit)? = null,
     titleTextStyle: TextStyle? = null,
+    valueTextStyle: TextStyle? = null,
 ) {
     val entry = remember(items, selectedIndex, onSelectedIndexChange) {
         DropdownEntry(
@@ -125,6 +126,7 @@ fun OverlayDropdownPreference(
         onExpandedChange = onExpandedChange,
         onLockDismiss = onLockDismiss,
         titleTextStyle = titleTextStyle,
+        valueTextStyle = valueTextStyle,
     )
 }
 
@@ -150,6 +152,7 @@ fun OverlayDropdownPreference(
     /** 应用锁生效时的强制清理路径；默认走内部收起回调。带业务守卫的调用方可传真正清状态的路径。 */
     onLockDismiss: (() -> Unit)? = null,
     titleTextStyle: TextStyle? = null,
+    valueTextStyle: TextStyle? = null,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val expanded = remember { mutableStateOf(false) }
@@ -245,8 +248,23 @@ fun OverlayDropdownPreference(
                     animateOnLocaleChange = true,
                     partial = false,
                 ) { value, valueModifier ->
-                    Text(value, modifier = valueModifier, fontSize = MiuixTheme.textStyles.body2.fontSize,
-                        color = actionColor, textAlign = TextAlign.End)
+                    if (valueTextStyle == null) {
+                        Text(
+                            value,
+                            modifier = valueModifier,
+                            fontSize = MiuixTheme.textStyles.body2.fontSize,
+                            color = actionColor,
+                            textAlign = TextAlign.End,
+                        )
+                    } else {
+                        MaterialText(
+                            value,
+                            modifier = valueModifier,
+                            style = valueTextStyle,
+                            color = actionColor,
+                            textAlign = TextAlign.End,
+                        )
+                    }
                 }
             }
         }

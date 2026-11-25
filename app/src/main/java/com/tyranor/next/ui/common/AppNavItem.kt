@@ -96,6 +96,7 @@ fun AppNavItem(
     drawSurface: Boolean = true,
     onClick: (() -> Unit)? = null,
     titleTextStyle: TextStyle? = null,
+    summaryTextStyle: TextStyle? = null,
 ) {
     val enabled = onClick != null
     val targetContentAlpha = if (enabled) 1f else 0.4f
@@ -160,7 +161,7 @@ fun AppNavItem(
                 BlurCrossfade(targetState = shownSummary.orEmpty(), label = "navItemSummaryText") { text ->
                     Text(
                         text,
-                        style = MaterialTheme.typography.bodySmall,
+                        style = summaryTextStyle ?: MaterialTheme.typography.bodySmall,
                         color = TextColor.copy(alpha = 0.55f * contentAlpha),
                         maxLines = summaryMaxLines,
                         overflow = TextOverflow.Ellipsis,
