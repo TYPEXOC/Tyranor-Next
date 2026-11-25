@@ -96,9 +96,9 @@ fun AppNavItem(
     drawSurface: Boolean = true,
     /** 摘要的显式颜色（如需要在保留原布局的位置显示错误状态）。 */
     summaryColor: Color? = null,
-    onClick: (() -> Unit)? = null,
     titleTextStyle: TextStyle? = null,
     summaryTextStyle: TextStyle? = null,
+    onClick: (() -> Unit)? = null,
 ) {
     val enabled = onClick != null
     val targetContentAlpha = if (enabled) 1f else 0.4f

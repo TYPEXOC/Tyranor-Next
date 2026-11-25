@@ -107,8 +107,6 @@ fun SwitchPreference(
         BasicComponent(
             modifier = modifier.withRowPressSquish(enabled = enabled),
             insideMargin = insideMargin,
-            titleColor = titleColor,
-            summaryColor = summaryColor,
             startAction = startAction,
             endActions = {
                 Row(
