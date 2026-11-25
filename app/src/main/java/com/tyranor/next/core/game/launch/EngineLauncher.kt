@@ -2889,13 +2889,14 @@ object EngineLauncher {
         val lower = text.lowercase(Locale.ROOT)
         val mapped = when {
             text.startsWith('/') -> text
-            lower.startsWith("file:") -> runCatching { java.net.URI(text).path }.getOrNull()
+            File(text).isAbsolute -> text
+            lower.startsWith("file:") -> runCatching { File(java.net.URI(text)).path }.getOrNull()
             lower.startsWith("content://") -> {
                 if (isExternalStorageDocumentUri(text)) safMappedPath ?: dataPath else dataPath
             }
             else -> null
         }?.trim().orEmpty()
-        if (mapped.isEmpty() || !mapped.startsWith('/')) return null
+        if (mapped.isEmpty() || !File(mapped).isAbsolute) return null
         val entry = File(mapped)
         // 纯 tree URI（无 /document/ 段）映射的是目录；带 /document/ 的混合 URI 仍是文件文档，
         // 不能因为路径里出现过 /tree/ 就当成目录。
