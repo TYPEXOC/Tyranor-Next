@@ -2,6 +2,7 @@ package com.core.rpgmaker.translation
 
 import java.io.File
 import java.nio.charset.StandardCharsets
+import java.util.Locale
 
 /** Virtual PluginManager entry and APK-backed runtime resource for RPG Maker MV/MZ. */
 internal object RpgMakerTranslationPlugin {
@@ -25,13 +26,28 @@ internal object RpgMakerTranslationPlugin {
 
     private data class ScriptTag(val start: Int, val src: String?, val path: String?, val asyncOrDefer: Boolean)
 
-    private val SCRIPT_TAG_REGEX = Regex("""<script\b[^>]*>""", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
-    private val SRC_REGEX = Regex(
-        """(?:^|\s)src\s*=\s*(?:([\"'])(.*?)\1|([^\s>]+))""",
-        RegexOption.IGNORE_CASE,
+    private val HTML_TAG_START_REGEX = Regex("""<(/?)([a-z][a-z0-9:-]*)\b""", RegexOption.IGNORE_CASE)
+    private val JAVASCRIPT_MIME_TYPES = setOf(
+        "application/ecmascript",
+        "application/javascript",
+        "application/x-ecmascript",
+        "application/x-javascript",
+        "text/ecmascript",
+        "text/javascript",
+        "text/javascript1.0",
+        "text/javascript1.1",
+        "text/javascript1.2",
+        "text/javascript1.3",
+        "text/javascript1.4",
+        "text/javascript1.5",
+        "text/jscript",
+        "text/livescript",
+        "text/x-ecmascript",
+        "text/x-javascript",
     )
-    private val ASYNC_OR_DEFER_REGEX = Regex("""(?:^|\s)(?:async|defer)(?:\s|=|>)""", RegexOption.IGNORE_CASE)
-    private val MODULE_TYPE_REGEX = Regex("""(?:^|\s)type\s*=\s*([\"'])module\1""", RegexOption.IGNORE_CASE)
+    private val RAW_TEXT_ELEMENTS = setOf(
+        "script", "style", "textarea", "title", "noscript", "xmp", "iframe", "noembed", "noframes", "plaintext",
+    )
 
     /**
      * Plan the in-memory PluginManager bootstrap without touching game files.
@@ -143,19 +159,7 @@ internal object RpgMakerTranslationPlugin {
     """.trimIndent()
 
     private fun inspectBootstrap(html: String): BootstrapInspection {
-        // Ignore commented-out script examples while keeping source offsets stable for insertion.
-        val searchable = Regex("<!--.*?-->", RegexOption.DOT_MATCHES_ALL).replace(html) { " ".repeat(it.value.length) }
-        val scripts = SCRIPT_TAG_REGEX.findAll(searchable).map { match ->
-            val tag = match.value
-            val srcMatch = SRC_REGEX.find(tag)
-            val src = srcMatch?.let { it.groups[2]?.value ?: it.groups[3]?.value }
-            ScriptTag(
-                start = match.range.first,
-                src = src,
-                path = src?.let(::normalizeLocalScriptPath),
-                asyncOrDefer = ASYNC_OR_DEFER_REGEX.containsMatchIn(tag) || MODULE_TYPE_REGEX.containsMatchIn(tag),
-            )
-        }.toList()
+        val scripts = findExecutableScriptTags(html)
         if (scripts.any { looksLikePluginListPath(it.src) && !isStandardPath(it.path, PLUGIN_LIST_PATH) }) {
             return BootstrapInspection(false, "plugin list is referenced through a non-standard URL")
         }
@@ -185,6 +189,138 @@ internal object RpgMakerTranslationPlugin {
             pluginListTagStart = plugin?.start,
             mainScriptTagStart = main.start,
         )
+    }
+
+    /**
+     * Scans actual HTML tags while skipping comments, raw-text element bodies, and inert templates.
+     * A regex over the whole document also sees strings such as `'<script src="js/plugins.js">'`
+     * inside inline JavaScript and can incorrectly conclude that the browser loads that script.
+     */
+    private fun findExecutableScriptTags(html: String): List<ScriptTag> {
+        val scripts = mutableListOf<ScriptTag>()
+        var templateDepth = 0
+        var cursor = 0
+
+        while (cursor < html.length) {
+            val tagStart = html.indexOf('<', cursor)
+            if (tagStart < 0) break
+            if (html.startsWith("<!--", tagStart)) {
+                val commentEnd = html.indexOf("-->", tagStart + 4)
+                cursor = if (commentEnd < 0) html.length else commentEnd + 3
+                continue
+            }
+            val tagMatch = HTML_TAG_START_REGEX.find(html, tagStart)
+                ?.takeIf { it.range.first == tagStart }
+            if (tagMatch == null) {
+                cursor = tagStart + 1
+                continue
+            }
+
+            val tagEnd = findTagEnd(html, tagStart)
+            if (tagEnd < 0) break
+            val tagName = tagMatch.groupValues[2].lowercase(Locale.ROOT)
+            val isClosing = tagMatch.groupValues[1].isNotEmpty()
+            val tag = html.substring(tagStart, tagEnd + 1)
+
+            if (tagName == "template") {
+                if (isClosing) templateDepth = (templateDepth - 1).coerceAtLeast(0)
+                else templateDepth++
+            } else if (tagName == "script" && !isClosing && templateDepth == 0) {
+                val attributes = parseAttributes(tag, tagMatch.range.last + 1)
+                val type = attributes["type"]?.substringBefore(';')?.trim()?.lowercase(Locale.ROOT)
+                val isModule = type == "module"
+                val isJavaScript = type.isNullOrEmpty() || type in JAVASCRIPT_MIME_TYPES
+                if (isJavaScript || isModule) {
+                    val src = attributes["src"]
+                    scripts += ScriptTag(
+                        start = tagStart,
+                        src = src,
+                        path = src?.let(::normalizeLocalScriptPath),
+                        asyncOrDefer = "async" in attributes || "defer" in attributes || isModule,
+                    )
+                }
+            }
+
+            if (!isClosing && tagName in RAW_TEXT_ELEMENTS) {
+                val rawEnd = if (tagName == "plaintext") -1 else findRawTextElementEnd(html, tagName, tagEnd + 1)
+                cursor = if (rawEnd < 0) html.length else rawEnd
+            } else {
+                cursor = tagEnd + 1
+            }
+        }
+        return scripts
+    }
+
+    /** Returns the first `>` outside quoted attribute values, or -1 for a malformed tag. */
+    private fun findTagEnd(html: String, start: Int): Int {
+        var quote: Char? = null
+        for (index in start + 1 until html.length) {
+            val character = html[index]
+            if (quote != null) {
+                if (character == quote) quote = null
+            } else {
+                when (character) {
+                    '\'', '"' -> quote = character
+                    '>' -> return index
+                }
+            }
+        }
+        return -1
+    }
+
+    /** Parses attribute names and optional quoted/unquoted values from an opening tag. */
+    private fun parseAttributes(tag: String, start: Int): Map<String, String> {
+        val attributes = linkedMapOf<String, String>()
+        var cursor = start
+        while (cursor < tag.length - 1) {
+            while (cursor < tag.length && (tag[cursor].isWhitespace() || tag[cursor] == '/')) cursor++
+            val nameStart = cursor
+            while (cursor < tag.length && !tag[cursor].isWhitespace() && tag[cursor] != '=' &&
+                tag[cursor] != '/' && tag[cursor] != '>'
+            ) {
+                cursor++
+            }
+            if (cursor == nameStart) break
+            val name = tag.substring(nameStart, cursor).lowercase(Locale.ROOT)
+            while (cursor < tag.length && tag[cursor].isWhitespace()) cursor++
+
+            var value = ""
+            if (cursor < tag.length && tag[cursor] == '=') {
+                cursor++
+                while (cursor < tag.length && tag[cursor].isWhitespace()) cursor++
+                if (cursor < tag.length && (tag[cursor] == '\'' || tag[cursor] == '"')) {
+                    val quote = tag[cursor++]
+                    val valueStart = cursor
+                    while (cursor < tag.length && tag[cursor] != quote) cursor++
+                    value = tag.substring(valueStart, cursor)
+                    if (cursor < tag.length) cursor++
+                } else {
+                    val valueStart = cursor
+                    while (cursor < tag.length && !tag[cursor].isWhitespace() && tag[cursor] != '>') cursor++
+                    value = tag.substring(valueStart, cursor)
+                }
+            }
+            if (!attributes.containsKey(name)) attributes[name] = value
+        }
+        return attributes
+    }
+
+    /** Skips a raw-text element body so tag-like text inside it is not treated as markup. */
+    private fun findRawTextElementEnd(html: String, tagName: String, start: Int): Int {
+        var searchFrom = start
+        while (searchFrom < html.length) {
+            val closeStart = html.indexOf("</$tagName", searchFrom, ignoreCase = true)
+            if (closeStart < 0) return -1
+            val delimiterIndex = closeStart + tagName.length + 2
+            if (delimiterIndex < html.length &&
+                (html[delimiterIndex].isWhitespace() || html[delimiterIndex] == '>' || html[delimiterIndex] == '/')
+            ) {
+                val closeEnd = findTagEnd(html, closeStart)
+                return if (closeEnd < 0) -1 else closeEnd + 1
+            }
+            searchFrom = closeStart + 2
+        }
+        return -1
     }
 
     private fun normalizeLocalScriptPath(src: String): String? {
