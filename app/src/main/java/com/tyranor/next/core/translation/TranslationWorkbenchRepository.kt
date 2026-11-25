@@ -1,6 +1,7 @@
 package com.tyranor.next.core.translation
 
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import android.provider.DocumentsContract
 import androidx.documentfile.provider.DocumentFile
@@ -35,6 +36,7 @@ import java.util.UUID
 import java.util.Locale
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.emitAll
@@ -315,38 +317,43 @@ class TranslationWorkbenchRepository(context: Context) {
 
     /** Creates one project for the selected SAF tree; an existing tree returns its existing project id. */
     suspend fun createGameDirectoryProject(treeUri: Uri, engineId: String): ProjectCreation {
-        val extractor = TextExtractorRegistry.find(engineId)
-            ?: throw TranslationWorkbenchException(TranslationWorkbenchError.UNSUPPORTED_ENGINE)
         val normalized = treeUri.normalizeScheme()
-        val sourceIdentity = directoryIdentity(normalized)
-        val title = withContext(Dispatchers.IO) {
-            DocumentFile.fromTreeUri(appContext, normalized)?.name?.takeIf(String::isNotBlank)
-        } ?: normalized.lastPathSegment?.substringAfterLast(':')?.takeIf(String::isNotBlank)
-            ?: throw TranslationWorkbenchException(TranslationWorkbenchError.INVALID_GAME_DIRECTORY)
-        val now = System.currentTimeMillis()
-        val project = TranslationProjectEntity(
-            id = UUID.randomUUID().toString(),
-            identity = sourceIdentity,
-            exchangeKey = UUID.randomUUID().toString(),
-            title = title,
-            projectState = TranslationProjectState.NEW.name,
-            engineId = extractor.descriptor.engineId,
-            sourceType = TranslationProjectSource.GAME_DIRECTORY.name,
-            sourceTreeUri = normalized.toString(),
-            sourceLanguage = null,
-            targetLanguage = null,
-            revision = 0,
-            createdAt = now,
-            updatedAt = now,
-        )
-        val inserted = dao.insertProjectIfAbsent(project)
-        val actual = if (inserted == -1L) {
-            dao.getProjectByIdentity(sourceIdentity)
-                ?: throw TranslationWorkbenchException(TranslationWorkbenchError.STORAGE_FAILURE)
-        } else {
-            project
+        try {
+            val extractor = TextExtractorRegistry.find(engineId)
+                ?: throw TranslationWorkbenchException(TranslationWorkbenchError.UNSUPPORTED_ENGINE)
+            val sourceIdentity = directoryIdentity(normalized)
+            val title = withContext(Dispatchers.IO) {
+                DocumentFile.fromTreeUri(appContext, normalized)?.name?.takeIf(String::isNotBlank)
+            } ?: normalized.lastPathSegment?.substringAfterLast(':')?.takeIf(String::isNotBlank)
+                ?: throw TranslationWorkbenchException(TranslationWorkbenchError.INVALID_GAME_DIRECTORY)
+            val now = System.currentTimeMillis()
+            val project = TranslationProjectEntity(
+                id = UUID.randomUUID().toString(),
+                identity = sourceIdentity,
+                exchangeKey = UUID.randomUUID().toString(),
+                title = title,
+                projectState = TranslationProjectState.NEW.name,
+                engineId = extractor.descriptor.engineId,
+                sourceType = TranslationProjectSource.GAME_DIRECTORY.name,
+                sourceTreeUri = normalized.toString(),
+                sourceLanguage = null,
+                targetLanguage = null,
+                revision = 0,
+                createdAt = now,
+                updatedAt = now,
+            )
+            val inserted = dao.insertProjectIfAbsent(project)
+            val actual = if (inserted == -1L) {
+                dao.getProjectByIdentity(sourceIdentity)
+                    ?: throw TranslationWorkbenchException(TranslationWorkbenchError.STORAGE_FAILURE)
+            } else {
+                project
+            }
+            return ProjectCreation(actual.id, created = inserted != -1L)
+        } catch (failure: Throwable) {
+            releaseTreePermissionIfUnused(normalized.toString())
+            throw failure
         }
-        return ProjectCreation(actual.id, created = inserted != -1L)
     }
 
     /** Imports a supported exchange file and retains only its display path, never the source SAF URI. */
@@ -450,10 +457,15 @@ class TranslationWorkbenchRepository(context: Context) {
         }
 
     suspend fun deleteProject(projectId: String) {
+        val project = dao.getProject(projectId)
+            ?: throw TranslationWorkbenchException(TranslationWorkbenchError.PROJECT_NOT_FOUND)
         val cancelledTasks = dao.cancelProjectTasks(projectId, System.currentTimeMillis())
         if (cancelledTasks > 0) cancelQueueWorkerAndRestart(enqueueAfterCancel = false)
         if (dao.deleteProject(projectId) == 0) {
             throw TranslationWorkbenchException(TranslationWorkbenchError.PROJECT_NOT_FOUND)
+        }
+        if (project.sourceType == TranslationProjectSource.GAME_DIRECTORY.name) {
+            releaseTreePermissionIfUnused(project.sourceTreeUri)
         }
         try {
             serviceRepository.cleanupUnusedSecrets()
@@ -466,16 +478,37 @@ class TranslationWorkbenchRepository(context: Context) {
     }
 
     suspend fun relinkGameDirectory(projectId: String, treeUri: Uri) {
-        val project = dao.getProject(projectId)
-            ?: throw TranslationWorkbenchException(TranslationWorkbenchError.PROJECT_NOT_FOUND)
-        if (project.sourceType != TranslationProjectSource.GAME_DIRECTORY.name) {
-            throw TranslationWorkbenchException(TranslationWorkbenchError.INVALID_GAME_DIRECTORY)
-        }
-        if (dao.getActiveTask(projectId) != null) {
-            throw TranslationWorkbenchException(TranslationWorkbenchError.TASK_ALREADY_ACTIVE)
-        }
         val uri = treeUri.normalizeScheme()
-        dao.upsertProject(project.copy(sourceTreeUri = uri.toString(), updatedAt = System.currentTimeMillis()))
+        try {
+            val project = dao.getProject(projectId)
+                ?: throw TranslationWorkbenchException(TranslationWorkbenchError.PROJECT_NOT_FOUND)
+            if (project.sourceType != TranslationProjectSource.GAME_DIRECTORY.name) {
+                throw TranslationWorkbenchException(TranslationWorkbenchError.INVALID_GAME_DIRECTORY)
+            }
+            if (dao.getActiveTask(projectId) != null) {
+                throw TranslationWorkbenchException(TranslationWorkbenchError.TASK_ALREADY_ACTIVE)
+            }
+            dao.upsertProject(project.copy(sourceTreeUri = uri.toString(), updatedAt = System.currentTimeMillis()))
+            if (project.sourceTreeUri != uri.toString()) {
+                releaseTreePermissionIfUnused(project.sourceTreeUri)
+            }
+        } catch (failure: Throwable) {
+            releaseTreePermissionIfUnused(uri.toString())
+            throw failure
+        }
+    }
+
+    private suspend fun releaseTreePermissionIfUnused(treeUri: String?) {
+        if (treeUri.isNullOrBlank()) return
+        withContext(NonCancellable) {
+            if (dao.hasProjectUsingSourceTree(treeUri)) return@withContext
+            runCatching {
+                appContext.contentResolver.releasePersistableUriPermission(
+                    Uri.parse(treeUri),
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION,
+                )
+            }
+        }
     }
 
     /** Enqueues one extract task in the app-wide serial work chain. */

@@ -40,6 +40,9 @@ internal abstract class TranslationWorkbenchDao {
     @Query("SELECT * FROM translation_projects WHERE identity = :identity LIMIT 1")
     abstract suspend fun getProjectByIdentity(identity: String): TranslationProjectEntity?
 
+    @Query("SELECT EXISTS(SELECT 1 FROM translation_projects WHERE source_tree_uri = :uri)")
+    abstract suspend fun hasProjectUsingSourceTree(uri: String): Boolean
+
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     abstract suspend fun insertProjectIfAbsent(project: TranslationProjectEntity): Long
 
