@@ -16,6 +16,7 @@ interface ExternalEngineModule {
     val defaultAlias: String
     val supportedAliases: Set<String>
     val installUrl: String?
+    val updateSource: ExternalEngineReleaseSource? get() = null
 
     /** Translation discovery rule implemented by this fixed adapter, if any. */
     val translationRuleId: String? get() = null
