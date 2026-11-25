@@ -454,6 +454,12 @@ internal abstract class TranslationWorkbenchDao {
     @Query("UPDATE translation_projects SET revision = revision + 1, updated_at = :updatedAt WHERE id = :projectId")
     abstract suspend fun bumpProjectRevision(projectId: String, updatedAt: Long): Int
 
+    @Query(
+        "UPDATE translation_projects SET review_completed_at = NULL, revision = revision + 1, " +
+            "updated_at = :updatedAt WHERE id = :projectId",
+    )
+    abstract suspend fun markProjectSourceChanged(projectId: String, updatedAt: Long): Int
+
     @Query("UPDATE translation_projects SET review_completed_at = :completedAt, revision = revision + 1, updated_at = :completedAt WHERE id = :projectId")
     abstract suspend fun setReviewCompleted(projectId: String, completedAt: Long): Int
 
@@ -494,7 +500,7 @@ internal abstract class TranslationWorkbenchDao {
             deleteSettledRuleIssuesForEntry(projectId, entryId)
             if (updateReviewSource(projectId, entryId, sourceText) == 1) changed++
         }
-        if (changed > 0) bumpProjectRevision(projectId, updatedAt)
+        if (changed > 0) markProjectSourceChanged(projectId, updatedAt)
         return changed
     }
 
