@@ -121,8 +121,14 @@ jsHarness.configure {
     dependsOn rpgmvSaveValidationHarness
 }
 
+def jsHarnessTranslation = registerNodeHarness(
+    'jsHarnessTranslation',
+    'Runs the translation-runtime JS harness (requires Node.js).',
+    'translation-runtime.harness.js',
+)
+
 tasks.named('check') {
-    dependsOn 'jsHarness'
+    dependsOn 'jsHarness', 'jsHarnessTranslation'
 }
 
 // Each filter family owns its registration and assets; no optional filter IDs in shared code.

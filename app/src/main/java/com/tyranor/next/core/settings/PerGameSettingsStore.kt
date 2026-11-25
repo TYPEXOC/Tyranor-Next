@@ -71,6 +71,8 @@ object PerGameSettingsStore {
 
     // RPG Maker MV/MZ
     const val F_RPG_MAKER_MOD_ENABLED = "rpg_maker_mod_enabled"
+    // 当前游戏选择的译表候选 ID；null=未选定（不翻译，保持原文）。
+    const val F_TRANSLATION_CANDIDATE_ID = "translation_candidate_id"
     const val F_RPG_LEGACY_RENDERER = "rpg_legacy_renderer"
     const val F_RPG_SAVE_INTEROP = "rpg_save_interop"
     const val F_RPG_MV_VERSION = "rpg_mv_engine_version"

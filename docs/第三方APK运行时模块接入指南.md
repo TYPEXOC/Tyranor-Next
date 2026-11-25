@@ -9,8 +9,8 @@
 ## 1. 先理解三件事
 
 1. **模块是一个独立 APK**，不是主 App 的插件或动态代码。
-2. 主 App 负责**发现、启用、按声明扫描和启动交棒**；模块还可声明设置项及游戏内存档子目录，接入对应管理能力。
-3. 游戏运行、存档格式、按键与画面由模块负责；主 App 保存并传递用户配置，统一管理已声明的文件存档，不接管模块私有数据。
+2. 主 App 负责**发现、启用、按声明扫描和启动交棒**；模块还可声明单游戏设置、游戏内存档目录和文件导入项，接入对应管理能力。模块声明翻译能力后，主 App 还可交付用户已选择的只读译文 map。
+3. 游戏运行、存档格式、按键与画面由模块负责；主 App 保存并传递用户配置，统一管理已声明的文件存档，不接管模块私有数据。译表格式解析和候选发现由主 App 统一维护。
 
 一条完整的接入链路：
 
@@ -21,7 +21,7 @@
   → 用户手动扫描游戏库
   → 主 App 按模块声明的 extensions / markers 识别游戏
   → 用户启动游戏
-  → 主 App 用显式组件把文件夹路径交给模块
+  → 主 App 用显式组件把文件夹路径交给模块，并可选授予只读译表 URI
   → 模块自己运行游戏
 ```
 
@@ -80,13 +80,14 @@ com.example.runtime             ❌ 前缀不对
 
 ### 2.3 接收启动参数
 
-主 App 启动模块时使用**显式组件**，基础参数如下；声明有效设置能力时额外提供配置 JSON：
+主 App 启动模块时使用**显式组件**，传递基础参数；声明有效设置或翻译能力且满足对应条件时，会附加相应可选 extra：
 
 | extra | 类型 | 说明 |
 | --- | --- | --- |
 | `com.tyranor.runtime.extra.FOLDER_PATH` | String | 游戏文件夹绝对路径，必填 |
 | `com.tyranor.runtime.extra.GAME_TITLE` | String | 游戏标题，可选 |
 | `com.tyranor.runtime.extra.PROTOCOL_VERSION` | Int | 主 App 协议版本，当前为 1 |
+| `com.tyranor.runtime.extra.TRANSLATION_MAP_URI` | String | 可选；主 App 规范化后的 JSON 字符串 map `content://` URI，只读、仅本次启动临时授权 |
 | `com.tyranor.runtime.extra.SETTINGS` | String | 可选，只有有效设置声明时提供，格式见第 10 节 |
 
 最小接收代码：
@@ -120,7 +121,7 @@ class LaunchActivity : Activity() {
 - 存档路径、按键映射、画面参数；
 - SAF URI 的持久授权。
 
-模块必须主动应用配置参数并按自己的 saves 声明读写存档，主 App 不会替模块修改其配置文件或存档格式。
+模块必须主动应用配置参数并按自己的 `saves` 声明读写存档；主 App 不会替模块修改其配置文件或存档格式。译表 URI 不包含原始文件路径，也不授予对游戏目录或 TYN 私有文件的额外访问权。需要热更新的模块应订阅该 URI 变化并重新读取完整 map；译表能力通过模块声明和可选启动 URI 接入，具体接口由模块实现。
 
 ---
 
@@ -142,6 +143,8 @@ class LaunchActivity : Activity() {
 {
   "protocol": 1,
   "label": "My Runtime",
+  "capabilities": ["translation"],
+  "translationRule": "mtool-json",
   "scan": {
     "match": "all",
     "extensions": [".mygame"],
@@ -166,12 +169,15 @@ class LaunchActivity : Activity() {
 | `scan.match` | 否 | `"any"`（默认）或 `"all"` |
 | `scan.extensions` | 否 | 扩展名数组，必须带前导点，如 `.mygame` |
 | `scan.markers` | 否 | 相对游戏根目录的标记文件/目录路径 |
+| `capabilities` | 否 | 可选能力列表；声明 `translation` 才会收到翻译 map URI |
+| `translationRule` | 否 | 主 App 注册的译表发现规则 ID；当前 `mtool-json` 读取平面 JSON 字符串 map |
 
 **上限**：
 
 - JSON 文件 ≤ 64 KiB；
 - `extensions` ≤ 32 项，每项 ≤ 16 字符；
 - `markers` ≤ 64 项，每项 ≤ 256 字符；
+- `capabilities` ≤ 16 项；
 - 非法模式会被丢弃；如果最终没有任何有效模式，视为没有扫描能力。
 
 **`extensions` 规则**：
@@ -197,6 +203,13 @@ class LaunchActivity : Activity() {
 - `any`：扩展名谓词命中 **或** 任意 marker 命中；
 - `all`：扩展名谓词命中（如果声明了扩展名）**且** 所有 marker 命中；
 - 两者都为空：不匹配。
+
+**翻译能力**：
+
+- `capabilities` 中必须包含 `translation`，且 `translationRule` 必须是主 App 已注册的规则 ID，翻译选择才对该游戏开放。
+- 模块不负责扫描或解析译表文件。主 App 提供候选列表、保存单游戏选择，并将选中内容规范化为只读 JSON map URI。
+- URI extra 与 `Intent.FLAG_GRANT_READ_URI_PERMISSION` / `ClipData` 一起传递。模块应在本次启动授权有效时读取，不应把 URI 当作永久授权或直接暴露给其它应用。
+- 当前规则 ID 为 `mtool-json`。该规则按平面字符串键值读取 JSON；嵌套对象/数组不作为译表。
 
 ### 3.4 常用例子
 

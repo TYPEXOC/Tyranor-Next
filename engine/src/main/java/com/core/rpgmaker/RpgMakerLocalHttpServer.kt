@@ -52,6 +52,7 @@ internal class RpgMakerLocalHttpServer(
     private val fuzzyNames: Boolean = false,
     /** 期望的固定端口（0 = 随机）；被占用时回退随机并由 [usedFallbackPort] 标记。 */
     preferredPort: Int = com.core.web.WebShellServerSocket.RANDOM_PORT,
+    private val transformIndexHtml: ((String) -> String?)? = null,
     /**
      * 注入到 `</head>` 前的**原始 HTML**（v1/v2 起兼容层改为外链 `<script src>`，
      * 首页不再内联 276 KB 脚本）。与 [earlyHook] 并存，earlyHtml 先于内联 earlyHook 执行。
@@ -120,9 +121,25 @@ internal class RpgMakerLocalHttpServer(
         v12Compat: Boolean = true,
         fuzzyNames: Boolean = false,
         preferredPort: Int = com.core.web.WebShellServerSocket.RANDOM_PORT,
+        transformIndexHtml: ((String) -> String?)? = null,
         earlyHtml: String = "",
         dirIndex: RpgMakerDirIndex = RpgMakerDirIndex(),
-    ) : this(root, null, tyranoHook, injectBeforeBody, scriptAppends, injectedHtml, internalResources, earlyHook, v12Compat, fuzzyNames, preferredPort, earlyHtml, dirIndex)
+    ) : this(
+        root,
+        null,
+        tyranoHook,
+        injectBeforeBody,
+        scriptAppends,
+        injectedHtml,
+        internalResources,
+        earlyHook,
+        v12Compat,
+        fuzzyNames,
+        preferredPort,
+        transformIndexHtml,
+        earlyHtml,
+        dirIndex,
+    )
 
     fun start() { thread.start() }
     val port: Int get() = serverSocket.localPort
@@ -715,13 +732,23 @@ internal class RpgMakerLocalHttpServer(
         headers["cookie"]?.contains("$AUTH_COOKIE_NAME=$authToken") == true
 
     private fun sendInjectedIndex(socket: Socket, html: String?, headOnly: Boolean, keepAlive: Boolean) {
+        val sourceHtml = html.orEmpty()
+        val preparedHtml = if (transformIndexHtml != null) {
+            transformIndexHtml.invoke(sourceHtml) ?: run {
+                Log.e(TAG, "cannot apply engine-specific index HTML transformation")
+                sendText(socket, 500, "Internal Server Error", "unsupported game entry script structure")
+                return
+            }
+        } else {
+            sourceHtml
+        }
         val hasEarly = earlyHtml.isNotBlank() || (earlyHook != null && earlyHook.isNotEmpty())
         val data = if (hasEarly) {
             buildInjectedHtmlTwoPhase(
-                html.orEmpty(), earlyHook ?: ByteArray(0), tyranoHook, injectedHtml, earlyHtml,
+                preparedHtml, earlyHook ?: ByteArray(0), tyranoHook, injectedHtml, earlyHtml,
             )
         } else {
-            buildInjectedHtml(html.orEmpty(), tyranoHook, injectedHtml, injectBeforeBody)
+            buildInjectedHtml(preparedHtml, tyranoHook, injectedHtml, injectBeforeBody)
         }
         Log.i(TAG, "served injected index bytes=${data.size} hook=${tyranoHook.size} earlyHtml=${earlyHtml.length}")
         val out = BufferedOutputStream(socket.getOutputStream())

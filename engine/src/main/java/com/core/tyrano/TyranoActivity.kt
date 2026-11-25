@@ -33,8 +33,15 @@ import com.core.engine.EngineStartupOverlay
 import com.core.engine.EngineWebChromeClient
 import com.core.engine.EngineThemeColors
 import com.core.engine.LaunchContract
+import com.core.engine.WebTranslationAdapterRegistry
+import com.core.engine.WebTranslationBootstrapPlan
+import com.core.engine.WebTranslationBootstrapRequest
+import com.core.engine.WebTranslationDelivery
+import com.core.engine.WebTranslationEngine
+import com.core.engine.WebTranslationSession
 import com.core.engine.R
 import com.core.input.InputRemapController
+import com.core.web.AsarWebRoot
 import java.io.ByteArrayInputStream
 import java.io.File
 import java.util.Locale
@@ -69,6 +76,9 @@ class TyranoActivity : Activity() {
     private var allowExternalNetwork = false
     private var rpgMakerModEnabled = false
     private var rpgMakerModGameId = ""
+    private var translationMapUri: String? = null
+    private var translation: WebTranslationSession? = null
+    private var translationBootstrap = WebTranslationBootstrapPlan()
     private val processExitScheduled = AtomicBoolean(false)
     private var startupOverlay: EngineStartupOverlay? = null
     private var initialMainFramePending = true
@@ -125,7 +135,9 @@ class TyranoActivity : Activity() {
             null
         },
         intent.getBooleanExtra(LaunchContract.RPG_MAKER_MOD_ENABLED, true).toString(),
+        intent.getStringExtra(LaunchContract.RPG_TRANSLATION_MAP_URI),
         intent.getStringExtra(LaunchContract.RPG_MAKER_MOD_GAME_ID),
+        intent.getStringExtra(LaunchContract.RPG_TRANSLATION_BOOTSTRAP_MODE),
         intent.getIntExtra(LaunchContract.WEB_SHELL_PORT, 0).toString(),
     ).joinToString("\u0000")
 
@@ -181,6 +193,8 @@ class TyranoActivity : Activity() {
             }
         }
         webGameType = detectWebGameType(intent.getStringExtra(LaunchContract.TYPE), contentRoot, asarArchive)
+        translationMapUri = intent.getStringExtra(LaunchContract.RPG_TRANSLATION_MAP_URI)?.takeIf(String::isNotBlank)
+        translationBootstrap = prepareTranslationBootstrap(contentRoot)
         rpgMakerModEnabled = intent.getBooleanExtra(LaunchContract.RPG_MAKER_MOD_ENABLED, true) &&
             (webGameType == WebGameType.RPG_MV || webGameType == WebGameType.RPG_MZ)
         rpgMakerModGameId = intent.getStringExtra(LaunchContract.RPG_MAKER_MOD_GAME_ID)
@@ -215,6 +229,7 @@ class TyranoActivity : Activity() {
                 // 追加补丁改为单帧迭代消费连续 text 标签；见 assets/__tyrano_tag_patch.js
                 scriptAppends[TYRANO_TAG_SCRIPT_PATH] = loadAsset(TYRANO_TAG_PATCH_ASSET)
             }
+            scriptAppends.putAll(translationBootstrap.scriptAppends)
             val modResources = if (rpgMakerModEnabled) {
                 mapOf(
                     RPG_MAKER_MOD_CORE_PATH to loadAsset(RPG_MAKER_MOD_CORE_ASSET),
@@ -226,6 +241,7 @@ class TyranoActivity : Activity() {
                 emptyMap()
             }
             val modHtml = if (rpgMakerModEnabled) buildRpgMakerModHtml() else ""
+            val internalResources = modResources + translationBootstrap.internalResources
             Log.i(TAG, "asset loaded ${hookAsset ?: "none"} bytes=${hook.size} scriptAppends=${scriptAppends.keys}")
             // Tyrano 与 RPG 一样注入到 </body> 之前：部分 TyranoStudio/Electron 导出的 index.html
             // 在第一个 </head> 之前并未加载 jQuery（jQuery 在 body 中经 <script src> 引入）。
@@ -236,11 +252,13 @@ class TyranoActivity : Activity() {
                 webGameType == WebGameType.TYRANO
             localServer = if (gameUsesAsar) {
                 TyranoLocalHttpServer(
-                    contentRoot, asarArchive, hook, injectBeforeBody, scriptAppends, modHtml, modResources, preferredPort,
+                    contentRoot, asarArchive, hook, injectBeforeBody, scriptAppends, modHtml, internalResources, preferredPort,
+                    transformIndexHtml = translationBootstrap.transformIndexHtml,
                 )
             } else {
                 TyranoLocalHttpServer(
-                    contentRoot, hook, injectBeforeBody, scriptAppends, modHtml, modResources, preferredPort,
+                    contentRoot, hook, injectBeforeBody, scriptAppends, modHtml, internalResources, preferredPort,
+                    transformIndexHtml = translationBootstrap.transformIndexHtml,
                 )
             }.also { it.start() }
         } catch (error: Throwable) {
@@ -284,6 +302,16 @@ class TyranoActivity : Activity() {
         startupOverlay = EngineStartupOverlay(this).also { it.attachTo(root) }
 
         configureWebView(browser)
+        // 译表运行时仅在启动参数包含有效译表 URI 时创建。
+        translationMapUri?.let { mapUri ->
+            translation = WebTranslationSession(
+                context = this,
+                translationMapUri = mapUri,
+                evaluateJs = { js, callback -> webView?.let { v -> runCatching { v.evaluateJavascript(js, callback) } } },
+                delivery = translationBootstrap.delivery,
+                runtimeAssets = translationBootstrap.runtimeAssets,
+            ).also { it.attach() }
+        }
         when (webGameType) {
             WebGameType.RPG_MV, WebGameType.RPG_MZ -> {
                 browser.addJavascriptInterface(RpgMakerSaveBridge(saves), RPG_MAKER_SAVE_BRIDGE_NAME)
@@ -323,6 +351,38 @@ class TyranoActivity : Activity() {
     }
 
     private fun loadAsset(name: String): ByteArray = assets.open(name).buffered().use { it.readBytes() }
+
+    private fun prepareTranslationBootstrap(contentRoot: File): WebTranslationBootstrapPlan {
+        val archive = asarArchive
+        val prefix = archive?.let { current -> AsarWebRoot.prefixFor { path -> current.has(path) } }.orEmpty()
+        val hasAsar: ((String) -> Boolean)? = archive?.let { current -> { path: String -> current.has(path) } }
+        val readAsar: ((String) -> ByteArray?)? = archive?.let { current -> { path: String -> current.read(path) } }
+        val hasAsarIgnoringCase: ((String) -> Boolean)? = archive?.let { current -> { path: String -> current.hasIgnoringCase(path) } }
+        val engine = when (webGameType) {
+            WebGameType.RPG_MV, WebGameType.RPG_MZ -> WebTranslationEngine.RPG_MAKER_TYRANO_HOST
+            WebGameType.TYRANO, WebGameType.VN, WebGameType.WEB_OTHER -> WebTranslationEngine.GENERIC_WEB
+        }
+        val requestedDelivery = when {
+            (webGameType == WebGameType.RPG_MV || webGameType == WebGameType.RPG_MZ) &&
+                intent.getStringExtra(LaunchContract.RPG_TRANSLATION_BOOTSTRAP_MODE) ==
+                LaunchContract.RPG_TRANSLATION_BOOTSTRAP_VIRTUAL_PLUGIN -> WebTranslationDelivery.VIRTUAL_PLUGIN
+            else -> WebTranslationDelivery.HOST_INJECTION
+        }
+        return WebTranslationAdapterRegistry.adapterFor(engine).prepare(
+            WebTranslationBootstrapRequest(
+                engine = engine,
+                translationMapUri = translationMapUri,
+                requestedDelivery = requestedDelivery,
+                gameType = webGameType.intentValue,
+                contentRoot = contentRoot,
+                asarRootPrefix = prefix,
+                hasAsar = hasAsar,
+                readAsar = readAsar,
+                hasAsarIgnoringCase = hasAsarIgnoringCase,
+                loadAsset = { name -> runCatching { loadAsset(name) }.getOrNull() },
+            ),
+        )
+    }
 
     private fun cssColor(color: Int): String = String.format(Locale.US, "#%06X", color and 0xFFFFFF)
 
@@ -389,6 +449,8 @@ class TyranoActivity : Activity() {
                 // 尽早注入输入接收器：页面脚本开始执行前若未就绪，加载期的手柄/按键输入会被静默丢弃。
                 // evaluateJavascript 在 DOM 未就绪时安全失败，onPageFinished 会再注入一次（接收器自带幂等守卫）
                 view?.let { v -> runCatching { v.evaluateJavascript(inputJs, null) } }
+                // 译表运行时尽早注入（幂等）；onPageFinished 会再补一次
+                translation?.onPageStarted()
             }
 
             override fun onPageFinished(view: WebView?, url: String?) {
@@ -404,6 +466,7 @@ class TyranoActivity : Activity() {
                     }
                     runCatching { view.evaluateJavascript(inputJs, null) }
                 }
+                translation?.onPageFinished()
             }
 
             override fun onPageCommitVisible(view: WebView?, url: String?) {
@@ -795,6 +858,8 @@ class TyranoActivity : Activity() {
         (webView?.webChromeClient as? EngineWebChromeClient)?.dismissDialogs()
         EngineSessionRegistry.clear(this, EngineSessionRegistry.HOST_TYRANO)
         DoubleBackExit.clear(this)
+        runCatching { translation?.destroy() }
+        translation = null
         startupOverlay?.dispose()
         startupOverlay = null
         runCatching { inputRemap?.onDestroy() }

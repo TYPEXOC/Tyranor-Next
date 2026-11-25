@@ -231,6 +231,9 @@
     <string name="game_playtime_total_accessibility">累計プレイ時間：%1$s</string>
     <string name="game_launch_file">起動ファイル</string>
     <string name="game_launch_file_auto_summary">自動 - 問題がある場合は手動で起動ファイルを選択</string>
+    <string name="game_translation">翻訳ファイル</string>
+    <string name="game_translation_select_title">翻訳ファイルを選択</string>
+    <string name="game_translation_default">デフォルト</string>
     <string name="game_remove_quick_launch">ホームから削除</string>
     <string name="game_add_quick_launch">ホームに追加</string>
     <string name="game_quick_launch_full">ホームのクイック起動は最大 3 件までです</string>

@@ -54,6 +54,8 @@ import com.tyranor.next.core.engine.runtime.RuntimeModuleDiscoveryResult
 import com.tyranor.next.core.engine.runtime.RuntimeModuleLauncher
 import com.tyranor.next.core.engine.runtime.RuntimeModuleLaunchResult
 import com.tyranor.next.core.engine.runtime.RuntimeModuleRegistry
+import com.tyranor.next.core.engine.translation.TranslationCandidate
+import com.tyranor.next.core.engine.translation.TranslationCatalog
 import com.tyranor.next.core.game.manual.AndroidAppGames
 import com.tyranor.next.core.game.model.GamePathUtils
 import com.tyranor.next.core.game.model.EthornellPaths
@@ -121,6 +123,8 @@ import java.util.concurrent.ConcurrentHashMap
  */
 object EngineLauncher {
     private const val TAG = "EngineLauncher"
+    // Manual MV/MZ translation loader selection. Change to DIRECT only for intentional comparison.
+    private const val RPG_TRANSLATION_BOOTSTRAP_MODE = LaunchContract.RPG_TRANSLATION_BOOTSTRAP_VIRTUAL_PLUGIN
     private const val KR_LEGACY_PATCH_MARKER = "// TYRANOR_NEXT_KRKR_LEGACY_PATCH_V1"
     private const val KR_FBF_STEAM_STUB_MARKER = "// TYRANOR_NEXT_FBF_STEAM_STUB_V1"
 
@@ -2322,6 +2326,14 @@ object EngineLauncher {
             putExtra(LaunchContract.WEB_EXTERNAL_NETWORK, settings.webExternalNetwork)
             putExtra(LaunchContract.RPG_MAKER_MOD_ENABLED, rpgMakerModEnabled)
             putExtra(LaunchContract.RPG_MAKER_MOD_GAME_ID, game.uri)
+            val translationMapUri = TranslationCatalog.createSelectedMapUri(context, game, path)
+            translationMapUri?.let { mapUri ->
+                putExtra(LaunchContract.RPG_TRANSLATION_MAP_URI, mapUri.toString())
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            if (rpgSession && translationMapUri != null) {
+                putExtra(LaunchContract.RPG_TRANSLATION_BOOTSTRAP_MODE, RPG_TRANSLATION_BOOTSTRAP_MODE)
+            }
             if (useRpgMakerRuntime) {
                 rpgMakerVersion?.let { putExtra(LaunchContract.RPG_MAKER_VERSION, it) }
                 putExtra(LaunchContract.RPG_LEGACY_RENDERER, rpgLegacyRenderer)
@@ -2818,6 +2830,40 @@ object EngineLauncher {
             )
         }
     }
+
+    /** Translation choices are App-owned candidates; UI receives no filesystem paths. */
+    internal fun availableTranslationCandidates(
+        context: Context,
+        game: ScanGame,
+        module: RuntimeModuleDescriptor? = null,
+    ): List<TranslationCandidate> = TranslationCatalog.availableCandidates(
+        context = context,
+        game = game,
+        gameDirectory = resolveGameDirectory(context, game),
+        module = module,
+    )
+
+    /** Current selected candidate ID; null means no translation. */
+    internal fun selectedTranslationCandidateId(context: Context, game: ScanGame): String? =
+        TranslationCatalog.selectedCandidateId(context, game)
+
+    /** Save a candidate selection; null clears it. */
+    internal fun setTranslationCandidate(context: Context, game: ScanGame, candidateId: String?) =
+        TranslationCatalog.selectCandidate(context, game, candidateId)
+
+    /** Check selection existence using the same discovery rule as launch. */
+    internal fun hasTranslationCandidate(
+        context: Context,
+        game: ScanGame,
+        candidateId: String,
+        module: RuntimeModuleDescriptor? = null,
+    ): Boolean = TranslationCatalog.hasCandidate(
+        context = context,
+        game = game,
+        gameDirectory = resolveGameDirectory(context, game),
+        candidateId = candidateId,
+        module = module,
+    )
 
     /** 候选目录枚举：真实路径优先；File 直读不可用（null 或空）时回退 SAF（SD 卡常见）。 */
     private fun readLaunchFileEntries(

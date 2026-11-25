@@ -106,7 +106,7 @@
 | SystemNNN | 游戏根目录下的 `spt/sys.spt`，不区分大小写 | 内置 SystemNNN-Emberfall。TYN 提供全局和单游戏显示设置 |
 | Ethornell / BGI | BGI 特征与资源组合 | 内置实验宿主，见第 10 节 |
 | Tyrano / VN / WebOther | `tyrano/`、`globalData.vndata`、HTML 等 | 内置 Web 壳 |
-| RPG Maker MV / MZ | `rpg_core.js` / `rmmz_core.js`、`www/` 等 | 内置 Web 运行环境，支持适用的 Asar 包；v1/v2 会话注入 NW.js 兼容层（外链脚本），受第 11 节条目约束 |
+| RPG Maker MV / MZ | `rpg_core.js` / `rmmz_core.js`、`www/` 等 | 内置 Web 运行环境，支持适用的 Asar 包、主 App 统一管理的翻译文件；v1/v2 会话注入 NW.js 兼容层（外链脚本），受第 11 节条目约束 |
 | RPG Maker RGSS | XP/VX/VX Ace 资源或 mkxp-z 模块选择 | 外置 RPGM APK 模块 |
 | Ren'Py | `.rpa`、`.rpy/.rpyc` 等组合 | 外置 Ren'Py APK；自动或指定 8.5.0 / 8.5.3 / 7.7.1 |
 | Ruffle / Flash | 顶层 `.swf`；根 `index.html/index.htm` + 唯一 SWF 的叶子目录 | 外置 Ruffle APK；一 SWF 一条记录 |
@@ -122,6 +122,7 @@
 
 JoiPlay 外置模块与模拟器必须先安装；主 App 显示安装状态及获取入口。第三方 APK 运行时模块同样由用户自行安装，但主 App 不提供下载/安装器，只在「引擎模块管理」中列出并管理启用状态。启动前检查目标、权限和目录，失败由类型化结果映射 UI 文案。设置中的“自动”按当前运行时规则解析，不承诺回退能修复不受支持的脚本或资源。
 
+**翻译文件**：游戏操作面板中的「翻译文件」入口读取 App 注册的发现规则，并以候选 DTO 展示；主 App 统一识别和解析译表，按游戏保存当前选择。MV/MZ 可从 App 私有译表目录或游戏根目录发现有效的 MTool JSON 字符串映射。仅在选中译表且成功解析出有效 URI 时，内置 Web 宿主才创建翻译会话并接收规范化译文。MV/MZ 当前通过虚拟插件接入标准 PluginManager 链路；已有 `js/plugins.js` 时在内存响应末尾追加 TYN，缺失时由宿主虚拟提供清单，并保证清单在标准 `js/main.js` 前执行。虚拟插件预检拒绝会改变相对脚本路径的非根 `<base href>`。MV/MZ 的宿主注入与虚拟插件模式均只在选中译表时启用，原始游戏文件不修改；预检遇到同名冲突或无法识别启动结构时记录原因，不自动切换加载方式。真正的 Tyrano 游戏暂不支持翻译。译表文件的写入、替换、创建或删除可触发当前会话重新读取与热更新。第三方 APK 运行时模块可以在 `tyranor_runtime.json` 声明 `capabilities: ["translation"]` 与 `translationRule`；第一方固定外置适配器通过 `translationRuleId` 声明已注册规则。两类外部运行时都由主 App 发现和解析译表，并只接收临时授权的只读 map URI。
 Ren’Py 8.5.0 与 8.5.3 分别保留版本选项与下载入口，不再将旧 `8.5` 设置自动升级；旧值对应 8.5.0，显式 `8.5.3` 保持不变。自动模式在探测到 8.5.3 及以上时选择 8.5.3，其他 8.x 和未知版本回退 8.5.0，7.x 选择 7.7.1。两版使用相同 APK 包名，设备上一次只能安装其中一版：8.5.0 接受 APK versionCode 10100–10199，8.5.3 接受至少 10200；安装态与启动均检查所选版本，版本不匹配时提供对应下载入口，切回旧版需先卸载新版。8.5.0 引导至 [旧版 APK](https://github.com/Weiss-UltimateSavior/RinneMobile/releases/download/test/RenPy-Plugin-8.5.apk)，不修改或重新打包外置 APK；配置载荷、游戏 ID 和存档路径保持原协议。接入证据和设备验收边界见 [8.5.3 分析记录](docs/renpy-8.5.3-module-analysis.md)。
 
 Ren’Py 单游戏引擎设置一次保存版本及全部开关。从单游戏设置立即返回并启动时，解析器应读取最新保存值。显式开启、关闭或指定版本优先于全局值，选择「跟随全局」时清除对应覆盖。全局和单游戏设置中开启「禁用模型渲染（GL2）」对应 `renpy_dont_use_gl2=true`。

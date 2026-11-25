@@ -231,6 +231,9 @@
     <string name="game_playtime_total_accessibility">Total play time: %1$s</string>
     <string name="game_launch_file">Launch file</string>
     <string name="game_launch_file_auto_summary">Auto - choose a launch file manually if startup fails</string>
+    <string name="game_translation">Translation file</string>
+    <string name="game_translation_select_title">Select translation file</string>
+    <string name="game_translation_default">Default</string>
     <string name="game_remove_quick_launch">Remove from Home</string>
     <string name="game_add_quick_launch">Add to Home</string>
     <string name="game_quick_launch_full">Home quick launch is full (max 3)</string>

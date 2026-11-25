@@ -103,12 +103,18 @@ CMVS 运行库通过 JNI 请求 `CmvsActivity` 打开、读取或关闭存档备
 1. `RuntimeModuleDiscovery` 通过 Manifest `<queries>` 声明的 `com.tyranor.runtime.action.LAUNCH` 查询可见应用，只保留 `com.tyranor.runtime.` 前缀；每个包选择一个入口 Activity，并容错读取 `com.tyranor.runtime.MANIFEST` 指向的 `res/raw` JSON（`RuntimeModuleDescriptor` / `RuntimeModuleScanSpec`）。不申请 `QUERY_ALL_PACKAGES`，不校验签名或版本。
 2. `RuntimeModuleRegistry` 保存发现快照与 `AppSettingsStore.KEY_RUNTIME_MODULE_ENABLED`（StringSet，默认空集），经 `StateFlow` 提供给 `ui/runtime/EngineModuleManagementScreen`；刷新、启用/禁用与扫描索引构建在同一互斥区内串行。新模块默认关闭，启用只写开关。
 3. 扫描开始时 `EngineScanner` 取 `RuntimeModuleIndex`（已发现 + 已启用 + 有扫描描述），先调用 `RuntimeModuleMatcher` 匹配 `extensions` / `markers`，未命中才执行内置识别；扫描根及 ROM/SWF 目录维持既有排除规则，命中写入 `ScanGame.runtimeModulePackage`。多模块按 `all` > `any` → marker 数 → 包名排序，旧 URI 绑定优先；扫描是唯一入库入口。
-4. `RuntimeModuleManifest` 独立解析 `scan`、`settings`、`saves`。设置声明支持布尔、枚举、文本、整数、滑条、文件与文件夹路径；卡片容器只组织设置页布局。单游戏覆盖按 URI + 包名保存在现有覆盖记录内；`PerGameSettingsStore` 提供可等待的保存结果，复用写队列并维护 prefs 镜像。解析后的完整配置值通过可选 `com.tyranor.runtime.extra.SETTINGS` JSON 下发，不增加全局设置。
-5. `EngineLauncher` 在存档准入之前刷新并固定模块身份，交棒前复核绑定、声明与实际存档目录，再调用 `RuntimeModuleLauncher`：显式 `ComponentName` + 文件夹绝对路径/标题/协议版本，以及声明能力所需的配置；`Dispatched` 只表示交棒，`ModuleMissing` / `ModuleDisabled` 触发 `RuntimeModuleBindings.degradeGame`。
+4. `RuntimeModuleManifest` 独立解析 `scan`、`settings`、`saves`、`fileImports` 与翻译能力/规则声明。设置声明支持布尔、枚举、文本、整数、滑条、文件与文件夹路径；卡片容器只组织设置页布局，单游戏覆盖按 URI + 包名保存在现有覆盖记录内。`PerGameSettingsStore` 提供可等待的保存结果，复用写队列并维护 prefs 镜像；解析后的完整配置值通过可选 `com.tyranor.runtime.extra.SETTINGS` JSON 下发，不增加全局设置。
+5. `EngineLauncher` 在存档准入之前刷新并固定模块身份，交棒前复核绑定、声明与实际存档目录，再调用 `RuntimeModuleLauncher`：显式 `ComponentName` + 文件夹绝对路径/标题/协议版本，以及声明能力所需的配置；模块声明翻译能力且该游戏已选择译表时，再授予当前规范化 map 的临时只读 URI。固定外置适配器通过 `translationRuleId` 声明支持的发现规则，`ExternalEngineLauncher` 复用同一只读 URI provider 交付所选译表。`Dispatched` 只表示交棒，`ModuleMissing` / `ModuleDisabled` 触发 `RuntimeModuleBindings.degradeGame`。
 6. `RuntimeModuleBindings.reconcile` 在重扫前与应用回前台等时机核对绑定：模块未发现、未启用或包名为空 → `EngineType.UNKNOWN`（保留最后已知 `runtimeModulePackage` 供重扫合并），保留其它字段；发现查询失败时跳过第三方绑定的降级。旧 Emberfall 内置身份的迁移独立进行。
-7. 绑定经 `ScanGame` → `GameEntity.runtime_module_package`（Room v3）→ `GameRecordCodec` prefs 镜像传播；v2→v3 使用显式 `Migration(2,3)`。配置复用现有 JSON 分区，不增加 Room schema 版本。
+7. 绑定经 `ScanGame` → `GameEntity.runtime_module_package`（Room v3）→ `GameRecordCodec` prefs 镜像传播；v2→v3 使用显式 `Migration(2,3)`。模块设置复用现有 JSON 分区，不增加 Room schema 版本。
 8. `saves` 声明固定的游戏内相对存档目录，`GameSaveManager` 统一验证当前绑定、目录范围与符号链接，复用文件事务；第三方目录的事务相邻项须有私有所有权记录。存档能力动态判定，云端引擎命名空间包含模块包名，未知或暂不可用状态保留身份占位。外置启动在 WebDAV 关闭时也经过目录门禁，持久化运行标记成功后才交棒；退出确认可在模块失效、游戏降级或移除后按旧会话身份进行。
 9. `fileImports` 独立声明文件导入目标；单游戏引擎设置页取得系统选取的文件 URI 并预览写入。确认后由 `RuntimeModuleFileImporter` 复核绑定、模块声明及目标，逐文件暂存后提交；不写入单游戏覆盖记录或启动 Intent。
+
+### 翻译功能
+
+`core/engine/translation/TranslationCatalog` 集中注册源格式解析器、按引擎/固定适配器/动态模块选择发现规则、提供 UI 使用的候选 DTO，并持久化单游戏候选 ID。UI 不读取文件路径或偏好键；译表私有存储路径由同层 `TranslationStorage` 管理，不依赖 engine。当前 MTool JSON 解析器把有效字符串键值归一成 map；`TranslationMapSessions` 为本次会话保存不透明来源描述，`TranslationMapProvider` 通过临时授权的只读 URI 提供 map，并监视源文件写入、替换、创建与删除，通知订阅者重新读取。engine 的 `TranslationMapSubscription` 订阅 URI、读取最新 map，并以 revision 轮询作为通知兜底；它不处理 Web 或其他引擎生命周期。游戏目录内原始文件不被复制或改写。
+
+内置 Web 宿主由 `WebTranslationSession` 管理 JS 与页面生命周期，并消费 `TranslationMapSubscription` 提供的最新 map；`WebTranslationAdapterRegistry` 按引擎和宿主路径选择 `WebTranslationEngineAdapter`，适配器负责该路径的交付方式、运行脚本资源、虚拟资源和入口页转换。公共 `WebTranslationRuntime` 提供译表查找与热更新核心；适配器将它与所选引擎钩子组合成当前会话脚本。当前内置 Web 翻译支持 RPG Maker MV/MZ；其中 TyranoActivity 承载的 MV/MZ v0 走 `RpgMakerTyranoHostTranslationAdapter`，并复用相同的 RPG Maker 策略。两条 RPG Maker 路径的宿主注入与 PluginManager 虚拟插件方式加载同一组 RPG Maker 钩子。真正的 Tyrano、VN 与 WebOther 当前没有主 App 译表发现规则，不提供翻译文件入口；通用 DOM/canvas 适配器仅用于已有 map URI 的执行路径。MV/MZ 可显式选择宿主注入或虚拟插件方式进行对照。虚拟插件模式识别标准 `js/main.js` 启动顺序；已有 `plugins.js` 时只改写内存响应追加 TYN，没有时由宿主虚拟提供清单，并在入口页中确保清单先于 `main.js` 执行。冲突或非标准启动结构会记录原因并停止该模式，不写入游戏文件，也不自动切换加载方式。新增 Web 引擎可以提供自己的钩子脚本并注册适配器，公共译表会话无需复制。第三方运行时模块在清单声明 `capabilities: ["translation"]` 与已注册的 `translationRule` 后，由主 App 交付同一 map URI；模块可以订阅该 URI 通知并读取最新 map，运行时专属的翻译接入仍由模块管理。
 
 [EngineSettingsResolver](app/src/main/java/com/tyranor/next/core/settings/EngineSettingsResolver.kt) 统一读取引擎全局与单游戏覆盖，`EffectiveEngineSettings` 处理归一化与回退。启动和存档消费同一份生效规则，页面不得另写优先级逻辑。
 

@@ -33,6 +33,7 @@ internal class TyranoLocalHttpServer(
     internalResources: Map<String, ByteArray> = emptyMap(),
     /** 期望的固定端口（0 = 随机）；被占用时回退随机并由 [usedFallbackPort] 标记。 */
     preferredPort: Int = com.core.web.WebShellServerSocket.RANDOM_PORT,
+    private val transformIndexHtml: ((String) -> String?)? = null,
 ) : Runnable {
     private val root: File
     private val asar: AsarArchive?
@@ -76,7 +77,18 @@ internal class TyranoLocalHttpServer(
         injectedHtml: String = "",
         internalResources: Map<String, ByteArray> = emptyMap(),
         preferredPort: Int = com.core.web.WebShellServerSocket.RANDOM_PORT,
-    ) : this(root, null, tyranoHook, injectBeforeBody, scriptAppends, injectedHtml, internalResources, preferredPort)
+        transformIndexHtml: ((String) -> String?)? = null,
+    ) : this(
+        root,
+        null,
+        tyranoHook,
+        injectBeforeBody,
+        scriptAppends,
+        injectedHtml,
+        internalResources,
+        preferredPort,
+        transformIndexHtml,
+    )
 
     fun start() { thread.start() }
     val port: Int get() = serverSocket.localPort
@@ -269,8 +281,18 @@ internal class TyranoLocalHttpServer(
     }
 
     private fun sendInjectedIndex(socket: Socket, html: String?, headOnly: Boolean) {
-        val data = buildInjectedHtml(html.orEmpty(), tyranoHook, injectedHtml, injectBeforeBody)
-        Log.i(TAG, "served injected index bytes=${data.size} hook=${tyranoHook.size}")
+        val sourceHtml = html.orEmpty()
+        val preparedHtml = if (transformIndexHtml != null) {
+            transformIndexHtml.invoke(sourceHtml) ?: run {
+                Log.e(TAG, "cannot apply engine-specific index HTML transformation")
+                sendText(socket, 500, "Internal Server Error", "unsupported game entry script structure")
+                return
+            }
+        } else {
+            sourceHtml
+        }
+        val data = buildInjectedHtml(preparedHtml, tyranoHook, injectedHtml, injectBeforeBody)
+        Log.i(TAG, "served injected index bytes=${data.size} hook=${tyranoHook.size} indexTransform=${transformIndexHtml != null}")
         val out = BufferedOutputStream(socket.getOutputStream())
         out.write(("HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nCache-Control: no-cache\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: ${data.size}\r\nConnection: close\r\n\r\n").toByteArray(StandardCharsets.UTF_8))
         if (!headOnly) out.write(data)
