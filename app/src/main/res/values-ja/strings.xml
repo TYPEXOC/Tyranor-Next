@@ -1267,6 +1267,9 @@
     <string name="runtime_settings_unsaved_message">戻ると未保存の設定変更は失われます。</string>
     <string name="runtime_settings_invalid_overrides">保存済み設定の一部は現在のモジュールに適用できないため、モジュールのデフォルト値を表示しています。</string>
     <string name="runtime_settings_input_invalid">入力値が設定で許可された型または範囲に一致しません。</string>
+    <string name="runtime_settings_choose_file">ファイルを選択</string>
+    <string name="runtime_settings_choose_folder">フォルダーを選択</string>
+    <string name="runtime_settings_path_unavailable">選択した場所をモジュールが利用できるファイルパスに変換できません。共有ストレージ上のファイルまたはフォルダーを選択してください。モジュール自身のストレージ権限も必要です。</string>
     <string name="runtime_capability_loading">ランタイムモジュールの機能を確認中…</string>
     <string name="runtime_capability_retry">モジュール機能を再確認</string>
     <string name="runtime_capability_unavailable">モジュールの設定またはセーブ機能を現在確認できません</string>

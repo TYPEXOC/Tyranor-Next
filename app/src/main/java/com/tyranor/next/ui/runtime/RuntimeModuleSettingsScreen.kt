@@ -50,8 +50,6 @@ import com.tyranor.next.ui.common.AppSearchField
 import com.tyranor.next.ui.common.AppSecondaryTopBar
 import com.tyranor.next.ui.common.DialogTextButton
 import com.tyranor.next.ui.common.NoRippleTextButton
-import com.tyranor.next.ui.common.OverlayDropdownPreference
-import com.tyranor.next.ui.common.SwitchPreference
 import com.tyranor.next.ui.common.TopBarIcon
 import com.tyranor.next.ui.common.motion.BlurCrossfade
 import com.tyranor.next.ui.common.motion.ExpandVisibility
@@ -98,6 +96,7 @@ fun RuntimeModuleSettingsScreen(game: ScanGame) {
     var backRequested by remember { mutableStateOf(false) }
     val settings = module?.settings
     val draft = remember(draftJson) { parseObject(draftJson) }
+    val effectiveSettings = remember(settings, draftJson) { settings?.resolve(draft) }
     val dirty = baselineJson != null && draftJson != baselineJson
     val descriptionConflict = settings != null && draftFingerprint != null &&
         draftFingerprint != settings.fingerprint && dirty
@@ -178,6 +177,16 @@ fun RuntimeModuleSettingsScreen(game: ScanGame) {
         draftFingerprint = settings?.fingerprint
         saveDescriptorChanged = false
         saveError = false
+    }
+
+    val pickSettingPath = rememberRuntimeModuleSettingPathPicker(game.uri, packageName) { key, path ->
+        val item = settings?.items?.firstOrNull { it.key == key }
+        if (item == null || !RuntimeModuleSettingsParser.isValidValue(item, path)) {
+            false
+        } else {
+            changeOverride(item, path)
+            true
+        }
     }
 
     fun restoreAllDefaults() {
@@ -334,25 +343,26 @@ fun RuntimeModuleSettingsScreen(game: ScanGame) {
                                 )
                             }
                         }
-                        if (settings.items.isNotEmpty() && settings.resolve(draft).invalidOverrideKeys.isNotEmpty()) item {
+                        if (settings.items.isNotEmpty() && effectiveSettings?.invalidOverrideKeys?.isNotEmpty() == true) item {
                             Column(Modifier.then(listItemMotion())) {
                                 StatusCard(stringResource(R.string.runtime_settings_invalid_overrides))
                             }
                         }
-                        items(settings.items, key = { it.key }) { item ->
-                            RuntimeSettingRow(
-                                modifier = Modifier.then(listItemMotion()),
-                                item = item,
-                                value = settings.resolve(draft).values[item.key] ?: item.defaultValue,
-                                overridden = draft.has(item.key),
+                        items(settings.entries, key = { it.key }) { entry ->
+                            RuntimeSettingsEntryCard(
+                                modifier = Modifier.then(listItemMotion()).pressSquishGroup(),
+                                entry = entry,
+                                effectiveValues = effectiveSettings?.values.orEmpty(),
+                                overrides = draft,
                                 enabled = !saveRunning && bindingValid && descriptorConfirmed,
-                                onChange = { value -> changeOverride(item, value) },
-                                onEdit = {
+                                onChange = ::changeOverride,
+                                onEdit = { item ->
                                     editItem = item
-                                    editText = settings.resolve(draft).values[item.key].toString()
+                                    editText = effectiveSettings?.values?.get(item.key)?.toString() ?: item.defaultValue.toString()
                                     inputError = false
                                 },
-                                onRestore = { changeOverride(item, null) },
+                                onPickPath = pickSettingPath,
+                                onRestore = { item -> changeOverride(item, null) },
                             )
                         }
                     }
@@ -429,61 +439,6 @@ fun RuntimeModuleSettingsScreen(game: ScanGame) {
 }
 
 @Composable
-private fun RuntimeSettingRow(
-    modifier: Modifier = Modifier,
-    item: RuntimeModuleSettingItemSpec,
-    value: Any,
-    overridden: Boolean,
-    enabled: Boolean,
-    onChange: (Any) -> Unit,
-    onEdit: () -> Unit,
-    onRestore: () -> Unit,
-) {
-    MiuixCard(cornerRadius = AppComponentCornerRadius, modifier = modifier.pressSquishGroup().fillMaxWidth().glassBorder()) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp)) {
-            when (item.type) {
-                RuntimeModuleSettingItemSpec.Type.BOOLEAN -> SwitchPreference(
-                    checked = value as Boolean,
-                    onCheckedChange = onChange,
-                    title = item.title,
-                    summary = item.description,
-                    enabled = enabled,
-                )
-                RuntimeModuleSettingItemSpec.Type.ENUM -> {
-                    val selected = item.options.indexOfFirst { it.value == value }.coerceAtLeast(0)
-                    OverlayDropdownPreference(
-                        items = item.options.map { it.title },
-                        selectedIndex = selected,
-                        title = item.title,
-                        summary = item.description,
-                        enabled = enabled,
-                        onSelectedIndexChange = { index -> item.options.getOrNull(index)?.let { onChange(it.value) } },
-                    )
-                }
-                RuntimeModuleSettingItemSpec.Type.TEXT, RuntimeModuleSettingItemSpec.Type.INTEGER -> {
-                    com.tyranor.next.ui.common.AppNavItem(
-                        title = item.title,
-                        summary = value.toString(),
-                        drawSurface = false,
-                        showLeadingIcon = false,
-                        showArrow = enabled,
-                        onClick = if (enabled) onEdit else null,
-                    )
-                }
-            }
-            item.description?.takeIf { item.type != RuntimeModuleSettingItemSpec.Type.BOOLEAN && item.type != RuntimeModuleSettingItemSpec.Type.ENUM }?.let {
-                Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
-            }
-            if (overridden) NoRippleTextButton(
-                text = stringResource(R.string.runtime_settings_restore_default),
-                enabled = enabled,
-                onClick = onRestore,
-            )
-        }
-    }
-}
-
-@Composable
 private fun StatusCard(text: String, action: String? = null, onAction: (() -> Unit)? = null) {
     MiuixCard(cornerRadius = AppComponentCornerRadius, modifier = Modifier.fillMaxWidth().glassBorder()) {
         Column(Modifier.fillMaxWidth().padding(16.dp)) {
@@ -505,5 +460,8 @@ internal fun parseRuntimeSettingInput(item: RuntimeModuleSettingItemSpec, raw: S
     RuntimeModuleSettingItemSpec.Type.TEXT -> raw.takeIf { RuntimeModuleSettingsParser.isValidValue(item, it) }
     RuntimeModuleSettingItemSpec.Type.INTEGER -> raw.toIntOrNull()?.takeIf { RuntimeModuleSettingsParser.isValidValue(item, it) }
     RuntimeModuleSettingItemSpec.Type.BOOLEAN,
-    RuntimeModuleSettingItemSpec.Type.ENUM -> null
+    RuntimeModuleSettingItemSpec.Type.ENUM,
+    RuntimeModuleSettingItemSpec.Type.SLIDER,
+    RuntimeModuleSettingItemSpec.Type.FILE,
+    RuntimeModuleSettingItemSpec.Type.FOLDER -> null
 }
