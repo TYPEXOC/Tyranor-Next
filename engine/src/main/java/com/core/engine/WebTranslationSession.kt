@@ -27,6 +27,8 @@ class WebTranslationSession(
     private val mainHandler = Handler(Looper.getMainLooper())
     private val destroyed = AtomicBoolean(false)
     private val enabled = !translationMapUri.isNullOrBlank()
+    private var pageGeneration = 0
+    private var runtimeReadyGeneration: Int? = null
 
     @Volatile
     private var mapText: String? = null
@@ -61,14 +63,24 @@ class WebTranslationSession(
 
     /** Page start: host-injected mode installs early; plugin mode is loaded by PluginManager. */
     fun onPageStarted() {
-        if (enabled && !destroyed.get() && delivery == WebTranslationDelivery.HOST_INJECTION) injectRuntime()
+        if (!enabled || destroyed.get()) return
+        pageGeneration++
+        runtimeReadyGeneration = null
+        if (delivery == WebTranslationDelivery.HOST_INJECTION) injectRuntime(pageGeneration)
     }
 
     /** Page finish: retry host injection if needed, then deliver the latest map. */
     fun onPageFinished() {
         if (!enabled || destroyed.get()) return
-        if (delivery == WebTranslationDelivery.HOST_INJECTION) injectRuntime()
-        pushTranslations("pageFinished")
+        if (delivery == WebTranslationDelivery.HOST_INJECTION) {
+            val generation = pageGeneration
+            injectRuntime(generation) {
+                runtimeReadyGeneration = generation
+                pushTranslations("pageFinished")
+            }
+        } else {
+            pushTranslations("pageFinished")
+        }
     }
 
     fun destroy() {
@@ -77,12 +89,29 @@ class WebTranslationSession(
         mainHandler.removeCallbacksAndMessages(null)
     }
 
-    private fun injectRuntime() {
+    private fun injectRuntime(generation: Int, onReady: (() -> Unit)? = null) {
         val js = runtimeJs ?: return
-        mainHandler.post { if (!destroyed.get()) evaluateJs(js, null) }
+        mainHandler.post {
+            if (destroyed.get() || generation != pageGeneration) return@post
+            val script = if (onReady == null) js else
+                "$js\n;typeof window.__TRS_SET_TRANSLATIONS__ === 'function'"
+            val callback = onReady?.let { ready ->
+                ValueCallback<String> { result ->
+                    if (!destroyed.get() && generation == pageGeneration) {
+                        if (result?.trim() == "true") {
+                            ready()
+                        } else {
+                            Log.w(WEB_TRANSLATION_SESSION_TAG, "runtime injection did not expose translation setter")
+                        }
+                    }
+                }
+            }
+            evaluateJs(script, callback)
+        }
     }
 
     private fun pushTranslations(reason: String) {
+        if (delivery == WebTranslationDelivery.HOST_INJECTION && runtimeReadyGeneration != pageGeneration) return
         val text = mapText ?: return
         val callback = ValueCallback<String> { result -> logAppliedResult(reason, result) }
         val setterJs = when (delivery) {

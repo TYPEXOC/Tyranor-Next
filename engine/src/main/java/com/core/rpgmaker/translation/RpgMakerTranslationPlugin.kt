@@ -25,6 +25,7 @@ internal object RpgMakerTranslationPlugin {
     )
 
     private data class ScriptTag(val start: Int, val src: String?, val path: String?, val asyncOrDefer: Boolean)
+    private data class HtmlInspection(val scripts: List<ScriptTag>, val baseHref: String?)
 
     private val HTML_TAG_START_REGEX = Regex("""<(/?)([a-z][a-z0-9:-]*)\b""", RegexOption.IGNORE_CASE)
     private val JAVASCRIPT_MIME_TYPES = setOf(
@@ -159,7 +160,11 @@ internal object RpgMakerTranslationPlugin {
     """.trimIndent()
 
     private fun inspectBootstrap(html: String): BootstrapInspection {
-        val scripts = findExecutableScriptTags(html)
+        val document = inspectHtml(html)
+        if (document.baseHref != null && !isRootPreservingBaseHref(document.baseHref)) {
+            return BootstrapInspection(false, "base href changes relative script paths")
+        }
+        val scripts = document.scripts
         if (scripts.any { looksLikePluginListPath(it.src) && !isStandardPath(it.path, PLUGIN_LIST_PATH) }) {
             return BootstrapInspection(false, "plugin list is referenced through a non-standard URL")
         }
@@ -196,10 +201,12 @@ internal object RpgMakerTranslationPlugin {
      * A regex over the whole document also sees strings such as `'<script src="js/plugins.js">'`
      * inside inline JavaScript and can incorrectly conclude that the browser loads that script.
      */
-    private fun findExecutableScriptTags(html: String): List<ScriptTag> {
+    private fun inspectHtml(html: String): HtmlInspection {
         val scripts = mutableListOf<ScriptTag>()
         var templateDepth = 0
         var cursor = 0
+        var baseHref: String? = null
+        var foundBaseHref = false
 
         while (cursor < html.length) {
             val tagStart = html.indexOf('<', cursor)
@@ -239,6 +246,12 @@ internal object RpgMakerTranslationPlugin {
                         asyncOrDefer = "async" in attributes || "defer" in attributes || isModule,
                     )
                 }
+            } else if (tagName == "base" && !isClosing && templateDepth == 0 && !foundBaseHref) {
+                val attributes = parseAttributes(tag, tagMatch.range.last + 1)
+                if ("href" in attributes) {
+                    baseHref = attributes.getValue("href")
+                    foundBaseHref = true
+                }
             }
 
             if (!isClosing && tagName in RAW_TEXT_ELEMENTS) {
@@ -248,8 +261,12 @@ internal object RpgMakerTranslationPlugin {
                 cursor = tagEnd + 1
             }
         }
-        return scripts
+        return HtmlInspection(scripts, baseHref)
     }
+
+    /** Only accept base URLs that preserve the server-root paths used by the virtual resources. */
+    private fun isRootPreservingBaseHref(href: String): Boolean =
+        href.trim() in setOf("", "/", "./")
 
     /** Returns the first `>` outside quoted attribute values, or -1 for a malformed tag. */
     private fun findTagEnd(html: String, start: Int): Int {

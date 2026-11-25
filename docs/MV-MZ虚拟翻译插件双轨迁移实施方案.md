@@ -39,9 +39,9 @@ MV/MZ 默认由 RPG Maker 的 `PluginManager` 加载 TYN 提供的翻译脚本�
 
 1. App 启动 MV/MZ 游戏时创建已选 map 会话 URI，并传递 `virtualPlugin` 或手动选择的 `directInjection`。
 2. v0 游戏由 `TyranoActivity` 承载；TynMV/TynMZ 的 v1/v2 路线由 `RpgMakerActivity` 承载。两个 Web 宿主共用 `WebTranslationSession` 和 `TranslationMapSubscription`。
-3. 虚拟模式检查标准 `js/plugins.js` 是否存在、是否暴露 `$plugins`，并检查同名脚本/插件冲突。ASAR 游戏通过归档读取执行相同检查。
+3. 虚拟模式检查标准入口和插件清单路径、脚本加载顺序及同名脚本/插件冲突，并拒绝会改变相对脚本路径的非根 `<base href>`。注册脚本会在 `$plugins` 缺失或为 `null` 时初始化空数组。ASAR 游戏通过归档读取执行相同检查。
 4. 通过预检后，宿主仅对本地服务器响应追加插件登记；`js/plugins/TyranorNextTranslation.js` 的响应内容来自 APK 内 `__translation_runtime.js`。游戏 `PluginManager` 按其正常插件加载路径执行该脚本。
-5. 页面完成和译表变化时，宿主把 map 写入页面 pending queue；运行脚本由插件管理器加载后消费最新 map。直接注入模式继续由宿主执行运行时脚本，再使用原 setter 应用译表。
+5. 虚拟插件模式下，页面完成和译表变化时，宿主把 map 写入页面 pending queue；运行脚本由插件管理器加载后消费最新 map。直接注入模式等运行时脚本执行并确认 setter 就绪后，再由宿主推送最新 map。
 
 插件登记只改变本次会话的 HTTP 响应；原始 `plugins.js`、游戏插件目录与其它游戏文件保持不变。MZ 已有核心脚本追加逻辑与翻译插件登记分开维护。
 

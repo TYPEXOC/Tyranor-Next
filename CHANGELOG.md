@@ -4,6 +4,7 @@
 
 - 将内置 Web 翻译拆成共用译表核心与按宿主路径选择的适配器：MV/MZ 主宿主和 TyranoActivity 承载的 MV/MZ v0 共用 RPG Maker 策略及钩子。共用 Web 会话继续负责页面生命周期和译表更新；真正的 Tyrano 游戏暂不支持翻译。
 - 内置 Web 宿主仅在收到有效的已选译表 URI 时创建翻译会话；MV/MZ 没有译表选择时不再尝试注册虚拟翻译插件或加载空转运行时。
+- 修复宿主注入模式中译表可能先于运行时推送的问题；虚拟插件预检拒绝会改变相对脚本路径的非根 `<base href>`，避免虚拟资源路径与浏览器请求路径不一致。
 - 单游戏译表选择字段改名为 `translation_candidate_id`。
 - 修复 Android 10 从系统「下载」入口添加的本地游戏启动时无法解析目录的问题。已有游戏记录可直接重试；Android 8–10 缺少共享存储读写权限时，会引导到系统的应用权限设置（[#209](https://github.com/Weiss-UltimateSavior/Tyranor-Next/issues/209)）。
 
