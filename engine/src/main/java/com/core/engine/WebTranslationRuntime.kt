@@ -6,12 +6,10 @@ object WebTranslationRuntime {
     /** Shared translation map/runtime core in the engine assets root. */
     const val RUNTIME_ASSET = "__translation_runtime.js"
     const val RPG_MAKER_HOOKS_ASSET = "__translation_runtime_rpgmaker.js"
-    const val TYRANO_HOOKS_ASSET = "__translation_runtime_tyrano.js"
 
     const val ENGINE_HOOKS_MARKER = "/*__TRS_ENGINE_HOOKS__*/"
 
     val RPG_MAKER_ASSETS = listOf(RUNTIME_ASSET, RPG_MAKER_HOOKS_ASSET)
-    val TYRANO_ASSETS = listOf(RUNTIME_ASSET, TYRANO_HOOKS_ASSET)
     val GENERIC_WEB_ASSETS = listOf(RUNTIME_ASSET)
 
     /** Combine the shared core with exactly one engine's hooks for this Web session. */

@@ -123,8 +123,6 @@ object EngineLauncher {
     private const val TAG = "EngineLauncher"
     // Manual MV/MZ translation loader selection. Change to DIRECT only for intentional comparison.
     private const val RPG_TRANSLATION_BOOTSTRAP_MODE = LaunchContract.RPG_TRANSLATION_BOOTSTRAP_VIRTUAL_PLUGIN
-    // Manual actual-Tyrano loader selection. Keep independent from MV/MZ and MVMZ-hosted-Tyrano paths.
-    private const val TYRANO_TRANSLATION_BOOTSTRAP_MODE = LaunchContract.TYRANO_TRANSLATION_BOOTSTRAP_VIRTUAL_PLUGIN
     private const val KR_LEGACY_PATCH_MARKER = "// TYRANOR_NEXT_KRKR_LEGACY_PATCH_V1"
     private const val KR_FBF_STEAM_STUB_MARKER = "// TYRANOR_NEXT_FBF_STEAM_STUB_V1"
 
@@ -2308,9 +2306,6 @@ object EngineLauncher {
             }
             if (rpgSession && translationMapUri != null) {
                 putExtra(LaunchContract.RPG_TRANSLATION_BOOTSTRAP_MODE, RPG_TRANSLATION_BOOTSTRAP_MODE)
-            }
-            if (game.engine == EngineType.TYRANO && translationMapUri != null) {
-                putExtra(LaunchContract.TYRANO_TRANSLATION_BOOTSTRAP_MODE, TYRANO_TRANSLATION_BOOTSTRAP_MODE)
             }
             if (useRpgMakerRuntime) {
                 rpgMakerVersion?.let { putExtra(LaunchContract.RPG_MAKER_VERSION, it) }

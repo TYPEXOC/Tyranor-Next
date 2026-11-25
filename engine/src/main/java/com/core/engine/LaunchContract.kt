@@ -120,10 +120,6 @@ object LaunchContract {
     const val RPG_TRANSLATION_BOOTSTRAP_MODE = "rpgTranslationBootstrapMode"
     const val RPG_TRANSLATION_BOOTSTRAP_DIRECT = "directInjection"
     const val RPG_TRANSLATION_BOOTSTRAP_VIRTUAL_PLUGIN = "virtualPlugin"
-    /** Explicit delivery mode for actual Tyrano games hosted by TyranoActivity. */
-    const val TYRANO_TRANSLATION_BOOTSTRAP_MODE = "tyranoTranslationBootstrapMode"
-    const val TYRANO_TRANSLATION_BOOTSTRAP_DIRECT = "directInjection"
-    const val TYRANO_TRANSLATION_BOOTSTRAP_VIRTUAL_PLUGIN = "virtualPlugin"
 
     // ---------- Siglus ----------
 

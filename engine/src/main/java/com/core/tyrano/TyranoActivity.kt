@@ -142,7 +142,6 @@ class TyranoActivity : Activity() {
         intent.getStringExtra(LaunchContract.RPG_TRANSLATION_MAP_URI),
         intent.getStringExtra(LaunchContract.RPG_MAKER_MOD_GAME_ID),
         intent.getStringExtra(LaunchContract.RPG_TRANSLATION_BOOTSTRAP_MODE),
-        intent.getStringExtra(LaunchContract.TYRANO_TRANSLATION_BOOTSTRAP_MODE),
         intent.getIntExtra(LaunchContract.WEB_SHELL_PORT, 0).toString(),
     ).joinToString("\u0000")
 
@@ -365,13 +364,9 @@ class TyranoActivity : Activity() {
         val hasAsarIgnoringCase: ((String) -> Boolean)? = archive?.let { current -> { path: String -> current.hasIgnoringCase(path) } }
         val engine = when (webGameType) {
             WebGameType.RPG_MV, WebGameType.RPG_MZ -> WebTranslationEngine.RPG_MAKER_TYRANO_HOST
-            WebGameType.TYRANO -> WebTranslationEngine.TYRANO
-            WebGameType.VN, WebGameType.WEB_OTHER -> WebTranslationEngine.GENERIC_WEB
+            WebGameType.TYRANO, WebGameType.VN, WebGameType.WEB_OTHER -> WebTranslationEngine.GENERIC_WEB
         }
         val requestedDelivery = when {
-            webGameType == WebGameType.TYRANO &&
-                intent.getStringExtra(LaunchContract.TYRANO_TRANSLATION_BOOTSTRAP_MODE) ==
-                LaunchContract.TYRANO_TRANSLATION_BOOTSTRAP_VIRTUAL_PLUGIN -> WebTranslationDelivery.VIRTUAL_PLUGIN
             (webGameType == WebGameType.RPG_MV || webGameType == WebGameType.RPG_MZ) &&
                 intent.getStringExtra(LaunchContract.RPG_TRANSLATION_BOOTSTRAP_MODE) ==
                 LaunchContract.RPG_TRANSLATION_BOOTSTRAP_VIRTUAL_PLUGIN -> WebTranslationDelivery.VIRTUAL_PLUGIN

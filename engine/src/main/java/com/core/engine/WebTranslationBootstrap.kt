@@ -3,14 +3,12 @@ package com.core.engine
 import android.util.Log
 import com.core.rpgmaker.translation.RpgMakerWebTranslationAdapter
 import com.core.rpgmaker.translation.RpgMakerTyranoHostTranslationAdapter
-import com.core.tyrano.translation.TyranoWebTranslationAdapter
 import java.io.File
 
 /** Built-in Web engine families choose their own translation loading adapter. */
 internal enum class WebTranslationEngine {
     RPG_MAKER,
     RPG_MAKER_TYRANO_HOST,
-    TYRANO,
     GENERIC_WEB,
 }
 
@@ -46,13 +44,11 @@ internal interface WebTranslationEngineAdapter {
 internal object WebTranslationAdapterRegistry {
     private val rpgMakerAdapter: WebTranslationEngineAdapter = RpgMakerWebTranslationAdapter
     private val rpgMakerTyranoHostAdapter: WebTranslationEngineAdapter = RpgMakerTyranoHostTranslationAdapter
-    private val tyranoAdapter: WebTranslationEngineAdapter = TyranoWebTranslationAdapter
     private val genericWebAdapter: WebTranslationEngineAdapter = GenericWebTranslationAdapter
 
     fun adapterFor(engine: WebTranslationEngine): WebTranslationEngineAdapter = when (engine) {
         WebTranslationEngine.RPG_MAKER -> rpgMakerAdapter
         WebTranslationEngine.RPG_MAKER_TYRANO_HOST -> rpgMakerTyranoHostAdapter
-        WebTranslationEngine.TYRANO -> tyranoAdapter
         WebTranslationEngine.GENERIC_WEB -> genericWebAdapter
     }
 }
