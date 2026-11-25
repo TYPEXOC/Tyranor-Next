@@ -7,8 +7,7 @@ window.__TRS_WRITEBACK__ = true;
   var root = window;
   if (root.__TRS_RUNTIME__) return;
   if (typeof root.__TRS_WRITEBACK__ === 'undefined') root.__TRS_WRITEBACK__ = true;
-  var originalNodes = [];
-  var originalValues = [];
+  var originalTextRecords = new WeakMap();
   var patched = [];
   var seen = {};
   var map = {};
@@ -394,20 +393,24 @@ window.__TRS_WRITEBACK__ = true;
   /*__TRS_ENGINE_HOOKS__*/
 
   function originalTextFor(node) {
-    var index = originalNodes.indexOf(node);
-    if (index === -1) {
-      originalNodes.push(node);
-      originalValues.push(node.nodeValue);
-      return node.nodeValue;
+    var record = originalTextRecords.get(node);
+    if (!record) {
+      record = {source: node.nodeValue, lastOutput: node.nodeValue};
+      originalTextRecords.set(node, record);
+    } else if (node.nodeValue !== record.lastOutput) {
+      // The game reused this text node for new content; translate from that new source.
+      record.source = node.nodeValue;
     }
-    return originalValues[index];
+    return record;
   }
 
   function visitNode(node) {
     if (!node) return;
     if (node.nodeType === 3) {
-      var source = originalTextFor(node);
-      var translated = tr(source, 'dom-text');
+      var record = originalTextFor(node);
+      var translated = tr(record.source, 'dom-text');
+      // Set before writing so the observer can distinguish our output from game text.
+      record.lastOutput = translated;
       if (node.nodeValue !== translated) {
         node.nodeValue = translated;
       }
