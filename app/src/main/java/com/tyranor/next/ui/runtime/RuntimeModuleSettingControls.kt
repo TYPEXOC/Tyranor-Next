@@ -83,7 +83,11 @@ private fun RuntimeSettingsGroupCard(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text(spec.title, style = MaterialTheme.typography.titleMedium, color = TextColor)
+            Text(
+                spec.title,
+                style = spec.textStyle.toUiTextStyle() ?: MaterialTheme.typography.titleMedium,
+                color = TextColor,
+            )
             spec.description?.let {
                 Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -110,6 +114,7 @@ private fun RuntimeSettingContent(
     onEdit: () -> Unit,
     onPickPath: () -> Unit,
 ) {
+    val titleTextStyle = item.textStyle.toUiTextStyle()
     Column(Modifier.fillMaxWidth()) {
         when (item.type) {
             RuntimeModuleSettingItemSpec.Type.BOOLEAN -> SwitchPreference(
@@ -118,6 +123,7 @@ private fun RuntimeSettingContent(
                 title = item.title,
                 summary = item.description,
                 enabled = enabled,
+                titleTextStyle = titleTextStyle,
             )
 
             RuntimeModuleSettingItemSpec.Type.ENUM -> {
@@ -128,6 +134,7 @@ private fun RuntimeSettingContent(
                     title = item.title,
                     summary = item.description,
                     enabled = enabled,
+                    titleTextStyle = titleTextStyle,
                     onSelectedIndexChange = { index -> item.options.getOrNull(index)?.let { onChange(it.value) } },
                 )
             }
@@ -135,6 +142,7 @@ private fun RuntimeSettingContent(
             RuntimeModuleSettingItemSpec.Type.TEXT,
             RuntimeModuleSettingItemSpec.Type.INTEGER -> com.tyranor.next.ui.common.AppNavItem(
                 title = item.title,
+                titleTextStyle = titleTextStyle,
                 summary = value.toString(),
                 drawSurface = false,
                 showLeadingIcon = false,
@@ -158,6 +166,7 @@ private fun RuntimeSettingContent(
                 }
                 com.tyranor.next.ui.common.AppNavItem(
                     title = item.title,
+                    titleTextStyle = titleTextStyle,
                     summary = summary,
                     drawSurface = false,
                     showLeadingIcon = false,
@@ -174,7 +183,12 @@ private fun RuntimeSettingContent(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(item.title, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge, color = TextColor)
+                    Text(
+                        item.title,
+                        modifier = Modifier.weight(1f),
+                        style = titleTextStyle ?: MaterialTheme.typography.bodyLarge,
+                        color = TextColor,
+                    )
                     Text(formatSliderValue(current), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 MotionSlider(

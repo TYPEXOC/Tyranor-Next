@@ -5,6 +5,7 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
@@ -17,6 +18,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text as MaterialText
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -38,6 +41,7 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.tyranor.next.ui.common.motion.BlurTextWith
@@ -89,6 +93,7 @@ fun OverlayDropdownPreference(
     onSelectedIndexChange: ((Int) -> Unit)? = null,
     /** 应用锁生效时的强制清理路径；默认走内部收起回调。带业务守卫的调用方可传真正清状态的路径。 */
     onLockDismiss: (() -> Unit)? = null,
+    titleTextStyle: TextStyle? = null,
 ) {
     val entry = remember(items, selectedIndex, onSelectedIndexChange) {
         DropdownEntry(
@@ -119,6 +124,7 @@ fun OverlayDropdownPreference(
         collapseOnSelection = true,
         onExpandedChange = onExpandedChange,
         onLockDismiss = onLockDismiss,
+        titleTextStyle = titleTextStyle,
     )
 }
 
@@ -143,6 +149,7 @@ fun OverlayDropdownPreference(
     onExpandedChange: ((Boolean) -> Unit)? = null,
     /** 应用锁生效时的强制清理路径；默认走内部收起回调。带业务守卫的调用方可传真正清状态的路径。 */
     onLockDismiss: (() -> Unit)? = null,
+    titleTextStyle: TextStyle? = null,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val expanded = remember { mutableStateOf(false) }
@@ -212,70 +219,102 @@ fun OverlayDropdownPreference(
         }
     }
 
-    BasicComponent(
-        modifier = modifier.withRowPressSquish(enabled = actualEnabled)
-            .onGloballyPositioned { slide.rowCoords = it }
-            .pointerInput(slide, longPressMillis) {
-                awaitEachGesture {
-                    val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-                    if (!currentEnabled || expanded.value || down.isConsumed) return@awaitEachGesture
-                    if (!awaitDropdownHold(down, longPressMillis)) return@awaitEachGesture
-                    val session = slide.beginGesture(currentEntry.items.indexOfFirst { it.selected })
-                    setExpanded(true)
-                    try {
-                        trackDropdownHold(down.id, { slide.rowCoords }, slide, session, currentPreview, currentHit, currentPick)
-                    } finally {
-                        slide.cancelGesture(session)
-                    }
-                }
-            },
-        interactionSource = interactionSource,
-        insideMargin = insideMargin,
-        title = title,
-        titleColor = titleColor,
-        summary = summary,
-        summaryColor = summaryColor,
-        startAction = startAction,
-        bottomAction = bottomAction,
-        onClick = { if (currentEnabled) setExpanded(!expanded.value) },
-        role = Role.DropdownList,
-        holdDownState = holdDown.value,
-        enabled = actualEnabled,
-        endActions = {
-            if (showValue && entry.items.isNotEmpty()) {
-                val text = entry.items.firstOrNull { it.selected }?.text
-                if (!text.isNullOrEmpty()) {
-                    BlurTextWith(
-                        text = text,
-                        modifier = Modifier.padding(end = 8.dp).align(Alignment.CenterVertically).weight(1f, fill = false),
-                        animateOnLocaleChange = true,
-                        partial = false,
-                    ) { value, valueModifier ->
-                        Text(value, modifier = valueModifier, fontSize = MiuixTheme.textStyles.body2.fontSize,
-                            color = actionColor, textAlign = TextAlign.End)
-                    }
+    val rowModifier = modifier.withRowPressSquish(enabled = actualEnabled)
+        .onGloballyPositioned { slide.rowCoords = it }
+        .pointerInput(slide, longPressMillis) {
+            awaitEachGesture {
+                val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                if (!currentEnabled || expanded.value || down.isConsumed) return@awaitEachGesture
+                if (!awaitDropdownHold(down, longPressMillis)) return@awaitEachGesture
+                val session = slide.beginGesture(currentEntry.items.indexOfFirst { it.selected })
+                setExpanded(true)
+                try {
+                    trackDropdownHold(down.id, { slide.rowCoords }, slide, session, currentPreview, currentHit, currentPick)
+                } finally {
+                    slide.cancelGesture(session)
                 }
             }
-            DropdownArrowEndAction(actionColor = actionColor)
-            if (entry.items.isNotEmpty()) key(slide) {
-                HoldSelectDropdownPopup(
-                    entry = entry,
-                    enabled = actualEnabled,
-                    show = expanded.value,
-                    slide = slide,
-                    onPreview = preview,
-                    onHit = hit,
-                    onPick = pick,
-                    onDismiss = { slide.resetGesture(); setExpanded(false) },
-                    onDismissFinished = { holdDown.value = false; slide.reset() },
-                    maxHeight = maxHeight,
-                    dropdownColors = dropdownColors,
-                    renderInRootScaffold = renderInRootScaffold,
-                    onLockDismiss = onLockDismiss,
+        }
+    val rowEndActions: @Composable RowScope.() -> Unit = {
+        if (showValue && entry.items.isNotEmpty()) {
+            val text = entry.items.firstOrNull { it.selected }?.text
+            if (!text.isNullOrEmpty()) {
+                BlurTextWith(
+                    text = text,
+                    modifier = Modifier.padding(end = 8.dp).align(Alignment.CenterVertically).weight(1f, fill = false),
+                    animateOnLocaleChange = true,
+                    partial = false,
+                ) { value, valueModifier ->
+                    Text(value, modifier = valueModifier, fontSize = MiuixTheme.textStyles.body2.fontSize,
+                        color = actionColor, textAlign = TextAlign.End)
+                }
+            }
+        }
+        DropdownArrowEndAction(actionColor = actionColor)
+        if (entry.items.isNotEmpty()) key(slide) {
+            HoldSelectDropdownPopup(
+                entry = entry,
+                enabled = actualEnabled,
+                show = expanded.value,
+                slide = slide,
+                onPreview = preview,
+                onHit = hit,
+                onPick = pick,
+                onDismiss = { slide.resetGesture(); setExpanded(false) },
+                onDismissFinished = { holdDown.value = false; slide.reset() },
+                maxHeight = maxHeight,
+                dropdownColors = dropdownColors,
+                renderInRootScaffold = renderInRootScaffold,
+                onLockDismiss = onLockDismiss,
+            )
+        }
+    }
+    if (titleTextStyle == null) {
+        BasicComponent(
+            modifier = rowModifier,
+            interactionSource = interactionSource,
+            insideMargin = insideMargin,
+            title = title,
+            titleColor = titleColor,
+            summary = summary,
+            summaryColor = summaryColor,
+            startAction = startAction,
+            bottomAction = bottomAction,
+            onClick = { if (currentEnabled) setExpanded(!expanded.value) },
+            role = Role.DropdownList,
+            holdDownState = holdDown.value,
+            enabled = actualEnabled,
+            endActions = rowEndActions,
+        )
+    } else {
+        BasicComponent(
+            modifier = rowModifier,
+            interactionSource = interactionSource,
+            insideMargin = insideMargin,
+            titleColor = titleColor,
+            summaryColor = summaryColor,
+            startAction = startAction,
+            bottomAction = bottomAction,
+            onClick = { if (currentEnabled) setExpanded(!expanded.value) },
+            role = Role.DropdownList,
+            holdDownState = holdDown.value,
+            enabled = actualEnabled,
+            endActions = rowEndActions,
+        ) {
+            MaterialText(
+                text = title,
+                style = titleTextStyle,
+                color = if (actualEnabled) titleColor.color else titleColor.disabledColor,
+            )
+            summary?.let {
+                MaterialText(
+                    text = it,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (actualEnabled) summaryColor.color else summaryColor.disabledColor,
                 )
             }
-        },
-    )
+        }
+    }
 }
 
 /** Keep the original popup host, including the independent Window used by a sheet or dialog/book. */

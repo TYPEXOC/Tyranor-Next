@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -94,6 +95,7 @@ fun AppNavItem(
     indication: Indication? = LocalIndication.current,
     drawSurface: Boolean = true,
     onClick: (() -> Unit)? = null,
+    titleTextStyle: TextStyle? = null,
 ) {
     val enabled = onClick != null
     val targetContentAlpha = if (enabled) 1f else 0.4f
@@ -148,7 +150,7 @@ fun AppNavItem(
         ) {
             Text(
                 title,
-                style = MaterialTheme.typography.bodyMedium,
+                style = titleTextStyle ?: MaterialTheme.typography.bodyMedium,
                 color = (titleColor ?: TextColor).copy(alpha = contentAlpha),
                 maxLines = titleMaxLines,
                 overflow = TextOverflow.Ellipsis,
